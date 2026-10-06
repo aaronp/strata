@@ -725,23 +725,24 @@ class Component extends DCLogic {
     this.onResize = () => this.forceUpdate(); window.addEventListener('resize', this.onResize);
     this.onPaste = this.onPaste.bind(this); window.addEventListener('paste', this.onPaste);
     this.onFocusWin = () => this.probeClip(); window.addEventListener('focus', this.onFocusWin);
+    this.onUnload = e => { if (DECK && !STATIC && this.isDirty()) { e.preventDefault(); e.returnValue = ''; } }; window.addEventListener('beforeunload', this.onUnload);
   }
   markSaved() { this._savedRefs = DECK_FIELDS.map(k => this.state[k]); this.forceUpdate(); }
   isDirty() { const S = this.state; return !this._savedRefs || DECK_FIELDS.some((k, i) => S[k] !== this._savedRefs[i]); }
   async loadDeck() {
     try {
       const r = await fetch(DECK_BASE + 'deck.json', { cache: 'no-store' });
-      if (r.status === 404 && !STATIC) return;                 // new deck: keep seed(), stays dirty until first save
+      if (r.status === 404 && !STATIC) { this._loaded = true; return; }   // new deck: keep seed(), stays dirty until first save
       if (!r.ok) throw new Error('HTTP ' + r.status);
       const d = await r.json(); if (!d.nodes || !d.nodes.ROOT) throw new Error('not a deck');
       const pick = Object.fromEntries(DECK_FIELDS.filter(k => k in d).map(k => [k, d[k]]));
       this._lastNodes = d.nodes;                               // don't record the load as an undo step
       this.setState({ ...pick, images: mapImgs(d.images, absUrl), customBg: d.customBg ? absUrl(d.customBg) : null,
-        cur: d.nodes.ROOT.children[0], prev: null, phase: 'idle' }, () => this.markSaved());
+        cur: d.nodes.ROOT.children[0], prev: null, phase: 'idle' }, () => { this._loaded = true; this.markSaved(); });
     } catch (e) { this.setState({ saveMsg: 'Could not load deck "' + DECK + '": ' + e.message }); }
   }
   async save() {
-    if (!DECK || STATIC || this.state.saving) return;
+    if (!DECK || STATIC || this.state.saving || !this._loaded) return;   // never overwrite a deck we failed (or haven't finished) loading
     const S = this.state; const body = Object.fromEntries(DECK_FIELDS.map(k => [k, S[k]]));
     body.images = mapImgs(S.images, relUrl); body.customBg = S.customBg ? relUrl(S.customBg) : null;
     this.setState({ saving: true, saveMsg: null });
@@ -775,7 +776,7 @@ class Component extends DCLogic {
     } catch (e) { this.setState({ clipMsg: 'Clipboard blocked here: select the layer and press Ctrl/⌘+V' }); }
     clearTimeout(this.cmT); this.cmT = setTimeout(() => this.setState({ clipMsg: null }), 3500);
   }
-  componentWillUnmount() { window.removeEventListener('paste', this.onPaste); window.removeEventListener('focus', this.onFocusWin); window.removeEventListener('keydown', this.onKey); window.removeEventListener('resize', this.onResize); clearTimeout(this.t); }
+  componentWillUnmount() { window.removeEventListener('beforeunload', this.onUnload); window.removeEventListener('paste', this.onPaste); window.removeEventListener('focus', this.onFocusWin); window.removeEventListener('keydown', this.onKey); window.removeEventListener('resize', this.onResize); clearTimeout(this.t); }
   componentDidUpdate() {
     this.histTrack();
     const S = this.state;

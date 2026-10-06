@@ -442,3 +442,13 @@ test("tree template has collapse toggles, drag start, and the drop marker", asyn
   expect(html).toContain('<sc-if value="{{ n.hasKids }}">');
   expect(html).toContain('<sc-if value="{{ tdMark.show }}">');
 });
+
+test("pressing a tree node blocks the browser's own text-selection drag (which cancels pointer events)", async () => {
+  const c = await treeDeck();
+  c.treeRef.current = { scrollLeft: 0, scrollTop: 0, getBoundingClientRect: () => ({ left: 0, top: 0 }) };
+  let prevented = false;
+  c.startTreeDrag({ clientX: 0, clientY: 0, button: 0, preventDefault() { prevented = true; } }, "a");
+  expect(prevented).toBe(true);
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  expect(html).toMatch(/top:\{\{ n\.y \}\}px;width:76px;opacity:\{\{ n\.opacity \}\};user-select:none/);
+});

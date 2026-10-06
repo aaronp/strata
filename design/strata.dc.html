@@ -66,7 +66,7 @@ input,textarea,button{font:inherit;color:inherit}
               </sc-for>
             </svg>
             <sc-for list="{{ treeNodes }}" as="n" hint-placeholder-count="6">
-              <div style="position:absolute;left:{{ n.x }}px;top:{{ n.y }}px;width:76px;opacity:{{ n.opacity }}">
+              <div style="position:absolute;left:{{ n.x }}px;top:{{ n.y }}px;width:76px;opacity:{{ n.opacity }};user-select:none">
                 <div onPointerDown="{{ n.onDragStart }}" onClick="{{ n.onClick }}" onDoubleClick="{{ n.onRename }}" title="{{ n.full }}" style="position:relative;width:76px;height:43px;border-radius:5px;overflow:hidden;background:{{ base }};cursor:pointer;outline:{{ n.outline }};outline-offset:1px;box-shadow:0 1px 3px rgba(0,0,0,.18)">
                   <div style="position:absolute;left:0;top:0;width:{{ cam.w }}%;height:{{ cam.h }}%;transform:{{ n.cam }}">
                     <sc-for list="{{ tiles }}" as="tl" hint-placeholder-count="0">
@@ -1043,6 +1043,7 @@ class Component extends DCLogic {
   }
   startTreeDrag(ev, id) {
     if (ev.button || this.state.nodes[id]._inc) return;
+    ev.preventDefault();   // else the browser starts a text-selection drag, which cancels our pointer events
     const el = this.treeRef.current; if (!el) return;
     const at = e => { const r = el.getBoundingClientRect(); return { x: e.clientX - r.left + el.scrollLeft, y: e.clientY - r.top + el.scrollTop }; };
     let dragging = false; this._treeDragCancel = false;

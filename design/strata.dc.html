@@ -1051,7 +1051,11 @@ class Component extends DCLogic {
     const move = e => {
       if (this._treeDragCancel) return;
       if (!dragging && Math.abs(e.clientX - ev.clientX) + Math.abs(e.clientY - ev.clientY) < 5) return; dragging = true;
-      if (inc) { up(); clearTimeout(this._nt); this.setState({ note: 'Slides included from "' + inc + '" can\'t be moved here: open it to rearrange' }); this._nt = setTimeout(() => this.setState({ note: null }), 3500); return; }
+      if (inc) {   // name the slide that holds the include: dragging it moves the whole included block
+        const D = this.derive(), N = this.state.nodes; let h = D.parent[id]; while (h && N[h] && N[h]._inc) h = D.parent[h];
+        up(); clearTimeout(this._nt); this.setState({ note: 'Slides included from "' + inc + '" can\'t be moved one by one: drag "' + ((N[h] && N[h].title) || 'the including slide') + '" to move the whole block, or open "' + inc + '" to rearrange' });
+        this._nt = setTimeout(() => this.setState({ note: null }), 6000); return;
+      }
       const p = at(e); this.setState({ treeDrag: { id, x: p.x, y: p.y, drop: this.treeDropAt(p.x, p.y, id) } });
     };
     const up = () => {

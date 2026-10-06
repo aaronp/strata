@@ -462,5 +462,6 @@ test("trying to drag an included slide explains why instead of silently doing no
   expect(c.state.note ?? null).toBeNull();                     // a plain press/click says nothing
   listeners.pointermove({ clientX: 40, clientY: 0 });
   expect(c.state.note).toContain('"other"');
+  expect(c.state.note).toContain('drag "Inc"');                // names the slide that holds the include
   expect(c.state.treeDrag ?? null).toBeNull();
 });

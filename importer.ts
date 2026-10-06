@@ -6,6 +6,7 @@ const text = (id: string, geo: object, txt: string, extra: object = {}) => ({
   id, type: "text", text: txt, font: "grot", size: 32, weight: 400, color: null, align: "left", valign: "top",
   lh: 1.3, bullets: "none", gap: 0.15, rot: 0, opacity: 1, ...geo, ...extra,
 });
+const CHIP_BOX = { bg: "#ffffff", bgOpacity: 0.75, blur: 0, border: 0, borderColor: "#ffffff", radius: 12, pad: 12 };   // link chips draw their own container
 export const bodySize = (t: string) => Math.max(22, Math.min(40, Math.round(40 - (t.length - 120) / 20)));
 
 export function layersFor(s: Section): any[] {
@@ -14,10 +15,8 @@ export function layersFor(s: Section): any[] {
     { size: bodySize(s.text), lh: 1.35, bullets: s.bulletsOnly ? "disc" : "none", gap: 0.35 }));
   const step = Math.min(11, 62 / Math.max(1, s.links.length));
   s.links.forEach((k, n) => {
-    const geo = { x: 66, y: 24 + n * step, w: 28, h: Math.min(9, step - 1.5) };
-    L.push({ id: `md-linkbg-${n}`, type: "shape", shape: "rect", fill: "rgba(255,255,255,0.75)", radius: 12, rot: 0, opacity: 1, ...geo });
-    L.push(text(`md-link-${n}`, { ...geo, x: 67, w: 26 }, k.label + " →",
-      { size: 22, weight: 600, color: "#15171c", valign: "middle", lh: 1.1, link: { type: "slide", id: k.target } }));
+    L.push(text(`md-link-${n}`, { x: 66, y: 24 + n * step, w: 28, h: Math.min(9, step - 1.5) }, k.label + " →",
+      { size: 22, weight: 600, color: "#15171c", valign: "middle", lh: 1.1, link: { type: "slide", id: k.target }, card: "custom", box: CHIP_BOX }));
   });
   s.sources.forEach((r, n) => L.push(text(`md-src-${n}`, { x: 6 + (n % 3) * 30, y: 89 - Math.floor(n / 3) * 6, w: 28, h: 5 }, r.text + " ↗",
     { font: "mono", size: 16, valign: "middle", lh: 1.2, link: { type: "url", url: r.url } })));
@@ -25,12 +24,13 @@ export function layersFor(s: Section): any[] {
 }
 
 // Markdown owns the set of md-* layers and their text/link/bullets; everything else is the builder's.
+// Generated style fields a layer doesn't have at all (e.g. a newer importer's chip container) are filled in, never overwritten.
 const CONTENT = ["text", "link", "bullets"];
 function mergeLayers(existing: any[], gen: any[]) {
   const byId = new Map(gen.map(g => [g.id, g]));
   const kept = existing.filter(l => !String(l.id).startsWith("md-") || byId.has(l.id)).map(l => {
     const g = byId.get(l.id); if (!g) return l;
-    const u = { ...l }; for (const k of CONTENT) { if (k in g) u[k] = g[k]; else delete u[k]; } return u;
+    const u = { ...g, ...l }; for (const k of CONTENT) { if (k in g) u[k] = g[k]; else delete u[k]; } return u;
   });
   const have = new Set(kept.map(l => l.id));
   return kept.concat(gen.filter(g => !have.has(g.id)));

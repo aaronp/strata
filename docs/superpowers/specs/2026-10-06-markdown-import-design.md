@@ -26,7 +26,7 @@ For each section, a node is created with `id = slug`, `title = heading text`, an
 |---|---|---|---|
 | `md-title` | text | heading text, size 64, weight 800 | x 6, y 6, w 88, h 14 |
 | `md-body` | text | paragraphs and plain list items, one per line; list items keep `bullets: 'disc'` only when the whole body is a list, otherwise prefixed `• ` | x 6, y 24, w links ? 56 : 88, h 60 |
-| `md-link-<n>` | text + `link: { kind: 'slide', id }` | `label →` | x 66, y 24 + n·11, w 28, h 9, size 26, filled chip look: a shape layer `md-linkbg-<n>` behind it |
+| `md-link-<n>` | text + `link: { type: 'slide', id }` | `label →` | x 66, y 24 + n·11, w 28, h 9, size 22; chip look via its own container (`card: 'custom'`, white 75%, radius 12, padding 12). Earlier imports used a separate `md-linkbg-<n>` shape, which re-import removes |
 | `md-src-<n>` | text + `link: { kind: 'url', url }` | `text ↗`, font mono, size 18 | x 6 + n·30, y 88, w 28, h 6 |
 
 The body font size shrinks with text length: `size = clamp(22, 40, round(40 − (chars − 120) / 20))`.

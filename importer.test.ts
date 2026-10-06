@@ -15,8 +15,8 @@ test("fresh import builds nodes, notes and md-* layers with links", () => {
   expect(d.nodes.a).toMatchObject({ id: "a", title: "A", children: ["b"] });
   expect(d.nodes.a.body).toContain("Hello there.");
   expect(d.nodes.a.frames.map((f: any) => f.id)).toEqual(["f1"]);
-  expect(d.nodes.a.frames[0].layers.map((l: any) => l.id)).toEqual(["md-title", "md-body", "md-linkbg-0", "md-link-0", "md-src-0"]);
-  expect(layer(d, "a", "md-link-0")).toMatchObject({ text: "To B →", link: { type: "slide", id: "b" } });
+  expect(d.nodes.a.frames[0].layers.map((l: any) => l.id)).toEqual(["md-title", "md-body", "md-link-0", "md-src-0"]);
+  expect(layer(d, "a", "md-link-0")).toMatchObject({ text: "To B →", link: { type: "slide", id: "b" }, card: "custom", box: { bg: "#ffffff", bgOpacity: 0.75 } });
   expect(layer(d, "a", "md-src-0")).toMatchObject({ text: "Src ↗", link: { type: "url", url: "https://s.com" } });
   expect(d.title).toBe("A");
 });
@@ -96,4 +96,23 @@ test("re-importing keeps layout edits made in deck.json", async () => {
   await Bun.write(join(root, "t.md"), "# A\nslug: a\n\nNew body.\n");
   await importFile(root, join(root, "t.md"), "talk");
   expect((await Bun.file(p).json()).nodes.a.frames[0].layers[1]).toMatchObject({ x: 42, text: "New body." });
+});
+
+test("re-importing an older deck drops chip rectangles and gives chips their container, keeping layout", () => {
+  const d = imp(null, md());
+  const f = d.nodes.a.frames[0];
+  const { card: _c, box: _b, ...oldChip } = { ...layer(d, "a", "md-link-0"), x: 67, w: 26 };
+  const old = { ...d, nodes: { ...d.nodes, a: { ...d.nodes.a, frames: [{ ...f, layers: [...f.layers.filter((l: any) => l.id !== "md-link-0"),
+    { id: "md-linkbg-0", type: "shape", x: 66, y: 24, w: 28, h: 9 }, oldChip] }] } } };
+  const d2 = imp(old, md());
+  expect(d2.nodes.a.frames[0].layers.map((l: any) => l.id)).not.toContain("md-linkbg-0");
+  expect(layer(d2, "a", "md-link-0")).toMatchObject({ x: 67, w: 26, card: "custom", box: { bg: "#ffffff" } });
+});
+
+test("re-import never overwrites a container the builder changed", () => {
+  const d = imp(null, md());
+  const chip = layer(d, "a", "md-link-0");
+  const edited = { ...d, nodes: { ...d.nodes, a: { ...d.nodes.a, frames: [{ ...d.nodes.a.frames[0], layers: d.nodes.a.frames[0].layers.map((l: any) =>
+    l.id === "md-link-0" ? { ...chip, card: "off", box: { ...chip.box, bg: "#1f6fb8" } } : l) }] } } };
+  expect(layer(imp(edited, md()), "a", "md-link-0")).toMatchObject({ card: "off", box: { bg: "#1f6fb8" } });
 });

@@ -477,3 +477,30 @@ test("every {{ name }} the app template uses is provided by renderVals", async (
   const onlyInTransView = new Set(["actRows", "allT", "closeTrans", "hasActRows", "noActRows", "previewTrans", "transLayerTitle", "transLeftLabel", "transRightLabel", "transTitle", "true"]);
   expect([...heads].filter(h => !(h in vals) && !onlyInTransView.has(h)).sort()).toEqual([]);
 });
+
+test("copy deck 'Replace this slide': the copied slides take its place, subtree and all; one undo step", async () => {
+  await deckBWithImage();
+  const c = await treeDeck();
+  await Bun.sleep(150);
+  await c.copyDeckHere("b", "b", "replace"); c.componentDidUpdate();
+  const [r0, r1] = c.state.nodes.ROOT.children;
+  expect(r0).toBe("a");
+  expect(c.state.nodes[r1].title).toBe("Bx");
+  expect(c.state.nodes.b).toBeUndefined();
+  expect(c.state.cur).toBe(r1);
+  await c.copyDeckHere("a1", "b", "replace"); c.componentDidUpdate();
+  const [x, a2] = c.state.nodes.a.children;
+  expect(c.state.nodes[x].title).toBe("Bx");
+  expect(a2).toBe("a2");
+  expect(c.state.nodes.a1).toBeUndefined();
+  expect(c.state.nodes.a1x).toBeUndefined();
+  await Bun.sleep(500);                                         // let the undo burst window close
+  c.undo(); c.componentDidUpdate();
+  expect(c.state.nodes.a.children).toEqual(["a1", "a2"]);
+  expect(c.state.nodes.a1x).toBeDefined();
+});
+
+test("Copy deck has an As children / Replace toggle", async () => {
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  expect(html).toContain('<sc-for list="{{ copyModes }}"');
+});

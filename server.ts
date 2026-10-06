@@ -1,6 +1,7 @@
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
+import { importMarkdown } from "./importer";
 
 export const SLUG = /^[a-z0-9-]+$/;
 export type DeckInfo = { slug: string; title: string };
@@ -24,7 +25,23 @@ const esc = (s: string) => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;
 
 export function indexHtml(decks: DeckInfo[], dev: boolean): string {
   const items = decks.map(d => `<li><a href="design/strata.dc.html?deck=${d.slug}">${esc(d.title)}</a> <code>${d.slug}</code></li>`).join("\n");
-  const form = dev ? `<form action="design/strata.dc.html"><input name="deck" required pattern="[a-z0-9-]+" placeholder="new-deck-slug"> <button>New deck</button></form>` : "";
+  const form = dev ? `<form action="design/strata.dc.html"><input name="deck" required pattern="[a-z0-9-]+" placeholder="new-deck-slug"> <button>New deck</button></form>
+<h2>Import markdown</h2>
+<form id="imp"><input type="file" name="md" accept=".md,text/markdown" required> <input name="slug" required pattern="[a-z0-9-]+" placeholder="deck-slug"> <button>Import</button></form>
+<pre id="imperr" style="color:#a8301d;white-space:pre-wrap"></pre>
+<script>
+const DECKS = ${JSON.stringify(decks.map(d => d.slug))}, f = document.getElementById("imp"), err = document.getElementById("imperr");
+f.md.onchange = () => { const n = (f.md.files[0] || {}).name || ""; f.slug.value = n.replace(/\\.md$/i, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, ""); };
+f.onsubmit = async e => {
+  e.preventDefault(); err.textContent = "";
+  const slug = f.slug.value;
+  if (DECKS.includes(slug) && !confirm('Update deck "' + slug + '" from this file? Layout edits are kept; slides not in the file are removed.')) return;
+  const r = await fetch("api/import/" + slug, { method: "POST", body: await f.md.files[0].text() });
+  const j = await r.json().catch(() => ({ errors: [{ line: 0, msg: "HTTP " + r.status }] }));
+  if (!r.ok) { err.textContent = j.errors.map(x => "line " + x.line + ": " + x.msg).join("\\n"); return; }
+  location.href = "design/strata.dc.html?deck=" + slug;
+};
+</script>` : "";
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Strata decks</title>
 <style>body{font:16px system-ui,sans-serif;background:#f2eee5;color:#1d1b17;max-width:640px;margin:48px auto;padding:0 16px}a{color:#d9432b}code{color:#6b6458;font-size:12px}li{margin:8px 0}</style></head>
 <body><h1>Strata</h1><ul>${items || "<li>No decks yet.</li>"}</ul>${form}</body></html>`;
@@ -62,6 +79,11 @@ export function handler(root: string) {
       const deck = await req.json().catch(() => null);
       if (!deck?.nodes?.ROOT) return new Response("bad deck: expected { nodes: { ROOT } }", { status: 400 });
       return Response.json(await saveDeck(root, m[1], deck));
+    }
+    const im = /^\/api\/import\/(.+)$/.exec(p);
+    if (im && req.method === "POST") {
+      const r = await importMarkdown(root, im[1], await req.text());
+      return r.deck ? Response.json({ slug: r.slug, warnings: r.warnings }) : Response.json({ errors: r.errors }, { status: 400 });
     }
     if (p === "/" || p === "/index.html") return new Response(indexHtml(await deckList(root), true), { headers: { "content-type": "text/html; charset=utf-8" } });
     if ((p.startsWith("/design/") || p.startsWith("/decks/")) && !p.includes("..")) {

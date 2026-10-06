@@ -90,11 +90,12 @@ test("a new deck is written to disk as soon as it opens", async () => {
 
 test("edits autosave after a pause, without pressing save", async () => {
   const { c } = await mount("?deck=talk");
-  c.setState({ nodes: { ...c.state.nodes, a: { ...c.state.nodes.a, title: "Edited" } } });
+  const a = c.state.nodes.ROOT.children[0];
+  c.setState({ nodes: { ...c.state.nodes, [a]: { ...c.state.nodes[a], title: "Edited" } } });
   c.componentDidUpdate();
-  expect((await onDisk()).nodes.a.title).not.toBe("Edited");   // debounced, not immediate
+  expect((await onDisk()).nodes[a].title).not.toBe("Edited");   // debounced, not immediate
   await Bun.sleep(1200);
-  expect((await onDisk()).nodes.a.title).toBe("Edited");
+  expect((await onDisk()).nodes[a].title).toBe("Edited");
   expect(c.isDirty()).toBe(false);
 });
 
@@ -215,4 +216,12 @@ test("an including slide can be deleted, taking its grafts with it", async () =>
   expect(c.state.nodes.t).toBeUndefined();
   expect(c.state.nodes["b:x"]).toBeUndefined();
   expect(c.state.note ?? null).toBeNull();
+});
+
+test("a new deck starts with one blank slide named after its slug", async () => {
+  await mount("?deck=my-talk");
+  const d = await Bun.file(join(root, "decks/my-talk/deck.json")).json();
+  expect(d.nodes.ROOT.children.length).toBe(1);
+  expect(d.nodes[d.nodes.ROOT.children[0]]).toMatchObject({ title: "My talk", children: [] });
+  expect(Object.keys(d.nodes).length).toBe(2);
 });

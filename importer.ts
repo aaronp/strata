@@ -51,15 +51,21 @@ export function importInto(deck: any | null, sections: Section[]): any {
   return { ...(deck ?? { images: {}, customBg: null }), nodes, title: deck?.title || sections[0]?.title || "" };
 }
 
-export async function importFile(root: string, file: string, slug?: string) {
-  const parsed = parseMarkdown(await Bun.file(file).text());
-  const s = slug ?? basename(file).replace(/\.md$/i, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-  if (!SLUG.test(s)) parsed.errors.unshift({ line: 0, msg: `bad deck slug "${s}" (use a-z, 0-9 and -)` });
-  if (parsed.errors.length) return { ...parsed, slug: s, deck: null };
-  const path = join(root, "decks", s, "deck.json");
+// Shared by the CLI and POST /api/import: parse, merge into any existing deck, save. Writes nothing on errors.
+export async function importMarkdown(root: string, slug: string, md: string, source?: string) {
+  const parsed = parseMarkdown(md);
+  if (!SLUG.test(slug)) parsed.errors.unshift({ line: 0, msg: `bad deck slug "${slug}" (use a-z, 0-9 and -)` });
+  if (parsed.errors.length) return { ...parsed, slug, deck: null };
+  const path = join(root, "decks", slug, "deck.json");
   const existing = (await Bun.file(path).exists()) ? await Bun.file(path).json() : null;
-  const deck = await saveDeck(root, s, { ...importInto(existing, parsed.sections), source: relative(root, resolve(root, file)) });
-  return { ...parsed, slug: s, deck };
+  const merged = importInto(existing, parsed.sections);
+  const deck = await saveDeck(root, slug, source ? { ...merged, source } : merged);
+  return { ...parsed, slug, deck };
+}
+
+export async function importFile(root: string, file: string, slug?: string) {
+  const s = slug ?? basename(file).replace(/\.md$/i, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  return importMarkdown(root, s, await Bun.file(file).text(), relative(root, resolve(root, file)));
 }
 
 if (import.meta.main) {

@@ -150,7 +150,7 @@ input,textarea,button{font:inherit;color:inherit}
                   <sc-if value="{{ guideH }}"><div style="position:absolute;top:50%;left:0;right:0;height:1px;background:#d9432b;pointer-events:none"></div></sc-if>
                   <sc-for list="{{ overlays }}" as="o" hint-placeholder-count="0">
                     <div onPointerDown="{{ o.onDown }}" onDoubleClick="{{ o.onDbl }}" onDragOver="{{ allowDrop }}" onDrop="{{ o.onDrop }}" style="position:absolute;left:{{ o.l }}%;top:{{ o.t }}%;width:{{ o.w }}%;height:{{ o.h }}%;transform:rotate({{ o.rot }}deg);outline:{{ o.outline }};outline-offset:1px;cursor:move;z-index:{{ o.z }}" style-hover="box-shadow:0 0 0 1px rgba(251,249,244,.8), 0 0 0 2px rgba(0,0,0,.3)">
-                      <sc-if value="{{ o.selected }}">
+                      <sc-if value="{{ o.single }}">
                         <div style="position:absolute;left:-2px;bottom:calc(100% + 6px);padding:2px 6px;border-radius:4px;background:#1f6fb8;color:#fff;font-family:'JetBrains Mono',monospace;font-size:10px;white-space:nowrap;pointer-events:none">{{ o.label }}</div>
                         <div onPointerDown="{{ o.onNW }}" style="position:absolute;left:-7px;top:-7px;width:11px;height:11px;border-radius:3px;background:#fff;border:2px solid #1f6fb8;cursor:nwse-resize"></div>
                         <div onPointerDown="{{ o.onNE }}" style="position:absolute;right:-7px;top:-7px;width:11px;height:11px;border-radius:3px;background:#fff;border:2px solid #1f6fb8;cursor:nesw-resize"></div>
@@ -161,6 +161,17 @@ input,textarea,button{font:inherit;color:inherit}
                       </sc-if>
                     </div>
                   </sc-for>
+                  <sc-if value="{{ hasGroup }}">
+                    <div style="position:absolute;left:{{ grp.l }}%;top:{{ grp.t }}%;width:{{ grp.w }}%;height:{{ grp.h }}%;outline:1.5px dashed #1f6fb8;outline-offset:3px;pointer-events:none;z-index:900">
+                      <div style="position:absolute;left:-2px;bottom:calc(100% + 8px);padding:2px 6px;border-radius:4px;background:#1f6fb8;color:#fff;font-family:'JetBrains Mono',monospace;font-size:10px;white-space:nowrap">{{ grp.label }}</div>
+                      <sc-for list="{{ grpHandles }}" as="gh" hint-placeholder-count="8">
+                        <div onPointerDown="{{ gh.onDown }}" style="position:absolute;left:{{ gh.l }};top:{{ gh.t }};width:11px;height:11px;margin:-6px 0 0 -6px;border-radius:3px;background:#fff;border:2px solid #1f6fb8;cursor:{{ gh.cursor }};pointer-events:auto"></div>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+                  <sc-if value="{{ hasMarquee }}">
+                    <div style="position:absolute;left:{{ mq.l }}%;top:{{ mq.t }}%;width:{{ mq.w }}%;height:{{ mq.h }}%;border:1px solid #1f6fb8;background:rgba(31,111,184,.12);pointer-events:none;z-index:901"></div>
+                  </sc-if>
                   <sc-if value="{{ isEditingText }}">
                     <textarea ref="{{ editRef }}" value="{{ ed.text }}" onChange="{{ onEditText }}" onBlur="{{ stopEditing }}" onPointerDown="{{ stopProp }}" style="position:absolute;left:{{ ed.l }}%;top:{{ ed.t }}%;width:{{ ed.w }}%;height:{{ ed.h }}%;padding:0;margin:0;border:0;outline:2px solid #1f6fb8;outline-offset:1px;background:rgba(10,14,28,.25);resize:none;overflow:hidden;font-family:{{ ed.font }};font-size:{{ ed.fs }}cqw;font-weight:{{ ed.weight }};color:{{ ed.color }};text-align:{{ ed.align }};line-height:{{ ed.lh }};z-index:999"></textarea>
                   </sc-if>
@@ -597,6 +608,14 @@ input,textarea,button{font:inherit;color:inherit}
                 </div>
               </div>
             </sc-if>
+            <sc-if value="{{ hasMulti }}">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="flex:1;font-weight:600">{{ multiLabel }}</span>
+                <button onClick="{{ onDupSel }}" style="padding:6px 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer;font-size:12.5px">⧉ Duplicate</button>
+                <button onClick="{{ onDelSel }}" style="padding:6px 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer;font-size:12.5px;color:#a8301d">Delete</button>
+              </div>
+              <span style="font-size:12px;line-height:1.5;color:#6b6458">Drag any selected layer to move them together; use the dashed box's handles to resize the group (Shift keeps proportions). Shift-click adds or removes a layer; ⌘A selects all.</span>
+            </sc-if>
             <sc-if value="{{ noLayerSel }}">
               <span style="font-size:12px;line-height:1.5;color:#6b6458">Select a layer on the slide or in the list. Drag to move, use the handles to resize (Shift keeps proportions), double-click text to type. Drop image files straight onto the slide.</span>
             </sc-if>
@@ -708,6 +727,10 @@ const deckUrl = (slug, v) => typeof v === 'string' && v && !/^(data:|blob:|https
 const absUrl = v => DECK ? deckUrl(DECK, v) : v;
 const relUrl = v => typeof v === 'string' && DECK_BASE && v.startsWith(DECK_BASE) ? v.slice(DECK_BASE.length) : v;
 // Layout presets rearrange plain text and images; linked layers, shapes and icons stay exactly where they are.
+// Multi-select geometry, all in % of the slide.
+const rectsTouch = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+const groupBox = ls => { const x = Math.min(...ls.map(l => l.x)), y = Math.min(...ls.map(l => l.y)); return { x, y, w: Math.max(...ls.map(l => l.x + l.w)) - x, h: Math.max(...ls.map(l => l.y + l.h)) - y }; };
+const scaleLayers = (ls, from, to) => ls.map(l => ({ ...l, x: rd(to.x + (l.x - from.x) * to.w / from.w), y: rd(to.y + (l.y - from.y) * to.h / from.h), w: rd(l.w * to.w / from.w), h: rd(l.h * to.h / from.h) }));
 const layoutKeeps = l => !!l.link || (l.type !== 'text' && l.type !== 'image');
 const mapImgs = (im, f) => Object.fromEntries(Object.entries(im || {}).map(([k, v]) => [k, f(v)]));
 // Deck includes: another deck's slides are grafted under the including slide with ids prefixed "<slug>:" and marked _inc.
@@ -1108,18 +1131,74 @@ class Component extends DCLogic {
     if (type === 'text') setTimeout(() => this.startEdit(lid), 40);
     return l;
   }
+  // Multi-select: layerSel is the primary layer (it drives the settings panel); layerSet holds the whole selection when it has 2+ layers.
+  selIds() {
+    const S = this.state; if (!S.layerSel) return [];
+    const have = new Set(this.layersOf(this.curId()).map(l => l.id));
+    return (S.layerSet && S.layerSet.length > 1 ? S.layerSet : [S.layerSel]).filter(id => have.has(id));
+  }
+  setSelection(ids) { this.setState({ layerSel: ids.length ? ids[ids.length - 1] : null, layerSet: ids.length > 1 ? ids : [], editing: null }); }
+  selectToggle(lid) { const ids = this.selIds(); this.setSelection(ids.includes(lid) ? ids.filter(x => x !== lid) : [...ids, lid]); }
+  marqueeHits(r) { const mh = this._mh || {}; return this.layersOf(this.curId()).filter(l => !l.hidden && rectsTouch(r, { x: l.x, y: l.y, w: l.w, h: Math.max(l.h, mh[l.id] || 0) })).map(l => l.id); }
+  moveSel(dx, dy) { const ids = this.selIds(); this.setLayers(this.curId(), ls => ls.map(l => ids.includes(l.id) ? { ...l, x: rd(l.x + dx), y: rd(l.y + dy) } : l)); }
+  delSel() { const ids = this.selIds(); this.setLayers(this.curId(), ls => ls.filter(l => !ids.includes(l.id))); this.setSelection([]); }
+  dupSel() {
+    const ids = this.selIds(); const copies = this.layersOf(this.curId()).filter(l => ids.includes(l.id)).map(l => ({ ...l, id: 'l' + uid(), x: l.x + 2, y: l.y + 3 }));
+    this.setLayers(this.curId(), ls => [...ls, ...copies]); this.setSelection(copies.map(l => l.id));
+  }
+  resizeGroup(cid, orig, box, mode, dx, dy, keep) {
+    let { x, y, w, h } = box;
+    if (mode.includes('e')) w = Math.max(2, box.w + dx);
+    if (mode.includes('w')) { w = Math.max(2, box.w - dx); x = box.x + box.w - w; }
+    if (mode.includes('s')) h = Math.max(2, box.h + dy);
+    if (mode.includes('n')) { h = Math.max(2, box.h - dy); y = box.y + box.h - h; }
+    if (keep && mode.length === 2) { h = w * box.h / box.w; if (mode.includes('n')) y = box.y + box.h - h; }
+    const byId = Object.fromEntries(scaleLayers(orig, box, { x, y, w, h }).map(l => [l.id, l]));
+    this.setLayers(cid, ls => ls.map(l => byId[l.id] || l));
+  }
+  startGroupResize(ev, mode) {
+    ev.stopPropagation(); if (ev.button) return;
+    const st = this.stageRef.current; if (!st) return; const r = st.getBoundingClientRect();
+    const cid = this.curId(), ids = this.selIds(), orig = this.layersOf(cid).filter(l => ids.includes(l.id)), box = groupBox(orig);
+    const move = e => this.resizeGroup(cid, orig, box, mode, (e.clientX - ev.clientX) / r.width * 100, (e.clientY - ev.clientY) / r.height * 100, e.shiftKey);
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+  }
+  // Drag on empty stage: a selection rectangle; every layer it touches is selected (Shift adds). A plain click clears.
+  startMarquee(ev) {
+    if (ev.button) return; const S = this.state;
+    const st = this.stageRef.current; if (!st) return; const r = st.getBoundingClientRect();
+    const pt = e => ({ x: (e.clientX - r.left) / r.width * 100, y: (e.clientY - r.top) / r.height * 100 });
+    const a = pt(ev), base = ev.shiftKey ? this.selIds() : []; let moved = false;
+    const box = e => { const b = pt(e); return { x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), w: Math.abs(b.x - a.x), h: Math.abs(b.y - a.y) }; };
+    const move = e => {
+      if (!moved && Math.abs(e.clientX - ev.clientX) + Math.abs(e.clientY - ev.clientY) < 3) return; moved = true;
+      const m = box(e); this.setState({ marquee: m, marqueeHits: this.marqueeHits(m) });
+    };
+    const up = e => {
+      window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up);
+      if (moved) this.setSelection([...new Set([...base, ...this.marqueeHits(box(e))])]);
+      else if (S.layerSel || S.editing) this.setSelection([]);
+      this.setState({ marquee: null, marqueeHits: null });
+    };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+  }
   delLayer(lid) { this.setLayers(this.curId(), ls => ls.filter(l => l.id !== lid)); this.setState({ layerSel: null, editing: null }); }
   dupLayer(lid) { const l = this.layersOf(this.curId()).find(x => x.id === lid); if (!l) return; const nl = { ...l, id: 'l' + uid(), x: l.x + 2, y: l.y + 3 }; this.setLayers(this.curId(), ls => [...ls, nl]); this.setState({ layerSel: nl.id }); }
   zLayer(lid, dir) { this.setLayers(this.curId(), ls => { const a = [...ls]; const i = a.findIndex(l => l.id === lid); const j = i + dir; if (i < 0 || j < 0 || j >= a.length) return ls; [a[i], a[j]] = [a[j], a[i]]; return a; }); }
   startDrag(ev, lid, mode) {
     ev.stopPropagation(); if (ev.button) return; if (this.state.editing === lid) return;
+    if (mode === 'move' && (ev.shiftKey || ev.metaKey || ev.ctrlKey)) { this.selectToggle(lid); return; }
     const st = this.stageRef.current; if (!st) return; const r = st.getBoundingClientRect();
     const cid = this.curId(); const o = this.layersOf(cid).find(l => l.id === lid); if (!o) return;
-    this.setState({ layerSel: lid, editing: null, rtab: 'slide' });
+    const ids = this.selIds(), group = mode === 'move' && ids.length > 1 && ids.includes(lid);
+    const orig = group ? this.layersOf(cid).filter(l => ids.includes(l.id)) : null;
+    this.setState(group ? { editing: null, rtab: 'slide' } : { layerSel: lid, layerSet: [], editing: null, rtab: 'slide' });
     const sx = ev.clientX, sy = ev.clientY; let moved = false;
     const move = e => {
       const dx = (e.clientX - sx) / r.width * 100, dy = (e.clientY - sy) / r.height * 100;
       if (!moved && Math.abs(e.clientX - sx) + Math.abs(e.clientY - sy) < 3) return; moved = true;
+      if (group) { const byId = Object.fromEntries(orig.map(l => [l.id, { ...l, x: rd(l.x + dx), y: rd(l.y + dy) }])); this.setLayers(cid, ls => ls.map(l => byId[l.id] || l)); return; }
       let p, guides = {};
       if (mode === 'move') {
         let x = o.x + dx, y = o.y + dy;
@@ -1137,7 +1216,7 @@ class Component extends DCLogic {
       }
       this.updLayer(cid, lid, p); this.setState({ guides });
     };
-    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); this.setState({ guides: {} }); };
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); this.setState({ guides: {} }); if (group && !moved) this.setSelection([lid]); };
     window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
   }
   startEdit(lid) {
@@ -1209,6 +1288,14 @@ class Component extends DCLogic {
     if (k === 'Escape' && S.transSel != null && !S.layerSel) { this.setState({ transSel: null }); return; }
     if ((e.metaKey || e.ctrlKey) && (k === 'z' || k === 'Z')) { e.preventDefault(); if (e.shiftKey) this.redo(); else this.undo(); return; }
     if ((e.metaKey || e.ctrlKey) && (k === 'y' || k === 'Y')) { e.preventDefault(); this.redo(); return; }
+    if ((e.metaKey || e.ctrlKey) && (k === 'a' || k === 'A') && S.mode === 'build' && S.view === 'slide') { e.preventDefault(); this.setSelection(this.layersOf(this.curId()).map(l => l.id)); return; }
+    if (S.mode === 'build' && S.view === 'slide' && this.selIds().length > 1) {
+      if (k.startsWith('Arrow')) { e.preventDefault(); const st = e.shiftKey ? 5 : 0.5; const d = DIRS[k.slice(5).toLowerCase()]; this.moveSel(d[0] * st, d[1] * st * 16 / 9); }
+      else if (k === 'Backspace' || k === 'Delete') { e.preventDefault(); this.delSel(); }
+      else if (k === 'Escape') this.setSelection([]);
+      else if ((k === 'd' || k === 'D') && (e.metaKey || e.ctrlKey)) { e.preventDefault(); this.dupSel(); }
+      return;
+    }
     if (S.mode === 'build' && S.view === 'slide' && S.layerSel) {
       const cid = this.curId(); const l = this.layersOf(cid).find(x => x.id === S.layerSel);
       if (l) {
@@ -1315,16 +1402,17 @@ class Component extends DCLogic {
     const curLayers = this.layersOf(cur); const ly = S.layerSel ? curLayers.find(l => l.id === S.layerSel) : null;
     const upL = patch => ly && this.updLayer(cur, ly.id, patch);
     const lname = l => l.type === 'text' ? short(String(l.text || '').split('\n')[0] || 'Text', 24) : l.type === 'image' ? 'Image' : l.type === 'shape' ? ({ rect: 'Rectangle', ellipse: 'Ellipse', triangle: 'Triangle' }[l.shape] || 'Shape') : 'Icon · ' + (l.icon || '');
-    const overlays = curLayers.map((l, i) => ({ l: l.x, t: l.y, w: l.w, h: Math.max(l.h, (this._mh || {})[l.id] || 0), rot: l.rot || 0, z: i + 1, selected: l.id === S.layerSel, hidden: !!l.hidden,
-      outline: l.id === S.layerSel ? '2px solid #1f6fb8' : 'none', label: lname(l) + (l.link ? (l.link.type === 'url' ? '  ↗ ' + short(l.link.url || 'web link', 26) : '  → ' + short(N[l.link.id] ? name(l.link.id) : 'missing slide', 22)) : ''),
+    const selIds = this.selIds(), multi = selIds.length > 1, hits = S.marqueeHits || [], mh = this._mh || {};
+    const overlays = curLayers.map((l, i) => ({ l: l.x, t: l.y, w: l.w, h: Math.max(l.h, mh[l.id] || 0), rot: l.rot || 0, z: i + 1, selected: selIds.includes(l.id), single: !multi && l.id === S.layerSel, hidden: !!l.hidden,
+      outline: selIds.includes(l.id) || hits.includes(l.id) ? '2px solid #1f6fb8' : 'none', label: lname(l) + (l.link ? (l.link.type === 'url' ? '  ↗ ' + short(l.link.url || 'web link', 26) : '  → ' + short(N[l.link.id] ? name(l.link.id) : 'missing slide', 22)) : ''),
       onDown: ev => this.startDrag(ev, l.id, 'move'), onDbl: ev => { ev.stopPropagation(); this.startEdit(l.id); }, onDrop: ev => this.dropOn(ev, l.id),
       onNW: ev => this.startDrag(ev, l.id, 'nw'), onNE: ev => this.startDrag(ev, l.id, 'ne'), onSW: ev => this.startDrag(ev, l.id, 'sw'), onSE: ev => this.startDrag(ev, l.id, 'se'),
       onW: ev => this.startDrag(ev, l.id, 'w'), onE: ev => this.startDrag(ev, l.id, 'e') })).filter(o => !o.hidden);
     const edL = S.editing ? curLayers.find(l => l.id === S.editing) : null;
     const ed = edL ? { text: edL.text, l: edL.x, t: edL.y, w: edL.w, h: edL.h, font: FONT_CSS[edL.font] || FONT_CSS.grot, fs: (edL.size || 40) / 16, weight: edL.weight || 400, color: edL.color || (light ? '#fbf9f4' : '#15171c'), align: edL.align || 'left', lh: edL.lh || 1.2 } : {};
-    const layerRows = curLayers.map((l, i) => ({ l, i })).reverse().map(({ l, i }) => ({ name: lname(l), glyph: { text: 'T', image: 'IMG', shape: '■', icon: '★' }[l.type], bg: l.id === S.layerSel ? '#eef3f9' : '#fff', weight: l.id === S.layerSel ? 700 : 500, opacity: l.hidden ? 0.45 : 1,
+    const layerRows = curLayers.map((l, i) => ({ l, i })).reverse().map(({ l, i }) => ({ name: lname(l), glyph: { text: 'T', image: 'IMG', shape: '■', icon: '★' }[l.type], bg: selIds.includes(l.id) ? '#eef3f9' : '#fff', weight: selIds.includes(l.id) ? 700 : 500, opacity: l.hidden ? 0.45 : 1,
       eye: l.hidden ? '◌' : '◉', eyeTitle: l.hidden ? 'Show' : 'Hide', upOp: i < curLayers.length - 1 ? 0.8 : 0.25, downOp: i > 0 ? 0.8 : 0.25,
-      onClick: () => this.setState({ layerSel: l.id, view: 'slide' }), onEye: e => { e.stopPropagation(); this.updLayer(cur, l.id, { hidden: !l.hidden }); },
+      onClick: e => { if (e && (e.shiftKey || e.metaKey || e.ctrlKey)) this.selectToggle(l.id); else this.setSelection([l.id]); this.setState({ view: 'slide' }); }, onEye: e => { e.stopPropagation(); this.updLayer(cur, l.id, { hidden: !l.hidden }); },
       onUp: e => { e.stopPropagation(); this.zLayer(l.id, 1); }, onDown: e => { e.stopPropagation(); this.zLayer(l.id, -1); } }));
     const tabOn = (on, extra) => ({ bg: on ? '#fbf9f4' : 'transparent', shadow: on ? '0 1px 3px rgba(0,0,0,.12)' : 'none', weight: 600, font: 'inherit', ...(extra || {}) });
     const colorKey = ly && ly.type === 'text' ? 'color' : 'fill';
@@ -1333,10 +1421,15 @@ class Component extends DCLogic {
       editable, curLayers, prevLayers: active ? this.layersOf(S.prev, S.prevFi || 0) : [], images: S.images, editingId: S.editing || '', stageRef: this.stageRef, editRef: this.editRef, imgInputRef: this.imgInputRef,
       onImgFile: e => this.onImgFile(e), overlays, guideV: !!S.guides.v, guideH: !!S.guides.h, isEditingText: !!edL, ed,
       onEditText: e => edL && this.updLayer(cur, edL.id, { text: e.target.value }), stopEditing: () => this.setState({ editing: null }), stopProp: e => e.stopPropagation(),
-      onStageDown: () => { if (S.layerSel || S.editing) this.setState({ layerSel: null, editing: null }); }, allowDrop: e => e.preventDefault(), onStageDrop: e => this.dropOn(e, null),
+      onStageDown: ev => this.startMarquee(ev), allowDrop: e => e.preventDefault(), onStageDrop: e => this.dropOn(e, null),
       rightW: Math.max(240, Math.min(S.rightW, (typeof window !== 'undefined' ? window.innerWidth : 1400) - S.navW - 380)), onRightResize: e => this.rightResize(e),
       addBtns: [['text', '+ Text'], ['image', '+ Image'], ['shape', '+ Shape'], ['icon', '+ Icon']].map(([t, label]) => ({ label, onClick: () => this.addLayer(t) })),
-      layerRows, noLayers: curLayers.length === 0, hasLayer: !!ly, noLayerSel: !ly,
+      layerRows, noLayers: curLayers.length === 0, hasLayer: !!ly && !multi, noLayerSel: !ly,
+      hasMulti: multi, multiLabel: selIds.length + ' layers selected', onDupSel: () => this.dupSel(), onDelSel: () => this.delSel(),
+      hasGroup: multi && editable, grp: (g => ({ l: g.x, t: g.y, w: g.w, h: g.h, label: selIds.length + ' layers' }))(multi ? groupBox(curLayers.filter(l => selIds.includes(l.id)).map(l => ({ ...l, h: Math.max(l.h, mh[l.id] || 0) }))) : { x: 0, y: 0, w: 0, h: 0 }),
+      grpHandles: [['nw', 0, 0, 'nwse'], ['n', 50, 0, 'ns'], ['ne', 100, 0, 'nesw'], ['e', 100, 50, 'ew'], ['se', 100, 100, 'nwse'], ['s', 50, 100, 'ns'], ['sw', 0, 100, 'nesw'], ['w', 0, 50, 'ew']]
+        .map(([m, x, y, c]) => ({ l: x + '%', t: y + '%', cursor: c + '-resize', onDown: ev => this.startGroupResize(ev, m) })),
+      hasMarquee: !!S.marquee, mq: S.marquee ? { l: S.marquee.x, t: S.marquee.y, w: S.marquee.w, h: S.marquee.h } : { l: 0, t: 0, w: 0, h: 0 },
       ly: ly ? { ...ly, size: ly.size || 40, lh: ly.lh || 1.2 } : {}, lyLabel: ly ? lname(ly) : '',
       lyIsText: !!ly && ly.type === 'text', lyIsImage: !!ly && ly.type === 'image',
       pasteImage: () => ly && this.pasteFromClipboard(cur, ly.id), pasteTitle: S.clipMsg || (S.clipImg ? 'Paste the image on your clipboard' : 'Paste image from clipboard (or Ctrl/⌘+V)'),

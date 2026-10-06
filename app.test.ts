@@ -290,3 +290,71 @@ test("the editor measures grown text boxes so the selection outline matches", as
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
   expect(html).toContain('data-stage="main"');
 });
+
+// ---- multi-select ----
+const L3 = [
+  { id: "p", type: "shape", x: 0, y: 0, w: 10, h: 10 },
+  { id: "q", type: "shape", x: 20, y: 20, w: 10, h: 10 },
+  { id: "r", type: "shape", x: 70, y: 70, w: 10, h: 10 },
+];
+async function multiDeck() {
+  await writeDeck("talk", { ROOT: slideNode("ROOT", "", ["a"]), a: slideNode("a", "A", [], { frames: [{ id: "f1", layers: L3 }] }) });
+  const { c } = await mount("?deck=talk");
+  c.setState({ cur: "a" });
+  return c;
+}
+const geo = (c: any) => Object.fromEntries(c.layersOf("a").map((l: any) => [l.id, [l.x, l.y, l.w, l.h]]));
+const key = (c: any, k: string, mods: object = {}) => c.onKey({ key: k, target: {}, preventDefault() {}, ...mods });
+
+test("shift/cmd-click toggles layers in and out of the selection", async () => {
+  const c = await multiDeck();
+  c.setSelection(["p"]); c.selectToggle("q");
+  expect(c.selIds()).toEqual(["p", "q"]);
+  c.selectToggle("p");
+  expect(c.selIds()).toEqual(["q"]);
+  c.setState({ layerSel: null });             // any path that clears layerSel clears the whole selection
+  expect(c.selIds()).toEqual([]);
+});
+
+test("the selection rectangle picks every layer it touches", async () => {
+  const c = await multiDeck();
+  expect(c.marqueeHits({ x: 5, y: 5, w: 16, h: 16 })).toEqual(["p", "q"]);
+  expect(c.marqueeHits({ x: 40, y: 40, w: 5, h: 5 })).toEqual([]);
+});
+
+test("group move, nudge, delete and duplicate act on the whole selection; move is one undo step", async () => {
+  const c = await multiDeck();
+  await Bun.sleep(150);                       // history starts recording after load
+  c.setSelection(["p", "q"]);
+  c.moveSel(5, 5); c.componentDidUpdate();
+  expect(geo(c)).toMatchObject({ p: [5, 5, 10, 10], q: [25, 25, 10, 10], r: [70, 70, 10, 10] });
+  c.undo(); c.componentDidUpdate();
+  expect(geo(c)).toMatchObject({ p: [0, 0, 10, 10], q: [20, 20, 10, 10] });
+  c.setSelection(["p", "q"]);
+  key(c, "ArrowRight", { shiftKey: true });
+  expect(geo(c).p[0]).toBe(5);
+  key(c, "d", { metaKey: true });
+  expect(c.layersOf("a").length).toBe(5);
+  expect(c.selIds().length).toBe(2);
+  expect(c.selIds()).not.toContain("p");      // the copies are selected
+  key(c, "Backspace");
+  expect(c.layersOf("a").map((l: any) => l.id)).toEqual(["p", "q", "r"]);
+  key(c, "a", { metaKey: true });
+  expect(c.selIds()).toEqual(["p", "q", "r"]);
+});
+
+test("resizing the group box scales every selected layer within it", async () => {
+  const c = await multiDeck();
+  c.setSelection(["p", "q"]);
+  const orig = c.layersOf("a").filter((l: any) => ["p", "q"].includes(l.id));
+  c.resizeGroup("a", orig, { x: 0, y: 0, w: 30, h: 30 }, "se", 30, 30, false);
+  expect(geo(c)).toMatchObject({ p: [0, 0, 20, 20], q: [40, 40, 20, 20], r: [70, 70, 10, 10] });
+  c.resizeGroup("a", orig, { x: 0, y: 0, w: 30, h: 30 }, "nw", 15, 0, true);   // keep proportions
+  expect(geo(c)).toMatchObject({ p: [15, 15, 5, 5], q: [25, 25, 5, 5] });
+});
+
+test("stage template has the group box handles and the selection rectangle", async () => {
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  expect(html).toContain('<sc-for list="{{ grpHandles }}"');
+  expect(html).toContain('<sc-if value="{{ hasMarquee }}">');
+});

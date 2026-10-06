@@ -997,7 +997,10 @@ class Component extends DCLogic {
   }
   applyLayout(lid) {
     const id = this.curId(); const L = SLIDE_LAYOUTS.find(x => x.id === lid); if (!L) return;
-    const layers = L.make(this.layoutContent(id)).map(l => ({ ...l, id: 'l' + uid() })).concat(this.layersOf(id).filter(layoutKeeps));
+    // Reuse the replaced layers' ids by type, in order, so e.g. md-title/md-body stay recognisable to a markdown re-import.
+    const old = this.layersOf(id), spare = { text: [], image: [] };
+    old.filter(l => !layoutKeeps(l)).forEach(l => spare[l.type].push(l.id));
+    const layers = L.make(this.layoutContent(id)).map(l => ({ ...l, id: (spare[l.type] || []).shift() || 'l' + uid() })).concat(old.filter(layoutKeeps));
     this.setLayers(id, () => layers); this.setState({ layerSel: null, editing: null, view: 'slide' });
   }
   curId() { const N = this.state.nodes; return N[this.state.cur] ? this.state.cur : N.ROOT.children[0]; }

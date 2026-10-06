@@ -261,3 +261,17 @@ test("applying a layout keeps linked layers, shapes and icons; only plain text a
   expect(ls.find((l: any) => l.id === "md-linkbg-0")).toEqual(bg);
   expect(ls.filter((l: any) => l.type === "text" && !l.link).map((l: any) => l.text).join("|")).not.toContain("Go →");
 });
+
+test("a layout keeps the replaced layers' ids, so a later markdown re-import doesn't duplicate them", async () => {
+  const { importInto } = await import("./importer");
+  const { parseMarkdown } = await import("./markdown");
+  const md = "# A\nslug: a\n\nBody line\n";
+  const fresh = importInto(null, parseMarkdown(md).sections);
+  await writeDeck("talk", fresh.nodes);
+  const { c } = await mount("?deck=talk");
+  c.setState({ cur: "a" });
+  c.applyLayout("list");
+  expect(c.layersOf("a").map((l: any) => l.id)).toEqual(["md-title", "md-body"]);
+  const again = importInto({ nodes: c.state.nodes }, parseMarkdown(md).sections);
+  expect(again.nodes.a.frames[0].layers.map((l: any) => l.id)).toEqual(["md-title", "md-body"]);
+});

@@ -9,3 +9,9 @@ test:
 
 clean:
 	rm -rf dist
+
+build:
+	bun build.ts
+
+preview: build
+	bunx serve dist -l $(PORT)

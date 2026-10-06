@@ -32,6 +32,9 @@ input,textarea,button{font:inherit;color:inherit}
       <div style="display:flex;gap:4px;flex:none">
         <button onClick="{{ undo }}" title="Undo (⌘Z)" style="height:30px;padding:0 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;white-space:nowrap;opacity:{{ undoOp }}" style-hover="background:#f5f1e8">↶ Undo</button>
         <button onClick="{{ redo }}" title="Redo (⇧⌘Z)" style="height:30px;padding:0 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;white-space:nowrap;opacity:{{ redoOp }}" style-hover="background:#f5f1e8">↷ Redo</button>
+        <sc-if value="{{ hasDeck }}">
+          <button onClick="{{ save }}" title="Save to decks/ (⌘S)" style="height:30px;padding:0 12px;border:1px solid #1d1b17;border-radius:8px;background:#1d1b17;color:#fbf9f4;cursor:pointer;font-size:13px;white-space:nowrap" style-hover="background:#3a362f">{{ saveLabel }}</button>
+        </sc-if>
       </div>
     </sc-if>
     <div style="display:flex;gap:2px;padding:3px;border-radius:10px;background:#ece6d9;flex:none">
@@ -642,6 +645,14 @@ const BGS = {
 const BASES = ['#0b1220', '#1d1b17', '#f4f0e7', '#ffffff'];
 const DIRS = { left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1], jump: [0, 0] };
 const KEY = 'strata-v7', BGKEY = 'strata-v6-bg', IKEY = 'strata-v7-img', VA = 16 / 9, H = 100;
+const DECK = (s => s && /^[a-z0-9-]+$/.test(s) ? s : null)(new URLSearchParams(location.search).get('deck'));
+const DECK_BASE = DECK ? '../decks/' + DECK + '/' : '';
+const STATIC = !!window.STRATA_STATIC;
+const UIKEY = 'strata-ui';
+const DECK_FIELDS = ['nodes', 'bg', 'customBg', 'customAspect', 'opacity', 'base', 'offset', 'margin', 'gap', 'tone', 'speed', 'tdef', 'images'];
+const absUrl = v => typeof v === 'string' && v && !/^(data:|blob:|https?:|\/)/.test(v) ? DECK_BASE + v : v;
+const relUrl = v => typeof v === 'string' && DECK_BASE && v.startsWith(DECK_BASE) ? v.slice(DECK_BASE.length) : v;
+const mapImgs = (im, f) => Object.fromEntries(Object.entries(im || {}).map(([k, v]) => [k, f(v)]));
 const TW = 76, COLW = 96, ROWH = 92, TPX = 16, TPY = 18;
 const FONT_LIST = [['grot', 'Grotesk', "'Bricolage Grotesque',sans-serif"], ['serif', 'Serif', "'DM Serif Display',serif"], ['news', 'Book', "'Newsreader',serif"], ['mono', 'Mono', "'JetBrains Mono',monospace"], ['hand', 'Hand', "'Caveat',cursive"]];
 const FONT_CSS = Object.fromEntries(FONT_LIST.map(f => [f[0], f[2]]));
@@ -693,23 +704,55 @@ function seed() {
 
 class Component extends DCLogic {
   state = {
-    nodes: seed(), cur: 'a', prev: null, phase: 'idle', dx: 0, dy: 0, type: 'swipe', mode: 'build', view: 'slide', rtab: 'slide',
+    nodes: seed(), cur: 'a', prev: null, phase: 'idle', dx: 0, dy: 0, type: 'swipe', mode: STATIC ? 'present' : 'build', view: 'slide', rtab: 'slide',
     query: '', bg: 'sky', customBg: null, customAspect: 1, opacity: 1, base: '#0b1220', offset: 0,
     tAll: { ease: false, dur: false, delay: false }, tdef: {}, dAll: { ease: false, dur: false, delay: false }, secOpen: { layout: true, frames: true, layers: true, tdef: false }, margin: 3, gap: 0.12, tone: 'light', speed: 900, lastChild: {}, navW: 280, rightW: 340, images: {}, layerSel: null, editing: null, guides: {},
   };
   treeRef = React.createRef(); titleRef = React.createRef(); searchRef = React.createRef(); stageRef = React.createRef(); editRef = React.createRef(); imgInputRef = React.createRef();
 
   componentDidMount() {
-    try {
+    if (DECK) {
+      try { const ui = JSON.parse(localStorage.getItem(UIKEY) || 'null'); if (ui) this.setState(ui); } catch (e) {}
+      this.loadDeck();
+    } else try {
       const s = JSON.parse(localStorage.getItem(KEY) || localStorage.getItem('strata-v6') || 'null');
       try { const im = JSON.parse(localStorage.getItem(IKEY) || 'null'); if (im) this.setState({ images: im }); } catch (e) {}
       if (s && s.nodes && s.nodes.ROOT) this.setState({ ...s, cur: s.nodes[s.cur] ? s.cur : s.nodes.ROOT.children[0], prev: null, phase: 'idle', customBg: localStorage.getItem(BGKEY) || null });
     } catch (e) {}
+    if (STATIC) this.setState({ mode: 'present' });
     this._past = []; this._future = []; setTimeout(() => { this._lastNodes = this.state.nodes; this._histReady = true; }, 120);
     this.onKey = this.onKey.bind(this); window.addEventListener('keydown', this.onKey);
     this.onResize = () => this.forceUpdate(); window.addEventListener('resize', this.onResize);
     this.onPaste = this.onPaste.bind(this); window.addEventListener('paste', this.onPaste);
     this.onFocusWin = () => this.probeClip(); window.addEventListener('focus', this.onFocusWin);
+  }
+  markSaved() { this._savedRefs = DECK_FIELDS.map(k => this.state[k]); this.forceUpdate(); }
+  isDirty() { const S = this.state; return !this._savedRefs || DECK_FIELDS.some((k, i) => S[k] !== this._savedRefs[i]); }
+  async loadDeck() {
+    try {
+      const r = await fetch(DECK_BASE + 'deck.json', { cache: 'no-store' });
+      if (r.status === 404 && !STATIC) return;                 // new deck: keep seed(), stays dirty until first save
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const d = await r.json(); if (!d.nodes || !d.nodes.ROOT) throw new Error('not a deck');
+      const pick = Object.fromEntries(DECK_FIELDS.filter(k => k in d).map(k => [k, d[k]]));
+      this._lastNodes = d.nodes;                               // don't record the load as an undo step
+      this.setState({ ...pick, images: mapImgs(d.images, absUrl), customBg: d.customBg ? absUrl(d.customBg) : null,
+        cur: d.nodes.ROOT.children[0], prev: null, phase: 'idle' }, () => this.markSaved());
+    } catch (e) { this.setState({ saveMsg: 'Could not load deck "' + DECK + '": ' + e.message }); }
+  }
+  async save() {
+    if (!DECK || STATIC || this.state.saving) return;
+    const S = this.state; const body = Object.fromEntries(DECK_FIELDS.map(k => [k, S[k]]));
+    body.images = mapImgs(S.images, relUrl); body.customBg = S.customBg ? relUrl(S.customBg) : null;
+    this.setState({ saving: true, saveMsg: null });
+    try {
+      const r = await fetch('/api/decks/' + DECK, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+      if (!r.ok) throw new Error('HTTP ' + r.status + ' ' + (await r.text()));
+      const d = await r.json();
+      // Only adopt the server's image paths if nothing changed while saving; otherwise stay dirty and let the next save catch up.
+      if (DECK_FIELDS.every(k => this.state[k] === S[k])) this.setState({ saving: false, images: mapImgs(d.images, absUrl), customBg: d.customBg ? absUrl(d.customBg) : null }, () => this.markSaved());
+      else this.setState({ saving: false });
+    } catch (e) { this.setState({ saving: false, saveMsg: 'Save failed: ' + e.message }); }
   }
   onPaste(e) {
     const t = e.target; if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
@@ -736,10 +779,15 @@ class Component extends DCLogic {
   componentDidUpdate() {
     this.histTrack();
     const S = this.state;
-    const d = JSON.stringify({ nodes: S.nodes, cur: S.cur, mode: S.mode, view: S.view, rtab: S.rtab, bg: S.bg, customAspect: S.customAspect, opacity: S.opacity, base: S.base, offset: S.offset, margin: S.margin, gap: S.gap, tone: S.tone, speed: S.speed, navW: S.navW, rightW: S.rightW, tdef: S.tdef, secOpen: S.secOpen });
-    if (d !== this._d) { this._d = d; try { localStorage.setItem(KEY, d); } catch (e) {} }
-    if (S.images !== this._im) { this._im = S.images; try { localStorage.setItem(IKEY, JSON.stringify(S.images)); } catch (e) {} }
-    if (S.customBg !== this._bg) { this._bg = S.customBg; try { if (S.customBg) localStorage.setItem(BGKEY, S.customBg); } catch (e) {} }
+    if (!DECK) {
+      const d = JSON.stringify({ nodes: S.nodes, cur: S.cur, mode: S.mode, view: S.view, rtab: S.rtab, bg: S.bg, customAspect: S.customAspect, opacity: S.opacity, base: S.base, offset: S.offset, margin: S.margin, gap: S.gap, tone: S.tone, speed: S.speed, navW: S.navW, rightW: S.rightW, tdef: S.tdef, secOpen: S.secOpen });
+      if (d !== this._d) { this._d = d; try { localStorage.setItem(KEY, d); } catch (e) {} }
+      if (S.images !== this._im) { this._im = S.images; try { localStorage.setItem(IKEY, JSON.stringify(S.images)); } catch (e) {} }
+      if (S.customBg !== this._bg) { this._bg = S.customBg; try { if (S.customBg) localStorage.setItem(BGKEY, S.customBg); } catch (e) {} }
+    } else if (!STATIC) {
+      const u = JSON.stringify({ navW: S.navW, rightW: S.rightW, secOpen: S.secOpen, view: S.view, rtab: S.rtab });
+      if (u !== this._u) { this._u = u; try { localStorage.setItem(UIKEY, u); } catch (e) {} }
+    }
     if (S.cur !== this._lastCur) { this._lastCur = S.cur; this.scrollTree(); }
   }
   scrollTree() {
@@ -1002,6 +1050,7 @@ class Component extends DCLogic {
   step(delta) { if (this.stepFrame(delta)) return; const D = this.derive(); const i = D.order.indexOf(this.state.cur); const id = D.order[i + delta]; if (!id) return; const dd = D.depth[id] - D.depth[this.state.cur]; this.nav(id, dd > 0 ? 'down' : dd < 0 ? 'up' : (delta > 0 ? 'right' : 'left')); }
   onKey(e) {
     const t = e.target; const typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA'); const k = e.key; const S = this.state;
+    if ((e.metaKey || e.ctrlKey) && (k === 's' || k === 'S')) { e.preventDefault(); this.save(); return; }
     if (typing) {
       if (t.dataset && t.dataset.role === 'filter' && k === 'Enter') { const D = this.derive(); const q = S.query.trim().toLowerCase(); const id = D.order.find(x => (S.nodes[x].title + ' ' + S.nodes[x].body).toLowerCase().includes(q)); if (id) this.nav(id, 'jump'); }
       if (k === 'Escape') { t.blur(); this.setState({ query: '' }); }
@@ -1032,7 +1081,7 @@ class Component extends DCLogic {
     else if (k === ' ') { e.preventDefault(); this.step(e.shiftKey ? -1 : 1); }
     else if (S.mode === 'present') {
       if (k === '/') { e.preventDefault(); this.searchRef.current && this.searchRef.current.focus(); }
-      else if (k === 'Escape') this.setState({ mode: 'build' });
+      else if (k === 'Escape' && !STATIC) this.setState({ mode: 'build' });
     } else {
       if (k === 'Enter') { e.preventDefault(); this.addPeer(S.cur); }
       else if (k === 'Tab') { e.preventDefault(); if (e.shiftKey) this.outdent(S.cur); else this.addChild(S.cur); }
@@ -1310,8 +1359,9 @@ class Component extends DCLogic {
       transCountText: (c => c ? `${c} slide${c === 1 ? ' has' : 's have'} custom transition settings. Undo restores them.` : 'No custom settings yet: every transition uses these defaults.')(Object.values(N).filter(n => n.ftrans && Object.values(n.ftrans).some(m => Object.keys(m || {}).length)).length),
       undo: () => this.undo(), redo: () => this.redo(), undoOp: this._past && this._past.length ? 1 : 0.4, redoOp: this._future && this._future.length ? 1 : 0.4,
       layoutBtns: SLIDE_LAYOUTS.map(L => ({ label: L.label, layers: L.make(this.layoutContent(cur)).map((l, i) => ({ ...l, id: 'p' + i })), onClick: () => this.applyLayout(L.id) })),
-      deckTitle: name(N.ROOT.children[0]), keyHint: isPresent ? '← → ↑ ↓  ·  Space next  ·  / search  ·  Esc' : '',
-      modeTabs: [{ label: 'Build', ...tab(!isPresent), onClick: () => this.setState({ mode: 'build' }) }, { label: 'Present', ...tab(isPresent), onClick: () => this.setState({ mode: 'present', query: '' }) }],
+      deckTitle: name(N.ROOT.children[0]), keyHint: S.saveMsg || (isPresent ? '← → ↑ ↓  ·  Space next  ·  / search' + (STATIC ? '' : '  ·  Esc') : ''),
+      hasDeck: !!DECK && !STATIC, save: () => this.save(), saveLabel: S.saving ? 'Saving…' : this.isDirty() ? '● Save' : '✓ Saved',
+      modeTabs: STATIC ? [] : [{ label: 'Build', ...tab(!isPresent), onClick: () => this.setState({ mode: 'build' }) }, { label: 'Present', ...tab(isPresent), onClick: () => this.setState({ mode: 'present', query: '' }) }],
       isBuild: !isPresent, isPresent, slideCount: D.order.length, query: S.query, onQuery: e => this.setState({ query: e.target.value }),
       addTop: () => this.insert('ROOT', N.ROOT.children.length),
       navW: Math.max(200, Math.min(S.navW, (typeof window !== 'undefined' ? window.innerWidth : 1400) - (this.state.rightW || 300) - 380)), onNavResize: e => this.navResize(e),

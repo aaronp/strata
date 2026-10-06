@@ -27,7 +27,7 @@ async function mount(search: string, opts: { isStatic?: boolean; settle?: boolea
 
 test("new deck saves, reloads clean, keeps relative image paths", async () => {
   let { c } = await mount("?deck=talk");
-  expect(c.isDirty()).toBe(true);
+  expect(c.isDirty()).toBe(false);                     // saved on open
   c.setState({ images: { im1: "data:image/png;base64," + Buffer.from("png").toString("base64") } });
   await c.save();
   expect(c.isDirty()).toBe(false);
@@ -56,9 +56,10 @@ test("save before the load finishes is a no-op", async () => {
 
 test("leaving the page with unsaved deck edits asks first", async () => {
   const { c, listeners } = await mount("?deck=talk");
+  c.setState({ title: "edited" });
   const ev = { prevented: false, preventDefault() { this.prevented = true; }, returnValue: undefined as any };
   listeners.beforeunload(ev);
-  expect(ev.prevented).toBe(true);                     // new, unsaved deck
+  expect(ev.prevented).toBe(true);
   await c.save();
   const ev2 = { prevented: false, preventDefault() { this.prevented = true; } };
   listeners.beforeunload(ev2);
@@ -66,14 +67,47 @@ test("leaving the page with unsaved deck edits asks first", async () => {
 });
 
 test("static mode presents and never saves", async () => {
-  await mount("?deck=talk");
+  const saved = JSON.stringify({ nodes: { ROOT: { id: "ROOT", children: ["x"] }, x: { id: "x", title: "Real", body: "", children: [] } } });
+  await Bun.write(join(root, "decks/talk/deck.json"), saved);
   const { c } = await mount("?deck=talk", { isStatic: true });
   expect(c.state.mode).toBe("present");
-  await c.save();
-  expect(await Bun.file(join(root, "decks/talk/deck.json")).exists()).toBe(false);
+  c.setState({ title: "changed" }); c.componentDidUpdate();
+  await c.save(); await Bun.sleep(1000);
+  expect(await Bun.file(join(root, "decks/talk/deck.json")).text()).toBe(saved);
 });
 
 test("header logo links home to the deck list", async () => {
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
   expect(html.split("<header")[1].split("</header>")[0]).toMatch(/<a href="\.\.\/" title="← All decks"/);
+});
+
+const onDisk = () => Bun.file(join(root, "decks/talk/deck.json")).json();
+
+test("a new deck is written to disk as soon as it opens", async () => {
+  await mount("?deck=talk");
+  expect((await onDisk()).nodes.ROOT).toBeDefined();
+});
+
+test("edits autosave after a pause, without pressing save", async () => {
+  const { c } = await mount("?deck=talk");
+  c.setState({ nodes: { ...c.state.nodes, a: { ...c.state.nodes.a, title: "Edited" } } });
+  c.componentDidUpdate();
+  expect((await onDisk()).nodes.a.title).not.toBe("Edited");   // debounced, not immediate
+  await Bun.sleep(1200);
+  expect((await onDisk()).nodes.a.title).toBe("Edited");
+  expect(c.isDirty()).toBe(false);
+});
+
+test("deck title is saved and reloaded", async () => {
+  let { c } = await mount("?deck=talk");
+  c.setState({ title: "My Deck" });
+  await c.save();
+  expect((await onDisk()).title).toBe("My Deck");
+  ({ c } = await mount("?deck=talk"));
+  expect(c.state.title).toBe("My Deck");
+});
+
+test("header has an editable deck title", async () => {
+  const header = (await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text()).split("<header")[1].split("</header>")[0];
+  expect(header).toContain('value="{{ titleVal }}" onChange="{{ onTitle }}"');
 });

@@ -15,7 +15,7 @@ export async function deckList(root: string): Promise<DeckInfo[]> {
     if (!(await f.exists())) continue;
     const d = await f.json().catch(() => null);
     const first = d?.nodes?.[d?.nodes?.ROOT?.children?.[0]];
-    out.push({ slug: e.name, title: first?.title || e.name });
+    out.push({ slug: e.name, title: d?.title || first?.title || e.name });
   }
   return out.sort((a, b) => a.slug.localeCompare(b.slug));
 }

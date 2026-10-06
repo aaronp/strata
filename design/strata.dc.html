@@ -26,7 +26,8 @@ input,textarea,button{font:inherit;color:inherit}
         <div style="position:relative;width:22px;height:16px;flex:none;border:2px solid currentColor;border-radius:3px"><div style="position:absolute;left:3px;top:3px;width:8px;height:6px;background:#d9432b;border-radius:1px"></div></div>
         <div style="font-weight:800;font-size:18px;letter-spacing:-.02em">Strata</div>
       </a>
-      <div style="color:#6b6458;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">/ {{ deckTitle }}</div>
+      <sc-if value="{{ showTitle }}"><div style="color:#6b6458;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">/ {{ deckTitle }}</div></sc-if>
+      <sc-if value="{{ editTitle }}"><span style="color:#6b6458">/</span><input value="{{ titleVal }}" onChange="{{ onTitle }}" placeholder="{{ deckTitle }}" title="Deck title (shown in the deck list)" style="min-width:0;width:260px;height:28px;padding:0 8px;border:1px solid transparent;border-radius:6px;background:transparent;color:#1d1b17" style-hover="border-color:#e0d9cb"></sc-if>
     </div>
     <div style="flex:1"></div>
     <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#6b6458;white-space:nowrap">{{ keyHint }}</span>
@@ -651,7 +652,8 @@ const DECK = (s => s && /^[a-z0-9-]+$/.test(s) ? s : null)(new URLSearchParams(l
 const DECK_BASE = DECK ? '../decks/' + DECK + '/' : '';
 const STATIC = !!window.STRATA_STATIC;
 const UIKEY = 'strata-ui';
-const DECK_FIELDS = ['nodes', 'bg', 'customBg', 'customAspect', 'opacity', 'base', 'offset', 'margin', 'gap', 'tone', 'speed', 'tdef', 'images'];
+const AUTOSAVE_MS = 800;
+const DECK_FIELDS = ['title', 'nodes', 'bg', 'customBg', 'customAspect', 'opacity', 'base', 'offset', 'margin', 'gap', 'tone', 'speed', 'tdef', 'images'];
 const absUrl = v => typeof v === 'string' && v && !/^(data:|blob:|https?:|\/)/.test(v) ? DECK_BASE + v : v;
 const relUrl = v => typeof v === 'string' && DECK_BASE && v.startsWith(DECK_BASE) ? v.slice(DECK_BASE.length) : v;
 const mapImgs = (im, f) => Object.fromEntries(Object.entries(im || {}).map(([k, v]) => [k, f(v)]));
@@ -729,12 +731,16 @@ class Component extends DCLogic {
     this.onFocusWin = () => this.probeClip(); window.addEventListener('focus', this.onFocusWin);
     this.onUnload = e => { if (DECK && !STATIC && this.isDirty()) { e.preventDefault(); e.returnValue = ''; } }; window.addEventListener('beforeunload', this.onUnload);
   }
+  scheduleSave() {   // debounced autosave; retries slower after a failure
+    clearTimeout(this._as);
+    this._as = setTimeout(() => { if (this.state.saving) this.scheduleSave(); else if (this.isDirty()) this.save(); }, this.state.saveMsg ? 5000 : AUTOSAVE_MS);
+  }
   markSaved() { this._savedRefs = DECK_FIELDS.map(k => this.state[k]); this.forceUpdate(); }
   isDirty() { const S = this.state; return !this._savedRefs || DECK_FIELDS.some((k, i) => S[k] !== this._savedRefs[i]); }
   async loadDeck() {
     try {
       const r = await fetch(DECK_BASE + 'deck.json', { cache: 'no-store' });
-      if (r.status === 404 && !STATIC) { this._loaded = true; return; }   // new deck: keep seed(), stays dirty until first save
+      if (r.status === 404 && !STATIC) { this._loaded = true; this.save(); return; }   // new deck: seed() is written straight away so it shows in the deck list
       if (!r.ok) throw new Error('HTTP ' + r.status);
       const d = await r.json(); if (!d.nodes || !d.nodes.ROOT) throw new Error('not a deck');
       const pick = Object.fromEntries(DECK_FIELDS.filter(k => k in d).map(k => [k, d[k]]));
@@ -778,7 +784,7 @@ class Component extends DCLogic {
     } catch (e) { this.setState({ clipMsg: 'Clipboard blocked here: select the layer and press Ctrl/⌘+V' }); }
     clearTimeout(this.cmT); this.cmT = setTimeout(() => this.setState({ clipMsg: null }), 3500);
   }
-  componentWillUnmount() { window.removeEventListener('beforeunload', this.onUnload); window.removeEventListener('paste', this.onPaste); window.removeEventListener('focus', this.onFocusWin); window.removeEventListener('keydown', this.onKey); window.removeEventListener('resize', this.onResize); clearTimeout(this.t); }
+  componentWillUnmount() { clearTimeout(this._as); window.removeEventListener('beforeunload', this.onUnload); window.removeEventListener('paste', this.onPaste); window.removeEventListener('focus', this.onFocusWin); window.removeEventListener('keydown', this.onKey); window.removeEventListener('resize', this.onResize); clearTimeout(this.t); }
   componentDidUpdate() {
     this.histTrack();
     const S = this.state;
@@ -792,6 +798,7 @@ class Component extends DCLogic {
       if (u !== this._u) { this._u = u; try { localStorage.setItem(UIKEY, u); } catch (e) {} }
     }
     if (S.cur !== this._lastCur) { this._lastCur = S.cur; this.scrollTree(); }
+    if (DECK && !STATIC && this._loaded && this.isDirty()) this.scheduleSave();
   }
   scrollTree() {
     requestAnimationFrame(() => {
@@ -1362,8 +1369,9 @@ class Component extends DCLogic {
       transCountText: (c => c ? `${c} slide${c === 1 ? ' has' : 's have'} custom transition settings. Undo restores them.` : 'No custom settings yet: every transition uses these defaults.')(Object.values(N).filter(n => n.ftrans && Object.values(n.ftrans).some(m => Object.keys(m || {}).length)).length),
       undo: () => this.undo(), redo: () => this.redo(), undoOp: this._past && this._past.length ? 1 : 0.4, redoOp: this._future && this._future.length ? 1 : 0.4,
       layoutBtns: SLIDE_LAYOUTS.map(L => ({ label: L.label, layers: L.make(this.layoutContent(cur)).map((l, i) => ({ ...l, id: 'p' + i })), onClick: () => this.applyLayout(L.id) })),
-      deckTitle: name(N.ROOT.children[0]), keyHint: S.saveMsg || (isPresent ? '← → ↑ ↓  ·  Space next  ·  / search' + (STATIC ? '' : '  ·  Esc') : ''),
-      hasDeck: !!DECK && !STATIC, save: () => this.save(), saveLabel: S.saving ? 'Saving…' : this.isDirty() ? '● Save' : '✓ Saved',
+      deckTitle: S.title || name(N.ROOT.children[0]), editTitle: !!DECK && !STATIC && !isPresent, showTitle: !(DECK && !STATIC && !isPresent),
+      titleVal: S.title || '', onTitle: e => this.setState({ title: e.target.value }), keyHint: S.saveMsg || (isPresent ? '← → ↑ ↓  ·  Space next  ·  / search' + (STATIC ? '' : '  ·  Esc') : ''),
+      hasDeck: !!DECK && !STATIC, save: () => this.save(), saveLabel: S.saving ? 'Saving…' : S.saveMsg ? '⚠ Save' : this.isDirty() ? '● Unsaved' : '✓ Saved',
       modeTabs: STATIC ? [] : [{ label: 'Build', ...tab(!isPresent), onClick: () => this.setState({ mode: 'build' }) }, { label: 'Present', ...tab(isPresent), onClick: () => this.setState({ mode: 'present', query: '' }) }],
       isBuild: !isPresent, isPresent, slideCount: D.order.length, query: S.query, onQuery: e => this.setState({ query: e.target.value }),
       addTop: () => this.insert('ROOT', N.ROOT.children.length),

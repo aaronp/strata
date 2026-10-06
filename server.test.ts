@@ -76,3 +76,8 @@ test("PUT rejects bad slugs and bad bodies without writing", async () => {
   expect((await put("ok", JSON.stringify({ images: {} }))).status).toBe(400);
   expect(await Bun.file(join(root, "decks/ok/deck.json")).exists()).toBe(false);
 });
+
+test("deckList prefers the deck's own title", async () => {
+  await Bun.write(join(root, "decks/talk/deck.json"), JSON.stringify({ ...deck("First slide"), title: "Named Deck" }));
+  expect(await deckList(root)).toEqual([{ slug: "talk", title: "Named Deck" }]);
+});

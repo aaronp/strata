@@ -11,7 +11,10 @@ class DCLogic { state: any; setState(u: any, cb?: () => void) { this.state = { .
 let root: string;
 beforeEach(async () => { root = await mkdtemp(join(tmpdir(), "strata-app-")); });
 
-async function mount(search: string, opts: { isStatic?: boolean; settle?: boolean } = {}) {
+const until = async (ok: () => boolean, ms = 3000) => { const t0 = Date.now(); while (!ok()) { if (Date.now() - t0 > ms) throw new Error("timed out waiting for the app"); await Bun.sleep(5); } };
+
+async function mount(search: string, opts: { isStatic?: boolean; settle?: boolean; deckMode?: boolean } = {}) {
+  opts = { deckMode: /deck=[a-z0-9-]+/.test(search), ...opts };
   const store: Record<string, string> = {}, listeners: Record<string, Function> = {};
   const g = {
     location: { search }, window: { STRATA_STATIC: !!opts.isStatic, addEventListener: (t: string, f: Function) => (listeners[t] = f), removeEventListener() {} },
@@ -21,7 +24,8 @@ async function mount(search: string, opts: { isStatic?: boolean; settle?: boolea
   };
   const C = new Function("DCLogic", "React", ...Object.keys(g), js + "\nreturn Component;")(DCLogic, { createRef: () => ({ current: null }) }, ...Object.values(g));
   const c = new C(); c.componentDidMount();
-  if (opts.settle !== false) await Bun.sleep(30);
+  // Wait for the deck load (and a new deck's first save) to finish rather than sleeping a fixed time.
+  if (opts.settle !== false) await until(() => (!!c._loaded || !!c.state.saveMsg || !opts.deckMode) && !c.state.saving);
   return { c, listeners };
 }
 
@@ -238,4 +242,22 @@ test("every Layers render gets the deck card, and the card controls exist", asyn
   expect(imports.every(t => t.includes('card="{{ deckCard }}"'))).toBe(true);
   expect(html).toContain('<sc-for list="{{ cardModes }}"');
   expect(html).toContain("field('Card', 'card'");
+});
+
+test("applying a layout keeps linked layers, shapes and icons; only plain text and images are rearranged", async () => {
+  const chip = { id: "md-link-0", type: "text", text: "Go →", x: 67, y: 24, w: 26, h: 9, link: { type: "slide", id: "b" } };
+  const bg = { id: "md-linkbg-0", type: "shape", x: 66, y: 24, w: 28, h: 9 };
+  await writeDeck("talk", {
+    ROOT: slideNode("ROOT", "", ["a", "b"]),
+    a: slideNode("a", "A", [], { frames: [{ id: "f1", layers: [
+      { id: "md-title", type: "text", text: "Title" }, { id: "md-body", type: "text", text: "Body line" }, bg, chip] }] }),
+    b: slideNode("b", "B"),
+  });
+  const { c } = await mount("?deck=talk");
+  c.setState({ cur: "a" });
+  c.applyLayout("list");
+  const ls = c.layersOf("a");
+  expect(ls.find((l: any) => l.id === "md-link-0")).toEqual(chip);
+  expect(ls.find((l: any) => l.id === "md-linkbg-0")).toEqual(bg);
+  expect(ls.filter((l: any) => l.type === "text" && !l.link).map((l: any) => l.text).join("|")).not.toContain("Go →");
 });

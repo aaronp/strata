@@ -1,5 +1,20 @@
 # Handoff: Strata — tree-structured, layered slide presentations
 
+## Usage
+
+Requires [bun](https://bun.sh).
+
+| Command | What it does |
+|---|---|
+| `make dev` | Local editor at http://127.0.0.1:3000/ (pick or create a deck, ⌘S saves to `decks/<slug>/`) |
+| `make test` | Run server/build tests |
+| `make build` | Present-only static site in `dist/` |
+| `make preview` | Build, then serve `dist/` locally |
+
+Publish: commit `decks/`, push to `main`. In the repo's **Settings → Pages**, set **Source: GitHub Actions** once; `.github/workflows/pages.yml` deploys `dist/` on every push.
+
+Decks live in `decks/<slug>/deck.json`, with images extracted to `decks/<slug>/img/`. Opening the app without `?deck=` uses browser storage only (scratch mode).
+
 ## Overview
 Strata is a presentation tool where slides form a **tree**, not a line. Viewers move ← → between siblings (children of the same parent) and ↑ ↓ between levels, so they can stay at the top level or dig into any topic. One large looping background image sits behind the whole deck and shifts with parallax as you navigate, giving a sense of depth (e.g. sky → ground → underground, or ocean surface → trench).
 
@@ -8,7 +23,7 @@ Each slide is built from positioned **layers** (text, image, shape, icon) across
 ## About the design files
 The files in `design/` are **design references built in HTML**: working prototypes that show the intended look and behaviour. They are not production code to copy. The task is to **rebuild this in a real app**. Recommended stack if starting fresh: **React + TypeScript + Vite**, a state store (Zustand or Redux Toolkit) with undo/redo built on immutable snapshots, and plain CSS transitions / Web Animations API for tweening. Persist to localStorage first, with a JSON export/import; a backend can come later.
 
-`Strata v7.dc.html` is the current version. It's a "Design Component": a template with `{{ }}` holes plus a `class Component` logic block inside a `<script data-dc-script>` tag. **Read the logic class: it is the spec for all behaviour.** `support.js` is the prototype's runtime only; don't port it. Older `Strata*.dc.html` versions are superseded and not included.
+`strata.dc.html` is the current version. It's a "Design Component": a template with `{{ }}` holes plus a `class Component` logic block inside a `<script data-dc-script>` tag. **Read the logic class: it is the spec for all behaviour.** `support.js` is the prototype's runtime only; don't port it. Older `Strata*.dc.html` versions are superseded and not included.
 
 ## Fidelity
 **High-fidelity for behaviour and layout; mid-fidelity for visual polish.** Match the interaction model, data model, parallax maths and transition system exactly. Colours and type below are final for the editor chrome.
@@ -105,7 +120,7 @@ A layer keeps the **same `id`** across frames; that's how it's matched for tween
 - `design/backdrops/sky.svg` and `design/backdrops/ocean.svg` are tall template backgrounds (aspect ≈ 0.4 w/h). Users can also upload their own (SVG preferred).
 
 ## Files
-- `design/Strata v7.dc.html`: the full app (template + logic). This is the source of truth.
+- `design/strata.dc.html`: the full app (template + logic). This is the source of truth.
 - `design/Layers.dc.html`: renders a layer list onto a 16:9 slide (used by the stage, thumbnails and frame strip).
 - `design/backdrops/*.svg`: template backgrounds.
 

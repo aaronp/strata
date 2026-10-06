@@ -366,3 +366,79 @@ test("text layers have an always-available, collapsible Container section", asyn
   expect(html).not.toContain("{{ lyBoxCustom }}");
   expect(html).not.toContain("label: 'Box'");
 });
+
+// ---- slide tree: collapse + drag to move ----
+async function treeDeck(extra: Record<string, any> = {}) {
+  await writeDeck("talk", {
+    ROOT: slideNode("ROOT", "", ["a", "b"]),
+    a: slideNode("a", "A", ["a1", "a2"]), a1: slideNode("a1", "A1", ["a1x"]), a1x: slideNode("a1x", "A1x"), a2: slideNode("a2", "A2"),
+    b: slideNode("b", "B"), ...extra,
+  });
+  const { c } = await mount("?deck=talk");
+  return c;
+}
+const kids = (c: any, id: string) => c.state.nodes[id].children;
+
+test("collapsing a slide hides its subtree, except the path to the current slide", async () => {
+  const c = await treeDeck();
+  c.setState({ cur: "b", collapsed: { a: true } });
+  expect(c.treeVisible().vis).toEqual(["a", "b"]);
+  c.setState({ cur: "a1x" });
+  expect(c.treeVisible().vis).toEqual(["a", "a1", "a1x", "a2", "b"]);
+  c.setState({ cur: "a" });                                   // on the collapsed slide itself: children stay hidden
+  expect(c.treeVisible().vis).toEqual(["a", "b"]);
+  c.toggleCollapse("a");
+  expect(c.state.collapsed.a).toBe(false);
+});
+
+test("moving a slide: before, after, inside, across levels, carrying its subtree", async () => {
+  const c = await treeDeck();
+  c.moveNode("a2", "a1", "before");
+  expect(kids(c, "a")).toEqual(["a2", "a1"]);
+  c.moveNode("a1", "b", "after");
+  expect(kids(c, "ROOT")).toEqual(["a", "b", "a1"]);
+  expect(kids(c, "a1")).toEqual(["a1x"]);
+  c.setState({ collapsed: { b: true } });
+  c.moveNode("a2", "b", "child");
+  expect(kids(c, "b")).toEqual(["a2"]);
+  expect(kids(c, "a")).toEqual([]);
+  expect(c.state.collapsed.b).toBe(false);                    // dropping inside expands the target
+});
+
+test("refused moves: into its own subtree, included slides, inside an including slide", async () => {
+  await writeDeck("other", { ROOT: slideNode("ROOT", "", ["o"]), o: slideNode("o", "O") });
+  const c = await treeDeck({ ROOT: slideNode("ROOT", "", ["a", "b", "inc"]), inc: slideNode("inc", "Inc", [], { include: "other" }) });
+  const before = c.state.nodes;
+  c.moveNode("a", "a1x", "child");
+  c.moveNode("other:o", "b", "after");
+  c.moveNode("b", "inc", "child");
+  c.moveNode("b", "other:o", "before");
+  expect(c.state.nodes).toBe(before);
+});
+
+test("a move is one undo step", async () => {
+  const c = await treeDeck();
+  await Bun.sleep(150);
+  c.moveNode("b", "a", "before"); c.componentDidUpdate();
+  expect(kids(c, "ROOT")).toEqual(["b", "a"]);
+  c.undo(); c.componentDidUpdate();
+  expect(kids(c, "ROOT")).toEqual(["a", "b"]);
+});
+
+test("drop zones: left third before, middle inside, right third after; invalid targets give nothing", async () => {
+  const c = await treeDeck();
+  c._tpos = { a: { x: 16, y: 18 }, a1: { x: 16, y: 110 }, b: { x: 112, y: 18 } };
+  expect(c.treeDropAt(16 + 5, 30, "b")).toEqual({ id: "a", where: "before" });
+  expect(c.treeDropAt(16 + 38, 30, "b")).toEqual({ id: "a", where: "child" });
+  expect(c.treeDropAt(16 + 70, 30, "b")).toEqual({ id: "a", where: "after" });
+  expect(c.treeDropAt(100, 300, "b")).toBeNull();
+  expect(c.treeDropAt(112 + 38, 30, "b")).toBeNull();         // onto itself
+  expect(c.treeDropAt(16 + 38, 120, "a")).toBeNull();         // into its own subtree
+});
+
+test("tree template has collapse toggles, drag start, and the drop marker", async () => {
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  expect(html).toContain('onPointerDown="{{ n.onDragStart }}"');
+  expect(html).toContain('<sc-if value="{{ n.hasKids }}">');
+  expect(html).toContain('<sc-if value="{{ tdMark.show }}">');
+});

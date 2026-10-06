@@ -67,7 +67,7 @@ input,textarea,button{font:inherit;color:inherit}
             </svg>
             <sc-for list="{{ treeNodes }}" as="n" hint-placeholder-count="6">
               <div style="position:absolute;left:{{ n.x }}px;top:{{ n.y }}px;width:76px;opacity:{{ n.opacity }}">
-                <div onClick="{{ n.onClick }}" onDoubleClick="{{ n.onRename }}" title="{{ n.full }}" style="position:relative;width:76px;height:43px;border-radius:5px;overflow:hidden;background:{{ base }};cursor:pointer;outline:{{ n.outline }};outline-offset:1px;box-shadow:0 1px 3px rgba(0,0,0,.18)">
+                <div onPointerDown="{{ n.onDragStart }}" onClick="{{ n.onClick }}" onDoubleClick="{{ n.onRename }}" title="{{ n.full }}" style="position:relative;width:76px;height:43px;border-radius:5px;overflow:hidden;background:{{ base }};cursor:pointer;outline:{{ n.outline }};outline-offset:1px;box-shadow:0 1px 3px rgba(0,0,0,.18)">
                   <div style="position:absolute;left:0;top:0;width:{{ cam.w }}%;height:{{ cam.h }}%;transform:{{ n.cam }}">
                     <sc-for list="{{ tiles }}" as="tl" hint-placeholder-count="0">
                       <div style="position:absolute;top:0;bottom:0;left:{{ tl.l }}%;width:calc({{ tl.w }}% + 2px);background:{{ bgCss }};opacity:{{ opacity }}"></div>
@@ -75,7 +75,10 @@ input,textarea,button{font:inherit;color:inherit}
                   </div>
                   <dc-import name="Layers" card="{{ deckCard }}" layers="{{ n.layers }}" images="{{ images }}" ink="{{ ink }}" shadow="{{ inkShadow }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
                 </div>
-                <div style="margin-top:3px;font-size:10.5px;line-height:1.1;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:{{ n.weight }}">{{ n.title }}</div>
+                <div style="margin-top:3px;display:flex;align-items:center;gap:2px;opacity:{{ n.dragOp }}">
+                  <sc-if value="{{ n.hasKids }}"><button onClick="{{ n.onToggle }}" title="{{ n.toggleTitle }}" style="flex:none;padding:0 3px;border:0;border-radius:4px;background:#ece6d9;color:#6b6458;cursor:pointer;font-size:9.5px;line-height:13px;white-space:nowrap">{{ n.toggleLabel }}</button></sc-if>
+                  <div style="flex:1;min-width:0;font-size:10.5px;line-height:1.1;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:{{ n.weight }}">{{ n.title }}</div>
+                </div>
                 <sc-if value="{{ n.selected }}">
                   <button onClick="{{ n.onPeer }}" title="Add slide after (Enter)" style="position:absolute;left:80px;top:12px;width:20px;height:20px;padding:0;border:0;border-radius:50%;background:#1d1b17;color:#fbf9f4;cursor:pointer;font-size:13px;line-height:20px">+</button>
                   <button onClick="{{ n.onChild }}" title="Add slide below (Tab)" style="position:absolute;left:28px;top:62px;width:20px;height:20px;padding:0;border:0;border-radius:50%;background:#1d1b17;color:#fbf9f4;cursor:pointer;font-size:13px;line-height:20px">+</button>
@@ -83,6 +86,12 @@ input,textarea,button{font:inherit;color:inherit}
                 </sc-if>
               </div>
             </sc-for>
+            <sc-if value="{{ tdMark.show }}">
+              <div style="position:absolute;left:{{ tdMark.l }}px;top:{{ tdMark.t }}px;width:{{ tdMark.w }}px;height:{{ tdMark.h }}px;border:{{ tdMark.border }};border-radius:6px;background:{{ tdMark.bg }};box-sizing:border-box;pointer-events:none"></div>
+            </sc-if>
+            <sc-if value="{{ tdGhost.show }}">
+              <div style="position:absolute;left:{{ tdGhost.l }}px;top:{{ tdGhost.t }}px;max-width:140px;padding:3px 8px;border-radius:6px;background:#1d1b17;color:#fbf9f4;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;z-index:10">{{ tdGhost.title }}</div>
+            </sc-if>
           </div>
         </div>
         <div style="flex:none;padding:8px 12px 10px;border-top:1px solid #e0d9cb;display:flex;flex-wrap:wrap;gap:4px 12px;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#6b6458">
@@ -805,7 +814,7 @@ class Component extends DCLogic {
   state = {
     nodes: seed(), cur: 'a', prev: null, phase: 'idle', dx: 0, dy: 0, type: 'swipe', mode: STATIC ? 'present' : 'build', view: 'slide', rtab: 'slide',
     query: '', bg: 'sky', customBg: null, customAspect: 1, opacity: 1, base: '#0b1220', offset: 0,
-    tAll: { ease: false, dur: false, delay: false }, tdef: {}, dAll: { ease: false, dur: false, delay: false }, secOpen: { layout: true, frames: true, layers: true, tdef: false }, margin: 3, gap: 0.12, tone: 'light', speed: 900, lastChild: {}, navW: 280, rightW: 340, images: {}, layerSel: null, editing: null, guides: {},
+    tAll: { ease: false, dur: false, delay: false }, tdef: {}, dAll: { ease: false, dur: false, delay: false }, secOpen: { layout: true, frames: true, layers: true, tdef: false }, collapsed: {}, margin: 3, gap: 0.12, tone: 'light', speed: 900, lastChild: {}, navW: 280, rightW: 340, images: {}, layerSel: null, editing: null, guides: {},
   };
   treeRef = React.createRef(); titleRef = React.createRef(); searchRef = React.createRef(); stageRef = React.createRef(); editRef = React.createRef(); imgInputRef = React.createRef();
 
@@ -952,12 +961,12 @@ class Component extends DCLogic {
     this.histTrack();
     const S = this.state;
     if (!DECK) {
-      const d = JSON.stringify({ nodes: S.nodes, cur: S.cur, mode: S.mode, view: S.view, rtab: S.rtab, bg: S.bg, customAspect: S.customAspect, opacity: S.opacity, base: S.base, offset: S.offset, margin: S.margin, gap: S.gap, tone: S.tone, speed: S.speed, navW: S.navW, rightW: S.rightW, tdef: S.tdef, secOpen: S.secOpen });
+      const d = JSON.stringify({ nodes: S.nodes, cur: S.cur, mode: S.mode, view: S.view, rtab: S.rtab, bg: S.bg, customAspect: S.customAspect, opacity: S.opacity, base: S.base, offset: S.offset, margin: S.margin, gap: S.gap, tone: S.tone, speed: S.speed, navW: S.navW, rightW: S.rightW, tdef: S.tdef, secOpen: S.secOpen, collapsed: S.collapsed });
       if (d !== this._d) { this._d = d; try { localStorage.setItem(KEY, d); } catch (e) {} }
       if (S.images !== this._im) { this._im = S.images; try { localStorage.setItem(IKEY, JSON.stringify(S.images)); } catch (e) {} }
       if (S.customBg !== this._bg) { this._bg = S.customBg; try { if (S.customBg) localStorage.setItem(BGKEY, S.customBg); } catch (e) {} }
     } else if (!STATIC) {
-      const u = JSON.stringify({ navW: S.navW, rightW: S.rightW, secOpen: S.secOpen, view: S.view, rtab: S.rtab });
+      const u = JSON.stringify({ navW: S.navW, rightW: S.rightW, secOpen: S.secOpen, view: S.view, rtab: S.rtab, collapsed: S.collapsed });
       if (u !== this._u) { this._u = u; try { localStorage.setItem(UIKEY, u); } catch (e) {} }
     }
     if (S.cur !== this._lastCur) { this._lastCur = S.cur; this.scrollTree(); }
@@ -1000,6 +1009,56 @@ class Component extends DCLogic {
 
   setNode(id, patch) { this.setState(s => ({ nodes: { ...s.nodes, [id]: { ...s.nodes[id], ...patch } } })); }
   focusTitle() { setTimeout(() => { const el = this.titleRef.current; if (el) { el.focus(); el.select(); } }, 40); }
+  // Tree collapse: a collapsed slide hides its subtree, except along the path to the current slide.
+  treeVisible() {
+    const N = this.state.nodes, D = this.derive(), col = this.state.collapsed || {}, cur = this.curId();
+    const onPath = new Set(); for (let x = cur; x && x !== 'ROOT'; x = D.parent[x]) onPath.add(x);
+    const expanded = id => !col[id] || (onPath.has(id) && id !== cur);
+    const vis = []; const walk = id => N[id].children.forEach(k => { vis.push(k); if (expanded(k)) walk(k); });
+    walk('ROOT');
+    return { vis, expanded };
+  }
+  toggleCollapse(id) { this.setState(s => ({ collapsed: { ...(s.collapsed || {}), [id]: !(s.collapsed || {})[id] } })); }
+  isUnder(id, anc) { const D = this.derive(); for (let x = id; x; x = D.parent[x]) if (x === anc) return true; return false; }
+  // Move a slide (with its subtree) before/after a slide, or inside it as its last child.
+  moveNode(id, tid, where) {
+    const N = this.state.nodes, D = this.derive(), T = N[tid];
+    if (!N[id] || !T || id === tid || this.isUnder(tid, id) || N[id]._inc || T._inc || (where === 'child' && T.include)) return;
+    const nodes = { ...N }, pid = D.parent[id];
+    nodes[pid] = { ...N[pid], children: N[pid].children.filter(k => k !== id) };
+    if (where === 'child') nodes[tid] = { ...nodes[tid], children: [...nodes[tid].children, id] };
+    else { const tp = D.parent[tid], ks = [...nodes[tp].children]; ks.splice(ks.indexOf(tid) + (where === 'after' ? 1 : 0), 0, id); nodes[tp] = { ...nodes[tp], children: ks }; }
+    this.setState(s => ({ nodes, ...(where === 'child' && (s.collapsed || {})[tid] ? { collapsed: { ...s.collapsed, [tid]: false } } : {}) }));
+  }
+  // Drop target under a point in tree coordinates: left third = before, middle = inside, right third = after.
+  treeDropAt(x, y, dragId) {
+    const N = this.state.nodes, tp = this._tpos || {};
+    for (const id in tp) {
+      const p = tp[id]; if (x < p.x || x > p.x + TW || y < p.y - 4 || y > p.y + 60) continue;
+      if (id === dragId || this.isUnder(id, dragId) || N[id]._inc) return null;
+      const r = (x - p.x) / TW, where = r < 1 / 3 ? 'before' : r > 2 / 3 ? 'after' : 'child';
+      return where === 'child' && N[id].include ? null : { id, where };
+    }
+    return null;
+  }
+  startTreeDrag(ev, id) {
+    if (ev.button || this.state.nodes[id]._inc) return;
+    const el = this.treeRef.current; if (!el) return;
+    const at = e => { const r = el.getBoundingClientRect(); return { x: e.clientX - r.left + el.scrollLeft, y: e.clientY - r.top + el.scrollTop }; };
+    let dragging = false; this._treeDragCancel = false;
+    const move = e => {
+      if (this._treeDragCancel) return;
+      if (!dragging && Math.abs(e.clientX - ev.clientX) + Math.abs(e.clientY - ev.clientY) < 5) return; dragging = true;
+      const p = at(e); this.setState({ treeDrag: { id, x: p.x, y: p.y, drop: this.treeDropAt(p.x, p.y, id) } });
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up);
+      const d = this.state.treeDrag;
+      if (dragging) { this._suppressClick = true; if (d && d.drop && !this._treeDragCancel) this.moveNode(id, d.drop.id, d.drop.where); }
+      this.setState({ treeDrag: null });
+    };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+  }
   insert(pid, index) {
     const S = this.state; const id = uid(); const p = S.nodes[pid]; const kids = [...p.children]; kids.splice(index, 0, id);
     this.setState({ nodes: { ...S.nodes, [id]: { id, title: 'New slide', body: '', children: [] }, [pid]: { ...p, children: kids } }, cur: id, prev: null, phase: 'idle', query: '', rtab: 'slide', fi: 0, transSel: null });
@@ -1284,6 +1343,7 @@ class Component extends DCLogic {
   onKey(e) {
     const t = e.target; const typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA'); const k = e.key; const S = this.state;
     if ((e.metaKey || e.ctrlKey) && (k === 's' || k === 'S')) { e.preventDefault(); this.save(); return; }
+    if (k === 'Escape' && S.treeDrag) { this._treeDragCancel = true; this.setState({ treeDrag: null }); return; }
     if (typing) {
       if (t.dataset && t.dataset.role === 'filter' && k === 'Enter') { const D = this.derive(); const q = S.query.trim().toLowerCase(); const id = D.order.find(x => (S.nodes[x].title + ' ' + S.nodes[x].body).toLowerCase().includes(q)); if (id) this.nav(id, 'jump'); }
       if (k === 'Escape') { t.blur(); this.setState({ query: '' }); }
@@ -1354,14 +1414,18 @@ class Component extends DCLogic {
     const camOf = id => { const r = L.rect[id]; return `translate(${f3(-r.x / CW * 100)}%, ${f3(-r.y / H * 100)}%)`; };
 
     // thumbnail tree
-    let leaf = 0; const tp = {};
-    const lay = (id, d) => { const kids = N[id].children; if (!kids.length) { tp[id] = { x: TPX + leaf * COLW, y: TPY + d * ROWH }; leaf++; } else { kids.forEach(k => lay(k, d + 1)); tp[id] = { x: (tp[kids[0]].x + tp[kids[kids.length - 1]].x) / 2, y: TPY + d * ROWH }; } };
+    let leaf = 0; const tp = {}; const TV = this.treeVisible();
+    const countUnder = id => N[id].children.reduce((n, k) => n + 1 + countUnder(k), 0);
+    const lay = (id, d) => { const kids = TV.expanded(id) ? N[id].children : []; if (!kids.length) { tp[id] = { x: TPX + leaf * COLW, y: TPY + d * ROWH }; leaf++; } else { kids.forEach(k => lay(k, d + 1)); tp[id] = { x: (tp[kids[0]].x + tp[kids[kids.length - 1]].x) / 2, y: TPY + d * ROWH }; } };
     N.ROOT.children.forEach(k => lay(k, 0)); this._tpos = tp;
-    const treeNodes = D.order.map(id => ({ x: tp[id].x, y: tp[id].y, title: name(id), full: name(id), cam: camOf(id), layers: this.layersOf(id), selected: id === cur, outline: id === cur ? '2px solid #d9432b' : 'none',
+    const td = S.treeDrag;
+    const treeNodes = TV.vis.map(id => ({ x: tp[id].x, y: tp[id].y, title: name(id),
+      hasKids: N[id].children.length > 0, toggleLabel: TV.expanded(id) ? '▾' : '▸ ' + countUnder(id), toggleTitle: TV.expanded(id) ? 'Collapse' : 'Expand',
+      onToggle: e => { e.stopPropagation(); this.toggleCollapse(id); }, onDragStart: ev => this.startTreeDrag(ev, id), dragOp: td && td.id === id ? 0.35 : 1, full: name(id), cam: camOf(id), layers: this.layersOf(id), selected: id === cur, outline: id === cur ? '2px solid #d9432b' : 'none',
       weight: id === cur ? 700 : 500, opacity: q && !match[id] ? 0.35 : 1, delOpacity: D.order.length > 1 ? 1 : 0.4,
-      onClick: () => this.nav(id, 'jump'), onRename: () => { this.nav(id, 'jump'); this.setState({ rtab: 'slide' }); this.focusTitle(); },
+      onClick: () => { if (this._suppressClick) { this._suppressClick = false; return; } this.nav(id, 'jump'); }, onRename: () => { this.nav(id, 'jump'); this.setState({ rtab: 'slide' }); this.focusTitle(); },
       onPeer: e => { e.stopPropagation(); this.addPeer(id); }, onChild: e => { e.stopPropagation(); this.addChild(id); }, onDelete: e => { e.stopPropagation(); this.remove(id); } }));
-    const treeEdges = D.order.filter(id => D.parent[id] !== 'ROOT').map(id => { const a = tp[D.parent[id]], b = tp[id]; const x1 = a.x + TW / 2, y1 = a.y + 60, x2 = b.x + TW / 2, y2 = b.y - 2; return { d: `M${x1} ${y1}V${y1 + 12}H${x2}V${y2}` }; });
+    const treeEdges = TV.vis.filter(id => D.parent[id] !== 'ROOT').map(id => { const a = tp[D.parent[id]], b = tp[id]; const x1 = a.x + TW / 2, y1 = a.y + 60, x2 = b.x + TW / 2, y2 = b.y - 2; return { d: `M${x1} ${y1}V${y1 + 12}H${x2}V${y2}` }; });
     const tops = N.ROOT.children; const topEdge = tops.length > 1 ? [{ d: `M${tp[tops[0]].x + TW / 2} ${TPY - 8}H${tp[tops[tops.length - 1]].x + TW / 2}` }].concat(tops.map(t => ({ d: `M${tp[t].x + TW / 2} ${TPY - 8}V${TPY - 2}` }))) : [];
 
     // stage
@@ -1633,6 +1697,9 @@ class Component extends DCLogic {
       isBuild: !isPresent, isPresent, slideCount: D.order.length, query: S.query, onQuery: e => this.setState({ query: e.target.value }),
       addTop: () => this.insert('ROOT', N.ROOT.children.length),
       navW: Math.max(200, Math.min(S.navW, (typeof window !== 'undefined' ? window.innerWidth : 1400) - (this.state.rightW || 300) - 380)), onNavResize: e => this.navResize(e),
+      tdMark: (() => { const d = td && td.drop, p = d && tp[d.id]; if (!p) return { show: false, l: 0, t: 0, w: 0, h: 0, border: 'none', bg: 'none' };
+        return d.where === 'child' ? { show: true, l: p.x - 4, t: p.y - 4, w: TW + 8, h: 51, border: '2px dashed #1f6fb8', bg: 'rgba(31,111,184,.12)' } : { show: true, l: d.where === 'before' ? p.x - 7 : p.x + TW + 4, t: p.y - 2, w: 3, h: 47, border: 'none', bg: '#1f6fb8' }; })(),
+      tdGhost: td ? { show: true, l: td.x + 10, t: td.y + 10, title: name(td.id) } : { show: false, l: 0, t: 0, title: '' },
       treeRef: this.treeRef, treeW: TPX * 2 + Math.max(1, leaf) * COLW + 20, treeH: TPY + D.levels * ROWH + 20, treeNodes, treeEdges: topEdge.concat(treeEdges),
       viewTabs: [{ label: 'Slide', ...tab(S.view === 'slide'), onClick: () => this.setState({ view: 'slide' }) }, { label: 'Wireframe', ...tab(S.view === 'wire'), onClick: () => this.setState({ view: 'wire' }) }],
       viewHint: isWire ? 'Every slide on the looping canvas. Click to select, double-click to open.' : 'What viewers see. Arrow keys move around the tree.',

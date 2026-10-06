@@ -22,8 +22,10 @@ input,textarea,button{font:inherit;color:inherit}
   <input type="file" accept="image/*,.svg" ref="{{ imgInputRef }}" onChange="{{ onImgFile }}" style="display:none">
   <header style="height:52px;flex:none;display:flex;align-items:center;gap:14px;padding:0 16px;border-bottom:1px solid #e0d9cb;background:#fbf9f4">
     <div style="display:flex;align-items:center;gap:10px;min-width:0">
-      <div style="position:relative;width:22px;height:16px;flex:none;border:2px solid #1d1b17;border-radius:3px"><div style="position:absolute;left:3px;top:3px;width:8px;height:6px;background:#d9432b;border-radius:1px"></div></div>
-      <div style="font-weight:800;font-size:18px;letter-spacing:-.02em">Strata</div>
+      <a href="../" title="← All decks" style="display:flex;align-items:center;gap:10px;color:inherit;text-decoration:none" style-hover="color:#d9432b">
+        <div style="position:relative;width:22px;height:16px;flex:none;border:2px solid currentColor;border-radius:3px"><div style="position:absolute;left:3px;top:3px;width:8px;height:6px;background:#d9432b;border-radius:1px"></div></div>
+        <div style="font-weight:800;font-size:18px;letter-spacing:-.02em">Strata</div>
+      </a>
       <div style="color:#6b6458;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">/ {{ deckTitle }}</div>
     </div>
     <div style="flex:1"></div>

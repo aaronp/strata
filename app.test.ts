@@ -72,3 +72,8 @@ test("static mode presents and never saves", async () => {
   await c.save();
   expect(await Bun.file(join(root, "decks/talk/deck.json")).exists()).toBe(false);
 });
+
+test("header logo links home to the deck list", async () => {
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  expect(html.split("<header")[1].split("</header>")[0]).toMatch(/<a href="\.\.\/" title="← All decks"/);
+});

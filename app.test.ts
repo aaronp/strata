@@ -358,3 +358,11 @@ test("stage template has the group box handles and the selection rectangle", asy
   expect(html).toContain('<sc-for list="{{ grpHandles }}"');
   expect(html).toContain('<sc-if value="{{ hasMarquee }}">');
 });
+
+test("text layers have an always-available, collapsible Container section", async () => {
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  expect(html).toContain('<sc-if value="{{ sec.box.open }}">');
+  expect(html).toContain('<sc-for list="{{ boxModes }}"');
+  expect(html).not.toContain("{{ lyBoxCustom }}");
+  expect(html).not.toContain("label: 'Box'");
+});

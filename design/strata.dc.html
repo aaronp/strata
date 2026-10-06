@@ -691,6 +691,8 @@ const DECK_FIELDS = ['title', 'source', 'card', 'nodes', 'bg', 'customBg', 'cust
 const deckUrl = (slug, v) => typeof v === 'string' && v && !/^(data:|blob:|https?:|\/)/.test(v) ? '../decks/' + slug + '/' + v : v;
 const absUrl = v => DECK ? deckUrl(DECK, v) : v;
 const relUrl = v => typeof v === 'string' && DECK_BASE && v.startsWith(DECK_BASE) ? v.slice(DECK_BASE.length) : v;
+// Layout presets rearrange plain text and images; linked layers, shapes and icons stay exactly where they are.
+const layoutKeeps = l => !!l.link || (l.type !== 'text' && l.type !== 'image');
 const mapImgs = (im, f) => Object.fromEntries(Object.entries(im || {}).map(([k, v]) => [k, f(v)]));
 // Deck includes: another deck's slides are grafted under the including slide with ids prefixed "<slug>:" and marked _inc.
 const prefixLayer = (l, p) => ({ ...l, ...(l.link && l.link.type === 'slide' ? { link: { ...l.link, id: p + l.link.id } } : {}), ...(l.imgKey ? { imgKey: p + l.imgKey } : {}) });
@@ -983,7 +985,7 @@ class Component extends DCLogic {
   undo() { if (!this._past.length) return; this._future.push(this.state.nodes); this.restore(this._past.pop()); }
   redo() { if (!this._future.length) return; this._past.push(this.state.nodes); this.restore(this._future.pop()); }
   layoutContent(id) {
-    const n = this.state.nodes[id]; const ls = this.layersOf(id);
+    const n = this.state.nodes[id]; const ls = this.layersOf(id).filter(l => !layoutKeeps(l));
     const texts = ls.filter(l => l.type === 'text').map(l => String(l.text || '')); const imgs = ls.filter(l => l.type === 'image').map(l => l.imgKey);
     const title = (texts[0] || n.title || 'Title').replace(/^[“"]|[”"]$/g, '');
     const rest = texts.slice(1).join('\n').trim() || n.body || '';
@@ -995,7 +997,7 @@ class Component extends DCLogic {
   }
   applyLayout(lid) {
     const id = this.curId(); const L = SLIDE_LAYOUTS.find(x => x.id === lid); if (!L) return;
-    const layers = L.make(this.layoutContent(id)).map(l => ({ ...l, id: 'l' + uid() }));
+    const layers = L.make(this.layoutContent(id)).map(l => ({ ...l, id: 'l' + uid() })).concat(this.layersOf(id).filter(layoutKeeps));
     this.setLayers(id, () => layers); this.setState({ layerSel: null, editing: null, view: 'slide' });
   }
   curId() { const N = this.state.nodes; return N[this.state.cur] ? this.state.cur : N.ROOT.children[0]; }

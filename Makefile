@@ -1,4 +1,4 @@
-PORT ?= 3000
+PORT ?= 3067
 .PHONY: dev build preview test clean import
 
 dev:

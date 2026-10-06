@@ -6,7 +6,7 @@ Requires [bun](https://bun.sh).
 
 | Command | What it does |
 |---|---|
-| `make dev` | Local editor at http://127.0.0.1:3000/ (pick or create a deck, ⌘S saves to `decks/<slug>/`) |
+| `make dev` | Local editor at http://127.0.0.1:3067/ (pick or create a deck, ⌘S saves to `decks/<slug>/`) |
 | `make import MD=notes.md [SLUG=name]` | Build `decks/<slug>/` from a markdown outline; re-run (or `make import DECK=<slug>`) after editing the markdown |
 | `make test` | Run server/build tests |
 | `make build` | Present-only static site in `dist/` |

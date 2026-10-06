@@ -95,7 +95,7 @@ export function handler(root: string) {
 }
 
 if (import.meta.main) {
-  const port = Number(process.env.PORT ?? 3000);
+  const port = Number(process.env.PORT ?? 3067);
   Bun.serve({ hostname: "127.0.0.1", port, fetch: handler(process.cwd()) });
   console.log(`Strata dev server: http://127.0.0.1:${port}/`);
 }

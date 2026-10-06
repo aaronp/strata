@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<div style="position:absolute;inset:0;container-type:size;overflow:hidden;pointer-events:none">
+  <sc-for list="{{ items }}" as="e" hint-placeholder-count="0">
+    <div style="position:absolute;left:{{ e.x }}%;top:{{ e.y }}%;width:{{ e.w }}%;height:{{ e.h }}%;transform:rotate({{ e.rot }}deg);opacity:{{ e.op }};display:{{ e.display }};z-index:{{ e.z }};transition:{{ e.tr }}">
+      <sc-if value="{{ e.isText }}">
+        <div style="width:100%;height:100%;display:flex;flex-direction:column;justify-content:{{ e.vjust }};gap:{{ e.gap }}em;font-family:{{ e.font }};font-size:{{ e.fs }}cqw;font-weight:{{ e.weight }};color:{{ e.color }};text-align:{{ e.align }};line-height:{{ e.lh }};letter-spacing:{{ e.ls }}em;text-shadow:{{ e.shadow }};transition:{{ e.tr2 }}">
+          <sc-for list="{{ e.lines }}" as="ln" hint-placeholder-count="1">
+            <div style="display:flex;gap:.45em;align-items:baseline;justify-content:{{ e.hjust }}">
+              <sc-if value="{{ ln.hasMark }}"><span style="flex:none;min-width:{{ e.markW }};opacity:.85">{{ ln.mark }}</span></sc-if>
+              <span style="white-space:pre-wrap;text-wrap:pretty;min-width:0">{{ ln.text }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+      <sc-if value="{{ e.isShape }}">
+        <div style="width:100%;height:100%;background:{{ e.fill }};border-radius:{{ e.radius }};clip-path:{{ e.clip }};transition:{{ e.tr2 }}"></div>
+      </sc-if>
+      <sc-if value="{{ e.isIcon }}">
+        <svg viewBox="0 0 24 24" width="100%" height="100%" preserveAspectRatio="xMidYMid meet" style="display:block;overflow:visible">
+          <path d="{{ e.path }}" style="fill:none;stroke:{{ e.fill }};stroke-width:{{ e.sw }};stroke-linecap:round;stroke-linejoin:round;transition:{{ e.tr2 }}"></path>
+        </svg>
+      </sc-if>
+      <sc-if value="{{ e.isImage }}">
+        <div style="position:relative;width:100%;height:100%;border-radius:{{ e.radius }}cqw;overflow:hidden;background:{{ e.imgBg }}">
+          <sc-if value="{{ e.showLabel }}">
+            <div style="position:absolute;inset:0;display:grid;place-items:center;padding:4%;text-align:center;font-family:'JetBrains Mono',monospace;font-size:1.1cqw;letter-spacing:.06em;text-transform:uppercase;color:#4a443a">Double-click or drop an image</div>
+          </sc-if>
+        </div>
+      </sc-if>
+    </div>
+  </sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:800,&quot;height&quot;:450},&quot;layers&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;array&quot;},&quot;images&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;object&quot;},&quot;ink&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#15171c&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;shadow&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;none&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;editingId&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;string&quot;},&quot;showEmpty&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;}}">
+const FONTS = { grot: "'Bricolage Grotesque',sans-serif", serif: "'DM Serif Display',serif", news: "'Newsreader',serif", mono: "'JetBrains Mono',monospace", hand: "'Caveat',cursive" };
+const ICONS = {
+  arrow: 'M5 12h14M13 6l6 6-6 6', check: 'M5 12.5l4.5 4.5L19 7.5', star: 'M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z',
+  heart: 'M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z', info: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 11v6M12 7.5v.5',
+  plus: 'M12 5v14M5 12h14', target: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', bolt: 'M13 3L5 13.5h6L10 21l8-10.5h-6z',
+  pin: 'M12 21s6-5.6 6-11a6 6 0 1 0-12 0c0 5.4 6 11 6 11zM12 12a2 2 0 1 0 0-4 2 2 0 0 0 0 4z', chart: 'M5 20V11M11 20V5M17 20v-7M3 20h18',
+  users: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21a7 7 0 0 1 14 0M17 11a3 3 0 1 0 0-6M22 21a6 6 0 0 0-4-5.7', key: 'M8 15a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM11.5 11H21M18 11v3M21 11v2',
+};
+const MARKS = { disc: '•', dash: '–', check: '✓', arrow: '→' };
+class Component extends DCLogic {
+  renderVals() {
+    const p = this.props; const ink = p.ink || '#15171c'; const imgs = p.images || {};
+    const shadow = p.shadow || 'none';
+    const items = (p.layers || []).map((l, i) => {
+      const base = { z: l._z ?? (i + 1), tr: l._tr || 'none', tr2: l._tr2 || 'none', x: l.x, y: l.y, w: l.w, h: l.h, rot: l.rot || 0, op: l.id === p.editingId ? 0 : (l.opacity ?? 1), display: l.hidden ? 'none' : 'block',
+        isText: l.type === 'text', isShape: l.type === 'shape', isIcon: l.type === 'icon', isImage: l.type === 'image' };
+      if (l.type === 'text') {
+        const b = l.bullets || 'none'; const raw = String(l.text ?? '').split('\n');
+        const lines = raw.map((t, i) => ({ text: t === '' ? '\u00a0' : t, hasMark: b !== 'none' && t !== '', mark: b === 'number' ? (raw.slice(0, i + 1).filter(x => x !== '').length) + '.' : MARKS[b] || '' }));
+        const align = l.align || 'left';
+        return { ...base, lines, font: FONTS[l.font] || FONTS.grot, fs: (l.size || 40) / 16, weight: l.weight || 400, color: l.color || ink, align, lh: l.lh || 1.2, ls: l.ls || 0,
+          gap: l.gap ?? 0.15, hjust: b !== 'none' ? 'flex-start' : align === 'center' ? 'center' : align === 'right' ? 'flex-end' : 'flex-start',
+          vjust: l.valign === 'middle' ? 'center' : l.valign === 'bottom' ? 'flex-end' : 'flex-start', markW: b === 'number' ? '1.4em' : '0.8em', shadow: l.color ? 'none' : shadow };
+      }
+      if (l.type === 'shape') {
+        const k = l.shape || 'rect';
+        return { ...base, fill: l.fill || '#d9432b', radius: k === 'ellipse' ? '50%' : ((l.radius || 0) / 16) + 'cqw', clip: k === 'triangle' ? 'polygon(50% 0,100% 100%,0 100%)' : 'none' };
+      }
+      if (l.type === 'icon') return { ...base, path: ICONS[l.icon] || ICONS.star, fill: l.fill || ink, sw: l.sw || 1.8 };
+      const u = l.imgKey ? imgs[l.imgKey] : null;
+      return { ...base, radius: (l.radius || 0) / 16, imgBg: u ? `url("${u}") center / ${l.fit === 'contain' ? 'contain' : 'cover'} no-repeat` : (p.showEmpty ? 'repeating-linear-gradient(45deg,#e4ddcf 0 12px,#efeae0 12px 24px)' : 'rgba(251,249,244,.18)'), showLabel: !u && !!p.showEmpty };
+    });
+    return { items };
+  }
+}
+</script>
+</body>
+</html>

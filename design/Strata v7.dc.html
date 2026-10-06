@@ -1,0 +1,1357 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<title>Strata v7 — layered slides</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=DM+Serif+Display&family=Newsreader:opsz,wght@6..72,400;6..72,600&family=Caveat:wght@500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+html,body{margin:0;height:100%;background:#f2eee5;color:#1d1b17}
+*{box-sizing:border-box}
+a{color:#d9432b}a:hover{color:#a8301d}
+input,textarea,button{font:inherit;color:inherit}
+</style>
+</helmet>
+<div style="height:100vh;display:flex;flex-direction:column;font-family:'Bricolage Grotesque',sans-serif;font-size:14px;background:#f2eee5;color:#1d1b17">
+  <input type="file" accept="image/*,.svg" ref="{{ imgInputRef }}" onChange="{{ onImgFile }}" style="display:none">
+  <header style="height:52px;flex:none;display:flex;align-items:center;gap:14px;padding:0 16px;border-bottom:1px solid #e0d9cb;background:#fbf9f4">
+    <div style="display:flex;align-items:center;gap:10px;min-width:0">
+      <div style="position:relative;width:22px;height:16px;flex:none;border:2px solid #1d1b17;border-radius:3px"><div style="position:absolute;left:3px;top:3px;width:8px;height:6px;background:#d9432b;border-radius:1px"></div></div>
+      <div style="font-weight:800;font-size:18px;letter-spacing:-.02em">Strata</div>
+      <div style="color:#6b6458;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">/ {{ deckTitle }}</div>
+    </div>
+    <div style="flex:1"></div>
+    <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#6b6458;white-space:nowrap">{{ keyHint }}</span>
+    <sc-if value="{{ isBuild }}">
+      <div style="display:flex;gap:4px;flex:none">
+        <button onClick="{{ undo }}" title="Undo (⌘Z)" style="height:30px;padding:0 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;white-space:nowrap;opacity:{{ undoOp }}" style-hover="background:#f5f1e8">↶ Undo</button>
+        <button onClick="{{ redo }}" title="Redo (⇧⌘Z)" style="height:30px;padding:0 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;white-space:nowrap;opacity:{{ redoOp }}" style-hover="background:#f5f1e8">↷ Redo</button>
+      </div>
+    </sc-if>
+    <div style="display:flex;gap:2px;padding:3px;border-radius:10px;background:#ece6d9;flex:none">
+      <sc-for list="{{ modeTabs }}" as="t" hint-placeholder-count="2">
+        <button onClick="{{ t.onClick }}" style="padding:6px 16px;border:0;border-radius:8px;cursor:pointer;background:{{ t.bg }};color:{{ t.color }};box-shadow:{{ t.shadow }};font-weight:600;white-space:nowrap">{{ t.label }}</button>
+      </sc-for>
+    </div>
+  </header>
+
+  <div style="flex:1;min-height:0;display:flex">
+    <sc-if value="{{ isBuild }}" hint-placeholder-val="{{ true }}">
+      <aside style="position:relative;width:{{ navW }}px;flex:none;min-height:0;display:flex;flex-direction:column;border-right:1px solid #e0d9cb;background:#fbf9f4">
+        <div onPointerDown="{{ onNavResize }}" title="Drag to resize" style="position:absolute;right:-4px;top:0;bottom:0;width:8px;cursor:col-resize;z-index:20" style-hover="background:rgba(217,67,43,.25)"></div>
+        <div style="padding:12px 12px 8px;display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <span style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#6b6458">Slide tree · {{ slideCount }}</span>
+            <button onClick="{{ addTop }}" style="padding:3px 8px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer;font-size:12px;white-space:nowrap" style-hover="background:#f5f1e8">+ Top level</button>
+          </div>
+          <input value="{{ query }}" onChange="{{ onQuery }}" placeholder="Filter…  (Enter jumps to first match)" data-role="filter" style="width:100%;padding:7px 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;outline:none">
+        </div>
+        <div ref="{{ treeRef }}" style="flex:1;overflow:auto;background:#f4f0e7;border-top:1px solid #e0d9cb">
+          <div style="position:relative;width:{{ treeW }}px;height:{{ treeH }}px">
+            <svg width="{{ treeW }}" height="{{ treeH }}" style="position:absolute;left:0;top:0;pointer-events:none">
+              <sc-for list="{{ treeEdges }}" as="te" hint-placeholder-count="0">
+                <path d="{{ te.d }}" style="fill:none;stroke:#b9b1a2;stroke-width:1.5"></path>
+              </sc-for>
+            </svg>
+            <sc-for list="{{ treeNodes }}" as="n" hint-placeholder-count="6">
+              <div style="position:absolute;left:{{ n.x }}px;top:{{ n.y }}px;width:76px;opacity:{{ n.opacity }}">
+                <div onClick="{{ n.onClick }}" onDoubleClick="{{ n.onRename }}" title="{{ n.full }}" style="position:relative;width:76px;height:43px;border-radius:5px;overflow:hidden;background:{{ base }};cursor:pointer;outline:{{ n.outline }};outline-offset:1px;box-shadow:0 1px 3px rgba(0,0,0,.18)">
+                  <div style="position:absolute;left:0;top:0;width:{{ cam.w }}%;height:{{ cam.h }}%;transform:{{ n.cam }}">
+                    <sc-for list="{{ tiles }}" as="tl" hint-placeholder-count="0">
+                      <div style="position:absolute;top:0;bottom:0;left:{{ tl.l }}%;width:calc({{ tl.w }}% + 2px);background:{{ bgCss }};opacity:{{ opacity }}"></div>
+                    </sc-for>
+                  </div>
+                  <dc-import name="Layers" layers="{{ n.layers }}" images="{{ images }}" ink="{{ ink }}" shadow="{{ inkShadow }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
+                </div>
+                <div style="margin-top:3px;font-size:10.5px;line-height:1.1;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:{{ n.weight }}">{{ n.title }}</div>
+                <sc-if value="{{ n.selected }}">
+                  <button onClick="{{ n.onPeer }}" title="Add slide after (Enter)" style="position:absolute;left:80px;top:12px;width:20px;height:20px;padding:0;border:0;border-radius:50%;background:#1d1b17;color:#fbf9f4;cursor:pointer;font-size:13px;line-height:20px">+</button>
+                  <button onClick="{{ n.onChild }}" title="Add slide below (Tab)" style="position:absolute;left:28px;top:62px;width:20px;height:20px;padding:0;border:0;border-radius:50%;background:#1d1b17;color:#fbf9f4;cursor:pointer;font-size:13px;line-height:20px">+</button>
+                  <button onClick="{{ n.onDelete }}" title="Delete slide and everything below it" style="position:absolute;right:-7px;top:-7px;width:17px;height:17px;padding:0;border:0;border-radius:50%;background:#fff;color:#a8301d;box-shadow:0 1px 3px rgba(0,0,0,.25);cursor:pointer;font-size:9px;line-height:17px;opacity:{{ n.delOpacity }}">✕</button>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="flex:none;padding:8px 12px 10px;border-top:1px solid #e0d9cb;display:flex;flex-wrap:wrap;gap:4px 12px;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#6b6458">
+          <span>Enter after</span><span>Tab below</span><span>⌫ delete</span><span>Arrows move</span><span>Dbl-click rename</span>
+        </div>
+      </aside>
+    </sc-if>
+
+    <main style="position:relative;flex:1;min-width:0;min-height:0;overflow:hidden;display:flex;flex-direction:column;background:{{ stageAreaBg }}">
+      <sc-if value="{{ isBuild }}">
+        <div style="flex:none;display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid #e0d9cb;background:#fbf9f4;min-width:0;overflow:hidden">
+          <div style="flex:none;display:flex;gap:2px;padding:3px;border-radius:9px;background:#ece6d9">
+            <sc-for list="{{ viewTabs }}" as="v" hint-placeholder-count="2">
+              <button onClick="{{ v.onClick }}" style="padding:5px 13px;border:0;border-radius:7px;cursor:pointer;background:{{ v.bg }};box-shadow:{{ v.shadow }};font-size:13px;font-weight:600;white-space:nowrap">{{ v.label }}</button>
+            </sc-for>
+          </div>
+          <span style="font-size:12px;color:#6b6458;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">{{ viewHint }}</span>
+        </div>
+      </sc-if>
+
+      <div style="position:relative;flex:1;min-height:0;container-type:size">
+        <sc-if value="{{ showStage }}" hint-placeholder-val="{{ true }}">
+          <div style="position:absolute;inset:0;display:grid;place-items:center;padding:136px 66px 60px">
+            <div ref="{{ stageRef }}" style="position:relative;width:min(100cqw - 132px, (100cqh - 196px) * 16 / 9);aspect-ratio:16/9;overflow:hidden;border-radius:12px;background:{{ base }};container-type:inline-size;box-shadow:0 30px 80px -30px rgba(0,0,0,.55)">
+              <div style="position:absolute;left:0;top:0;width:{{ cam.w }}%;height:{{ cam.h }}%;transform:{{ curCam }};transition:{{ camTransition }}">
+                <sc-for list="{{ tiles }}" as="tl" hint-placeholder-count="0">
+                  <div style="position:absolute;top:0;bottom:0;left:{{ tl.l }}%;width:calc({{ tl.w }}% + 2px);background:{{ bgCss }};opacity:{{ opacity }}"></div>
+                </sc-for>
+              </div>
+              <sc-if value="{{ hasPrev }}">
+                <div style="position:absolute;inset:0;transform:{{ planeA.t }};opacity:{{ planeA.o }};transition:{{ planeTr }}">
+                  <dc-import name="Layers" layers="{{ prevLayers }}" images="{{ images }}" ink="{{ ink }}" shadow="{{ inkShadow }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
+                </div>
+              </sc-if>
+              <div style="position:absolute;inset:0;transform:{{ planeB.t }};opacity:{{ planeB.o }};transition:{{ planeTr }}">
+                <dc-import name="Layers" layers="{{ stageLayers }}" images="{{ images }}" ink="{{ ink }}" shadow="{{ inkShadow }}" editing-id="{{ editingId }}" show-empty="{{ editable }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
+              </div>
+              <sc-if value="{{ hasGhost }}">
+                <div style="position:absolute;inset:0;opacity:.5;pointer-events:none;z-index:4">
+                  <dc-import name="Layers" layers="{{ ghostLayers }}" images="{{ images }}" ink="{{ ink }}" shadow="{{ inkShadow }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
+                </div>
+              </sc-if>
+              <sc-if value="{{ fprevOn }}">
+                <div style="position:absolute;top:3%;right:3%;display:flex;align-items:center;gap:8px;padding:5px 10px;border-radius:999px;background:rgba(10,14,28,.6);color:#fbf9f4;font-family:'JetBrains Mono',monospace;font-size:11px;z-index:8;pointer-events:none">
+                  <span>Preview · frame {{ fprevPos }}</span><span style="opacity:.7">→ / Space next · ← back · Esc</span>
+                </div>
+              </sc-if>
+              <sc-if value="{{ showFrameDots }}">
+                <div style="position:absolute;left:50%;bottom:3%;transform:translateX(-50%);display:flex;align-items:center;gap:5px;padding:5px 8px;border-radius:999px;background:rgba(10,14,28,.38);z-index:7">
+                  <sc-for list="{{ frameDots }}" as="fd" hint-placeholder-count="2">
+                    <button onClick="{{ fd.onClick }}" title="{{ fd.title }}" style="width:{{ fd.w }}px;height:7px;padding:0;border:0;border-radius:4px;background:{{ fd.bg }};cursor:pointer;transition:width 250ms, background 250ms"></button>
+                  </sc-for>
+                </div>
+              </sc-if>
+              <sc-if value="{{ showLinkSpots }}">
+                <div style="position:absolute;inset:0;z-index:6;pointer-events:none">
+                  <sc-for list="{{ linkSpots }}" as="ls" hint-placeholder-count="0">
+                    <div onClick="{{ ls.onClick }}" title="{{ ls.title }}" style="position:absolute;left:{{ ls.l }}%;top:{{ ls.t }}%;width:{{ ls.w }}%;height:{{ ls.h }}%;transform:rotate({{ ls.rot }}deg);border-radius:6px;cursor:pointer;pointer-events:auto" style-hover="box-shadow:0 0 0 2px rgba(251,249,244,.85), 0 0 0 4px rgba(217,67,43,.55);background:rgba(251,249,244,.06)"></div>
+                  </sc-for>
+                </div>
+              </sc-if>
+              <sc-if value="{{ editable }}">
+                <div onPointerDown="{{ onStageDown }}" onDragOver="{{ allowDrop }}" onDrop="{{ onStageDrop }}" style="position:absolute;inset:0;z-index:5;user-select:none">
+                  <sc-if value="{{ guideV }}"><div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#d9432b;pointer-events:none"></div></sc-if>
+                  <sc-if value="{{ guideH }}"><div style="position:absolute;top:50%;left:0;right:0;height:1px;background:#d9432b;pointer-events:none"></div></sc-if>
+                  <sc-for list="{{ overlays }}" as="o" hint-placeholder-count="0">
+                    <div onPointerDown="{{ o.onDown }}" onDoubleClick="{{ o.onDbl }}" onDragOver="{{ allowDrop }}" onDrop="{{ o.onDrop }}" style="position:absolute;left:{{ o.l }}%;top:{{ o.t }}%;width:{{ o.w }}%;height:{{ o.h }}%;transform:rotate({{ o.rot }}deg);outline:{{ o.outline }};outline-offset:1px;cursor:move;z-index:{{ o.z }}" style-hover="box-shadow:0 0 0 1px rgba(251,249,244,.8), 0 0 0 2px rgba(0,0,0,.3)">
+                      <sc-if value="{{ o.selected }}">
+                        <div style="position:absolute;left:-2px;bottom:calc(100% + 6px);padding:2px 6px;border-radius:4px;background:#1f6fb8;color:#fff;font-family:'JetBrains Mono',monospace;font-size:10px;white-space:nowrap;pointer-events:none">{{ o.label }}</div>
+                        <div onPointerDown="{{ o.onNW }}" style="position:absolute;left:-7px;top:-7px;width:11px;height:11px;border-radius:3px;background:#fff;border:2px solid #1f6fb8;cursor:nwse-resize"></div>
+                        <div onPointerDown="{{ o.onNE }}" style="position:absolute;right:-7px;top:-7px;width:11px;height:11px;border-radius:3px;background:#fff;border:2px solid #1f6fb8;cursor:nesw-resize"></div>
+                        <div onPointerDown="{{ o.onSW }}" style="position:absolute;left:-7px;bottom:-7px;width:11px;height:11px;border-radius:3px;background:#fff;border:2px solid #1f6fb8;cursor:nesw-resize"></div>
+                        <div onPointerDown="{{ o.onSE }}" style="position:absolute;right:-7px;bottom:-7px;width:11px;height:11px;border-radius:3px;background:#fff;border:2px solid #1f6fb8;cursor:nwse-resize"></div>
+                        <div onPointerDown="{{ o.onW }}" style="position:absolute;left:-7px;top:calc(50% - 6px);width:11px;height:11px;border-radius:3px;background:#fff;border:2px solid #1f6fb8;cursor:ew-resize"></div>
+                        <div onPointerDown="{{ o.onE }}" style="position:absolute;right:-7px;top:calc(50% - 6px);width:11px;height:11px;border-radius:3px;background:#fff;border:2px solid #1f6fb8;cursor:ew-resize"></div>
+                      </sc-if>
+                    </div>
+                  </sc-for>
+                  <sc-if value="{{ isEditingText }}">
+                    <textarea ref="{{ editRef }}" value="{{ ed.text }}" onChange="{{ onEditText }}" onBlur="{{ stopEditing }}" onPointerDown="{{ stopProp }}" style="position:absolute;left:{{ ed.l }}%;top:{{ ed.t }}%;width:{{ ed.w }}%;height:{{ ed.h }}%;padding:0;margin:0;border:0;outline:2px solid #1f6fb8;outline-offset:1px;background:rgba(10,14,28,.25);resize:none;overflow:hidden;font-family:{{ ed.font }};font-size:{{ ed.fs }}cqw;font-weight:{{ ed.weight }};color:{{ ed.color }};text-align:{{ ed.align }};line-height:{{ ed.lh }};z-index:999"></textarea>
+                  </sc-if>
+                  <sc-if value="{{ showPaths }}">
+                    <svg viewBox="0 0 100 100" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;z-index:900">
+                      <sc-for list="{{ pathLines }}" as="pl" hint-placeholder-count="0">
+                        <path d="{{ pl.d }}" style="fill:none;stroke:{{ pl.color }};stroke-width:{{ pl.sw }};stroke-dasharray:{{ pl.dash }};vector-effect:non-scaling-stroke"></path>
+                      </sc-for>
+                    </svg>
+                    <sc-for list="{{ pathDots }}" as="pd" hint-placeholder-count="0">
+                      <div onPointerDown="{{ pd.onDown }}" title="{{ pd.title }}" style="position:absolute;left:{{ pd.x }}%;top:{{ pd.y }}%;width:{{ pd.size }}px;height:{{ pd.size }}px;transform:translate(-50%, -50%);border-radius:50%;background:{{ pd.bg }};border:2px solid {{ pd.border }};box-sizing:border-box;cursor:{{ pd.cursor }};pointer-events:{{ pd.pe }};z-index:901"></div>
+                    </sc-for>
+                  </sc-if>
+                </div>
+              </sc-if>
+            </div>
+          </div>
+
+          <nav style="position:absolute;left:14px;top:12px;right:{{ navRight }};height:{{ crumbH }}px;overflow:hidden;z-index:4;pointer-events:none;transition:height 350ms ease">
+            <div style="position:absolute;left:0;top:0;transform:translate({{ crumbTx }}px, {{ crumbTy }}px);transition:transform 450ms cubic-bezier(.65,0,.25,1)">
+              <sc-for list="{{ crumbRows }}" as="row" hint-placeholder-count="1">
+                <div style="position:absolute;left:{{ row.indent }}px;top:{{ row.top }}px;display:flex;align-items:center;padding:3px;border-radius:999px;background:{{ stepsBg }};pointer-events:auto;opacity:{{ row.opacity }};transition:opacity 300ms">
+                  <sc-for list="{{ row.steps }}" as="st" hint-placeholder-count="3">
+                    <div style="display:flex;align-items:center;opacity:{{ st.opacity }}">
+                      <span style="width:14px;height:2px;flex:none;background:{{ st.lineColor }};display:{{ st.lineDisplay }}"></span>
+                      <button onClick="{{ st.onClick }}" title="{{ st.full }}" style="display:flex;align-items:center;gap:7px;padding:{{ st.pad }};border:0;border-radius:999px;background:{{ st.bg }};color:{{ st.color }};cursor:pointer;font-size:13px;font-weight:600;white-space:nowrap;flex:none">
+                        <span style="width:20px;height:20px;flex:none;display:grid;place-items:center;border-radius:50%;background:{{ st.dotBg }};color:{{ st.dotColor }};border:{{ st.dotBorder }};font-family:'JetBrains Mono',monospace;font-size:10px;box-sizing:border-box">{{ st.mark }}</span>{{ st.title }}
+                      </button>
+                    </div>
+                  </sc-for>
+                </div>
+                <sc-if value="{{ row.hasLink }}">
+                  <div style="position:absolute;left:{{ row.linkX }}px;top:{{ row.linkTop }}px;width:2px;height:14px;background:#d9432b"></div>
+                </sc-if>
+              </sc-for>
+              <sc-if value="{{ hasDownHint }}">
+                <div style="position:absolute;left:{{ downHint.x }}px;top:{{ downHint.y }}px;display:flex;flex-direction:column;align-items:center;pointer-events:auto">
+                  <span style="width:0;height:6px;border-left:2px dashed {{ sepColor }}"></span>
+                  <button onClick="{{ goDown }}" title="{{ downHint.title }}" style="width:20px;height:20px;padding:0;border:1.5px dashed {{ sepColor }};border-radius:50%;background:transparent;color:{{ sepColor }};cursor:pointer;font-size:11px;line-height:1">↓</button>
+                </div>
+              </sc-if>
+            </div>
+          </nav>
+          <sc-if value="{{ isPresent }}">
+            <div style="position:absolute;top:10px;right:14px;width:240px;display:flex;flex-direction:column;gap:6px;z-index:6">
+              <input ref="{{ searchRef }}" value="{{ query }}" onChange="{{ onQuery }}" placeholder="Jump to…  ( / )" style="width:100%;padding:8px 14px;border:0;border-radius:999px;background:rgba(251,249,244,.92);outline:none">
+              <sc-if value="{{ hasResults }}">
+                <div style="display:flex;flex-direction:column;padding:6px;border-radius:12px;background:rgba(251,249,244,.97);box-shadow:0 12px 40px -12px rgba(0,0,0,.4);max-height:300px;overflow:auto">
+                  <sc-for list="{{ results }}" as="rs" hint-placeholder-count="0">
+                    <button onClick="{{ rs.onClick }}" style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:7px 10px;border:0;border-radius:8px;background:transparent;cursor:pointer;text-align:left" style-hover="background:#ece6d9">
+                      <span style="font-weight:600">{{ rs.title }}</span>
+                      <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#6b6458">{{ rs.path }}</span>
+                    </button>
+                  </sc-for>
+                </div>
+              </sc-if>
+            </div>
+          </sc-if>
+          <sc-if value="{{ hasLeft }}">
+            <button onClick="{{ goLeft }}" title="{{ leftTitle }}" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);width:44px;height:44px;border:0;border-radius:50%;background:rgba(251,249,244,.9);cursor:pointer;font-size:17px" style-hover="background:#fff">←</button>
+          </sc-if>
+          <sc-if value="{{ hasRight }}">
+            <button onClick="{{ goRight }}" title="{{ rightTitle }}" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);width:44px;height:44px;border:0;border-radius:50%;background:rgba(251,249,244,.9);cursor:pointer;font-size:17px" style-hover="background:#fff">→</button>
+          </sc-if>
+          <div style="position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:flex;align-items:center;gap:8px;max-width:calc(100% - 130px)">
+            <sc-if value="{{ hasUp }}">
+              <button onClick="{{ goUp }}" style="display:flex;align-items:center;gap:7px;padding:7px 13px;border:0;border-radius:999px;background:rgba(251,249,244,.9);cursor:pointer;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0" style-hover="background:#fff"><span style="font-family:'JetBrains Mono',monospace">↑</span>{{ upTitle }}</button>
+            </sc-if>
+            <sc-if value="{{ hasDown }}">
+              <button onClick="{{ goDown }}" style="display:flex;align-items:center;gap:7px;padding:7px 13px;border:0;border-radius:999px;background:#1d1b17;color:#fbf9f4;cursor:pointer;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0" style-hover="background:#38342c"><span style="font-family:'JetBrains Mono',monospace">↓</span>{{ downLabel }}</button>
+            </sc-if>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ showWire }}">
+          <div style="position:absolute;inset:0;overflow:auto;display:flex;align-items:center;padding:24px">
+            <div style="position:relative;flex:none;height:min(100cqh - 48px, 100%);aspect-ratio:{{ canvasRatio }};margin:0 auto;background:{{ base }};border-radius:6px;box-shadow:0 20px 60px -24px rgba(0,0,0,.5);overflow:hidden">
+              <sc-for list="{{ tiles }}" as="tl" hint-placeholder-count="0">
+                <div style="position:absolute;top:0;bottom:0;left:{{ tl.l }}%;width:{{ tl.w }}%;background:{{ bgCss }};opacity:{{ opacity }};box-shadow:inset 1px 0 0 rgba(251,249,244,.25)"></div>
+              </sc-for>
+              <svg width="100%" height="100%" style="position:absolute;inset:0;overflow:visible;pointer-events:none">
+                <sc-for list="{{ wireLines }}" as="wl" hint-placeholder-count="0">
+                  <line x1="{{ wl.x1 }}" y1="{{ wl.y1 }}" x2="{{ wl.x2 }}" y2="{{ wl.y2 }}" style="stroke:#fbf9f4;stroke-width:1.5;opacity:.75"></line>
+                </sc-for>
+              </svg>
+              <sc-for list="{{ wireRects }}" as="wr" hint-placeholder-count="0">
+                <div onClick="{{ wr.onClick }}" onDoubleClick="{{ wr.onOpen }}" title="{{ wr.full }}" style="position:absolute;left:{{ wr.l }}%;top:{{ wr.t }}%;width:{{ wr.w }}%;height:{{ wr.h }}%;border:{{ wr.border }};background:{{ wr.fill }};border-radius:3px;cursor:pointer;overflow:hidden">
+                  <div style="position:absolute;left:5px;top:4px;right:5px;font-size:11px;font-weight:600;line-height:1.1;color:#fbf9f4;text-shadow:0 1px 3px rgba(0,0,0,.7);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ wr.title }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+    </main>
+
+    <sc-if value="{{ isBuild }}">
+      <aside style="position:relative;width:{{ rightW }}px;flex:none;min-height:0;display:flex;flex-direction:column;border-left:1px solid #e0d9cb;background:#fbf9f4">
+        <div onPointerDown="{{ onRightResize }}" title="Drag to resize" style="position:absolute;left:-4px;top:0;bottom:0;width:8px;cursor:col-resize;z-index:20" style-hover="background:rgba(217,67,43,.25)"></div>
+        <div style="flex:none;display:flex;gap:2px;margin:10px 12px 0;padding:3px;border-radius:9px;background:#ece6d9">
+          <sc-for list="{{ rTabs }}" as="rt" hint-placeholder-count="3">
+            <button onClick="{{ rt.onClick }}" style="flex:1;padding:6px 0;border:0;border-radius:7px;cursor:pointer;background:{{ rt.bg }};box-shadow:{{ rt.shadow }};font-size:13px;font-weight:600;white-space:nowrap">{{ rt.label }}</button>
+          </sc-for>
+        </div>
+        <div style="flex:1;min-height:0;overflow:auto;padding:14px 14px 24px;display:flex;flex-direction:column;gap:16px">
+          <sc-if value="{{ tabSlide }}">
+            <label style="display:flex;flex-direction:column;gap:5px">
+              <span style="font-size:12px;color:#6b6458">Slide name · tree and breadcrumbs</span>
+              <input ref="{{ titleRef }}" value="{{ cur.title }}" onChange="{{ onTitle }}" placeholder="Slide name" style="padding:8px 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;font-weight:600;outline:none">
+            </label>
+            <div style="display:flex;flex-direction:column;border:1px solid #e0d9cb;border-radius:10px;background:#fff">
+              <div onClick="{{ sec.layout.toggle }}" style="display:flex;align-items:center;gap:8px;padding:9px 10px;cursor:pointer;user-select:none">
+                <span style="width:12px;flex:none;font-size:10px;color:#6b6458">{{ sec.layout.caret }}</span>
+                <span style="flex:1;min-width:0;font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#1d1b17;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Layout</span>
+              </div>
+              <sc-if value="{{ sec.layout.open }}">
+              <div style="display:flex;flex-direction:column;gap:6px;padding:0 10px 10px">
+              <span style="font-size:12px;color:#6b6458;margin-top:-2px">Rearranges this slide's text and images. Undo to go back.</span>
+              <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:6px">
+                <sc-for list="{{ layoutBtns }}" as="lb" hint-placeholder-count="8">
+                  <button onClick="{{ lb.onClick }}" title="{{ lb.label }}" style="display:flex;flex-direction:column;gap:4px;padding:4px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer;text-align:left;min-width:0" style-hover="border-color:#1d1b17">
+                    <div style="position:relative;width:100%;aspect-ratio:16/9;border-radius:4px;overflow:hidden;background:{{ base }}">
+                      <dc-import name="Layers" layers="{{ lb.layers }}" images="{{ images }}" ink="{{ ink }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
+                    </div>
+                    <span style="font-size:11px;font-weight:600;padding:0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ lb.label }}</span>
+                  </button>
+                </sc-for>
+              </div>
+              </div>
+              </sc-if>
+            </div>
+            <div style="display:flex;flex-direction:column;border:1px solid #e0d9cb;border-radius:10px;background:#fff">
+              <div onClick="{{ sec.frames.toggle }}" style="display:flex;align-items:center;gap:8px;padding:9px 10px;cursor:pointer;user-select:none">
+                <span style="width:12px;flex:none;font-size:10px;color:#6b6458">{{ sec.frames.caret }}</span>
+                <span style="flex:1;min-width:0;font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#1d1b17;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Frames · {{ frameCount }}</span>
+                <label onClick="{{ stopProp }}" style="display:flex;align-items:center;gap:5px;font-size:12px;color:#6b6458;cursor:pointer;white-space:nowrap">
+                  <input type="checkbox" checked="{{ showFramesOn }}" onChange="{{ onShowFrames }}" style="accent-color:#1d1b17">Progress
+                </label>
+              </div>
+              <sc-if value="{{ sec.frames.open }}">
+              <div style="display:flex;flex-direction:column;gap:6px;padding:0 10px 10px">
+              <div style="display:flex;align-items:flex-start;gap:4px;overflow-x:auto;padding:3px 2px 4px">
+                <sc-for list="{{ frameItems }}" as="fr" hint-placeholder-count="1">
+                  <sc-if value="{{ fr.hasArrow }}">
+                    <button onClick="{{ fr.onArrow }}" title="{{ fr.arrowTitle }}" style="flex:none;align-self:center;margin-top:-14px;width:24px;height:24px;padding:0;border:{{ fr.arrowBorder }};border-radius:50%;background:{{ fr.arrowBg }};color:{{ fr.arrowColor }};cursor:pointer;font-size:13px;line-height:1">→</button>
+                  </sc-if>
+                  <div style="flex:none;display:flex;flex-direction:column;align-items:center;gap:3px">
+                    <button onClick="{{ fr.onClick }}" style="position:relative;width:78px;aspect-ratio:16/9;padding:0;border:0;border-radius:5px;overflow:hidden;background:{{ base }};cursor:pointer;outline:{{ fr.outline }};outline-offset:1px">
+                      <dc-import name="Layers" layers="{{ fr.layers }}" images="{{ images }}" ink="{{ ink }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
+                    </button>
+                    <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:{{ fr.labelColor }};font-weight:{{ fr.weight }}">{{ fr.label }}</span>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="display:flex;gap:6px">
+                <button onClick="{{ previewFrames }}" title="Play every frame of this slide (→ / Space to advance, Esc to stop)" style="flex:none;padding:6px 10px;border:0;border-radius:7px;background:{{ fprevBg }};color:#fff;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap">{{ fprevLabel }}</button>
+                <button onClick="{{ dupFrame }}" style="flex:1;padding:6px;border:1px solid #e0d9cb;border-radius:7px;background:#fff;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis" style-hover="background:#f5f1e8">⧉ Duplicate</button>
+                <button onClick="{{ delFrame }}" style="padding:6px 10px;border:1px solid #e0d9cb;border-radius:7px;background:#fff;cursor:pointer;font-size:12px;white-space:nowrap;color:#a8301d;opacity:{{ delFrameOp }};flex:none" style-hover="background:#f5f1e8">Delete</button>
+              </div>
+              <sc-if value="{{ confirmDupOpen }}">
+                <div style="display:flex;flex-direction:column;gap:8px;padding:10px 12px;border-radius:9px;background:#fbf3df;border:1px solid #eedfb6">
+                  <span style="font-size:12px;line-height:1.45">{{ confirmDupText }}</span>
+                  <div style="display:flex;gap:6px;justify-content:flex-end">
+                    <button onClick="{{ cancelDup }}" style="padding:5px 10px;border:1px solid #e6d6a8;border-radius:7px;background:#fff;cursor:pointer;font-size:12px">Cancel</button>
+                    <button onClick="{{ forceDup }}" style="padding:5px 10px;border:0;border-radius:7px;background:#1d1b17;color:#fbf9f4;cursor:pointer;font-size:12px;font-weight:600">Duplicate anyway</button>
+                  </div>
+                </div>
+              </sc-if>
+              </div>
+              </sc-if>
+            </div>
+            <div style="display:flex;flex-direction:column;border:1px solid #e0d9cb;border-radius:10px;background:#fff">
+              <div onClick="{{ sec.tdef.toggle }}" style="display:flex;align-items:center;gap:8px;padding:9px 10px;cursor:pointer;user-select:none">
+                <span style="width:12px;flex:none;font-size:10px;color:#6b6458">{{ sec.tdef.caret }}</span>
+                <span style="flex:1;min-width:0;font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#1d1b17;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Transition defaults</span>
+              </div>
+              <sc-if value="{{ sec.tdef.open }}">
+              <div style="display:flex;flex-direction:column;gap:6px;padding:0 10px 10px">
+                <span style="font-size:12px;line-height:1.4;color:#6b6458">Used by every frame change that has no setting of its own. Apply resets that column on every slide.</span>
+                <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;align-items:center;font-family:'JetBrains Mono',monospace;font-size:10px;color:#6b6458"><span>Easing</span><span>Duration ms</span><span>Delay ms</span></div>
+                <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;align-items:center"><div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px"><button onClick="{{ defAll.ease.onClick }}" title="When on, changing this column changes it for every effect" style="height:20px;padding:0;border:1px solid {{ defAll.ease.border }};border-radius:5px;background:{{ defAll.ease.bg }};color:{{ defAll.ease.color }};cursor:pointer;font-size:10px;font-weight:700">{{ defAll.ease.label }}</button><button onClick="{{ defApply.ease }}" title="Reset this column on every slide's transitions to the default" style="height:20px;padding:0;border:1px solid #e6c9c2;border-radius:5px;background:#fff;color:#a8301d;cursor:pointer;font-size:10px;font-weight:700">Apply</button></div><div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px"><button onClick="{{ defAll.dur.onClick }}" title="When on, changing this column changes it for every effect" style="height:20px;padding:0;border:1px solid {{ defAll.dur.border }};border-radius:5px;background:{{ defAll.dur.bg }};color:{{ defAll.dur.color }};cursor:pointer;font-size:10px;font-weight:700">{{ defAll.dur.label }}</button><button onClick="{{ defApply.dur }}" title="Reset this column on every slide's transitions to the default" style="height:20px;padding:0;border:1px solid #e6c9c2;border-radius:5px;background:#fff;color:#a8301d;cursor:pointer;font-size:10px;font-weight:700">Apply</button></div><div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px"><button onClick="{{ defAll.delay.onClick }}" title="When on, changing this column changes it for every effect" style="height:20px;padding:0;border:1px solid {{ defAll.delay.border }};border-radius:5px;background:{{ defAll.delay.bg }};color:{{ defAll.delay.color }};cursor:pointer;font-size:10px;font-weight:700">{{ defAll.delay.label }}</button><button onClick="{{ defApply.delay }}" title="Reset this column on every slide's transitions to the default" style="height:20px;padding:0;border:1px solid #e6c9c2;border-radius:5px;background:#fff;color:#a8301d;cursor:pointer;font-size:10px;font-weight:700">Apply</button></div></div>
+                <sc-for list="{{ defRows }}" as="dr" hint-placeholder-count="6">
+                  <div style="display:flex;flex-direction:column;gap:3px;padding-top:5px;border-top:1px solid #f0ebe0">
+                    <span style="font-size:12px;font-weight:700">{{ dr.label }}</span>
+                    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;align-items:center"><select value="{{ dr.ease }}" onChange="{{ dr.onEase }}" style="width:100%;min-width:0;height:26px;padding:0 2px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;outline:none;font-size:11.5px;cursor:pointer"><sc-for list="{{ dr.easeOpts }}" as="o" hint-placeholder-count="3"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select><select value="{{ dr.dur }}" onChange="{{ dr.onDur }}" style="width:100%;min-width:0;height:26px;padding:0 2px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;outline:none;font-size:11.5px;cursor:pointer"><sc-for list="{{ dr.durOpts }}" as="o" hint-placeholder-count="3"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select><select value="{{ dr.delay }}" onChange="{{ dr.onDelay }}" style="width:100%;min-width:0;height:26px;padding:0 2px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;outline:none;font-size:11.5px;cursor:pointer"><sc-for list="{{ dr.delayOpts }}" as="o" hint-placeholder-count="3"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select></div>
+                  </div>
+                </sc-for>
+                
+                <span style="font-size:11.5px;color:#6b6458">{{ transCountText }}</span>
+              </div>
+              </sc-if>
+            </div>
+
+            <sc-if value="{{ isTransView }}">
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <div style="display:flex;align-items:center;gap:6px">
+                  <span style="flex:1;font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#1f6fb8">Transition {{ transTitle }}</span>
+                  <button onClick="{{ previewTrans }}" style="padding:4px 9px;border:0;border-radius:6px;background:#1f6fb8;color:#fff;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap">▶ Preview</button>
+                  <button onClick="{{ closeTrans }}" title="Close (Esc)" style="width:24px;height:24px;padding:0;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer;font-size:11px">✕</button>
+                </div>
+                <div style="display:flex;flex-direction:column;border:1px solid #d6e2ef;border-radius:9px;background:#fff;overflow:hidden">
+                  <div style="display:grid;grid-template-columns:minmax(0,1fr) 22px minmax(0,1fr);gap:4px;padding:6px 6px 5px;background:#eef3f9;font-family:'JetBrains Mono',monospace;font-size:10px;color:#3d5a78">
+                    <span>{{ transLeftLabel }}</span><span></span><span>{{ transRightLabel }}</span>
+                  </div>
+                  <sc-for list="{{ transRows }}" as="tr" hint-placeholder-count="2">
+                    <div style="display:grid;grid-template-columns:minmax(0,1fr) 22px minmax(0,1fr);gap:4px;align-items:center;padding:4px 6px;border-top:1px solid #eef2f6;background:{{ tr.bg }}">
+                      <button onClick="{{ tr.onLeft }}" title="{{ tr.leftTitle }}" style="min-width:0;height:28px;padding:0 7px;border:{{ tr.leftBorder }};border-radius:6px;background:{{ tr.leftBg }};color:{{ tr.leftColor }};cursor:pointer;font-size:12px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ tr.leftName }}</button>
+                      <span title="{{ tr.change }}" style="font-size:14px;line-height:1;text-align:center;color:{{ tr.changeColor }}">→</span>
+                      <button onClick="{{ tr.onRight }}" title="{{ tr.rightTitle }}" style="min-width:0;height:28px;padding:0 7px;border:{{ tr.rightBorder }};border-radius:6px;background:{{ tr.rightBg }};color:{{ tr.rightColor }};cursor:pointer;font-size:12px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ tr.rightName }}</button>
+                    </div>
+                  </sc-for>
+                </div>
+                <sc-if value="{{ hasTransLayer }}">
+                  <div style="display:flex;flex-direction:column;gap:7px;padding:10px 10px 12px;border-radius:9px;background:#eef3f9;border:1px solid #d6e2ef">
+                    <span style="font-size:12px;font-weight:700;color:#1f4f80;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ transLayerTitle }}</span>
+                    <sc-if value="{{ hasActRows }}">
+                      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;align-items:center;font-family:'JetBrains Mono',monospace;font-size:10px;color:#3d5a78"><span>Easing</span><span>Duration ms</span><span>Delay ms</span></div>
+                      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;align-items:center"><button onClick="{{ allT.ease.onClick }}" title="When on, changing this column changes it for every action" style="height:20px;padding:0;border:1px solid {{ allT.ease.border }};border-radius:5px;background:{{ allT.ease.bg }};color:{{ allT.ease.color }};cursor:pointer;font-size:10px;font-weight:700">{{ allT.ease.label }}</button><button onClick="{{ allT.dur.onClick }}" title="When on, changing this column changes it for every action" style="height:20px;padding:0;border:1px solid {{ allT.dur.border }};border-radius:5px;background:{{ allT.dur.bg }};color:{{ allT.dur.color }};cursor:pointer;font-size:10px;font-weight:700">{{ allT.dur.label }}</button><button onClick="{{ allT.delay.onClick }}" title="When on, changing this column changes it for every action" style="height:20px;padding:0;border:1px solid {{ allT.delay.border }};border-radius:5px;background:{{ allT.delay.bg }};color:{{ allT.delay.color }};cursor:pointer;font-size:10px;font-weight:700">{{ allT.delay.label }}</button></div>
+                      <sc-for list="{{ actRows }}" as="ar" hint-placeholder-count="2">
+                        <div style="display:flex;flex-direction:column;gap:3px;padding-top:5px;border-top:1px solid #d6e2ef">
+                          <span style="font-size:12px;font-weight:700;color:#1d1b17">{{ ar.label }}</span>
+                          <sc-if value="{{ ar.isMove }}">
+                            <div style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:#3d5a78">
+                              <span style="flex:1">Path: {{ ar.pathLabel }}</span>
+                              <button onClick="{{ ar.onResetPath }}" style="padding:2px 8px;border:1px solid #9db8d3;border-radius:5px;background:#fff;color:#1f6fb8;cursor:pointer;font-size:11px;font-weight:600;opacity:{{ ar.resetOp }}">Reset</button>
+                            </div>
+                          </sc-if>
+                          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;align-items:center">
+                            <select value="{{ ar.ease }}" onChange="{{ ar.onEase }}" style="width:100%;min-width:0;height:26px;padding:0 2px;border:1px solid #d6e2ef;border-radius:6px;background:#fff;outline:none;font-size:11.5px;cursor:pointer">
+                              <sc-for list="{{ ar.easeOpts }}" as="o" hint-placeholder-count="3"><option value="{{ o.v }}">{{ o.l }}</option></sc-for>
+                            </select>
+                            <select value="{{ ar.dur }}" onChange="{{ ar.onDur }}" style="width:100%;min-width:0;height:26px;padding:0 2px;border:1px solid #d6e2ef;border-radius:6px;background:#fff;outline:none;font-size:11.5px;cursor:pointer">
+                              <sc-for list="{{ ar.durOpts }}" as="o" hint-placeholder-count="3"><option value="{{ o.v }}">{{ o.l }}</option></sc-for>
+                            </select>
+                            <select value="{{ ar.delay }}" onChange="{{ ar.onDelay }}" style="width:100%;min-width:0;height:26px;padding:0 2px;border:1px solid #d6e2ef;border-radius:6px;background:#fff;outline:none;font-size:11.5px;cursor:pointer">
+                              <sc-for list="{{ ar.delayOpts }}" as="o" hint-placeholder-count="3"><option value="{{ o.v }}">{{ o.l }}</option></sc-for>
+                            </select>
+                          </div>
+                        </div>
+                      </sc-for>
+                    </sc-if>
+                    <sc-if value="{{ noActRows }}">
+                      <span style="font-size:12px;color:#3d5a78">Nothing changes for this layer between these frames. Move, resize, rotate or recolour it in one frame to add an action.</span>
+                    </sc-if>
+                  </div>
+                </sc-if>
+                <span style="font-size:11.5px;line-height:1.45;color:#6b6458">Click a layer on either side to select it in that frame, then move, resize or rotate it on the slide. An empty cell means the layer appears or disappears; click it to copy the layer into that frame.</span>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ notTransView }}">
+            <div style="display:flex;flex-direction:column;border:1px solid #e0d9cb;border-radius:10px;background:#fff">
+              <div onClick="{{ sec.layers.toggle }}" style="display:flex;align-items:center;gap:8px;padding:9px 10px;cursor:pointer;user-select:none">
+                <span style="width:12px;flex:none;font-size:10px;color:#6b6458">{{ sec.layers.caret }}</span>
+                <span style="flex:1;min-width:0;font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#1d1b17;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Layers</span>
+              </div>
+              <sc-if value="{{ sec.layers.open }}">
+              <div style="display:flex;flex-direction:column;gap:6px;padding:0 10px 10px">
+              <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px">
+                <sc-for list="{{ addBtns }}" as="ab" hint-placeholder-count="4">
+                  <button onClick="{{ ab.onClick }}" style="padding:6px 0;border:1px solid #e0d9cb;border-radius:7px;background:#fff;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap" style-hover="background:#f5f1e8">{{ ab.label }}</button>
+                </sc-for>
+              </div>
+              <div style="display:flex;flex-direction:column;border:1px solid #e0d9cb;border-radius:9px;background:#fff;overflow:hidden">
+                <sc-for list="{{ layerRows }}" as="lr" hint-placeholder-count="2">
+                  <div onClick="{{ lr.onClick }}" style="display:flex;align-items:center;gap:6px;height:32px;padding:0 4px 0 8px;border-bottom:1px solid #f0ebe0;background:{{ lr.bg }};cursor:pointer;opacity:{{ lr.opacity }}">
+                    <span style="width:20px;height:20px;flex:none;display:grid;place-items:center;border-radius:5px;background:#ece6d9;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700">{{ lr.glyph }}</span>
+                    <span style="flex:1;min-width:0;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:{{ lr.weight }}">{{ lr.name }}</span>
+                    <button onClick="{{ lr.onEye }}" title="{{ lr.eyeTitle }}" style="width:22px;height:22px;padding:0;border:0;border-radius:5px;background:transparent;cursor:pointer;font-size:11px;opacity:.7" style-hover="background:#ece6d9">{{ lr.eye }}</button>
+                    <button onClick="{{ lr.onUp }}" title="Bring forward" style="width:22px;height:22px;padding:0;border:0;border-radius:5px;background:transparent;cursor:pointer;font-size:11px;opacity:{{ lr.upOp }}" style-hover="background:#ece6d9">▲</button>
+                    <button onClick="{{ lr.onDown }}" title="Send backward" style="width:22px;height:22px;padding:0;border:0;border-radius:5px;background:transparent;cursor:pointer;font-size:11px;opacity:{{ lr.downOp }}" style-hover="background:#ece6d9">▼</button>
+                  </div>
+                </sc-for>
+                <sc-if value="{{ noLayers }}"><div style="padding:10px;font-size:12px;color:#6b6458">No layers yet.</div></sc-if>
+              </div>
+              </div>
+              </sc-if>
+            </div>
+
+            </sc-if>
+            <sc-if value="{{ hasLayer }}">
+              <div style="display:flex;flex-direction:column;gap:12px;padding-top:12px;border-top:1px solid #e0d9cb">
+                <div style="display:flex;align-items:center;gap:6px">
+                  <span style="flex:1;font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#1f6fb8">{{ lyLabel }}</span>
+                  <button onClick="{{ dupLayer }}" title="Duplicate (⌘D)" style="padding:4px 8px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer;font-size:12px" style-hover="background:#f5f1e8">Duplicate</button>
+                  <button onClick="{{ delLayer }}" title="Delete (⌫)" style="padding:4px 8px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer;font-size:12px;color:#a8301d" style-hover="background:#f5f1e8">Delete</button>
+                </div>
+                <sc-if value="{{ lyIsText }}">
+                  <textarea value="{{ ly.text }}" onChange="{{ onLyText }}" rows="4" placeholder="One line per bullet" style="padding:8px 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;resize:vertical;line-height:1.4;outline:none"></textarea>
+                  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px 10px">
+                    <sc-for list="{{ textFields }}" as="tf" hint-placeholder-count="8">
+                      <label style="display:grid;grid-template-columns:44px minmax(0,1fr);align-items:center;gap:6px;min-width:0">
+                        <span style="font-size:12px;color:#6b6458;white-space:nowrap">{{ tf.label }}</span>
+                        <select value="{{ tf.value }}" onChange="{{ tf.onChange }}" style="width:100%;min-width:0;height:28px;padding:0 4px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;outline:none;font-size:12px;cursor:pointer">
+                          <sc-for list="{{ tf.opts }}" as="o" hint-placeholder-count="3">
+                            <option value="{{ o.v }}">{{ o.l }}</option>
+                          </sc-for>
+                        </select>
+                      </label>
+                    </sc-for>
+                  </div>
+                  <span style="font-size:12px;color:#6b6458">Colour</span>
+                  <div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center">
+                <sc-for list="{{ swatches }}" as="sw" hint-placeholder-count="10">
+                  <button onClick="{{ sw.onClick }}" title="{{ sw.title }}" style="width:22px;height:22px;padding:0;border-radius:6px;cursor:pointer;background:{{ sw.bg }};border:{{ sw.border }};font-size:9px;font-weight:700;color:#6b6458">{{ sw.label }}</button>
+                </sc-for>
+                <input type="color" value="{{ colorHex }}" onChange="{{ onColorPick }}" style="width:28px;height:24px;padding:0;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer">
+              </div>
+                </sc-if>
+                <sc-if value="{{ lyIsImage }}">
+                  <div style="height:110px;border-radius:8px;border:1px solid #e0d9cb;background:{{ lyThumb }}"></div>
+                  <sc-if value="{{ clipMsgOn }}"><span style="font-size:11.5px;color:#a8301d">{{ clipMsg }}</span></sc-if>
+                  <div style="display:flex;gap:6px">
+                    <button onClick="{{ chooseImage }}" style="flex:1;padding:7px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer;font-weight:600" style-hover="background:#f5f1e8">Choose image…</button>
+                    <button onClick="{{ pasteImage }}" title="{{ pasteTitle }}" style="padding:7px 10px;border:1px solid {{ pasteBorder }};border-radius:8px;background:{{ pasteBg }};color:{{ pasteColor }};cursor:pointer;font-weight:600;white-space:nowrap" style-hover="background:#f5f1e8">⎘ Paste</button>
+                    <button onClick="{{ clearImage }}" style="padding:7px 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer" style-hover="background:#f5f1e8">Clear</button>
+                  </div>
+                  <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px;padding:3px;border-radius:8px;background:#ece6d9">
+                <sc-for list="{{ fitBtns }}" as="o" hint-placeholder-count="3">
+                  <button onClick="{{ o.onClick }}" title="{{ o.title }}" style="padding:5px 0;border:0;border-radius:6px;cursor:pointer;background:{{ o.bg }};box-shadow:{{ o.shadow }};font-size:12px;font-weight:{{ o.weight }};font-family:{{ o.font }};white-space:nowrap;overflow:hidden">{{ o.label }}</button>
+                </sc-for>
+              </div>
+                  <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
+                <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>Corner radius</span><span style="font-family:'JetBrains Mono',monospace">{{ radiusLabel }}</span></span>
+                <input type="range" min="0" max="200" step="1" value="{{ lyRadius }}" onChange="{{ onLyRadius }}" style="accent-color:#1d1b17;width:100%;min-width:0">
+              </label>
+                </sc-if>
+                <sc-if value="{{ lyIsShape }}">
+                  <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:2px;padding:3px;border-radius:8px;background:#ece6d9">
+                <sc-for list="{{ shapeBtns }}" as="o" hint-placeholder-count="3">
+                  <button onClick="{{ o.onClick }}" title="{{ o.title }}" style="padding:5px 0;border:0;border-radius:6px;cursor:pointer;background:{{ o.bg }};box-shadow:{{ o.shadow }};font-size:12px;font-weight:{{ o.weight }};font-family:{{ o.font }};white-space:nowrap;overflow:hidden">{{ o.label }}</button>
+                </sc-for>
+              </div>
+                  <span style="font-size:12px;color:#6b6458">Fill</span>
+                  <div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center">
+                <sc-for list="{{ swatches }}" as="sw" hint-placeholder-count="10">
+                  <button onClick="{{ sw.onClick }}" title="{{ sw.title }}" style="width:22px;height:22px;padding:0;border-radius:6px;cursor:pointer;background:{{ sw.bg }};border:{{ sw.border }};font-size:9px;font-weight:700;color:#6b6458">{{ sw.label }}</button>
+                </sc-for>
+                <input type="color" value="{{ colorHex }}" onChange="{{ onColorPick }}" style="width:28px;height:24px;padding:0;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer">
+              </div>
+                  <sc-if value="{{ lyIsRect }}"><label style="display:flex;flex-direction:column;gap:4px;min-width:0">
+                <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>Corner radius</span><span style="font-family:'JetBrains Mono',monospace">{{ radiusLabel }}</span></span>
+                <input type="range" min="0" max="200" step="1" value="{{ lyRadius }}" onChange="{{ onLyRadius }}" style="accent-color:#1d1b17;width:100%;min-width:0">
+              </label></sc-if>
+                </sc-if>
+                <sc-if value="{{ lyIsIcon }}">
+                  <div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:4px">
+                    <sc-for list="{{ iconBtns }}" as="ic" hint-placeholder-count="12">
+                      <button onClick="{{ ic.onClick }}" title="{{ ic.name }}" style="aspect-ratio:1;padding:5px;border-radius:7px;border:{{ ic.border }};background:#fff;cursor:pointer">
+                        <svg viewBox="0 0 24 24" width="100%" height="100%" style="display:block"><path d="{{ ic.path }}" style="fill:none;stroke:#1d1b17;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"></path></svg>
+                      </button>
+                    </sc-for>
+                  </div>
+                  <span style="font-size:12px;color:#6b6458">Colour</span>
+                  <div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center">
+                <sc-for list="{{ swatches }}" as="sw" hint-placeholder-count="10">
+                  <button onClick="{{ sw.onClick }}" title="{{ sw.title }}" style="width:22px;height:22px;padding:0;border-radius:6px;cursor:pointer;background:{{ sw.bg }};border:{{ sw.border }};font-size:9px;font-weight:700;color:#6b6458">{{ sw.label }}</button>
+                </sc-for>
+                <input type="color" value="{{ colorHex }}" onChange="{{ onColorPick }}" style="width:28px;height:24px;padding:0;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer">
+              </div>
+                  <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
+                <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>Stroke</span><span style="font-family:'JetBrains Mono',monospace">{{ swLabel }}</span></span>
+                <input type="range" min="0.5" max="4" step="0.1" value="{{ lySw }}" onChange="{{ onLySw }}" style="accent-color:#1d1b17;width:100%;min-width:0">
+              </label>
+                </sc-if>
+                <div style="display:flex;flex-direction:column;gap:8px;padding:10px 12px;border-radius:9px;background:#eef3f9;border:1px solid #d6e2ef">
+                  <span style="font-size:12px;font-weight:700;color:#1f4f80">Link</span>
+                  <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:2px;padding:3px;border-radius:8px;background:#dfe8f2">
+                    <sc-for list="{{ linkBtns }}" as="o" hint-placeholder-count="3">
+                      <button onClick="{{ o.onClick }}" style="padding:5px 0;border:0;border-radius:6px;cursor:pointer;background:{{ o.bg }};box-shadow:{{ o.shadow }};font-size:12px;font-weight:600;white-space:nowrap">{{ o.label }}</button>
+                    </sc-for>
+                  </div>
+                  <sc-if value="{{ linkIsUrl }}">
+                    <input value="{{ linkUrl }}" onChange="{{ onLinkUrl }}" placeholder="https://example.com" style="padding:7px 9px;border:1px solid #d6e2ef;border-radius:7px;background:#fff;outline:none;font-family:'JetBrains Mono',monospace;font-size:12px">
+                    <span style="font-size:11.5px;color:#3d5a78">Opens in a new tab when clicked in Present.</span>
+                  </sc-if>
+                  <sc-if value="{{ linkIsSlide }}">
+                    <select value="{{ linkSlide }}" onChange="{{ onLinkSlide }}" style="padding:7px 8px;border:1px solid #d6e2ef;border-radius:7px;background:#fff;outline:none;font-size:13px">
+                      <sc-for list="{{ slideOptions }}" as="so" hint-placeholder-count="4">
+                        <option value="{{ so.id }}">{{ so.label }}</option>
+                      </sc-for>
+                    </select>
+                    <div style="display:flex;align-items:center;gap:8px">
+                      <span style="flex:1;font-size:11.5px;color:#3d5a78">Jumps there when clicked in Present.</span>
+                      <button onClick="{{ followLink }}" style="padding:4px 8px;border:1px solid #d6e2ef;border-radius:6px;background:#fff;cursor:pointer;font-size:12px;white-space:nowrap" style-hover="background:#f5f9fd">Go there →</button>
+                    </div>
+                  </sc-if>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px">
+                  <sc-for list="{{ geoFields }}" as="g" hint-placeholder-count="4">
+                    <label style="display:flex;flex-direction:column;gap:3px">
+                      <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#6b6458">{{ g.label }}</span>
+                      <input type="number" step="0.5" value="{{ g.value }}" onChange="{{ g.onChange }}" style="width:100%;padding:5px 6px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;outline:none;font-family:'JetBrains Mono',monospace;font-size:12px">
+                    </label>
+                  </sc-for>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">
+                  <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
+                <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>Rotate</span><span style="font-family:'JetBrains Mono',monospace">{{ rotLabel }}</span></span>
+                <input type="range" min="-180" max="180" step="1" value="{{ lyRot }}" onChange="{{ onLyRot }}" style="accent-color:#1d1b17;width:100%;min-width:0">
+              </label>
+                  <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
+                <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>Opacity</span><span style="font-family:'JetBrains Mono',monospace">{{ opLabel }}</span></span>
+                <input type="range" min="0" max="1" step="0.05" value="{{ lyOp }}" onChange="{{ onLyOp }}" style="accent-color:#1d1b17;width:100%;min-width:0">
+              </label>
+                </div>
+              </div>
+            </sc-if>
+            <sc-if value="{{ noLayerSel }}">
+              <span style="font-size:12px;line-height:1.5;color:#6b6458">Select a layer on the slide or in the list. Drag to move, use the handles to resize (Shift keeps proportions), double-click text to type. Drop image files straight onto the slide.</span>
+            </sc-if>
+            <div style="display:flex;align-items:center;gap:8px;padding-top:12px;border-top:1px solid #e0d9cb">
+              <span style="font-size:12px;color:#6b6458;flex:1">Default text colour (deck)</span>
+              <div style="display:flex;gap:2px;padding:3px;border-radius:8px;background:#ece6d9">
+                <sc-for list="{{ toneBtns }}" as="tb" hint-placeholder-count="2">
+                  <button onClick="{{ tb.onClick }}" style="padding:4px 10px;border:0;border-radius:6px;cursor:pointer;background:{{ tb.bg }};box-shadow:{{ tb.shadow }};font-size:12px;font-weight:600">{{ tb.label }}</button>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ tabLayout }}">
+            <span style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#6b6458">Spacing</span>
+            <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
+              <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>Row margin (between levels)</span><span style="font-family:'JetBrains Mono',monospace">{{ marginLabel }}</span></span>
+              <input type="range" min="0" max="12" step="0.25" value="{{ margin }}" onChange="{{ onMargin }}" style="accent-color:#1d1b17;width:100%;min-width:0">
+            </label>
+            <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
+              <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>Column gap (between neighbours)</span><span style="font-family:'JetBrains Mono',monospace">{{ gapLabel }}</span></span>
+              <input type="range" min="0" max="1" step="0.02" value="{{ gap }}" onChange="{{ onGap }}" style="accent-color:#1d1b17;width:100%;min-width:0">
+            </label>
+            <div style="display:flex;flex-direction:column;gap:6px;padding:10px 12px;border-radius:9px;background:#f2eee5;font-size:12px;line-height:1.45">
+              <span>{{ levelInfo }}</span>
+              <span style="color:#6b6458">{{ sizeInfo }}</span>
+            </div>
+            <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
+              <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>Transition time</span><span style="font-family:'JetBrains Mono',monospace">{{ speedLabel }}</span></span>
+              <input type="range" min="0" max="2000" step="50" value="{{ speed }}" onChange="{{ onSpeed }}" style="accent-color:#1d1b17;width:100%;min-width:0">
+            </label>
+          </sc-if>
+
+          <sc-if value="{{ tabCanvas }}">
+            <span style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#6b6458">Canvas image · loops left to right</span>
+            <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px">
+              <sc-for list="{{ bgTiles }}" as="b" hint-placeholder-count="3">
+                <button onClick="{{ b.onClick }}" title="{{ b.label }}" style="display:flex;flex-direction:column;gap:4px;padding:4px;border-radius:8px;border:{{ b.border }};background:#fff;cursor:pointer">
+                  <div style="height:48px;border-radius:4px;background:{{ b.thumb }}"></div>
+                  <span style="font-size:11px;font-weight:600">{{ b.label }}</span>
+                </button>
+              </sc-for>
+              <label title="Upload" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:74px;border-radius:8px;border:1.5px dashed #cfc6b4;cursor:pointer;color:#6b6458;font-size:11px">
+                <span style="font-size:16px;color:#1d1b17">+</span><span>Upload</span>
+                <input type="file" accept="image/*,.svg" onChange="{{ onUpload }}" style="display:none">
+              </label>
+            </div>
+            <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
+              <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>Horizontal offset</span><span style="font-family:'JetBrains Mono',monospace">{{ offsetLabel }}</span></span>
+              <input type="range" min="0" max="1" step="0.01" value="{{ offset }}" onChange="{{ onOffset }}" style="accent-color:#1d1b17;width:100%;min-width:0">
+            </label>
+            <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
+              <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>Opacity</span><span style="font-family:'JetBrains Mono',monospace">{{ opacityLabel }}</span></span>
+              <input type="range" min="0" max="1" step="0.05" value="{{ opacity }}" onChange="{{ onOpacity }}" style="accent-color:#1d1b17;width:100%;min-width:0">
+            </label>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:12px;color:#6b6458;flex:1">Behind the image</span>
+              <sc-for list="{{ baseSwatches }}" as="bs" hint-placeholder-count="4">
+                <button onClick="{{ bs.onClick }}" style="width:22px;height:22px;padding:0;border-radius:6px;cursor:pointer;background:{{ bs.value }};border:{{ bs.border }}"></button>
+              </sc-for>
+            </div>
+            <span style="font-size:12px;line-height:1.45;color:#6b6458">The image's height is the canvas height. It repeats sideways as far as the tree needs. Offset slides the repeat left so a different part sits under the first slide.</span>
+          </sc-if>
+        </div>
+      </aside>
+    </sc-if>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const BGS = {
+  sky: { label: 'Sky', src: 'backdrops/sky.svg', aspect: 0.4 },
+  ocean: { label: 'Ocean', src: 'backdrops/ocean.svg', aspect: 0.4 },
+  none: { label: 'None', src: null, aspect: 1 },
+  custom: { label: 'Mine', src: null, aspect: 1 },
+};
+const BASES = ['#0b1220', '#1d1b17', '#f4f0e7', '#ffffff'];
+const DIRS = { left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1], jump: [0, 0] };
+const KEY = 'strata-v7', BGKEY = 'strata-v6-bg', IKEY = 'strata-v7-img', VA = 16 / 9, H = 100;
+const TW = 76, COLW = 96, ROWH = 92, TPX = 16, TPY = 18;
+const FONT_LIST = [['grot', 'Grotesk', "'Bricolage Grotesque',sans-serif"], ['serif', 'Serif', "'DM Serif Display',serif"], ['news', 'Book', "'Newsreader',serif"], ['mono', 'Mono', "'JetBrains Mono',monospace"], ['hand', 'Hand', "'Caveat',cursive"]];
+const FONT_CSS = Object.fromEntries(FONT_LIST.map(f => [f[0], f[2]]));
+const ICONS = {
+  arrow: 'M5 12h14M13 6l6 6-6 6', check: 'M5 12.5l4.5 4.5L19 7.5', star: 'M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z',
+  heart: 'M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z', info: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 11v6M12 7.5v.5',
+  plus: 'M12 5v14M5 12h14', target: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', bolt: 'M13 3L5 13.5h6L10 21l8-10.5h-6z',
+  pin: 'M12 21s6-5.6 6-11a6 6 0 1 0-12 0c0 5.4 6 11 6 11zM12 12a2 2 0 1 0 0-4 2 2 0 0 0 0 4z', chart: 'M5 20V11M11 20V5M17 20v-7M3 20h18',
+  users: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21a7 7 0 0 1 14 0M17 11a3 3 0 1 0 0-6M22 21a6 6 0 0 0-4-5.7', key: 'M8 15a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM11.5 11H21M18 11v3M21 11v2',
+};
+const EASE_PTS = { linear: [0, 0, 1, 1], in: [0.55, 0, 1, 0.45], out: [0, 0.55, 0.45, 1], both: [0.65, 0, 0.35, 1], spring: [0.34, 1.56, 0.64, 1] };
+const easeFn = k => { const [x1, y1, x2, y2] = EASE_PTS[k] || EASE_PTS.both; const bx = (t, a, b) => 3 * a * t * (1 - t) * (1 - t) + 3 * b * t * t * (1 - t) + t * t * t;
+  return p => { if (p <= 0) return 0; if (p >= 1) return 1; let lo = 0, hi = 1, t = p; for (let i = 0; i < 24; i++) { const x = bx(t, x1, x2); if (x < p) lo = t; else hi = t; t = (lo + hi) / 2; } return bx(t, y1, y2); }; };
+const bez = (p0, c1, c2, p3, t) => { const u = 1 - t; return { x: u * u * u * p0.x + 3 * u * u * t * c1.x + 3 * u * t * t * c2.x + t * t * t * p3.x, y: u * u * u * p0.y + 3 * u * u * t * c1.y + 3 * u * t * t * c2.y + t * t * t * p3.y }; };
+const DEF_ACTS = ['move', 'scale', 'rotate', 'colour', 'size', 'fade'];
+const SWATCH = ['#15171c', '#fbf9f4', '#d9432b', '#1f6fb8', '#2f8f4e', '#e0a019', '#7a4bb0', 'rgba(255,255,255,0.75)', 'rgba(10,14,28,0.55)'];
+const LT = (text, g) => ({ type: 'text', text, font: 'grot', size: 40, weight: 400, color: null, align: 'left', valign: 'top', lh: 1.25, bullets: 'none', gap: 0.15, rot: 0, opacity: 1, ...g });
+const LI = (imgKey, g) => ({ type: 'image', imgKey: imgKey || null, radius: 16, fit: 'cover', rot: 0, opacity: 1, ...g });
+const LS = g => ({ type: 'shape', shape: 'rect', fill: '#d9432b', radius: 0, rot: 0, opacity: 1, ...g });
+const LC = (icon, g) => ({ type: 'icon', icon, fill: null, sw: 1.8, rot: 0, opacity: 1, ...g });
+const SLIDE_LAYOUTS = [
+  { id: 'title', label: 'Title', make: c => [LT(c.title, { x: 8, y: 30, w: 84, h: 24, size: 110, weight: 800, align: 'center', valign: 'middle', lh: 1 }), LT(c.sub, { x: 16, y: 57, w: 68, h: 14, size: 36, align: 'center', lh: 1.35 })] },
+  { id: 'list', label: 'Title + list', make: c => [LT(c.title, { x: 8, y: 8, w: 84, h: 18, size: 80, weight: 800, valign: 'bottom', lh: 1 }), LT(c.list, { x: 8, y: 33, w: 74, h: 58, size: 40, bullets: 'disc', lh: 1.3, gap: 0.45 })] },
+  { id: 'imgL', label: 'Image left', make: c => [LI(c.img0, { x: 5, y: 8.9, w: 42, h: 82.2 }), LT(c.title, { x: 52, y: 14, w: 43, h: 28, size: 72, weight: 800, valign: 'bottom', lh: 1.02 }), LT(c.sub, { x: 52, y: 46, w: 43, h: 40, size: 32, lh: 1.4 })] },
+  { id: 'imgR', label: 'Image right', make: c => [LI(c.img0, { x: 53, y: 8.9, w: 42, h: 82.2 }), LT(c.title, { x: 5, y: 14, w: 43, h: 28, size: 72, weight: 800, valign: 'bottom', lh: 1.02 }), LT(c.sub, { x: 5, y: 46, w: 43, h: 40, size: 32, lh: 1.4 })] },
+  { id: 'cols', label: 'Two columns', make: c => [LT(c.title, { x: 8, y: 8, w: 84, h: 18, size: 72, weight: 800, valign: 'bottom', lh: 1 }), LT(c.col1, { x: 8, y: 34, w: 40, h: 56, size: 32, lh: 1.4 }), LT(c.col2, { x: 52, y: 34, w: 40, h: 56, size: 32, lh: 1.4 })] },
+  { id: 'full', label: 'Full image', make: c => [LI(c.img0, { x: 0, y: 0, w: 100, h: 100, radius: 0 }), LS({ x: 0, y: 60, w: 100, h: 40, fill: 'rgba(10,14,28,0.55)' }), LT(c.title, { x: 6, y: 64, w: 82, h: 17, size: 84, weight: 800, color: '#fbf9f4', valign: 'bottom', lh: 1 }), LT(c.sub, { x: 6, y: 83, w: 72, h: 10, size: 30, color: '#fbf9f4' })] },
+  { id: 'quote', label: 'Quote', make: c => [LT(/^[“"]/.test(c.title) ? c.title : '“' + c.title + '”', { x: 12, y: 20, w: 76, h: 44, size: 72, font: 'serif', align: 'center', valign: 'middle', lh: 1.12 }), LT(c.sub || '— Name, role', { x: 20, y: 68, w: 60, h: 8, size: 26, font: 'mono', align: 'center' })] },
+  { id: 'three', label: 'Three points', make: c => [LT(c.title, { x: 8, y: 8, w: 84, h: 18, size: 72, weight: 800, valign: 'bottom', lh: 1 })].concat([0, 1, 2].flatMap(i => [LC(['target', 'bolt', 'check'][i], { x: 8 + i * 29, y: 36, w: 6, h: 10.7 }), LT(c.points[i], { x: 8 + i * 29, y: 52, w: 26, h: 38, size: 30, lh: 1.35 })])) },
+];
+const toHex = c => /^#[0-9a-f]{6}$/i.test(c || '') ? c : '#000000';
+const rd = v => Math.round(v * 10) / 10;
+const short = (s, n) => (s && s.length > n ? s.slice(0, n - 1) + '…' : s || '');
+let _n = 0; const uid = () => 's' + Date.now().toString(36) + (++_n).toString(36);
+const f3 = v => (Math.round(v * 1000) / 1000).toString();
+
+function seed() {
+  const n = { ROOT: { id: 'ROOT', title: '', body: '', children: [] } };
+  const add = (id, p, title, body) => { n[id] = { id, title, body: body || '', children: [] }; n[p].children.push(id); };
+  add('a', 'ROOT', 'Where we are', 'Up in the balloons: the top-level story.');
+  add('b', 'ROOT', "Where we're going");
+  add('c', 'ROOT', 'How we get there');
+  add('a1', 'a', 'The market'); add('a2', 'a', 'Our customers');
+  add('a1a', 'a1', 'Segment sizes'); add('a1a1', 'a1a', 'How we sized it', 'The deepest level sets every slide’s height.');
+  add('b1', 'b', 'Year one'); add('b2', 'b', 'Year two'); add('b3', 'b', 'Year three');
+  add('c1', 'c', 'Platform'); add('c1a', 'c1', 'Architecture');
+  return n;
+}
+
+class Component extends DCLogic {
+  state = {
+    nodes: seed(), cur: 'a', prev: null, phase: 'idle', dx: 0, dy: 0, type: 'swipe', mode: 'build', view: 'slide', rtab: 'slide',
+    query: '', bg: 'sky', customBg: null, customAspect: 1, opacity: 1, base: '#0b1220', offset: 0,
+    tAll: { ease: false, dur: false, delay: false }, tdef: {}, dAll: { ease: false, dur: false, delay: false }, secOpen: { layout: true, frames: true, layers: true, tdef: false }, margin: 3, gap: 0.12, tone: 'light', speed: 900, lastChild: {}, navW: 280, rightW: 340, images: {}, layerSel: null, editing: null, guides: {},
+  };
+  treeRef = React.createRef(); titleRef = React.createRef(); searchRef = React.createRef(); stageRef = React.createRef(); editRef = React.createRef(); imgInputRef = React.createRef();
+
+  componentDidMount() {
+    try {
+      const s = JSON.parse(localStorage.getItem(KEY) || localStorage.getItem('strata-v6') || 'null');
+      try { const im = JSON.parse(localStorage.getItem(IKEY) || 'null'); if (im) this.setState({ images: im }); } catch (e) {}
+      if (s && s.nodes && s.nodes.ROOT) this.setState({ ...s, cur: s.nodes[s.cur] ? s.cur : s.nodes.ROOT.children[0], prev: null, phase: 'idle', customBg: localStorage.getItem(BGKEY) || null });
+    } catch (e) {}
+    this._past = []; this._future = []; setTimeout(() => { this._lastNodes = this.state.nodes; this._histReady = true; }, 120);
+    this.onKey = this.onKey.bind(this); window.addEventListener('keydown', this.onKey);
+    this.onResize = () => this.forceUpdate(); window.addEventListener('resize', this.onResize);
+    this.onPaste = this.onPaste.bind(this); window.addEventListener('paste', this.onPaste);
+    this.onFocusWin = () => this.probeClip(); window.addEventListener('focus', this.onFocusWin);
+  }
+  onPaste(e) {
+    const t = e.target; if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+    const S = this.state; if (S.mode === 'present') return;
+    const items = [...((e.clipboardData && e.clipboardData.items) || [])]; const it = items.find(i => i.type && i.type.startsWith('image/'));
+    if (!it) return; const f = it.getAsFile(); if (!f) return; e.preventDefault();
+    const sid = this.curId(); const ly = this.layersOf(sid).find(l => l.id === S.layerSel);
+    this.readImage(f, url => { if (ly && ly.type === 'image') this.setImage(sid, ly.id, url); else this.pasteNewImage(url); });
+  }
+  pasteNewImage(url) { const key = 'im' + uid(); this.setState(s => ({ images: { ...s.images, [key]: url } })); this.addLayer('image', { imgKey: key }); }
+  async probeClip() {
+    try { if (!navigator.clipboard || !navigator.clipboard.read) return; const p = navigator.permissions && await navigator.permissions.query({ name: 'clipboard-read' }).catch(() => null);
+      if (p && p.state !== 'granted') return; const items = await navigator.clipboard.read(); const has = items.some(i => i.types.some(t => t.startsWith('image/')));
+      if (has !== !!this.state.clipImg) this.setState({ clipImg: has }); } catch (e) {}
+  }
+  async pasteFromClipboard(sid, lid) {
+    try { const items = await navigator.clipboard.read();
+      for (const i of items) { const t = i.types.find(x => x.startsWith('image/')); if (t) { const b = await i.getType(t); this.readImage(b, url => this.setImage(sid, lid, url)); this.setState({ clipImg: true, clipMsg: null }); return; } }
+      this.setState({ clipImg: false, clipMsg: 'No image on the clipboard' });
+    } catch (e) { this.setState({ clipMsg: 'Clipboard blocked here: select the layer and press Ctrl/⌘+V' }); }
+    clearTimeout(this.cmT); this.cmT = setTimeout(() => this.setState({ clipMsg: null }), 3500);
+  }
+  componentWillUnmount() { window.removeEventListener('paste', this.onPaste); window.removeEventListener('focus', this.onFocusWin); window.removeEventListener('keydown', this.onKey); window.removeEventListener('resize', this.onResize); clearTimeout(this.t); }
+  componentDidUpdate() {
+    this.histTrack();
+    const S = this.state;
+    const d = JSON.stringify({ nodes: S.nodes, cur: S.cur, mode: S.mode, view: S.view, rtab: S.rtab, bg: S.bg, customAspect: S.customAspect, opacity: S.opacity, base: S.base, offset: S.offset, margin: S.margin, gap: S.gap, tone: S.tone, speed: S.speed, navW: S.navW, rightW: S.rightW, tdef: S.tdef, secOpen: S.secOpen });
+    if (d !== this._d) { this._d = d; try { localStorage.setItem(KEY, d); } catch (e) {} }
+    if (S.images !== this._im) { this._im = S.images; try { localStorage.setItem(IKEY, JSON.stringify(S.images)); } catch (e) {} }
+    if (S.customBg !== this._bg) { this._bg = S.customBg; try { if (S.customBg) localStorage.setItem(BGKEY, S.customBg); } catch (e) {} }
+    if (S.cur !== this._lastCur) { this._lastCur = S.cur; this.scrollTree(); }
+  }
+  scrollTree() {
+    requestAnimationFrame(() => {
+      const el = this.treeRef.current; const p = this._tpos && this._tpos[this.state.cur]; if (!el || !p) return;
+      const l = p.x - 30, r = p.x + TW + 40, t = p.y - 20, b = p.y + 90;
+      if (l < el.scrollLeft) el.scrollLeft = l; else if (r > el.scrollLeft + el.clientWidth) el.scrollLeft = r - el.clientWidth;
+      if (t < el.scrollTop) el.scrollTop = t; else if (b > el.scrollTop + el.clientHeight) el.scrollTop = b - el.clientHeight;
+    });
+  }
+
+  derive() {
+    const N = this.state.nodes; const parent = {}, depth = {}, order = [];
+    const walk = (id, d) => { N[id].children.forEach(k => { parent[k] = id; depth[k] = d; order.push(k); walk(k, d + 1); }); };
+    walk('ROOT', 0);
+    return { parent, depth, order, levels: order.length ? Math.max(...order.map(i => depth[i])) + 1 : 1 };
+  }
+  bgInfo() {
+    const S = this.state; const t = BGS[S.bg] || BGS.sky;
+    return { src: S.bg === 'custom' ? S.customBg : t.src, aspect: S.bg === 'custom' ? S.customAspect : t.aspect };
+  }
+  // Slide height fills the canvas height: margin above, between and below every level.
+  layout(D) {
+    const N = this.state.nodes; const m = this.state.margin; const L = D.levels;
+    const h = Math.max(1, (H - m * (L + 1)) / L), w = h * VA, slot = w * (1 + this.state.gap);
+    const rect = {};
+    const place = (id, x0) => {
+      const kids = N[id].children; const y = m + D.depth[id] * (h + m);
+      rect[id] = { x: x0, y, w, h };
+      if (!kids.length) return x0 + slot;
+      let cx = x0; kids.forEach(k => { cx = place(k, cx); }); return Math.max(cx, x0 + slot);
+    };
+    let cx = w * this.state.gap; N.ROOT.children.forEach(k => { cx = place(k, cx); });
+    return { rect, w, h, CW: cx };
+  }
+
+  setNode(id, patch) { this.setState(s => ({ nodes: { ...s.nodes, [id]: { ...s.nodes[id], ...patch } } })); }
+  focusTitle() { setTimeout(() => { const el = this.titleRef.current; if (el) { el.focus(); el.select(); } }, 40); }
+  insert(pid, index) {
+    const S = this.state; const id = uid(); const p = S.nodes[pid]; const kids = [...p.children]; kids.splice(index, 0, id);
+    this.setState({ nodes: { ...S.nodes, [id]: { id, title: 'New slide', body: '', children: [] }, [pid]: { ...p, children: kids } }, cur: id, prev: null, phase: 'idle', query: '', rtab: 'slide', fi: 0, transSel: null });
+    this.focusTitle();
+  }
+  addPeer(id) { const D = this.derive(); const pid = D.parent[id]; this.insert(pid, this.state.nodes[pid].children.indexOf(id) + 1); }
+  addChild(id) { this.insert(id, this.state.nodes[id].children.length); }
+  remove(id) {
+    const D = this.derive(); if (D.order.length <= 1) return; const pid = D.parent[id];
+    const nodes = { ...this.state.nodes }; const kill = x => { nodes[x].children.forEach(kill); delete nodes[x]; };
+    const kids = nodes[pid].children; const i = kids.indexOf(id); const next = kids[i - 1] || kids[i + 1] || (pid !== 'ROOT' ? pid : null);
+    kill(id); nodes[pid] = { ...nodes[pid], children: kids.filter(k => k !== id) };
+    this.setState({ nodes, cur: next || nodes.ROOT.children[0], prev: null, phase: 'idle', fi: 0, transSel: null });
+  }
+  outdent(id) {
+    const D = this.derive(); const pid = D.parent[id]; if (pid === 'ROOT') return; const gid = D.parent[pid]; const N = this.state.nodes;
+    const g = [...N[gid].children]; g.splice(g.indexOf(pid) + 1, 0, id);
+    this.setState({ nodes: { ...N, [pid]: { ...N[pid], children: N[pid].children.filter(k => k !== id) }, [gid]: { ...N[gid], children: g } } });
+  }
+  rightResize(ev) {
+    ev.preventDefault(); const sx = ev.clientX; const w0 = this.state.rightW;
+    const maxW = () => Math.max(240, Math.min(640, window.innerWidth - this.state.navW - 380));
+    const move = e => this.setState({ rightW: Math.max(240, Math.min(maxW(), w0 - (e.clientX - sx))) });
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+  }
+  histTrack() {
+    const S = this.state;
+    if (S.nodes === this._lastNodes) return;
+    if (this._histReady && this._lastNodes && !this._restoring) {
+      if (!this._burst) { this._past.push(this._lastNodes); if (this._past.length > 100) this._past.shift(); this._future = []; }
+      this._burst = true; clearTimeout(this._bt); this._bt = setTimeout(() => { this._burst = false; }, 450);
+    }
+    this._restoring = false; this._lastNodes = S.nodes;
+    const hc = this._past.length + ':' + this._future.length; if (hc !== S.hist) this.setState({ hist: hc });
+  }
+  restore(nodes) {
+    this._restoring = true; this._burst = false;
+    this.setState(s => ({ nodes, layerSel: null, editing: null, cur: nodes[s.cur] ? s.cur : nodes.ROOT.children[0], prev: null, phase: 'idle' }));
+  }
+  undo() { if (!this._past.length) return; this._future.push(this.state.nodes); this.restore(this._past.pop()); }
+  redo() { if (!this._future.length) return; this._past.push(this.state.nodes); this.restore(this._future.pop()); }
+  layoutContent(id) {
+    const n = this.state.nodes[id]; const ls = this.layersOf(id);
+    const texts = ls.filter(l => l.type === 'text').map(l => String(l.text || '')); const imgs = ls.filter(l => l.type === 'image').map(l => l.imgKey);
+    const title = (texts[0] || n.title || 'Title').replace(/^[“"]|[”"]$/g, '');
+    const rest = texts.slice(1).join('\n').trim() || n.body || '';
+    const lines = rest.split('\n').map(s => s.trim()).filter(Boolean);
+    const list = lines.length ? lines.join('\n') : 'First point\nSecond point\nThird point';
+    const half = Math.ceil(lines.length / 2);
+    return { title, sub: rest || 'A supporting line of text', list, col1: texts[1] || (lines.slice(0, half).join('\n') || 'Left column text'), col2: texts[2] || (lines.slice(half).join('\n') || 'Right column text'),
+      points: [0, 1, 2].map(i => lines[i] || ['First point', 'Second point', 'Third point'][i]), img0: imgs[0] || null };
+  }
+  applyLayout(lid) {
+    const id = this.curId(); const L = SLIDE_LAYOUTS.find(x => x.id === lid); if (!L) return;
+    const layers = L.make(this.layoutContent(id)).map(l => ({ ...l, id: 'l' + uid() }));
+    this.setLayers(id, () => layers); this.setState({ layerSel: null, editing: null, view: 'slide' });
+  }
+  curId() { const N = this.state.nodes; return N[this.state.cur] ? this.state.cur : N.ROOT.children[0]; }
+  defaultLayers(n) {
+    const L = [{ id: 't-' + n.id, type: 'text', x: 8, y: n.body ? 30 : 38, w: 84, h: 22, text: n.title || 'Untitled', font: 'grot', size: 104, weight: 800, color: null, align: 'center', valign: 'middle', lh: 1, bullets: 'none', gap: 0.15 }];
+    if (n.body) L.push({ id: 'b-' + n.id, type: 'text', x: 14, y: 56, w: 72, h: 16, text: n.body, font: 'grot', size: 36, weight: 400, color: null, align: 'center', valign: 'top', lh: 1.35, bullets: 'none', gap: 0.15 });
+    return L;
+  }
+  framesOfNode(n) { return n.frames || [{ id: 'f0-' + n.id, layers: n.layers || this.defaultLayers(n) }]; }
+  framesOf(id) { const n = this.state.nodes[id]; return n ? this.framesOfNode(n) : []; }
+  fiFor(id) { return id === this.curId() ? Math.max(0, Math.min(this.state.fi || 0, this.framesOf(id).length - 1)) : 0; }
+  layersOf(id, fi) { const fr = this.framesOf(id); if (!fr.length) return []; const i = Math.max(0, Math.min(fi ?? this.fiFor(id), fr.length - 1)); return fr[i].layers; }
+  setLayers(id, fn, fi) {
+    this.setState(s => { const n = s.nodes[id]; const fr = this.framesOfNode(n).slice(); const i = Math.max(0, Math.min(fi ?? (id === this.curId() ? (s.fi || 0) : 0), fr.length - 1));
+      fr[i] = { ...fr[i], layers: fn(fr[i].layers) }; return { nodes: { ...s.nodes, [id]: { ...n, frames: fr, layers: undefined } } }; });
+  }
+  setFrames(id, frames, ftrans, extra) { this.setState(s => ({ nodes: { ...s.nodes, [id]: { ...s.nodes[id], frames, layers: undefined, ...(ftrans ? { ftrans } : {}) } }, ...(extra || {}) })); }
+  dupFrame(i, force) {
+    const id = this.curId(); const n = this.state.nodes[id]; const fr = this.framesOfNode(n); const A = fr[i]; if (!A) return; const ft = n.ftrans || {};
+    if (!force && i < fr.length - 1 && ft[A.id] && Object.keys(ft[A.id]).length) { this.setState({ confirmDup: i }); return; }
+    const copy = { id: 'f' + uid(), layers: A.layers.map(l => ({ ...l })) }; const nf = fr.slice(); nf.splice(i + 1, 0, copy);
+    const nft = { ...ft }; if (i < fr.length - 1) delete nft[A.id];
+    this.setFrames(id, nf, nft, { fi: i + 1, confirmDup: null, transSel: null, layerSel: null });
+  }
+  delFrame(i) {
+    const id = this.curId(); const n = this.state.nodes[id]; const fr = this.framesOfNode(n); if (fr.length < 2) return;
+    const nft = { ...(n.ftrans || {}) }; delete nft[fr[i].id]; if (i > 0) delete nft[fr[i - 1].id];
+    this.setFrames(id, fr.filter((_, k) => k !== i), nft, { fi: Math.max(0, i - 1), transSel: null, layerSel: null });
+  }
+  transFor(id, a, lid) { const n = this.state.nodes[id]; const fr = this.framesOfNode(n); const A = fr[a]; return (A && n.ftrans && n.ftrans[A.id] && n.ftrans[A.id][lid]) || {}; }
+  setTrans(id, a, lids, patch) {
+    this.setState(s => { const n = s.nodes[id]; const fr = this.framesOfNode(n); const A = fr[a]; if (!A) return null; const ft = { ...(n.ftrans || {}) }; const m = { ...(ft[A.id] || {}) };
+      lids.forEach(lid => { m[lid] = { ...(m[lid] || {}), ...patch }; }); ft[A.id] = m; return { nodes: { ...s.nodes, [id]: { ...n, ftrans: ft } } }; });
+  }
+  actT(t, act) { const s = (t && t[act]) || {}; const d = (this.state.tdef || {})[act] || {}; return { ease: s.ease ?? (t && t.ease) ?? d.ease ?? 'both', dur: s.dur ?? (t && t.dur) ?? d.dur ?? 600, delay: s.delay ?? (t && t.delay) ?? d.delay ?? 0 }; }
+  resetTransKey(key) {
+    this.setState(s => { const nodes = {}; Object.entries(s.nodes).forEach(([k, n]) => { if (!n.ftrans) { nodes[k] = n; return; }
+      const ft = {}; Object.entries(n.ftrans).forEach(([fid, m]) => { const nm = {}; Object.entries(m || {}).forEach(([lid, o]) => { const no = {}; Object.entries(o || {}).forEach(([p, v]) => {
+        if (p === key) return; if (v && typeof v === 'object' && DEF_ACTS.includes(p)) { const { [key]: _, ...r } = v; no[p] = r; } else no[p] = v; }); nm[lid] = no; }); ft[fid] = nm; });
+      nodes[k] = { ...n, ftrans: ft }; }); return { nodes }; });
+  }
+  resetAllTrans() { this.setState(s => { const nodes = {}; Object.entries(s.nodes).forEach(([k, n]) => { if (n.ftrans) { const { ftrans, ...rest } = n; nodes[k] = rest; } else nodes[k] = n; }); return { nodes }; }); }
+  setTransAct(id, a, lid, acts, patch) {
+    this.setState(s => { const n = s.nodes[id]; const fr = this.framesOfNode(n); const A = fr[a]; if (!A) return null; const ft = { ...(n.ftrans || {}) }; const m = { ...(ft[A.id] || {}) };
+      const cur = { ...(m[lid] || {}) }; acts.forEach(act => { cur[act] = { ...this.actT(m[lid], act), ...patch }; }); m[lid] = cur; ft[A.id] = m; return { nodes: { ...s.nodes, [id]: { ...n, ftrans: ft } } }; });
+  }
+  setPath(id, a, lid, path) {
+    this.setState(s => { const n = s.nodes[id]; const A = this.framesOfNode(n)[a]; if (!A) return null; const ft = { ...(n.ftrans || {}) }; const m = { ...(ft[A.id] || {}) };
+      const cur = { ...(m[lid] || {}) }; if (path) cur.path = path; else delete cur.path; m[lid] = cur; ft[A.id] = m; return { nodes: { ...s.nodes, [id]: { ...n, ftrans: ft } } }; });
+  }
+  startPathDrag(ev, lid, which, a, def) {
+    ev.stopPropagation(); ev.preventDefault(); const st = this.stageRef.current; if (!st) return; const r = st.getBoundingClientRect(); const id = this.curId();
+    const base = this.transFor(id, a, lid).path || def;
+    const move = e => { const x = rd((e.clientX - r.left) / r.width * 100), y = rd((e.clientY - r.top) / r.height * 100); const cur = this.transFor(id, a, lid).path || base; this.setPath(id, a, lid, { ...cur, [which]: { x, y } }); };
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+  }
+  stepFrame(delta) {
+    const id = this.curId(); const fr = this.framesOf(id); const from = this.fiFor(id); const to = from + delta;
+    if (to < 0 || to >= fr.length) return false;
+    const a = Math.min(from, to); const ids = new Set([...fr[from].layers, ...fr[to].layers].map(l => l.id));
+    let maxT = 0; ids.forEach(lid => { const t = this.transFor(id, a, lid); ['move', 'scale', 'rotate', 'colour', 'fade', 'size'].forEach(act => { const s = this.actT(t, act); maxT = Math.max(maxT, s.dur + s.delay); }); });
+    clearTimeout(this.ft);
+    const start = performance.now();
+    this.setState({ fi: to, tween: { a, fwd: to > from, start }, editing: null });
+    this.ft = setTimeout(() => this.setState({ tween: null }), maxT + 80);
+    const curved = [...ids].some(lid => this.transFor(id, a, lid).path);
+    if (curved) { cancelAnimationFrame(this.praf); const tick = () => { if (!this.state.tween || this.state.tween.start !== start) return; this.setState({ ptick: performance.now() }); this.praf = requestAnimationFrame(tick); }; this.praf = requestAnimationFrame(tick); }
+    return true;
+  }
+  goFrame(k) { const cur = this.fiFor(this.curId()); if (k === cur) return; if (Math.abs(k - cur) === 1) this.stepFrame(k - cur); else this.setState({ fi: k, tween: null }); }
+  updLayer(id, lid, patch) { this.setLayers(id, ls => ls.map(l => l.id === lid ? { ...l, ...patch } : l)); }
+  addLayer(type, extra) {
+    const id = this.curId(); const lid = 'l' + uid();
+    const D0 = { text: { x: 20, y: 40, w: 60, h: 14, text: 'New text', font: 'grot', size: 56, weight: 600, color: null, align: 'left', valign: 'top', lh: 1.2, bullets: 'none', gap: 0.15 },
+      image: { x: 30, y: 20, w: 40, h: 60, radius: 16, fit: 'cover', imgKey: null },
+      shape: { x: 40, y: 35, w: 20, h: 30, shape: 'rect', fill: '#d9432b', radius: 24 },
+      icon: { x: 45, y: 41, w: 10, h: 17.78, icon: 'star', fill: null, sw: 1.8 } };
+    const l = { id: lid, type, rot: 0, opacity: 1, ...D0[type], ...(extra || {}) };
+    this.setLayers(id, ls => [...ls, l]); this.setState({ layerSel: lid, rtab: 'slide', view: 'slide' });
+    if (type === 'text') setTimeout(() => this.startEdit(lid), 40);
+    return l;
+  }
+  delLayer(lid) { this.setLayers(this.curId(), ls => ls.filter(l => l.id !== lid)); this.setState({ layerSel: null, editing: null }); }
+  dupLayer(lid) { const l = this.layersOf(this.curId()).find(x => x.id === lid); if (!l) return; const nl = { ...l, id: 'l' + uid(), x: l.x + 2, y: l.y + 3 }; this.setLayers(this.curId(), ls => [...ls, nl]); this.setState({ layerSel: nl.id }); }
+  zLayer(lid, dir) { this.setLayers(this.curId(), ls => { const a = [...ls]; const i = a.findIndex(l => l.id === lid); const j = i + dir; if (i < 0 || j < 0 || j >= a.length) return ls; [a[i], a[j]] = [a[j], a[i]]; return a; }); }
+  startDrag(ev, lid, mode) {
+    ev.stopPropagation(); if (ev.button) return; if (this.state.editing === lid) return;
+    const st = this.stageRef.current; if (!st) return; const r = st.getBoundingClientRect();
+    const cid = this.curId(); const o = this.layersOf(cid).find(l => l.id === lid); if (!o) return;
+    this.setState({ layerSel: lid, editing: null, rtab: 'slide' });
+    const sx = ev.clientX, sy = ev.clientY; let moved = false;
+    const move = e => {
+      const dx = (e.clientX - sx) / r.width * 100, dy = (e.clientY - sy) / r.height * 100;
+      if (!moved && Math.abs(e.clientX - sx) + Math.abs(e.clientY - sy) < 3) return; moved = true;
+      let p, guides = {};
+      if (mode === 'move') {
+        let x = o.x + dx, y = o.y + dy;
+        if (Math.abs(x + o.w / 2 - 50) < 1.2) { x = 50 - o.w / 2; guides.v = true; }
+        if (Math.abs(y + o.h / 2 - 50) < 1.6) { y = 50 - o.h / 2; guides.h = true; }
+        p = { x: rd(x), y: rd(y) };
+      } else {
+        let x = o.x, y = o.y, w = o.w, hh = o.h;
+        if (mode.includes('e')) w = Math.max(2, o.w + dx);
+        if (mode.includes('w')) { w = Math.max(2, o.w - dx); x = o.x + o.w - w; }
+        if (mode.includes('s')) hh = Math.max(2, o.h + dy);
+        if (mode.includes('n')) { hh = Math.max(2, o.h - dy); y = o.y + o.h - hh; }
+        if (e.shiftKey && mode.length === 2) { hh = w * o.h / o.w; if (mode.includes('n')) y = o.y + o.h - hh; }
+        p = { x: rd(x), y: rd(y), w: rd(w), h: rd(hh) };
+      }
+      this.updLayer(cid, lid, p); this.setState({ guides });
+    };
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); this.setState({ guides: {} }); };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+  }
+  startEdit(lid) {
+    const l = this.layersOf(this.curId()).find(x => x.id === lid); if (!l) return;
+    if (l.type === 'text') { this.setState({ editing: lid, layerSel: lid }); setTimeout(() => { const t = this.editRef.current; if (t) { t.focus(); t.select(); } }, 40); }
+    else if (l.type === 'image') this.chooseImage(lid);
+  }
+  chooseImage(lid) { this._imgTarget = { sid: this.curId(), lid }; const i = this.imgInputRef.current; if (i) i.click(); }
+  readImage(file, cb) {
+    if (!file) return; const r = new FileReader();
+    r.onload = () => { const url = r.result; const img = new Image();
+      img.onload = () => { const ar = img.width / img.height; if (/svg/.test(file.type) || file.size < 350000) return cb(url, ar);
+        const m = 1800, s = Math.min(1, m / Math.max(img.width, img.height)); const c = document.createElement('canvas'); c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); cb(c.toDataURL(file.type === 'image/png' ? 'image/png' : 'image/jpeg', 0.85), ar); };
+      img.onerror = () => cb(url, 1.5); img.src = url; };
+    r.readAsDataURL(file);
+  }
+  setImage(sid, lid, url) { const key = 'im' + uid(); this.setState(s => ({ images: { ...s.images, [key]: url } })); this.updLayer(sid, lid, { imgKey: key }); }
+  onImgFile(ev) { const f = ev.target.files && ev.target.files[0]; ev.target.value = ''; const t = this._imgTarget; if (!f || !t) return; this.readImage(f, url => this.setImage(t.sid, t.lid, url)); }
+  dropOn(ev, lid) {
+    ev.preventDefault(); ev.stopPropagation(); const f = ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files[0]; if (!f || !/image/.test(f.type)) return;
+    const sid = this.curId(); const l = lid && this.layersOf(sid).find(x => x.id === lid);
+    if (l && l.type === 'image') { this.readImage(f, url => this.setImage(sid, lid, url)); this.setState({ layerSel: lid }); return; }
+    const st = this.stageRef.current; const r = st.getBoundingClientRect(); const cx = (ev.clientX - r.left) / r.width * 100, cy = (ev.clientY - r.top) / r.height * 100;
+    this.readImage(f, (url, ar) => { const w = 40, hh = Math.min(90, w * (r.width / r.height) / (ar || 1.5)); const nl = this.addLayer('image', { x: rd(cx - w / 2), y: rd(cy - hh / 2), w, h: rd(hh) }); this.setImage(sid, nl.id, url); });
+  }
+  navResize(ev) {
+    ev.preventDefault(); const sx = ev.clientX; const maxW = () => Math.max(200, Math.min(700, window.innerWidth - (this.state.rightW || 300) - 380)); const w0 = Math.min(this.state.navW, maxW());
+    const move = e => this.setState({ navW: Math.max(200, Math.min(maxW(), w0 + e.clientX - sx)) });
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+  }
+
+  neighbour(id, dir, D) {
+    const sibs = this.state.nodes[D.parent[id]].children; const i = sibs.indexOf(id); const n = this.state.nodes[id];
+    if (dir === 'left') return sibs[i - 1]; if (dir === 'right') return sibs[i + 1];
+    if (dir === 'up') return D.parent[id] !== 'ROOT' ? D.parent[id] : null;
+    if (dir === 'down') { const lc = this.state.lastChild[id]; return n.children.includes(lc) ? lc : n.children[0]; }
+  }
+  nav(id, dir) {
+    const S = this.state; if (!id || id === S.cur || !S.nodes[id]) return;
+    if (S.layerSel || S.editing) this.setState({ layerSel: null, editing: null });
+    const D = this.derive(); const lastChild = { ...S.lastChild }; let x = id; while (D.parent[x] && D.parent[x] !== 'ROOT') { lastChild[D.parent[x]] = x; x = D.parent[x]; }
+    clearTimeout(this.t);
+    const fiNew = dir === 'left' ? Math.max(0, this.framesOf(id).length - 1) : 0; const fx = { fprev: false, fi: fiNew, prevFi: this.fiFor(S.cur), tween: null, transSel: null, confirmDup: null };
+    if (S.speed < 50 || (S.mode === 'build' && S.view === 'wire')) { this.setState({ cur: id, prev: null, phase: 'idle', lastChild, ...fx }); return; }
+    const [dx, dy] = DIRS[dir];
+    this.setState({ cur: id, prev: S.cur, dx, dy, type: dir === 'jump' ? 'fade' : 'swipe', phase: 'start', lastChild, ...fx });
+    requestAnimationFrame(() => requestAnimationFrame(() => this.setState({ phase: 'run' })));
+    this.t = setTimeout(() => this.setState({ prev: null, phase: 'idle' }), S.speed + 60);
+  }
+  go(dir) { if ((dir === 'right' && this.stepFrame(1)) || (dir === 'left' && this.stepFrame(-1))) return; const D = this.derive(); this.nav(this.neighbour(this.state.cur, dir, D), dir); }
+  step(delta) { if (this.stepFrame(delta)) return; const D = this.derive(); const i = D.order.indexOf(this.state.cur); const id = D.order[i + delta]; if (!id) return; const dd = D.depth[id] - D.depth[this.state.cur]; this.nav(id, dd > 0 ? 'down' : dd < 0 ? 'up' : (delta > 0 ? 'right' : 'left')); }
+  onKey(e) {
+    const t = e.target; const typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA'); const k = e.key; const S = this.state;
+    if (typing) {
+      if (t.dataset && t.dataset.role === 'filter' && k === 'Enter') { const D = this.derive(); const q = S.query.trim().toLowerCase(); const id = D.order.find(x => (S.nodes[x].title + ' ' + S.nodes[x].body).toLowerCase().includes(q)); if (id) this.nav(id, 'jump'); }
+      if (k === 'Escape') { t.blur(); this.setState({ query: '' }); }
+      if (k === 'Enter' && t === this.titleRef.current) { e.preventDefault(); t.blur(); }
+      return;
+    }
+    if (S.fprev && S.mode !== 'present') {
+      if (k === 'ArrowRight' || k === 'ArrowDown' || (k === ' ' && !e.shiftKey) || k === 'Enter') { e.preventDefault(); if (!this.stepFrame(1)) this.setState({ fprev: false }); }
+      else if (k === 'ArrowLeft' || k === 'ArrowUp' || (k === ' ' && e.shiftKey)) { e.preventDefault(); this.stepFrame(-1); }
+      else if (k === 'Escape') this.setState({ fprev: false });
+      return;
+    }
+    if (k === 'Escape' && S.transSel != null && !S.layerSel) { this.setState({ transSel: null }); return; }
+    if ((e.metaKey || e.ctrlKey) && (k === 'z' || k === 'Z')) { e.preventDefault(); if (e.shiftKey) this.redo(); else this.undo(); return; }
+    if ((e.metaKey || e.ctrlKey) && (k === 'y' || k === 'Y')) { e.preventDefault(); this.redo(); return; }
+    if (S.mode === 'build' && S.view === 'slide' && S.layerSel) {
+      const cid = this.curId(); const l = this.layersOf(cid).find(x => x.id === S.layerSel);
+      if (l) {
+        if (k.startsWith('Arrow')) { e.preventDefault(); const st = e.shiftKey ? 5 : 0.5; const d = DIRS[k.slice(5).toLowerCase()]; this.updLayer(cid, l.id, { x: rd(l.x + d[0] * st), y: rd(l.y + d[1] * st * 16 / 9) }); }
+        else if (k === 'Backspace' || k === 'Delete') { e.preventDefault(); this.delLayer(l.id); }
+        else if (k === 'Escape') this.setState({ layerSel: null });
+        else if (k === 'Enter') { e.preventDefault(); this.startEdit(l.id); }
+        else if ((k === 'd' || k === 'D') && (e.metaKey || e.ctrlKey)) { e.preventDefault(); this.dupLayer(l.id); }
+        return;
+      }
+    }
+    if (k.startsWith('Arrow')) { e.preventDefault(); this.go(k.slice(5).toLowerCase()); }
+    else if (k === ' ') { e.preventDefault(); this.step(e.shiftKey ? -1 : 1); }
+    else if (S.mode === 'present') {
+      if (k === '/') { e.preventDefault(); this.searchRef.current && this.searchRef.current.focus(); }
+      else if (k === 'Escape') this.setState({ mode: 'build' });
+    } else {
+      if (k === 'Enter') { e.preventDefault(); this.addPeer(S.cur); }
+      else if (k === 'Tab') { e.preventDefault(); if (e.shiftKey) this.outdent(S.cur); else this.addChild(S.cur); }
+      else if (k === 'Backspace' || k === 'Delete') { e.preventDefault(); this.remove(S.cur); }
+    }
+  }
+  onUpload(ev) {
+    const f = ev.target.files && ev.target.files[0]; ev.target.value = ''; if (!f) return;
+    const r = new FileReader(); r.onload = () => { const url = r.result; const img = new Image();
+      img.onload = () => this.setState({ customBg: url, customAspect: img.naturalWidth && img.naturalHeight ? img.naturalWidth / img.naturalHeight : 1, bg: 'custom' });
+      img.onerror = () => this.setState({ customBg: url, customAspect: 1, bg: 'custom' }); img.src = url; };
+    r.readAsDataURL(f);
+  }
+
+  renderVals() {
+    const S = this.state; const N = S.nodes; const D = this.derive(); const B = this.bgInfo(); const L = this.layout(D);
+    const cur = N[S.cur] ? S.cur : N.ROOT.children[0]; const curN = N[cur]; const isPresent = S.mode === 'present'; const isWire = !isPresent && S.view === 'wire';
+    const q = S.query.trim().toLowerCase(); const name = id => N[id].title || 'Untitled';
+    const pathOf = id => { const p = []; let x = id; while (x && x !== 'ROOT') { p.unshift(x); x = D.parent[x]; } return p; };
+    const tab = on => ({ bg: on ? '#fbf9f4' : 'transparent', color: on ? '#1d1b17' : '#6b6458', shadow: on ? '0 1px 3px rgba(0,0,0,.12)' : 'none' });
+    const match = {}; D.order.forEach(id => { if (!q || (N[id].title + ' ' + N[id].body).toLowerCase().includes(q)) match[id] = true; });
+    const light = S.tone === 'light'; const ease = 'cubic-bezier(.65,0,.25,1)';
+    const sibs = N[D.parent[cur]].children; const ci = sibs.indexOf(cur);
+
+    // canvas: width covers the whole tree plus one viewport of slack; image tiles repeat across it
+    const CW = L.CW + L.w; const tileW = H * B.aspect; const off = S.offset * tileW;
+    const tiles = []; if (B.src) for (let x = -off; x < CW; x += tileW) tiles.push({ l: f3(x / CW * 100), w: f3(tileW / CW * 100 + 0.05) });
+    const cam = { w: f3(CW / L.w * 100), h: f3(H / L.h * 100) };
+    const camOf = id => { const r = L.rect[id]; return `translate(${f3(-r.x / CW * 100)}%, ${f3(-r.y / H * 100)}%)`; };
+
+    // thumbnail tree
+    let leaf = 0; const tp = {};
+    const lay = (id, d) => { const kids = N[id].children; if (!kids.length) { tp[id] = { x: TPX + leaf * COLW, y: TPY + d * ROWH }; leaf++; } else { kids.forEach(k => lay(k, d + 1)); tp[id] = { x: (tp[kids[0]].x + tp[kids[kids.length - 1]].x) / 2, y: TPY + d * ROWH }; } };
+    N.ROOT.children.forEach(k => lay(k, 0)); this._tpos = tp;
+    const treeNodes = D.order.map(id => ({ x: tp[id].x, y: tp[id].y, title: name(id), full: name(id), cam: camOf(id), layers: this.layersOf(id), selected: id === cur, outline: id === cur ? '2px solid #d9432b' : 'none',
+      weight: id === cur ? 700 : 500, opacity: q && !match[id] ? 0.35 : 1, delOpacity: D.order.length > 1 ? 1 : 0.4,
+      onClick: () => this.nav(id, 'jump'), onRename: () => { this.nav(id, 'jump'); this.setState({ rtab: 'slide' }); this.focusTitle(); },
+      onPeer: e => { e.stopPropagation(); this.addPeer(id); }, onChild: e => { e.stopPropagation(); this.addChild(id); }, onDelete: e => { e.stopPropagation(); this.remove(id); } }));
+    const treeEdges = D.order.filter(id => D.parent[id] !== 'ROOT').map(id => { const a = tp[D.parent[id]], b = tp[id]; const x1 = a.x + TW / 2, y1 = a.y + 60, x2 = b.x + TW / 2, y2 = b.y - 2; return { d: `M${x1} ${y1}V${y1 + 12}H${x2}V${y2}` }; });
+    const tops = N.ROOT.children; const topEdge = tops.length > 1 ? [{ d: `M${tp[tops[0]].x + TW / 2} ${TPY - 8}H${tp[tops[tops.length - 1]].x + TW / 2}` }].concat(tops.map(t => ({ d: `M${tp[t].x + TW / 2} ${TPY - 8}V${TPY - 2}` }))) : [];
+
+    // stage
+    const active = S.prev && N[S.prev] && S.phase !== 'idle'; const fade = S.type === 'fade';
+    let planeA = { t: 'none', o: 1 }, planeB = { t: 'none', o: 1 };
+    if (active) {
+      if (S.phase === 'start') planeB = fade ? { t: 'none', o: 0 } : { t: `translate(${S.dx * 100}%, ${S.dy * 100}%)`, o: 1 };
+      else planeA = fade ? { t: 'none', o: 0 } : { t: `translate(${-S.dx * 100}%, ${-S.dy * 100}%)`, o: 1 };
+    }
+    const label = id => { const s = N[D.parent[id]].children; return `Level ${D.depth[id] + 1} · ${s.indexOf(id) + 1} / ${s.length}`; };
+    const steps = sibs.map((sid, i) => { const done = i < ci, now = i === ci;
+      return { title: now ? short(name(sid), 28) : '', pad: now ? '4px 11px 4px 4px' : '4px', full: name(sid), mark: done ? '✓' : String(i + 1), opacity: done || now ? 1 : 0.5,
+        lineDisplay: i === 0 ? 'none' : 'block', lineColor: i <= ci ? '#d9432b' : 'rgba(251,249,244,.9)', bg: now ? '#1d1b17' : 'rgba(251,249,244,.92)', color: now ? '#fbf9f4' : '#1d1b17',
+        dotBg: done ? '#d9432b' : now ? '#fbf9f4' : 'transparent', dotColor: done ? '#fff' : '#1d1b17', dotBorder: done || now ? '0' : '1.5px solid #1d1b17', onClick: () => this.nav(sid, i < ci ? 'left' : 'right') }; });
+    const downT = this.neighbour(cur, 'down', D); const upT = this.neighbour(cur, 'up', D);
+    // two-row breadcrumb stack: one row per level on the path, child rows indented under their parent's dot
+    const CP = 48, CRH = 34, CS = 42, CD = 17;
+    const path0 = pathOf(cur); let indent = 0;
+    const crumbRows = path0.map((pid, k) => {
+      const rowSibs = N[D.parent[pid]].children; const ix = rowSibs.indexOf(pid); const isCur = k === path0.length - 1;
+      const row = { indent, top: k * CP, opacity: isCur ? 1 : 0.92, hasLink: k > 0, linkX: indent + CD - 1, linkTop: k * CP - (CP - CRH),
+        steps: rowSibs.map((sid, j) => { const done = j < ix, on = j === ix;
+          return { title: on ? short(name(sid), isCur ? 28 : 20) : '', pad: on ? '4px 11px 4px 4px' : '4px', full: name(sid), mark: done ? '✓' : String(j + 1), opacity: done || on ? 1 : 0.5,
+            lineDisplay: j === 0 ? 'none' : 'block', lineColor: j <= ix ? '#d9432b' : 'rgba(251,249,244,.9)',
+            bg: on ? (isCur ? '#1d1b17' : '#fbf9f4') : 'rgba(251,249,244,.92)', color: on && isCur ? '#fbf9f4' : '#1d1b17',
+            dotBg: done ? '#d9432b' : on ? (isCur ? '#fbf9f4' : '#1d1b17') : 'transparent', dotColor: done ? '#fff' : on && !isCur ? '#fbf9f4' : '#1d1b17', dotBorder: done || on ? '0' : '1.5px solid #1d1b17',
+            onClick: () => { if (sid === cur) return; if (isCur) this.nav(sid, j < ix ? 'left' : 'right'); else this.nav(sid, sid === pid ? 'up' : 'jump'); } }; }) };
+      indent += CS * ix; return row;
+    });
+    const firstVis = Math.max(0, crumbRows.length - 2);
+    const crumbTx = -crumbRows[firstVis].indent, crumbTy = -firstVis * CP;
+    const curRow = crumbRows[crumbRows.length - 1];
+    const downHint = this.neighbour(cur, 'down', D) ? { x: curRow.indent + CD - 1 + CS * ci - 9, y: curRow.top + CRH, title: 'Below: ' + name(this.neighbour(cur, 'down', D)) } : null;
+    const crumbH = Math.min(2, crumbRows.length) * CP - (CP - CRH) + (downHint ? 28 : 0);
+
+
+    // wireframe
+    const pct = r => ({ l: f3(r.x / CW * 100), t: f3(r.y / H * 100), w: f3(r.w / CW * 100), h: f3(r.h / H * 100) });
+    const wireRects = D.order.map(id => { const on = id === cur, row = D.parent[id] === D.parent[cur];
+      return { ...pct(L.rect[id]), title: name(id), full: name(id), border: on ? '2px solid #d9432b' : row ? '1.5px solid #e0a019' : '1px solid rgba(251,249,244,.7)', fill: on ? 'rgba(217,67,43,.2)' : 'rgba(251,249,244,.06)',
+        onClick: () => this.nav(id, 'jump'), onOpen: () => this.setState({ view: 'slide' }) }; });
+    const wireLinesSafe = [];
+    D.order.filter(id => D.parent[id] !== 'ROOT').forEach(id => { const a = L.rect[D.parent[id]], b = L.rect[id];
+      const xa = (a.x + a.w * 0.1) / CW * 100, ya = (a.y + a.h) / H * 100, xb = (b.x + b.w * 0.1) / CW * 100, yb = b.y / H * 100, my = (ya + yb) / 2;
+      wireLinesSafe.push([xa, ya, xa, my], [xa, my, xb, my], [xb, my, xb, yb]); });
+
+    // layer editing
+    const editable = !isPresent && !isWire && !active;
+    const curLayers = this.layersOf(cur); const ly = S.layerSel ? curLayers.find(l => l.id === S.layerSel) : null;
+    const upL = patch => ly && this.updLayer(cur, ly.id, patch);
+    const lname = l => l.type === 'text' ? short(String(l.text || '').split('\n')[0] || 'Text', 24) : l.type === 'image' ? 'Image' : l.type === 'shape' ? ({ rect: 'Rectangle', ellipse: 'Ellipse', triangle: 'Triangle' }[l.shape] || 'Shape') : 'Icon · ' + (l.icon || '');
+    const overlays = curLayers.map((l, i) => ({ l: l.x, t: l.y, w: l.w, h: l.h, rot: l.rot || 0, z: i + 1, selected: l.id === S.layerSel, hidden: !!l.hidden,
+      outline: l.id === S.layerSel ? '2px solid #1f6fb8' : 'none', label: lname(l) + (l.link ? (l.link.type === 'url' ? '  ↗ ' + short(l.link.url || 'web link', 26) : '  → ' + short(N[l.link.id] ? name(l.link.id) : 'missing slide', 22)) : ''),
+      onDown: ev => this.startDrag(ev, l.id, 'move'), onDbl: ev => { ev.stopPropagation(); this.startEdit(l.id); }, onDrop: ev => this.dropOn(ev, l.id),
+      onNW: ev => this.startDrag(ev, l.id, 'nw'), onNE: ev => this.startDrag(ev, l.id, 'ne'), onSW: ev => this.startDrag(ev, l.id, 'sw'), onSE: ev => this.startDrag(ev, l.id, 'se'),
+      onW: ev => this.startDrag(ev, l.id, 'w'), onE: ev => this.startDrag(ev, l.id, 'e') })).filter(o => !o.hidden);
+    const edL = S.editing ? curLayers.find(l => l.id === S.editing) : null;
+    const ed = edL ? { text: edL.text, l: edL.x, t: edL.y, w: edL.w, h: edL.h, font: FONT_CSS[edL.font] || FONT_CSS.grot, fs: (edL.size || 40) / 16, weight: edL.weight || 400, color: edL.color || (light ? '#fbf9f4' : '#15171c'), align: edL.align || 'left', lh: edL.lh || 1.2 } : {};
+    const layerRows = curLayers.map((l, i) => ({ l, i })).reverse().map(({ l, i }) => ({ name: lname(l), glyph: { text: 'T', image: 'IMG', shape: '■', icon: '★' }[l.type], bg: l.id === S.layerSel ? '#eef3f9' : '#fff', weight: l.id === S.layerSel ? 700 : 500, opacity: l.hidden ? 0.45 : 1,
+      eye: l.hidden ? '◌' : '◉', eyeTitle: l.hidden ? 'Show' : 'Hide', upOp: i < curLayers.length - 1 ? 0.8 : 0.25, downOp: i > 0 ? 0.8 : 0.25,
+      onClick: () => this.setState({ layerSel: l.id, view: 'slide' }), onEye: e => { e.stopPropagation(); this.updLayer(cur, l.id, { hidden: !l.hidden }); },
+      onUp: e => { e.stopPropagation(); this.zLayer(l.id, 1); }, onDown: e => { e.stopPropagation(); this.zLayer(l.id, -1); } }));
+    const tabOn = (on, extra) => ({ bg: on ? '#fbf9f4' : 'transparent', shadow: on ? '0 1px 3px rgba(0,0,0,.12)' : 'none', weight: 600, font: 'inherit', ...(extra || {}) });
+    const colorKey = ly && ly.type === 'text' ? 'color' : 'fill';
+    const curColor = ly ? ly[colorKey] : null;
+    const layerVals = {
+      editable, curLayers, prevLayers: active ? this.layersOf(S.prev, S.prevFi || 0) : [], images: S.images, editingId: S.editing || '', stageRef: this.stageRef, editRef: this.editRef, imgInputRef: this.imgInputRef,
+      onImgFile: e => this.onImgFile(e), overlays, guideV: !!S.guides.v, guideH: !!S.guides.h, isEditingText: !!edL, ed,
+      onEditText: e => edL && this.updLayer(cur, edL.id, { text: e.target.value }), stopEditing: () => this.setState({ editing: null }), stopProp: e => e.stopPropagation(),
+      onStageDown: () => { if (S.layerSel || S.editing) this.setState({ layerSel: null, editing: null }); }, allowDrop: e => e.preventDefault(), onStageDrop: e => this.dropOn(e, null),
+      rightW: Math.max(240, Math.min(S.rightW, (typeof window !== 'undefined' ? window.innerWidth : 1400) - S.navW - 380)), onRightResize: e => this.rightResize(e),
+      addBtns: [['text', '+ Text'], ['image', '+ Image'], ['shape', '+ Shape'], ['icon', '+ Icon']].map(([t, label]) => ({ label, onClick: () => this.addLayer(t) })),
+      layerRows, noLayers: curLayers.length === 0, hasLayer: !!ly, noLayerSel: !ly,
+      ly: ly ? { ...ly, size: ly.size || 40, lh: ly.lh || 1.2 } : {}, lyLabel: ly ? lname(ly) : '',
+      lyIsText: !!ly && ly.type === 'text', lyIsImage: !!ly && ly.type === 'image',
+      pasteImage: () => ly && this.pasteFromClipboard(cur, ly.id), pasteTitle: S.clipMsg || (S.clipImg ? 'Paste the image on your clipboard' : 'Paste image from clipboard (or Ctrl/⌘+V)'),
+      pasteBg: S.clipImg ? '#1d1b17' : '#fff', pasteColor: S.clipImg ? '#fbf9f4' : '#1d1b17', pasteBorder: S.clipImg ? '#1d1b17' : '#e0d9cb',
+      clipMsgOn: !!S.clipMsg && !!ly && ly.type === 'image', clipMsg: S.clipMsg || '', lyIsShape: !!ly && ly.type === 'shape', lyIsIcon: !!ly && ly.type === 'icon', lyIsRect: !!ly && ly.shape === 'rect',
+      dupLayer: () => ly && this.dupLayer(ly.id), delLayer: () => ly && this.delLayer(ly.id),
+      onLyText: e => upL({ text: e.target.value }), onLySize: e => upL({ size: +e.target.value }), sizeLabel: ly ? (ly.size || 40) + '' : '',
+      fontBtns: FONT_LIST.map(([k, label, css]) => ({ label, title: label, font: css, ...tabOn(ly && (ly.font || 'grot') === k, { font: css }), onClick: () => upL({ font: k }) })),
+      weightBtns: [[400, 'Reg'], [600, 'Semi'], [800, 'Bold']].map(([w, label]) => ({ label, title: label, ...tabOn(ly && (ly.weight || 400) === w, { weight: w }), onClick: () => upL({ weight: w }) })),
+      alignBtns: [['left', 'Left'], ['center', 'Centre'], ['right', 'Right']].map(([a, label]) => ({ label, title: label, ...tabOn(ly && (ly.align || 'left') === a), onClick: () => upL({ align: a }) })),
+      valignBtns: [['top', 'Top'], ['middle', 'Middle'], ['bottom', 'Bottom']].map(([a, label]) => ({ label, title: label, ...tabOn(ly && (ly.valign || 'top') === a), onClick: () => upL({ valign: a }) })),
+      bulletBtns: [['none', 'None'], ['disc', '•'], ['dash', '–'], ['number', '1.'], ['check', '✓'], ['arrow', '→']].map(([b, label]) => ({ label, title: b === 'none' ? 'No bullets' : 'Bullets: ' + b, ...tabOn(ly && (ly.bullets || 'none') === b), onClick: () => upL({ bullets: b }) })),
+      lhLabel: ly ? (ly.lh || 1.2).toFixed(2) : '', onLyLh: e => upL({ lh: +e.target.value }),
+      lyGap: ly ? (ly.gap ?? 0.15) : 0, gapLabel2: ly ? (ly.gap ?? 0.15).toFixed(2) + 'em' : '', onLyGap: e => upL({ gap: +e.target.value }),
+      swatches: [{ label: 'A', title: 'Deck default', bg: '#fff', border: ly && !curColor ? '2px solid #1f6fb8' : '1px solid rgba(29,27,23,.2)', onClick: () => upL({ [colorKey]: null }) }]
+        .concat(SWATCH.map(v => ({ label: '', title: v, bg: v, border: curColor === v ? '2px solid #1f6fb8' : '1px solid rgba(29,27,23,.2)', onClick: () => upL({ [colorKey]: v }) }))),
+      colorHex: toHex(curColor), onColorPick: e => upL({ [colorKey]: e.target.value }),
+      lyThumb: ly && ly.imgKey && S.images[ly.imgKey] ? `#efeae0 url("${S.images[ly.imgKey]}") center / contain no-repeat` : 'repeating-linear-gradient(45deg,#e4ddcf 0 10px,#efeae0 10px 20px)',
+      chooseImage: () => ly && this.chooseImage(ly.id), clearImage: () => upL({ imgKey: null }),
+      fitBtns: [['cover', 'Fill frame'], ['contain', 'Fit inside']].map(([f, label]) => ({ label, title: label, ...tabOn(ly && (ly.fit || 'cover') === f), onClick: () => upL({ fit: f }) })),
+      lyRadius: ly ? (ly.radius || 0) : 0, radiusLabel: ly ? (ly.radius || 0) + '' : '', onLyRadius: e => upL({ radius: +e.target.value }),
+      shapeBtns: [['rect', 'Rectangle'], ['ellipse', 'Ellipse'], ['triangle', 'Triangle']].map(([k, label]) => ({ label, title: label, ...tabOn(ly && ly.shape === k), onClick: () => upL({ shape: k }) })),
+      iconBtns: Object.entries(ICONS).map(([name, path]) => ({ name, path, border: ly && ly.icon === name ? '2px solid #1f6fb8' : '1px solid #e0d9cb', onClick: () => upL({ icon: name }) })),
+      lySw: ly ? (ly.sw || 1.8) : 1.8, swLabel: ly ? (ly.sw || 1.8).toFixed(1) : '', onLySw: e => upL({ sw: +e.target.value }),
+      geoFields: ly ? [['X', 'x'], ['Y', 'y'], ['W', 'w'], ['H', 'h']].map(([label, k]) => ({ label: label + ' %', value: rd(ly[k]), onChange: e => { const v = parseFloat(e.target.value); if (!isNaN(v)) upL({ [k]: v }); } })) : [],
+      lyRot: ly ? (ly.rot || 0) : 0, rotLabel: ly ? (ly.rot || 0) + '°' : '', onLyRot: e => upL({ rot: +e.target.value }),
+      lyOp: ly ? (ly.opacity ?? 1) : 1, opLabel: ly ? Math.round((ly.opacity ?? 1) * 100) + '%' : '', onLyOp: e => upL({ opacity: +e.target.value }),
+    };
+    const withCur = (list, v) => (v === undefined || list.includes(v) ? list : [...list, v].sort((a, b) => a - b));
+    const field = (label, key, opts, fallback, parse) => ({ label, value: String(ly ? (ly[key] ?? fallback) : fallback), opts: opts.map(([v, l]) => ({ v: String(v), l })), onChange: e => upL({ [key]: parse ? parse(e.target.value) : e.target.value }) });
+    const textFields = ly && ly.type === 'text' ? [
+      field('Font', 'font', FONT_LIST.map(f => [f[0], f[1]]), 'grot'),
+      field('Size', 'size', withCur([12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 48, 56, 64, 72, 80, 96, 110, 128, 144, 160, 192, 240], ly.size || 40).map(v => [v, v + ' px']), 40, Number),
+      field('Weight', 'weight', [[400, 'Regular'], [500, 'Medium'], [600, 'Semibold'], [700, 'Bold'], [800, 'Extra bold']], 400, Number),
+      field('Align', 'align', [['left', 'Left'], ['center', 'Centre'], ['right', 'Right']], 'left'),
+      field('V-align', 'valign', [['top', 'Top'], ['middle', 'Middle'], ['bottom', 'Bottom']], 'top'),
+      field('Bullets', 'bullets', [['none', 'None'], ['disc', '•  Dot'], ['dash', '–  Dash'], ['number', '1.  Numbers'], ['check', '✓  Check'], ['arrow', '→  Arrow']], 'none'),
+      field('Line ht', 'lh', withCur([0.9, 1, 1.1, 1.2, 1.25, 1.3, 1.35, 1.4, 1.5, 1.75, 2], ly.lh || 1.2).map(v => [v, v.toFixed(2)]), 1.2, Number),
+      field('Gap', 'gap', withCur([0, 0.1, 0.15, 0.25, 0.4, 0.45, 0.6, 0.8, 1], ly.gap ?? 0.15).map(v => [v, v + ' em']), 0.15, Number),
+    ] : [];
+    // frames
+    const framesCur = this.framesOf(cur); const fiCur = this.fiFor(cur); const nCur = N[cur];
+    const EASE = { linear: 'linear', in: 'cubic-bezier(.55,0,1,.45)', out: 'cubic-bezier(0,.55,.45,1)', both: 'cubic-bezier(.65,0,.35,1)', spring: 'cubic-bezier(.34,1.56,.64,1)' };
+    const allIds = []; framesCur.forEach(f => f.layers.forEach(l => { if (!allIds.includes(l.id)) allIds.push(l.id); }));
+    const tgt = framesCur[fiCur].layers;
+    const stageLayers = allIds.map(lid => {
+      const k = tgt.findIndex(l => l.id === lid);
+      let tr = 'none', tr2 = 'none';
+      if (S.tween) { const t = this.transFor(cur, S.tween.a, lid); const part = (act, props) => { const s = this.actT(t, act); return props.map(p => `${p} ${s.dur}ms ${EASE[s.ease] || EASE.both} ${s.delay}ms`); };
+        tr = [...part('move', ['left', 'top']), ...part('scale', ['width', 'height']), ...part('rotate', ['transform']), ...part('fade', ['opacity'])].join(', ');
+        tr2 = [...part('colour', ['color', 'background-color', 'background', 'stroke']), ...part('size', ['font-size']), ...part('scale', ['border-radius'])].join(', '); }
+      if (k >= 0 && S.tween) { const t = this.transFor(cur, S.tween.a, lid); const A0 = framesCur[S.tween.a].layers.find(l => l.id === lid), B0 = framesCur[S.tween.a + 1].layers.find(l => l.id === lid);
+        if (t.path && A0 && B0) { const now = performance.now() - S.tween.start; const mv = this.actT(t, 'move'), sc = this.actT(t, 'scale');
+          const pr = s => Math.max(0, Math.min(1, (now - s.delay) / Math.max(1, s.dur))); const em = easeFn(mv.ease)(pr(mv)), es = easeFn(sc.ease)(pr(sc));
+          const tm = S.tween.fwd ? em : 1 - em, ts = S.tween.fwd ? es : 1 - es;
+          const c = bez({ x: A0.x + A0.w / 2, y: A0.y + A0.h / 2 }, t.path.c1, t.path.c2, { x: B0.x + B0.w / 2, y: B0.y + B0.h / 2 }, tm);
+          const w = A0.w + (B0.w - A0.w) * ts, hh = A0.h + (B0.h - A0.h) * ts;
+          const rest = tr.split(', ').filter(p => !/^(left|top|width|height) /.test(p)).join(', ') || 'none';
+          return { ...tgt[k], x: c.x - w / 2, y: c.y - hh / 2, w, h: hh, _z: k + 1, _tr: rest, _tr2: tr2 }; } }
+      if (k >= 0) return { ...tgt[k], _z: k + 1, _tr: tr, _tr2: tr2 };
+      let g = null; for (let d = 1; d < framesCur.length && !g; d++) { for (const j of [fiCur - d, fiCur + d]) { const f = framesCur[j]; const l = f && f.layers.find(x => x.id === lid); if (l) { g = l; break; } } }
+      return { ...g, opacity: 0, hidden: false, _z: 0, _tr: tr, _tr2: tr2 };
+    });
+    const tv = S.transSel != null && S.transSel < framesCur.length - 1 ? S.transSel : null;
+    const lname2 = l => l.type === 'text' ? short(String(l.text || '').split('\n')[0] || 'Text', 20) : l.type === 'image' ? 'Image' : l.type === 'shape' ? (l.shape || 'Shape') : 'Icon · ' + (l.icon || '');
+    const diff = (a, b) => { if (!a) return 'appears'; if (!b) return 'disappears'; const c = [];
+      if (Math.abs(a.x - b.x) > 0.05 || Math.abs(a.y - b.y) > 0.05) c.push('move'); if (Math.abs(a.w - b.w) > 0.05 || Math.abs(a.h - b.h) > 0.05) c.push('scale');
+      if ((a.rot || 0) !== (b.rot || 0)) c.push('rotate'); if ((a.color || a.fill) !== (b.color || b.fill)) c.push('colour'); if ((a.opacity ?? 1) !== (b.opacity ?? 1) || !!a.hidden !== !!b.hidden) c.push('fade');
+      if ((a.size || 0) !== (b.size || 0)) c.push('size'); if (a.text !== b.text) c.push('text'); return c.length ? c.join(' · ') : '—'; };
+    const actsOf = (a, b) => { if (!a || !b) return [['fade', a ? 'Fade out' : 'Fade in']]; const c = [];
+      if (Math.abs(a.x - b.x) > 0.05 || Math.abs(a.y - b.y) > 0.05) c.push(['move', 'Move']); if (Math.abs(a.w - b.w) > 0.05 || Math.abs(a.h - b.h) > 0.05) c.push(['scale', 'Scale']);
+      if ((a.rot || 0) !== (b.rot || 0)) c.push(['rotate', 'Rotate']); if ((a.color || a.fill) !== (b.color || b.fill)) c.push(['colour', 'Colour']);
+      if ((a.size || 0) !== (b.size || 0)) c.push(['size', 'Text size']); if ((a.opacity ?? 1) !== (b.opacity ?? 1) || !!a.hidden !== !!b.hidden) c.push(['fade', 'Fade']); return c; };
+    let transVals = { isTransView: false, notTransView: true, transRows: [], hasTransLayer: false, hasGhost: false, ghostLayers: [], showPaths: false, pathLines: [], pathDots: [] };
+    if (tv != null) {
+      const A = framesCur[tv].layers, B = framesCur[tv + 1].layers; const ids = []; [...A, ...B].forEach(l => { if (!ids.includes(l.id)) ids.push(l.id); });
+      const tl = S.layerSel && ids.includes(S.layerSel) ? S.layerSel : null;
+      const copyInto = (lid, from, into) => { const src = framesCur[from].layers.find(l => l.id === lid); if (src) this.setLayers(cur, ls => [...ls, { ...src }], into); this.setState({ fi: into, layerSel: lid }); };
+      const cell = (l, side, lid) => { const on = l && tl === lid && fiCur === (side === 'L' ? tv : tv + 1);
+        return { name: l ? lname2(l) : '+ add here', title: l ? 'Select in frame ' + (side === 'L' ? tv + 1 : tv + 2) : 'Copy this layer into this frame', border: l ? (on ? '2px solid #1f6fb8' : '1px solid #e0d9cb') : '1.5px dashed #cfd9e4', bg: on ? '#eef3f9' : l ? '#fff' : 'transparent', color: l ? '#1d1b17' : '#8aa0b6' }; };
+      const transRows = ids.map(lid => { const a = A.find(l => l.id === lid), b = B.find(l => l.id === lid); const L1 = cell(a, 'L', lid), R1 = cell(b, 'R', lid); const ch = diff(a, b);
+        return { leftName: L1.name, leftTitle: L1.title, leftBorder: L1.border, leftBg: L1.bg, leftColor: L1.color, rightName: R1.name, rightTitle: R1.title, rightBorder: R1.border, rightBg: R1.bg, rightColor: R1.color,
+          change: ch, changeColor: ch === '—' ? '#b9c4cf' : '#1f6fb8', bg: tl === lid ? '#f7fafd' : '#fff',
+          onLeft: () => a ? this.setState({ fi: tv, layerSel: lid, tween: null }) : copyInto(lid, tv + 1, tv), onRight: () => b ? this.setState({ fi: tv + 1, layerSel: lid, tween: null }) : copyInto(lid, tv, tv + 1) }; });
+      const ts = tl ? this.transFor(cur, tv, tl) : {};
+      const other = fiCur === tv ? tv + 1 : tv;
+      const ctr = l => ({ x: l.x + l.w / 2, y: l.y + l.h / 2 });
+      const pathLines = [], pathDots = [];
+      if (!S.tween) ids.forEach(lid => { const a = A.find(l => l.id === lid), b = B.find(l => l.id === lid); if (!a || !b) return;
+        if (Math.abs(a.x - b.x) < 0.05 && Math.abs(a.y - b.y) < 0.05) return;
+        const p0 = ctr(a), p3 = ctr(b); const tp = this.transFor(cur, tv, lid).path; const def = { c1: { x: rd(p0.x + (p3.x - p0.x) / 3), y: rd(p0.y + (p3.y - p0.y) / 3) }, c2: { x: rd(p0.x + 2 * (p3.x - p0.x) / 3), y: rd(p0.y + 2 * (p3.y - p0.y) / 3) } };
+        const pth = tp || def; const on = lid === tl;
+        pathLines.push({ d: `M${p0.x} ${p0.y} C${pth.c1.x} ${pth.c1.y} ${pth.c2.x} ${pth.c2.y} ${p3.x} ${p3.y}`, color: on ? '#1f6fb8' : 'rgba(251,249,244,.8)', sw: on ? 2 : 1.5, dash: on ? 'none' : '5 4' });
+        pathDots.push({ x: p0.x, y: p0.y, size: 9, bg: '#fbf9f4', border: '#1f6fb8', cursor: 'default', pe: 'none', title: '' }, { x: p3.x, y: p3.y, size: 9, bg: '#1f6fb8', border: '#fbf9f4', cursor: 'default', pe: 'none', title: '' });
+        if (on) { pathLines.push({ d: `M${p0.x} ${p0.y} L${pth.c1.x} ${pth.c1.y}`, color: 'rgba(31,111,184,.7)', sw: 1, dash: '3 3' }, { d: `M${p3.x} ${p3.y} L${pth.c2.x} ${pth.c2.y}`, color: 'rgba(31,111,184,.7)', sw: 1, dash: '3 3' });
+          ['c1', 'c2'].forEach(w => pathDots.push({ x: pth[w].x, y: pth[w].y, size: 13, bg: '#fff', border: '#1f6fb8', cursor: 'grab', pe: 'auto', title: 'Drag to curve the path', onDown: ev => this.startPathDrag(ev, lid, w, tv, def) })); }
+      });
+      const acts = tl ? actsOf(A.find(l => l.id === tl), B.find(l => l.id === tl)) : [];
+      const actKeys = acts.map(x => x[0]);
+      const setCol = (act, key, val) => this.setTransAct(cur, tv, tl, S.tAll[key] ? actKeys : [act], { [key]: val });
+      const opt = list => list.map(([v, l]) => ({ v: String(v), l }));
+      const tla = tl && (A.find(l => l.id === tl) || B.find(l => l.id === tl));
+      transVals = { isTransView: true, notTransView: false, transRows, transTitle: `· frame ${tv + 1} → ${tv + 2}`, transLeftLabel: 'Frame ' + (tv + 1), transRightLabel: 'Frame ' + (tv + 2),
+        previewTrans: () => { this.setState({ fi: tv, tween: null, layerSel: null }); setTimeout(() => this.stepFrame(1), 120); }, closeTrans: () => this.setState({ transSel: null }),
+        hasTransLayer: !!tl, transLayerTitle: tla ? 'Transition for ' + lname2(tla) : '', 
+        hasGhost: !S.tween && editable, ghostLayers: framesCur[other].layers.filter(l => !l.hidden), showPaths: editable && !S.tween, pathLines, pathDots,
+        hasActRows: acts.length > 0, noActRows: !!tl && acts.length === 0,
+        actRows: acts.map(([act, label]) => { const s = this.actT(ts, act); return { label, isMove: act === 'move', pathLabel: ts.path ? 'Curved' : 'Straight', resetOp: ts.path ? 1 : 0.4, onResetPath: () => this.setPath(cur, tv, tl, null),
+          ease: s.ease, easeOpts: opt([['linear', 'Linear'], ['in', 'In'], ['out', 'Out'], ['both', 'Both'], ['spring', 'Spring']]), onEase: e => setCol(act, 'ease', e.target.value),
+          dur: String(s.dur), durOpts: opt([150, 250, 400, 600, 800, 1000, 1400, 2000].map(v => [v, String(v)])), onDur: e => setCol(act, 'dur', +e.target.value),
+          delay: String(s.delay), delayOpts: opt([0, 100, 200, 300, 500, 800, 1200].map(v => [v, String(v)])), onDelay: e => setCol(act, 'delay', +e.target.value) }; }),
+        allT: Object.fromEntries(['ease', 'dur', 'delay'].map(key => { const on = !!S.tAll[key]; return [key, { label: on ? '✓ All' : 'All', bg: on ? '#1f6fb8' : '#fff', color: on ? '#fff' : '#1f6fb8', border: on ? '#1f6fb8' : '#9db8d3',
+          onClick: () => { const next = !on; this.setState(st => ({ tAll: { ...st.tAll, [key]: next } })); if (next && tl && actKeys.length) this.setTransAct(cur, tv, tl, actKeys, { [key]: this.actT(ts, actKeys[0])[key] }); } }]; })),
+        tEase: ts.ease || 'both', easeOpts: opt([['linear', 'Linear'], ['in', 'Ease in'], ['out', 'Ease out'], ['both', 'Ease both'], ['spring', 'Spring']]), onTEase: e => this.setTrans(cur, tv, [tl], { ease: e.target.value }),
+        tDur: String(ts.dur ?? 600), durOpts: opt([150, 250, 400, 600, 800, 1000, 1400, 2000].map(v => [v, v + ' ms'])), onTDur: e => this.setTrans(cur, tv, [tl], { dur: +e.target.value }),
+        tDelay: String(ts.delay || 0), delayOpts: opt([0, 100, 200, 300, 500, 800, 1200].map(v => [v, v + ' ms'])), onTDelay: e => this.setTrans(cur, tv, [tl], { delay: +e.target.value }),
+        applyTransAll: () => this.setTrans(cur, tv, ids, { ease: ts.ease || 'both', dur: ts.dur ?? 600, delay: ts.delay || 0 }) };
+    }
+    const frameVals = {
+      stageLayers, frameCount: framesCur.length, showFramesOn: !!nCur.showFrames, onShowFrames: e => this.setState(s => ({ nodes: { ...s.nodes, [cur]: { ...s.nodes[cur], showFrames: e.target.checked } } })),
+      frameItems: framesCur.map((f, k) => ({ layers: f.layers, label: 'F' + (k + 1), outline: k === fiCur && tv == null ? '2px solid #d9432b' : (tv != null && (k === tv || k === tv + 1)) ? '2px solid #1f6fb8' : '1px solid #e0d9cb',
+        labelColor: k === fiCur ? '#1d1b17' : '#6b6458', weight: k === fiCur ? 700 : 500, onClick: () => this.setState({ fi: k, transSel: null, tween: null, layerSel: null, view: 'slide' }),
+        hasArrow: k > 0, arrowTitle: `Edit transition F${k} → F${k + 1}`, arrowBg: tv === k - 1 ? '#1f6fb8' : '#fff', arrowColor: tv === k - 1 ? '#fff' : '#1f6fb8', arrowBorder: tv === k - 1 ? '0' : '1.5px solid #9db8d3',
+        onArrow: () => this.setState({ transSel: k - 1, fi: k - 1, layerSel: null, tween: null, view: 'slide' }) })),
+      dupFrame: () => this.dupFrame(fiCur), delFrame: () => this.delFrame(fiCur), delFrameOp: framesCur.length > 1 ? 1 : 0.4,
+      confirmDupOpen: S.confirmDup != null, confirmDupText: S.confirmDup != null ? `Frame ${S.confirmDup + 1} has transition settings into frame ${S.confirmDup + 2}. The copy goes between them, so those settings will be lost.` : '',
+      cancelDup: () => this.setState({ confirmDup: null }), forceDup: () => this.dupFrame(S.confirmDup, true),
+      showFrameDots: (!!nCur.showFrames || !!S.fprev) && framesCur.length > 1 && !active,
+      fprevOn: !!S.fprev && !isPresent, fprevPos: `${fiCur + 1} / ${framesCur.length}`, fprevLabel: S.fprev ? '■ Stop' : '▶ Preview', fprevBg: S.fprev ? '#a8301d' : '#1d1b17',
+      previewFrames: e => { e && e.currentTarget && e.currentTarget.blur(); if (S.fprev) { this.setState({ fprev: false }); return; } this.setState({ fprev: true, fi: 0, tween: null, transSel: null, layerSel: null, editing: null, view: 'slide' }); },
+      frameDots: framesCur.map((f, k) => ({ title: 'Frame ' + (k + 1), w: k === fiCur ? 18 : 7, bg: k <= fiCur ? '#fbf9f4' : 'rgba(251,249,244,.4)', onClick: () => this.goFrame(k) })),
+      ...transVals,
+    };
+    const linkOf = ly && ly.link ? ly.link : null;
+    const pathName = id => pathOf(id).map(name).join(' › ');
+    const linkVals = {
+      linkBtns: [['none', 'None'], ['url', 'Web page'], ['slide', 'Slide']].map(([t, label]) => ({ label, ...tab((linkOf ? linkOf.type : 'none') === t), onClick: () => upL({ link: t === 'none' ? null : t === 'url' ? { type: 'url', url: (linkOf && linkOf.url) || '' } : { type: 'slide', id: (linkOf && linkOf.id && N[linkOf.id]) ? linkOf.id : (D.order.find(x => x !== cur) || cur) } }) })),
+      linkIsUrl: !!linkOf && linkOf.type === 'url', linkIsSlide: !!linkOf && linkOf.type === 'slide',
+      linkUrl: linkOf && linkOf.url || '', onLinkUrl: e => upL({ link: { type: 'url', url: e.target.value } }),
+      linkSlide: linkOf && linkOf.id || '', onLinkSlide: e => upL({ link: { type: 'slide', id: e.target.value } }),
+      slideOptions: D.order.map(id => ({ id, label: '\u00a0'.repeat(D.depth[id] * 3) + name(id) + (id === cur ? '  (this slide)' : '') })),
+      followLink: () => linkOf && linkOf.id && this.nav(linkOf.id, 'jump'),
+      showLinkSpots: isPresent && !active,
+      linkSpots: isPresent ? curLayers.filter(l => l.link && !l.hidden && ((l.link.type === 'url' && l.link.url) || (l.link.type === 'slide' && N[l.link.id]))).map(l => ({ l: l.x, t: l.y, w: l.w, h: l.h, rot: l.rot || 0,
+        title: l.link.type === 'url' ? 'Open ' + l.link.url : 'Go to ' + pathName(l.link.id),
+        onClick: () => { if (l.link.type === 'url') { let u = l.link.url.trim(); if (!/^[a-z]+:/i.test(u)) u = 'https://' + u; window.open(u, '_blank', 'noopener'); } else this.nav(l.link.id, 'jump'); } })) : [],
+    };
+    const results = isPresent && q ? D.order.filter(id => match[id]).slice(0, 10).map(id => ({ title: name(id), path: pathOf(id).slice(0, -1).map(name).join(' › ') || 'Top level', onClick: () => { this.setState({ query: '' }); this.nav(id, 'jump'); } })) : [];
+
+    return {
+      ...layerVals, ...linkVals, textFields, ...frameVals,
+      sec: Object.fromEntries(['layout', 'frames', 'layers', 'tdef'].map(k => { const open = !!(S.secOpen || {})[k]; return [k, { open, caret: open ? '▾' : '▸', toggle: () => this.setState(st => ({ secOpen: { ...st.secOpen, [k]: !open } })) }]; })),
+      defAll: Object.fromEntries(['ease', 'dur', 'delay'].map(key => { const on = !!S.dAll[key]; const fb = { ease: 'both', dur: 600, delay: 0 }[key];
+        return [key, { label: on ? '✓ All' : 'All', bg: on ? '#1d1b17' : '#fff', color: on ? '#fbf9f4' : '#1d1b17', border: on ? '#1d1b17' : '#cfc6b4',
+          onClick: () => this.setState(st => { const next = !on; const out = { dAll: { ...st.dAll, [key]: next } }; if (next) { const v = ((st.tdef || {}).move || {})[key] ?? fb; const td = { ...(st.tdef || {}) }; DEF_ACTS.forEach(a => { td[a] = { ...(td[a] || {}), [key]: v }; }); out.tdef = td; } return out; }) }]; })),
+      defRows: [['move', 'Move'], ['scale', 'Scale'], ['rotate', 'Rotate'], ['colour', 'Colour'], ['size', 'Text size'], ['fade', 'Fade in / out']].map(([act, label]) => { const d = (S.tdef || {})[act] || {}; const set = patch => { const key = Object.keys(patch)[0]; const targets = S.dAll[key] ? DEF_ACTS : [act];
+          this.setState(st => { const td = { ...(st.tdef || {}) }; targets.forEach(a => { td[a] = { ...(td[a] || {}), ...patch }; }); return { tdef: td }; }); };
+        const o = list => list.map(([v, l]) => ({ v: String(v), l }));
+        return { label, ease: d.ease || 'both', easeOpts: o([['linear', 'Linear'], ['in', 'In'], ['out', 'Out'], ['both', 'Both'], ['spring', 'Spring']]), onEase: e => set({ ease: e.target.value }),
+          dur: String(d.dur ?? 600), durOpts: o([150, 250, 400, 600, 800, 1000, 1400, 2000].map(v => [v, String(v)])), onDur: e => set({ dur: +e.target.value }),
+          delay: String(d.delay ?? 0), delayOpts: o([0, 100, 200, 300, 500, 800, 1200].map(v => [v, String(v)])), onDelay: e => set({ delay: +e.target.value }) }; }),
+      resetAllTrans: () => this.resetAllTrans(), defApply: { ease: () => this.resetTransKey('ease'), dur: () => this.resetTransKey('dur'), delay: () => this.resetTransKey('delay') },
+      transCountText: (c => c ? `${c} slide${c === 1 ? ' has' : 's have'} custom transition settings. Undo restores them.` : 'No custom settings yet: every transition uses these defaults.')(Object.values(N).filter(n => n.ftrans && Object.values(n.ftrans).some(m => Object.keys(m || {}).length)).length),
+      undo: () => this.undo(), redo: () => this.redo(), undoOp: this._past && this._past.length ? 1 : 0.4, redoOp: this._future && this._future.length ? 1 : 0.4,
+      layoutBtns: SLIDE_LAYOUTS.map(L => ({ label: L.label, layers: L.make(this.layoutContent(cur)).map((l, i) => ({ ...l, id: 'p' + i })), onClick: () => this.applyLayout(L.id) })),
+      deckTitle: name(N.ROOT.children[0]), keyHint: isPresent ? '← → ↑ ↓  ·  Space next  ·  / search  ·  Esc' : '',
+      modeTabs: [{ label: 'Build', ...tab(!isPresent), onClick: () => this.setState({ mode: 'build' }) }, { label: 'Present', ...tab(isPresent), onClick: () => this.setState({ mode: 'present', query: '' }) }],
+      isBuild: !isPresent, isPresent, slideCount: D.order.length, query: S.query, onQuery: e => this.setState({ query: e.target.value }),
+      addTop: () => this.insert('ROOT', N.ROOT.children.length),
+      navW: Math.max(200, Math.min(S.navW, (typeof window !== 'undefined' ? window.innerWidth : 1400) - (this.state.rightW || 300) - 380)), onNavResize: e => this.navResize(e),
+      treeRef: this.treeRef, treeW: TPX * 2 + Math.max(1, leaf) * COLW + 20, treeH: TPY + D.levels * ROWH + 20, treeNodes, treeEdges: topEdge.concat(treeEdges),
+      viewTabs: [{ label: 'Slide', ...tab(S.view === 'slide'), onClick: () => this.setState({ view: 'slide' }) }, { label: 'Wireframe', ...tab(S.view === 'wire'), onClick: () => this.setState({ view: 'wire' }) }],
+      viewHint: isWire ? 'Every slide on the looping canvas. Click to select, double-click to open.' : 'What viewers see. Arrow keys move around the tree.',
+      stageAreaBg: isPresent ? '#05070c' : '#e6e0d3', showStage: !isWire, showWire: isWire,
+      base: S.base, bgCss: B.src ? `url("${B.src}") center / 100% 100% no-repeat` : 'none', opacity: S.opacity, tiles, cam,
+      curCam: camOf(cur), camTransition: `transform ${S.speed}ms ${ease}`,
+      hasPrev: !!active, planeA, planeB, planeTr: active && S.phase === 'run' ? `transform ${S.speed}ms ${ease}, opacity ${S.speed}ms ease` : 'none',
+      ink: light ? '#fbf9f4' : '#15171c', inkShadow: light ? '0 2px 18px rgba(0,0,0,.45)' : '0 1px 12px rgba(255,255,255,.5)',
+      prevTitle: active ? name(S.prev) : '', prevBody: active ? N[S.prev].body : '', prevLabel: active ? label(S.prev) : '',
+      cur: curN, curTitle: name(cur), curBody: curN.body, curLabel: label(cur),
+      crumbRows, crumbTx, crumbTy, crumbH, hasDownHint: !!downHint, downHint: downHint || {},
+      steps, stepsBg: isPresent ? 'rgba(251,249,244,.18)' : 'rgba(29,27,23,.08)', sepColor: isPresent ? '#fbf9f4' : '#6b6458', navRight: isPresent ? '270px' : '14px',
+      searchRef: this.searchRef, results, hasResults: results.length > 0,
+      hasLeft: ci > 0 || fiCur > 0, leftTitle: fiCur > 0 ? 'Previous frame' : ci > 0 ? name(sibs[ci - 1]) : '', goLeft: () => this.go('left'),
+      hasRight: ci < sibs.length - 1 || fiCur < framesCur.length - 1, rightTitle: fiCur < framesCur.length - 1 ? 'Next frame' : ci < sibs.length - 1 ? name(sibs[ci + 1]) : '', goRight: () => this.go('right'),
+      hasUp: !!upT, upTitle: upT ? short(name(upT), 24) : '', goUp: () => this.go('up'),
+      hasDown: !!downT, goDown: () => this.go('down'), downLabel: downT ? `${curN.children.length} below · ${short(name(downT), 22)}` : '',
+
+      canvasRatio: f3(CW / H), wireRects, wireLines: wireLinesSafe.map(([x1, y1, x2, y2]) => ({ x1: f3(x1) + '%', y1: f3(y1) + '%', x2: f3(x2) + '%', y2: f3(y2) + '%' })),
+
+      rTabs: [['slide', 'Slide'], ['layout', 'Layout'], ['canvas', 'Canvas']].map(([id, label]) => ({ label, ...tab(S.rtab === id), onClick: () => this.setState(id === 'layout' ? { rtab: id, view: 'wire' } : { rtab: id }) })),
+      tabSlide: S.rtab === 'slide', tabLayout: S.rtab === 'layout', tabCanvas: S.rtab === 'canvas',
+      titleRef: this.titleRef, onTitle: e => this.setNode(cur, { title: e.target.value }), onBody: e => this.setNode(cur, { body: e.target.value }),
+      toneBtns: [['light', 'Light'], ['dark', 'Dark']].map(([id, l]) => ({ label: l, ...tab(S.tone === id), onClick: () => this.setState({ tone: id }) })),
+      margin: S.margin, marginLabel: S.margin.toFixed(2) + '% of height', onMargin: e => this.setState({ margin: +e.target.value }),
+      gap: S.gap, gapLabel: Math.round(S.gap * 100) + '% of a slide', onGap: e => this.setState({ gap: +e.target.value }),
+      levelInfo: `${D.levels} level${D.levels === 1 ? '' : 's'} deep, so each slide is ${(L.h).toFixed(1)}% of the canvas height.`,
+      sizeInfo: B.src ? `One copy of the image is ${(tileW / L.w).toFixed(2)} slides wide; the tree spans ${(L.CW / L.w).toFixed(1)} slides.` : `The tree spans ${(L.CW / L.w).toFixed(1)} slides.`,
+      speed: S.speed, speedLabel: S.speed + 'ms', onSpeed: e => this.setState({ speed: +e.target.value }),
+      bgTiles: ['sky', 'ocean', 'none'].concat(S.customBg ? ['custom'] : []).map(id => { const src = id === 'custom' ? S.customBg : BGS[id].src;
+        return { label: BGS[id].label, border: S.bg === id ? '2px solid #1d1b17' : '1px solid #e0d9cb', thumb: src ? `#e9e3d6 url("${src}") center 20% / cover` : '#efeae0', onClick: () => this.setState({ bg: id }) }; }),
+      onUpload: e => this.onUpload(e), offset: S.offset, offsetLabel: Math.round(S.offset * 100) + '%', onOffset: e => this.setState({ offset: +e.target.value }),
+      opacityLabel: Math.round(S.opacity * 100) + '%', onOpacity: e => this.setState({ opacity: +e.target.value }),
+      baseSwatches: BASES.map(v => ({ value: v, border: S.base === v ? '2px solid #d9432b' : '1px solid rgba(29,27,23,.2)', onClick: () => this.setState({ base: v }) })),
+    };
+  }
+}
+</script>
+</body>
+</html>

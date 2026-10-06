@@ -1042,7 +1042,8 @@ class Component extends DCLogic {
     return null;
   }
   startTreeDrag(ev, id) {
-    if (ev.button || this.state.nodes[id]._inc) return;
+    if (ev.button) return;
+    const inc = this.state.nodes[id]._inc;   // included slides can't be moved; say so once a drag is attempted
     ev.preventDefault();   // else the browser starts a text-selection drag, which cancels our pointer events
     const el = this.treeRef.current; if (!el) return;
     const at = e => { const r = el.getBoundingClientRect(); return { x: e.clientX - r.left + el.scrollLeft, y: e.clientY - r.top + el.scrollTop }; };
@@ -1050,6 +1051,7 @@ class Component extends DCLogic {
     const move = e => {
       if (this._treeDragCancel) return;
       if (!dragging && Math.abs(e.clientX - ev.clientX) + Math.abs(e.clientY - ev.clientY) < 5) return; dragging = true;
+      if (inc) { up(); clearTimeout(this._nt); this.setState({ note: 'Slides included from "' + inc + '" can\'t be moved here: open it to rearrange' }); this._nt = setTimeout(() => this.setState({ note: null }), 3500); return; }
       const p = at(e); this.setState({ treeDrag: { id, x: p.x, y: p.y, drop: this.treeDropAt(p.x, p.y, id) } });
     };
     const up = () => {

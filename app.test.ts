@@ -452,3 +452,15 @@ test("pressing a tree node blocks the browser's own text-selection drag (which c
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
   expect(html).toMatch(/top:\{\{ n\.y \}\}px;width:76px;opacity:\{\{ n\.opacity \}\};user-select:none/);
 });
+
+test("trying to drag an included slide explains why instead of silently doing nothing", async () => {
+  await writeDeck("other", { ROOT: slideNode("ROOT", "", ["o"]), o: slideNode("o", "O") });
+  await writeDeck("talk", { ROOT: slideNode("ROOT", "", ["a", "inc"]), a: slideNode("a", "A"), inc: slideNode("inc", "Inc", [], { include: "other" }) });
+  const { c, listeners } = await mount("?deck=talk");
+  c.treeRef.current = { scrollLeft: 0, scrollTop: 0, getBoundingClientRect: () => ({ left: 0, top: 0 }) };
+  c.startTreeDrag({ clientX: 0, clientY: 0, button: 0, preventDefault() {} }, "other:o");
+  expect(c.state.note ?? null).toBeNull();                     // a plain press/click says nothing
+  listeners.pointermove({ clientX: 40, clientY: 0 });
+  expect(c.state.note).toContain('"other"');
+  expect(c.state.treeDrag ?? null).toBeNull();
+});

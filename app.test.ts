@@ -225,3 +225,17 @@ test("a new deck starts with one blank slide named after its slug", async () => 
   expect(d.nodes[d.nodes.ROOT.children[0]]).toMatchObject({ title: "My talk", children: [] });
   expect(Object.keys(d.nodes).length).toBe(2);
 });
+
+test("the deck's readability card is saved", async () => {
+  const { c } = await mount("?deck=talk");
+  c.setState({ card: { mode: "text", color: "#ffffff", opacity: 0.6, blur: 10 } }); await c.save();
+  expect((await onDisk()).card).toEqual({ mode: "text", color: "#ffffff", opacity: 0.6, blur: 10 });
+});
+
+test("every Layers render gets the deck card, and the card controls exist", async () => {
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  const imports = html.match(/<dc-import name="Layers"[^>]*>/g)!;
+  expect(imports.every(t => t.includes('card="{{ deckCard }}"'))).toBe(true);
+  expect(html).toContain('<sc-for list="{{ cardModes }}"');
+  expect(html).toContain("field('Card', 'card'");
+});

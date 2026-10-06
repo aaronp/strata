@@ -73,7 +73,7 @@ input,textarea,button{font:inherit;color:inherit}
                       <div style="position:absolute;top:0;bottom:0;left:{{ tl.l }}%;width:calc({{ tl.w }}% + 2px);background:{{ bgCss }};opacity:{{ opacity }}"></div>
                     </sc-for>
                   </div>
-                  <dc-import name="Layers" layers="{{ n.layers }}" images="{{ images }}" ink="{{ ink }}" shadow="{{ inkShadow }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
+                  <dc-import name="Layers" card="{{ deckCard }}" layers="{{ n.layers }}" images="{{ images }}" ink="{{ ink }}" shadow="{{ inkShadow }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
                 </div>
                 <div style="margin-top:3px;font-size:10.5px;line-height:1.1;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:{{ n.weight }}">{{ n.title }}</div>
                 <sc-if value="{{ n.selected }}">
@@ -114,15 +114,15 @@ input,textarea,button{font:inherit;color:inherit}
               </div>
               <sc-if value="{{ hasPrev }}">
                 <div style="position:absolute;inset:0;transform:{{ planeA.t }};opacity:{{ planeA.o }};transition:{{ planeTr }}">
-                  <dc-import name="Layers" layers="{{ prevLayers }}" images="{{ images }}" ink="{{ ink }}" shadow="{{ inkShadow }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
+                  <dc-import name="Layers" card="{{ deckCard }}" layers="{{ prevLayers }}" images="{{ images }}" ink="{{ ink }}" shadow="{{ inkShadow }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
                 </div>
               </sc-if>
               <div style="position:absolute;inset:0;transform:{{ planeB.t }};opacity:{{ planeB.o }};transition:{{ planeTr }}">
-                <dc-import name="Layers" layers="{{ stageLayers }}" images="{{ images }}" ink="{{ ink }}" shadow="{{ inkShadow }}" editing-id="{{ editingId }}" show-empty="{{ editable }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
+                <dc-import name="Layers" card="{{ deckCard }}" layers="{{ stageLayers }}" images="{{ images }}" ink="{{ ink }}" shadow="{{ inkShadow }}" editing-id="{{ editingId }}" show-empty="{{ editable }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
               </div>
               <sc-if value="{{ hasGhost }}">
                 <div style="position:absolute;inset:0;opacity:.5;pointer-events:none;z-index:4">
-                  <dc-import name="Layers" layers="{{ ghostLayers }}" images="{{ images }}" ink="{{ ink }}" shadow="{{ inkShadow }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
+                  <dc-import name="Layers" card="{{ deckCard }}" layers="{{ ghostLayers }}" images="{{ images }}" ink="{{ ink }}" shadow="{{ inkShadow }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
                 </div>
               </sc-if>
               <sc-if value="{{ fprevOn }}">
@@ -295,7 +295,7 @@ input,textarea,button{font:inherit;color:inherit}
                 <sc-for list="{{ layoutBtns }}" as="lb" hint-placeholder-count="8">
                   <button onClick="{{ lb.onClick }}" title="{{ lb.label }}" style="display:flex;flex-direction:column;gap:4px;padding:4px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer;text-align:left;min-width:0" style-hover="border-color:#1d1b17">
                     <div style="position:relative;width:100%;aspect-ratio:16/9;border-radius:4px;overflow:hidden;background:{{ base }}">
-                      <dc-import name="Layers" layers="{{ lb.layers }}" images="{{ images }}" ink="{{ ink }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
+                      <dc-import name="Layers" card="{{ deckCard }}" layers="{{ lb.layers }}" images="{{ images }}" ink="{{ ink }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
                     </div>
                     <span style="font-size:11px;font-weight:600;padding:0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ lb.label }}</span>
                   </button>
@@ -321,7 +321,7 @@ input,textarea,button{font:inherit;color:inherit}
                   </sc-if>
                   <div style="flex:none;display:flex;flex-direction:column;align-items:center;gap:3px">
                     <button onClick="{{ fr.onClick }}" style="position:relative;width:78px;aspect-ratio:16/9;padding:0;border:0;border-radius:5px;overflow:hidden;background:{{ base }};cursor:pointer;outline:{{ fr.outline }};outline-offset:1px">
-                      <dc-import name="Layers" layers="{{ fr.layers }}" images="{{ images }}" ink="{{ ink }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
+                      <dc-import name="Layers" card="{{ deckCard }}" layers="{{ fr.layers }}" images="{{ images }}" ink="{{ ink }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
                     </button>
                     <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:{{ fr.labelColor }};font-weight:{{ fr.weight }}">{{ fr.label }}</span>
                   </div>
@@ -636,6 +636,28 @@ input,textarea,button{font:inherit;color:inherit}
               <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>Opacity</span><span style="font-family:'JetBrains Mono',monospace">{{ opacityLabel }}</span></span>
               <input type="range" min="0" max="1" step="0.05" value="{{ opacity }}" onChange="{{ onOpacity }}" style="accent-color:#1d1b17;width:100%;min-width:0">
             </label>
+            <div style="display:flex;flex-direction:column;gap:8px;padding-top:8px;border-top:1px solid #f0ebe0">
+              <span style="font-size:12px;color:#6b6458">Readability · a card behind text, or over the whole slide</span>
+              <div style="display:flex;gap:2px;padding:3px;border-radius:9px;background:#ece6d9">
+                <sc-for list="{{ cardModes }}" as="cm" hint-placeholder-count="3">
+                  <button onClick="{{ cm.onClick }}" style="flex:1;padding:5px 6px;border:0;border-radius:7px;cursor:pointer;background:{{ cm.bg }};color:{{ cm.color }};box-shadow:{{ cm.shadow }};font-size:12.5px;white-space:nowrap">{{ cm.label }}</button>
+                </sc-for>
+              </div>
+              <sc-if value="{{ cardOn }}">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style="font-size:12px;color:#6b6458;flex:1">Colour</span>
+                  <input type="color" value="{{ cardColor }}" onChange="{{ onCardColor }}" style="width:28px;height:24px;padding:0;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer">
+                </div>
+                <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
+                  <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>Card opacity</span><span style="font-family:'JetBrains Mono',monospace">{{ cardOpLabel }}</span></span>
+                  <input type="range" min="0" max="1" step="0.05" value="{{ cardOp }}" onChange="{{ onCardOp }}" style="accent-color:#1d1b17;width:100%;min-width:0">
+                </label>
+                <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
+                  <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>Blur</span><span style="font-family:'JetBrains Mono',monospace">{{ cardBlurLabel }}</span></span>
+                  <input type="range" min="0" max="24" step="1" value="{{ cardBlur }}" onChange="{{ onCardBlur }}" style="accent-color:#1d1b17;width:100%;min-width:0">
+                </label>
+              </sc-if>
+            </div>
             <div style="display:flex;align-items:center;gap:8px">
               <span style="font-size:12px;color:#6b6458;flex:1">Behind the image</span>
               <sc-for list="{{ baseSwatches }}" as="bs" hint-placeholder-count="4">
@@ -665,7 +687,7 @@ const DECK_BASE = DECK ? '../decks/' + DECK + '/' : '';
 const STATIC = !!window.STRATA_STATIC;
 const UIKEY = 'strata-ui';
 const AUTOSAVE_MS = 800;
-const DECK_FIELDS = ['title', 'source', 'nodes', 'bg', 'customBg', 'customAspect', 'opacity', 'base', 'offset', 'margin', 'gap', 'tone', 'speed', 'tdef', 'images'];
+const DECK_FIELDS = ['title', 'source', 'card', 'nodes', 'bg', 'customBg', 'customAspect', 'opacity', 'base', 'offset', 'margin', 'gap', 'tone', 'speed', 'tdef', 'images'];
 const deckUrl = (slug, v) => typeof v === 'string' && v && !/^(data:|blob:|https?:|\/)/.test(v) ? '../decks/' + slug + '/' + v : v;
 const absUrl = v => DECK ? deckUrl(DECK, v) : v;
 const relUrl = v => typeof v === 'string' && DECK_BASE && v.startsWith(DECK_BASE) ? v.slice(DECK_BASE.length) : v;
@@ -1324,9 +1346,12 @@ class Component extends DCLogic {
       field('V-align', 'valign', [['top', 'Top'], ['middle', 'Middle'], ['bottom', 'Bottom']], 'top'),
       field('Bullets', 'bullets', [['none', 'None'], ['disc', '•  Dot'], ['dash', '–  Dash'], ['number', '1.  Numbers'], ['check', '✓  Check'], ['arrow', '→  Arrow']], 'none'),
       field('Line ht', 'lh', withCur([0.9, 1, 1.1, 1.2, 1.25, 1.3, 1.35, 1.4, 1.5, 1.75, 2], ly.lh || 1.2).map(v => [v, v.toFixed(2)]), 1.2, Number),
+      field('Card', 'card', [['', 'Deck default'], ['on', 'On'], ['off', 'Off']], ''),
       field('Gap', 'gap', withCur([0, 0.1, 0.15, 0.25, 0.4, 0.45, 0.6, 0.8, 1], ly.gap ?? 0.15).map(v => [v, v + ' em']), 0.15, Number),
     ] : [];
     // frames
+    const CARD0 = { mode: 'none', color: '#0b1220', opacity: 0.45, blur: 8 }; const cardCfg = { ...CARD0, ...(S.card || {}) };
+    const setCard = patch => this.setState(s => ({ card: { ...CARD0, ...(s.card || {}), ...patch } }));
     const framesCur = this.framesOf(cur); const fiCur = this.fiFor(cur); const nCur = N[cur];
     const EASE = { linear: 'linear', in: 'cubic-bezier(.55,0,1,.45)', out: 'cubic-bezier(0,.55,.45,1)', both: 'cubic-bezier(.65,0,.35,1)', spring: 'cubic-bezier(.34,1.56,.64,1)' };
     const allIds = []; framesCur.forEach(f => f.layers.forEach(l => { if (!allIds.includes(l.id)) allIds.push(l.id); }));
@@ -1457,6 +1482,10 @@ class Component extends DCLogic {
       incShow: !!DECK && !STATIC && !(nCur && nCur._inc), incVal: (nCur && nCur.include) || '',
       incDisabled: !!(nCur && !nCur.include && nCur.children.length), onInclude: e => this.setInclude(this.curId(), e.target.value),
       incOpts: [{ v: '', l: 'None' }].concat((S.decks || []).filter(d => d.slug !== DECK).map(d => ({ v: d.slug, l: d.title + ' (' + d.slug + ')' }))),
+      cardModes: [['none', 'None'], ['text', 'Behind text'], ['slide', 'Whole slide']].map(([m, label]) => ({ label, ...tab(cardCfg.mode === m), onClick: () => setCard({ mode: m }) })),
+      cardOn: cardCfg.mode !== 'none', cardColor: cardCfg.color, onCardColor: e => setCard({ color: e.target.value }),
+      cardOp: cardCfg.opacity, cardOpLabel: Math.round(cardCfg.opacity * 100) + '%', onCardOp: e => setCard({ opacity: +e.target.value }),
+      cardBlur: cardCfg.blur, cardBlurLabel: cardCfg.blur + ' px', onCardBlur: e => setCard({ blur: +e.target.value }), deckCard: S.card || null,
       hasDeck: !!DECK && !STATIC, save: () => this.save(), saveLabel: S.saving ? 'Saving…' : S.saveMsg ? '⚠ Save' : this.isDirty() ? '● Unsaved' : '✓ Saved',
       modeTabs: STATIC ? [] : [{ label: 'Build', ...tab(!isPresent), onClick: () => this.setState({ mode: 'build' }) }, { label: 'Present', ...tab(isPresent), onClick: () => this.setState({ mode: 'present', query: '' }) }],
       isBuild: !isPresent, isPresent, slideCount: D.order.length, query: S.query, onQuery: e => this.setState({ query: e.target.value }),

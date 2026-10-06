@@ -1054,7 +1054,8 @@ class Component extends DCLogic {
     const up = () => {
       window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up);
       const d = this.state.treeDrag;
-      if (dragging) { this._suppressClick = true; if (d && d.drop && !this._treeDragCancel) this.moveNode(id, d.drop.id, d.drop.where); }
+      // Swallow only the click that immediately follows this drag (if it lands on a slide at all).
+      if (dragging) { this._suppressClick = true; setTimeout(() => { this._suppressClick = false; }, 0); if (d && d.drop && !this._treeDragCancel) this.moveNode(id, d.drop.id, d.drop.where); }
       this.setState({ treeDrag: null });
     };
     window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);

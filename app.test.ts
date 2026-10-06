@@ -199,3 +199,20 @@ test("Slide tab template has the Include dropdown and the read-only notice", asy
   expect(html).toContain('<select value="{{ incVal }}" onChange="{{ onInclude }}"');
   expect(html).toContain('<a href="{{ incHref }}">');
 });
+
+test("builder saves keep the deck's markdown source", async () => {
+  await writeDeck("talk", { ROOT: slideNode("ROOT", "", ["t"]), t: slideNode("t", "Intro") }, { source: "notes/talk.md" });
+  const { c } = await mount("?deck=talk");
+  c.setState({ title: "edited" }); await c.save();
+  expect((await onDisk()).source).toBe("notes/talk.md");
+});
+
+test("an including slide can be deleted, taking its grafts with it", async () => {
+  await deckB(); await deckTalk({ include: "b" }, []);
+  await writeDeck("talk", { ROOT: slideNode("ROOT", "", ["t", "keep"]), t: slideNode("t", "Intro", [], { include: "b" }), keep: slideNode("keep", "Keep") });
+  const { c } = await mount("?deck=talk");
+  c.remove("t"); c.componentDidUpdate(); c.componentDidUpdate();
+  expect(c.state.nodes.t).toBeUndefined();
+  expect(c.state.nodes["b:x"]).toBeUndefined();
+  expect(c.state.note ?? null).toBeNull();
+});

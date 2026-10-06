@@ -665,7 +665,7 @@ const DECK_BASE = DECK ? '../decks/' + DECK + '/' : '';
 const STATIC = !!window.STRATA_STATIC;
 const UIKEY = 'strata-ui';
 const AUTOSAVE_MS = 800;
-const DECK_FIELDS = ['title', 'nodes', 'bg', 'customBg', 'customAspect', 'opacity', 'base', 'offset', 'margin', 'gap', 'tone', 'speed', 'tdef', 'images'];
+const DECK_FIELDS = ['title', 'source', 'nodes', 'bg', 'customBg', 'customAspect', 'opacity', 'base', 'offset', 'margin', 'gap', 'tone', 'speed', 'tdef', 'images'];
 const deckUrl = (slug, v) => typeof v === 'string' && v && !/^(data:|blob:|https?:|\/)/.test(v) ? '../decks/' + slug + '/' + v : v;
 const absUrl = v => DECK ? deckUrl(DECK, v) : v;
 const relUrl = v => typeof v === 'string' && DECK_BASE && v.startsWith(DECK_BASE) ? v.slice(DECK_BASE.length) : v;
@@ -801,8 +801,9 @@ class Component extends DCLogic {
     let hit = null;
     for (const k in prev) {
       const v = prev[k], cur = S.nodes[k];
+      if (!cur) continue;   // deleted along with an ancestor; a lone grafted delete still changes its (surviving) parent
       if (v._inc && cur !== v) { hit = v._inc; break; }
-      if (v.include && (!cur || String(cur.children) !== String(v.children))) { hit = v.include; break; }
+      if (v.include && String(cur.children) !== String(v.children)) { hit = v.include; break; }
     }
     if (!hit) return false;
     // Not restore(): prev === _lastNodes, so histTrack would never clear its _restoring flag and the guard would stay off.

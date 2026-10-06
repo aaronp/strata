@@ -241,7 +241,7 @@ test("every Layers render gets the deck card, and the card controls exist", asyn
   const imports = html.match(/<dc-import name="Layers"[^>]*>/g)!;
   expect(imports.every(t => t.includes('card="{{ deckCard }}"'))).toBe(true);
   expect(html).toContain('<sc-for list="{{ cardModes }}"');
-  expect(html).toContain("field('Card', 'card'");
+  expect(html).toContain('<sc-for list="{{ boxFields }}"');
 });
 
 test("applying a layout keeps linked layers, shapes and icons; only plain text and images are rearranged", async () => {

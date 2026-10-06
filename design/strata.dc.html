@@ -474,6 +474,22 @@ input,textarea,button{font:inherit;color:inherit}
                       </label>
                     </sc-for>
                   </div>
+                  <sc-if value="{{ lyBoxCustom }}">
+                    <div style="display:flex;flex-direction:column;gap:8px;padding:10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff">
+                      <span style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#1d1b17">Box</span>
+                      <div style="display:flex;gap:14px;flex-wrap:wrap">
+                        <sc-for list="{{ boxColors }}" as="bc" hint-placeholder-count="2">
+                          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#6b6458">{{ bc.label }}<input type="color" value="{{ bc.value }}" onChange="{{ bc.onChange }}" style="width:28px;height:24px;padding:0;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer"></label>
+                        </sc-for>
+                      </div>
+                      <sc-for list="{{ boxFields }}" as="bf" hint-placeholder-count="5">
+                        <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
+                          <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>{{ bf.label }}</span><span style="font-family:'JetBrains Mono',monospace">{{ bf.valLabel }}</span></span>
+                          <input type="range" min="{{ bf.min }}" max="{{ bf.max }}" step="{{ bf.step }}" value="{{ bf.value }}" onChange="{{ bf.onChange }}" style="accent-color:#1d1b17;width:100%;min-width:0">
+                        </label>
+                      </sc-for>
+                    </div>
+                  </sc-if>
                   <span style="font-size:12px;color:#6b6458">Colour</span>
                   <div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center">
                 <sc-for list="{{ swatches }}" as="sw" hint-placeholder-count="10">
@@ -1343,6 +1359,16 @@ class Component extends DCLogic {
     };
     const withCur = (list, v) => (v === undefined || list.includes(v) ? list : [...list, v].sort((a, b) => a - b));
     const field = (label, key, opts, fallback, parse) => ({ label, value: String(ly ? (ly[key] ?? fallback) : fallback), opts: opts.map(([v, l]) => ({ v: String(v), l })), onChange: e => upL({ [key]: parse ? parse(e.target.value) : e.target.value }) });
+    const CARD0 = { mode: 'none', color: '#0b1220', opacity: 0.45, blur: 8 }; const cardCfg = { ...CARD0, ...(S.card || {}) };
+    const setCard = patch => this.setState(s => ({ card: { ...CARD0, ...(s.card || {}), ...patch } }));
+    // Text box: deck default / on (deck style) / custom / off. Custom starts from the deck's style.
+    const bx = ly && ly.type === 'text' ? { bg: cardCfg.color, bgOpacity: cardCfg.opacity, blur: cardCfg.blur, border: 0, borderColor: '#ffffff', radius: 12, pad: 12, ...(ly.box || {}) } : null;
+    const upBox = patch => upL({ box: { ...bx, ...patch } });
+    const lyBoxCustom = !!(bx && ly.card === 'custom');
+    const boxColors = bx ? [['Background', 'bg'], ['Border', 'borderColor']].map(([label, k]) => ({ label, value: bx[k], onChange: e => upBox({ [k]: e.target.value }) })) : [];
+    const boxFields = bx ? [['Opacity', 'bgOpacity', 0, 1, 0.05, v => Math.round(v * 100) + '%'], ['Blur', 'blur', 0, 24, 1, v => v + ' px'], ['Border', 'border', 0, 8, 0.5, v => v + ' px'],
+      ['Corners', 'radius', 0, 48, 1, v => v + ' px'], ['Padding', 'pad', 0, 48, 1, v => v + ' px']]
+      .map(([label, k, min, max, step, fmt]) => ({ label, min, max, step, value: bx[k], valLabel: fmt(bx[k]), onChange: e => upBox({ [k]: +e.target.value }) })) : [];
     const textFields = ly && ly.type === 'text' ? [
       field('Font', 'font', FONT_LIST.map(f => [f[0], f[1]]), 'grot'),
       field('Size', 'size', withCur([12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 48, 56, 64, 72, 80, 96, 110, 128, 144, 160, 192, 240], ly.size || 40).map(v => [v, v + ' px']), 40, Number),
@@ -1351,12 +1377,11 @@ class Component extends DCLogic {
       field('V-align', 'valign', [['top', 'Top'], ['middle', 'Middle'], ['bottom', 'Bottom']], 'top'),
       field('Bullets', 'bullets', [['none', 'None'], ['disc', '•  Dot'], ['dash', '–  Dash'], ['number', '1.  Numbers'], ['check', '✓  Check'], ['arrow', '→  Arrow']], 'none'),
       field('Line ht', 'lh', withCur([0.9, 1, 1.1, 1.2, 1.25, 1.3, 1.35, 1.4, 1.5, 1.75, 2], ly.lh || 1.2).map(v => [v, v.toFixed(2)]), 1.2, Number),
-      field('Card', 'card', [['', 'Deck default'], ['on', 'On'], ['off', 'Off']], ''),
+      { label: 'Box', value: ly.card || '', opts: [['', 'Deck default'], ['on', 'On (deck style)'], ['custom', 'Custom'], ['off', 'Off']].map(([v, l]) => ({ v, l })),
+        onChange: e => upL(e.target.value === 'custom' && !ly.box ? { card: 'custom', box: bx } : { card: e.target.value }) },
       field('Gap', 'gap', withCur([0, 0.1, 0.15, 0.25, 0.4, 0.45, 0.6, 0.8, 1], ly.gap ?? 0.15).map(v => [v, v + ' em']), 0.15, Number),
     ] : [];
     // frames
-    const CARD0 = { mode: 'none', color: '#0b1220', opacity: 0.45, blur: 8 }; const cardCfg = { ...CARD0, ...(S.card || {}) };
-    const setCard = patch => this.setState(s => ({ card: { ...CARD0, ...(s.card || {}), ...patch } }));
     const framesCur = this.framesOf(cur); const fiCur = this.fiFor(cur); const nCur = N[cur];
     const EASE = { linear: 'linear', in: 'cubic-bezier(.55,0,1,.45)', out: 'cubic-bezier(0,.55,.45,1)', both: 'cubic-bezier(.65,0,.35,1)', spring: 'cubic-bezier(.34,1.56,.64,1)' };
     const allIds = []; framesCur.forEach(f => f.layers.forEach(l => { if (!allIds.includes(l.id)) allIds.push(l.id); }));
@@ -1466,7 +1491,7 @@ class Component extends DCLogic {
     const results = isPresent && q ? D.order.filter(id => match[id]).slice(0, 10).map(id => ({ title: name(id), path: pathOf(id).slice(0, -1).map(name).join(' › ') || 'Top level', onClick: () => { this.setState({ query: '' }); this.nav(id, 'jump'); } })) : [];
 
     return {
-      ...layerVals, ...linkVals, textFields, ...frameVals,
+      ...layerVals, ...linkVals, textFields, lyBoxCustom, boxColors, boxFields, ...frameVals,
       sec: Object.fromEntries(['layout', 'frames', 'layers', 'tdef'].map(k => { const open = !!(S.secOpen || {})[k]; return [k, { open, caret: open ? '▾' : '▸', toggle: () => this.setState(st => ({ secOpen: { ...st.secOpen, [k]: !open } })) }]; })),
       defAll: Object.fromEntries(['ease', 'dur', 'delay'].map(key => { const on = !!S.dAll[key]; const fb = { ease: 'both', dur: 600, delay: 0 }[key];
         return [key, { label: on ? '✓ All' : 'All', bg: on ? '#1d1b17' : '#fff', color: on ? '#fbf9f4' : '#1d1b17', border: on ? '#1d1b17' : '#cfc6b4',

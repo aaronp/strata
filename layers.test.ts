@@ -35,3 +35,22 @@ test("'whole slide' draws one overlay under all layers", () => {
   expect(v.items[0].cardBg).toBe("transparent");
   expect(html).toContain('<sc-if value="{{ slideCard }}">');
 });
+
+const BOX = { bg: "#ffffff", bgOpacity: 0.25, blur: 4, border: 2, borderColor: "#d9432b", radius: 16, pad: 24 };
+
+test("a custom box styles the text layer's bounding box, in slide-relative units", () => {
+  const v = render({ layers: [txt({ card: "custom", box: BOX })], shadow: "x", card: { mode: "none" } });
+  expect(v.items[0]).toMatchObject({ cardBg: "rgba(255,255,255,0.25)", cardBlur: "blur(4px)", cardBorder: "0.125cqw solid #d9432b",
+    cardRadius: "1cqw", cardPad: "1.5cqw", shadow: "none" });
+  expect(html).toContain("border:{{ e.cardBorder }}");
+});
+
+test("custom box with zero blur and border draws neither", () => {
+  const v = render({ layers: [txt({ card: "custom", box: { ...BOX, blur: 0, border: 0 } })] });
+  expect(v.items[0]).toMatchObject({ cardBlur: "none", cardBorder: "none" });
+});
+
+test("Off wins over a stored custom box; deck/on cards have no border", () => {
+  expect(render({ layers: [txt({ card: "off", box: BOX })], card: { mode: "text", ...CARD } }).items[0]).toMatchObject({ cardBg: "transparent", cardBorder: "none" });
+  expect(render({ layers: [txt({ card: "on" })], card: { mode: "none", ...CARD } }).items[0]).toMatchObject({ cardBg: "rgba(11,18,32,0.5)", cardBorder: "none" });
+});

@@ -46,6 +46,8 @@ The markdown owns the deck's whole slide tree. Re-importing into an existing `de
    - each slide's `include`;
    - all deck-level settings, including `title` once it is set.
 
+> **Superseded (2026-10-06):** live includes were replaced by **Copy deck here**: the other deck's slides are copied as ordinary slides (fresh ids, remapped slide links, images inlined), with no lock and no live updates. Decks with an `include` are converted to copies on load. The section below is kept for history.
+
 ## Deck composition (live include)
 - **Setting an include.** Any slide without child slides can carry `include: "<deck-slug>"`. In the builder, the Slide tab has an **Include deck** dropdown (None, or any other deck from `GET /api/decks`). It is disabled when the slide has children, with the hint "Remove child slides first".
 - **Loading (runtime graft).** After a deck loads, every `include` is resolved. The app fetches `../decks/<B>/deck.json` and grafts B's slides under the including slide T:

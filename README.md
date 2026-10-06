@@ -20,7 +20,8 @@ Decks live in `decks/<slug>/deck.json`, with images extracted to `decks/<slug>/i
 Headings become slides (`#` top level, `##` below it, …). Put `slug: <id>` on the line after each heading. `[link:<slug>][Label]` adds a clickable chip that jumps to that slide; dotted paths like `[link:top.child][…]` also work. Ordinary `[text](url)` links become source links. Re-importing rewrites text and links but keeps anything you moved, restyled, hid or added in the builder. See `examples/current-situation.md`.
 
 ### Composing decks
-In the builder's Slide tab, **Include deck** shows another deck's slides under the current slide, live: re-importing that deck updates every deck that includes it. Included slides are read-only; use **Open <deck>** to edit them.
+In the builder's Slide tab, **Copy deck here** copies another deck's slides (and images) under the current slide as ordinary, editable slides. Copies are independent: later changes to the source deck don't flow into them. Decks saved with the older live "Include deck" are converted to copies the first time they're opened.
+
 
 ## Overview
 Strata is a presentation tool where slides form a **tree**, not a line. Viewers move ← → between siblings (children of the same parent) and ↑ ↓ between levels, so they can stay at the top level or dig into any topic. One large looping background image sits behind the whole deck and shifts with parallax as you navigate, giving a sense of depth (e.g. sky → ground → underground, or ocean surface → trench).

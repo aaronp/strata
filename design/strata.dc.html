@@ -20,6 +20,19 @@ input,textarea,button{font:inherit;color:inherit}
 </helmet>
 <div style="height:100vh;display:flex;flex-direction:column;font-family:'Bricolage Grotesque',sans-serif;font-size:14px;background:#f2eee5;color:#1d1b17">
   <input type="file" accept="image/*,.svg" ref="{{ imgInputRef }}" onChange="{{ onImgFile }}" style="display:none">
+  <sc-if value="{{ delDlg.show }}">
+    <div onClick="{{ delDlg.onCancel }}" style="position:fixed;inset:0;z-index:1000;display:grid;place-items:center;background:rgba(29,27,23,.35)">
+      <div onClick="{{ stopProp }}" role="dialog" aria-modal="true" style="width:min(420px,calc(100vw - 32px));padding:18px 20px;border-radius:12px;background:#fbf9f4;box-shadow:0 20px 60px rgba(0,0,0,.25);display:flex;flex-direction:column;gap:10px">
+        <div style="font-weight:700;font-size:16px">Delete “{{ delDlg.title }}”?</div>
+        <div style="color:#6b6458">It has {{ delDlg.count }} slides under it.</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:6px">
+          <button onClick="{{ delDlg.onCancel }}" style="padding:7px 12px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer">Cancel</button>
+          <button onClick="{{ delDlg.onKeep }}" style="padding:7px 12px;border:1px solid #1d1b17;border-radius:8px;background:#fff;cursor:pointer">Keep children</button>
+          <button onClick="{{ delDlg.onAll }}" style="padding:7px 12px;border:0;border-radius:8px;background:#a8301d;color:#fff;cursor:pointer">{{ delDlg.allLabel }}</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
   <header style="height:52px;flex:none;display:flex;align-items:center;gap:14px;padding:0 16px;border-bottom:1px solid #e0d9cb;background:#fbf9f4">
     <div style="display:flex;align-items:center;gap:10px;min-width:0">
       <a href="../" title="← All decks" style="display:flex;align-items:center;gap:10px;color:inherit;text-decoration:none" style-hover="color:#d9432b">
@@ -291,16 +304,12 @@ input,textarea,button{font:inherit;color:inherit}
               <span style="font-size:12px;color:#6b6458">Slide name · tree and breadcrumbs</span>
               <input ref="{{ titleRef }}" value="{{ cur.title }}" onChange="{{ onTitle }}" placeholder="Slide name" style="padding:8px 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;font-weight:600;outline:none">
             </label>
-            <sc-if value="{{ incFrom }}">
-              <div style="padding:8px 10px;border:1px solid #d6e2ef;border-radius:8px;background:#eef3f9;font-size:12.5px;color:#1f4f80">Included from <b>{{ incFrom }}</b>: read-only here. <a href="{{ incHref }}">Open {{ incFrom }} →</a></div>
-            </sc-if>
-            <sc-if value="{{ incShow }}">
+            <sc-if value="{{ copyShow }}">
               <label style="display:flex;flex-direction:column;gap:5px">
-                <span style="font-size:12px;color:#6b6458">Include deck · its slides appear under this one</span>
-                <select value="{{ incVal }}" onChange="{{ onInclude }}" disabled="{{ incDisabled }}" style="padding:7px 8px;border:1px solid #e0d9cb;border-radius:7px;background:#fff;outline:none;font-size:13px">
-                  <sc-for list="{{ incOpts }}" as="o" hint-placeholder-count="2"><option value="{{ o.v }}">{{ o.l }}</option></sc-for>
+                <span style="font-size:12px;color:#6b6458">Copy deck here · its slides are copied under this one</span>
+                <select value="" onChange="{{ onCopyDeck }}" style="padding:7px 8px;border:1px solid #e0d9cb;border-radius:7px;background:#fff;outline:none;font-size:13px">
+                  <sc-for list="{{ copyOpts }}" as="o" hint-placeholder-count="2"><option value="{{ o.v }}">{{ o.l }}</option></sc-for>
                 </select>
-                <sc-if value="{{ incDisabled }}"><span style="font-size:11.5px;color:#6b6458">Remove child slides first</span></sc-if>
               </label>
             </sc-if>
             <div style="display:flex;flex-direction:column;border:1px solid #e0d9cb;border-radius:10px;background:#fff">
@@ -753,14 +762,14 @@ const groupBox = ls => { const x = Math.min(...ls.map(l => l.x)), y = Math.min(.
 const scaleLayers = (ls, from, to) => ls.map(l => ({ ...l, x: rd(to.x + (l.x - from.x) * to.w / from.w), y: rd(to.y + (l.y - from.y) * to.h / from.h), w: rd(l.w * to.w / from.w), h: rd(l.h * to.h / from.h) }));
 const layoutKeeps = l => !!l.link || (l.type !== 'text' && l.type !== 'image');
 const mapImgs = (im, f) => Object.fromEntries(Object.entries(im || {}).map(([k, v]) => [k, f(v)]));
-// Deck includes: another deck's slides are grafted under the including slide with ids prefixed "<slug>:" and marked _inc.
-const prefixLayer = (l, p) => ({ ...l, ...(l.link && l.link.type === 'slide' ? { link: { ...l.link, id: p + l.link.id } } : {}), ...(l.imgKey ? { imgKey: p + l.imgKey } : {}) });
-const prefixNode = (n, p, from) => ({ ...n, id: p + n.id, _inc: from, children: (n.children || []).map(c => p + c),
-  ...(n.frames ? { frames: n.frames.map(f => ({ ...f, layers: f.layers.map(l => prefixLayer(l, p)) })) } : {}),
-  ...(n.layers ? { layers: n.layers.map(l => prefixLayer(l, p)) } : {}) });
-const stripGrafts = N => { const o = {}; for (const k in N) { const v = N[k]; if (v._inc) continue; o[k] = v.include ? { ...v, children: v.children.filter(c => !(N[c] && N[c]._inc)) } : v; } return o; };
-const ownImages = im => Object.fromEntries(Object.entries(im || {}).filter(([k]) => !k.includes(':')));
-const graftImages = im => Object.fromEntries(Object.entries(im || {}).filter(([k]) => k.includes(':')));
+// Inline an image URL as a data URL (copied slides must not point into another deck's folder).
+const toDataUrl = async u => {
+  if (typeof u !== 'string' || !u || /^data:/.test(u)) return u;
+  const r = await fetch(u); if (!r.ok) throw new Error('image ' + u + ': HTTP ' + r.status);
+  const b = await r.blob(), a = new Uint8Array(await b.arrayBuffer()); let bin = '';
+  for (let i = 0; i < a.length; i += 0x8000) bin += String.fromCharCode.apply(null, a.subarray(i, i + 0x8000));
+  return 'data:' + (b.type || 'application/octet-stream') + ';base64,' + btoa(bin);
+};
 const TW = 76, COLW = 96, ROWH = 92, TPX = 16, TPY = 18;
 const FONT_LIST = [['grot', 'Grotesk', "'Bricolage Grotesque',sans-serif"], ['serif', 'Serif', "'DM Serif Display',serif"], ['news', 'Book', "'Newsreader',serif"], ['mono', 'Mono', "'JetBrains Mono',monospace"], ['hand', 'Hand', "'Caveat',cursive"]];
 const FONT_CSS = Object.fromEntries(FONT_LIST.map(f => [f[0], f[2]]));
@@ -853,54 +862,32 @@ class Component extends DCLogic {
     if (!r.ok) throw new Error(r.status === 404 ? 'no deck called "' + slug + '"' : 'HTTP ' + r.status);
     const d = await r.json(); if (!d.nodes || !d.nodes.ROOT) throw new Error('not a deck'); return d;
   }
-  async graft(own) {
-    const out = { ...own }, images = {}, placed = {};
-    const walk = async (id, prefix, chain) => {
-      const n = out[id]; if (!n) return;
-      if (n.include) {
-        const B = n.include, p = prefix + B + ':'; let kids;
-        try {
-          if (chain.includes(B)) throw new Error('include loop ' + chain.concat(B).join(' → '));
-          if (placed[p]) throw new Error('"' + B + '" is already included at "' + placed[p] + '"');
-          placed[p] = n.title || id;
-          const d = await this.fetchDeck(B);
-          for (const k in d.nodes) if (k !== 'ROOT') out[p + k] = prefixNode(d.nodes[k], p, B);
-          for (const k in d.images || {}) images[p + k] = deckUrl(B, d.images[k]);
-          kids = d.nodes.ROOT.children.map(c => p + c);
-          for (const k of kids) await walk(k, p, chain.concat(B));
-        } catch (e) { out[id + '!err'] = { id: id + '!err', title: "Can't include " + B, body: e.message, children: [], _inc: B }; kids = [id + '!err']; }
-        out[id] = { ...out[id], children: n.children.concat(kids) };
-      }
-      for (const c of n.children) await walk(c, prefix, chain);
-    };
-    await walk('ROOT', '', DECK ? [DECK] : []);
-    return { nodes: out, images };
-  }
-  async setInclude(id, slug) {
-    const own = stripGrafts(this.state.nodes); const n = { ...own[id] };
-    if (slug) n.include = slug; else delete n.include;
-    const g = await this.graft({ ...own, [id]: n });
-    this._graftEdit = true;
-    this.setState(s => ({ nodes: g.nodes, images: { ...ownImages(s.images), ...g.images } }));
-  }
-  // Included slides are read-only here: revert any nodes change that touches them or an including slide's children.
-  guardGrafts() {
-    const S = this.state, prev = this._lastNodes;
-    if (this._graftEdit) { this._graftEdit = false; return false; }
-    if (!prev || S.nodes === prev || this._restoring) return false;
-    let hit = null;
-    for (const k in prev) {
-      const v = prev[k], cur = S.nodes[k];
-      if (!cur) continue;   // deleted along with an ancestor; a lone grafted delete still changes its (surviving) parent
-      if (v._inc && cur !== v) { hit = v._inc; break; }
-      if (v.include && String(cur.children) !== String(v.children)) { hit = v.include; break; }
+  // Copy another deck's slides as ordinary slides: fresh ids, slide links remapped, images inlined. Old nested includes are copied too.
+  async copyDeck(slug, chain = []) {
+    if (chain.includes(slug)) throw new Error('copy loop ' + [...chain, slug].join(' → '));
+    const d = await this.fetchDeck(slug);
+    const map = {}, imap = {}, images = {};
+    for (const k in d.nodes) if (k !== 'ROOT') map[k] = 's' + uid();
+    for (const k in d.images || {}) { imap[k] = 'im' + uid(); images[imap[k]] = await toDataUrl(deckUrl(slug, d.images[k])); }
+    const relayer = l => ({ ...l, ...(l.link && l.link.type === 'slide' && map[l.link.id] ? { link: { ...l.link, id: map[l.link.id] } } : {}), ...(l.imgKey && imap[l.imgKey] ? { imgKey: imap[l.imgKey] } : {}) });
+    const nodes = {};
+    for (const k in map) { const n = d.nodes[k]; nodes[map[k]] = { ...n, id: map[k], children: (n.children || []).map(c => map[c]),
+      ...(n.frames ? { frames: n.frames.map(f => ({ ...f, layers: f.layers.map(relayer) })) } : {}), ...(n.layers ? { layers: n.layers.map(relayer) } : {}) }; }
+    for (const k of Object.keys(nodes)) if (nodes[k].include) {
+      const { include, ...n } = nodes[k]; const sub = await this.copyDeck(include, [...chain, slug]);
+      Object.assign(nodes, sub.nodes); Object.assign(images, sub.images); nodes[k] = { ...n, children: [...n.children, ...sub.tops] };
     }
-    if (!hit) return false;
-    // Not restore(): prev === _lastNodes, so histTrack would never clear its _restoring flag and the guard would stay off.
-    this.setState(s => ({ nodes: prev, layerSel: null, editing: null, cur: prev[s.cur] ? s.cur : prev.ROOT.children[0] }));
-    clearTimeout(this._nt); this.setState({ note: 'Included from "' + hit + '": open it to edit' }); this._nt = setTimeout(() => this.setState({ note: null }), 3500);
-    return true;
+    return { nodes, images, tops: d.nodes.ROOT.children.map(c => map[c]) };
   }
+  async copyDeckHere(tid, slug) {
+    try {
+      const c = await this.copyDeck(slug, DECK ? [DECK] : []);
+      this.setState(s => ({ nodes: { ...s.nodes, ...c.nodes, [tid]: { ...s.nodes[tid], children: [...s.nodes[tid].children, ...c.tops] } },
+        images: { ...s.images, ...c.images }, collapsed: { ...(s.collapsed || {}), [tid]: false } }));
+      this.flash('Copied ' + Object.keys(c.nodes).length + ' slides from "' + slug + '"');
+    } catch (e) { this.flash('Couldn\'t copy "' + slug + '": ' + e.message); }
+  }
+  flash(msg, ms = 4000) { clearTimeout(this._nt); this.setState({ note: msg }); this._nt = setTimeout(() => this.setState({ note: null }), ms); }
   async loadDeck() {
     try {
       if (!STATIC) fetch('/api/decks').then(r => r.json()).then(decks => this.setState({ decks })).catch(() => {});
@@ -914,23 +901,29 @@ class Component extends DCLogic {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       const d = await r.json(); if (!d.nodes || !d.nodes.ROOT) throw new Error('not a deck');
       const pick = Object.fromEntries(DECK_FIELDS.filter(k => k in d).map(k => [k, d[k]]));
-      const g = await this.graft(d.nodes);
-      this._lastNodes = g.nodes;                               // don't record the load as an undo step
-      this.setState({ ...pick, nodes: g.nodes, images: { ...mapImgs(d.images, absUrl), ...g.images }, customBg: d.customBg ? absUrl(d.customBg) : null,
-        cur: d.nodes.ROOT.children[0], prev: null, phase: 'idle' }, () => { this._loaded = true; this.markSaved(); });
+      let nodes = d.nodes, images = mapImgs(d.images, absUrl), migrated = false;
+      for (const id of Object.keys(nodes)) if (nodes[id].include) {   // old live include → real copies, once; autosave then writes them
+        const { include, ...n } = nodes[id]; let kids = [];
+        try { const c = await this.copyDeck(include, [DECK]); nodes = { ...nodes, ...c.nodes }; images = { ...images, ...c.images }; kids = c.tops; }
+        catch (e) { this.flash('Dropped include of "' + include + '": ' + e.message, 6000); }
+        nodes = { ...nodes, [id]: { ...n, children: [...n.children, ...kids] } }; migrated = true;
+      }
+      this._lastNodes = nodes;                                 // don't record the load as an undo step
+      this.setState({ ...pick, nodes, images, customBg: d.customBg ? absUrl(d.customBg) : null,
+        cur: d.nodes.ROOT.children[0], prev: null, phase: 'idle' }, () => { this._loaded = true; if (migrated) this._savedRefs = null; else this.markSaved(); });
     } catch (e) { this.setState({ saveMsg: 'Could not load deck "' + DECK + '": ' + e.message }); }
   }
   async save() {
     if (!DECK || STATIC || this.state.saving || !this._loaded) return;   // never overwrite a deck we failed (or haven't finished) loading
     const S = this.state; const body = Object.fromEntries(DECK_FIELDS.map(k => [k, S[k]]));
-    body.nodes = stripGrafts(S.nodes); body.images = mapImgs(ownImages(S.images), relUrl); body.customBg = S.customBg ? relUrl(S.customBg) : null;
+    body.images = mapImgs(S.images, relUrl); body.customBg = S.customBg ? relUrl(S.customBg) : null;
     this.setState({ saving: true, saveMsg: null });
     try {
       const r = await fetch('/api/decks/' + DECK, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
       if (!r.ok) throw new Error('HTTP ' + r.status + ' ' + (await r.text()));
       const d = await r.json();
       // Only adopt the server's image paths if nothing changed while saving; otherwise stay dirty and let the next save catch up.
-      if (DECK_FIELDS.every(k => this.state[k] === S[k])) this.setState({ saving: false, images: { ...graftImages(S.images), ...mapImgs(d.images, absUrl) }, customBg: d.customBg ? absUrl(d.customBg) : null }, () => this.markSaved());
+      if (DECK_FIELDS.every(k => this.state[k] === S[k])) this.setState({ saving: false, images: mapImgs(d.images, absUrl), customBg: d.customBg ? absUrl(d.customBg) : null }, () => this.markSaved());
       else this.setState({ saving: false });
     } catch (e) { this.setState({ saving: false, saveMsg: 'Save failed: ' + e.message }); }
   }
@@ -957,7 +950,6 @@ class Component extends DCLogic {
   }
   componentWillUnmount() { clearTimeout(this._as); clearTimeout(this._nt); window.removeEventListener('beforeunload', this.onUnload); window.removeEventListener('paste', this.onPaste); window.removeEventListener('focus', this.onFocusWin); window.removeEventListener('keydown', this.onKey); window.removeEventListener('resize', this.onResize); clearTimeout(this.t); }
   componentDidUpdate() {
-    if (this.guardGrafts()) return;
     this.histTrack();
     const S = this.state;
     if (!DECK) {
@@ -1023,7 +1015,7 @@ class Component extends DCLogic {
   // Move a slide (with its subtree) before/after a slide, or inside it as its last child.
   moveNode(id, tid, where) {
     const N = this.state.nodes, D = this.derive(), T = N[tid];
-    if (!N[id] || !T || id === tid || this.isUnder(tid, id) || N[id]._inc || T._inc || (where === 'child' && T.include)) return;
+    if (!N[id] || !T || id === tid || this.isUnder(tid, id)) return;
     const nodes = { ...N }, pid = D.parent[id];
     nodes[pid] = { ...N[pid], children: N[pid].children.filter(k => k !== id) };
     if (where === 'child') nodes[tid] = { ...nodes[tid], children: [...nodes[tid].children, id] };
@@ -1032,18 +1024,17 @@ class Component extends DCLogic {
   }
   // Drop target under a point in tree coordinates: left third = before, middle = inside, right third = after.
   treeDropAt(x, y, dragId) {
-    const N = this.state.nodes, tp = this._tpos || {};
+    const tp = this._tpos || {};
     for (const id in tp) {
       const p = tp[id]; if (x < p.x || x > p.x + TW || y < p.y - 4 || y > p.y + 60) continue;
-      if (id === dragId || this.isUnder(id, dragId) || N[id]._inc) return null;
+      if (id === dragId || this.isUnder(id, dragId)) return null;
       const r = (x - p.x) / TW, where = r < 1 / 3 ? 'before' : r > 2 / 3 ? 'after' : 'child';
-      return where === 'child' && N[id].include ? null : { id, where };
+      return { id, where };
     }
     return null;
   }
   startTreeDrag(ev, id) {
     if (ev.button) return;
-    const inc = this.state.nodes[id]._inc;   // included slides can't be moved; say so once a drag is attempted
     ev.preventDefault();   // else the browser starts a text-selection drag, which cancels our pointer events
     const el = this.treeRef.current; if (!el) return;
     const at = e => { const r = el.getBoundingClientRect(); return { x: e.clientX - r.left + el.scrollLeft, y: e.clientY - r.top + el.scrollTop }; };
@@ -1051,11 +1042,6 @@ class Component extends DCLogic {
     const move = e => {
       if (this._treeDragCancel) return;
       if (!dragging && Math.abs(e.clientX - ev.clientX) + Math.abs(e.clientY - ev.clientY) < 5) return; dragging = true;
-      if (inc) {   // name the slide that holds the include: dragging it moves the whole included block
-        const D = this.derive(), N = this.state.nodes; let h = D.parent[id]; while (h && N[h] && N[h]._inc) h = D.parent[h];
-        up(); clearTimeout(this._nt); this.setState({ note: 'Slides included from "' + inc + '" can\'t be moved one by one: drag "' + ((N[h] && N[h].title) || 'the including slide') + '" to move the whole block, or open "' + inc + '" to rearrange' });
-        this._nt = setTimeout(() => this.setState({ note: null }), 6000); return;
-      }
       const p = at(e); this.setState({ treeDrag: { id, x: p.x, y: p.y, drop: this.treeDropAt(p.x, p.y, id) } });
     };
     const up = () => {
@@ -1074,11 +1060,24 @@ class Component extends DCLogic {
   }
   addPeer(id) { const D = this.derive(); const pid = D.parent[id]; this.insert(pid, this.state.nodes[pid].children.indexOf(id) + 1); }
   addChild(id) { this.insert(id, this.state.nodes[id].children.length); }
+  // Deleting a slide with children asks first: delete them too, or move them up into its place.
   remove(id) {
-    const D = this.derive(); if (D.order.length <= 1) return; const pid = D.parent[id];
-    const nodes = { ...this.state.nodes }; const kill = x => { nodes[x].children.forEach(kill); delete nodes[x]; };
-    const kids = nodes[pid].children; const i = kids.indexOf(id); const next = kids[i - 1] || kids[i + 1] || (pid !== 'ROOT' ? pid : null);
-    kill(id); nodes[pid] = { ...nodes[pid], children: kids.filter(k => k !== id) };
+    const N = this.state.nodes; if (!N[id]) return;
+    const count = (function c(x) { return N[x].children.reduce((n, k) => n + 1 + c(k), 0); })(id);
+    if (count) this.setState({ confirmDel: { id, count } }); else this.removeNode(id, false);
+  }
+  confirmDelete(choice) {
+    const c = this.state.confirmDel; this.setState({ confirmDel: null });
+    if (c && choice !== 'cancel') this.removeNode(c.id, choice === 'keep');
+  }
+  removeNode(id, keepKids) {
+    const D = this.derive(), N = this.state.nodes, pid = D.parent[id];
+    const nodes = { ...N }; const kill = x => { nodes[x].children.forEach(kill); delete nodes[x]; };
+    const kids = N[pid].children, i = kids.indexOf(id), moved = keepKids ? N[id].children : [];
+    if (keepKids) delete nodes[id]; else kill(id);
+    if (Object.keys(nodes).length <= 1) return;   // never delete the last slide
+    nodes[pid] = { ...N[pid], children: [...kids.slice(0, i), ...moved, ...kids.slice(i + 1)] };
+    const next = moved[0] || kids[i - 1] || kids[i + 1] || (pid !== 'ROOT' ? pid : null);
     this.setState({ nodes, cur: next || nodes.ROOT.children[0], prev: null, phase: 'idle', fi: 0, transSel: null });
   }
   outdent(id) {
@@ -1351,6 +1350,7 @@ class Component extends DCLogic {
   onKey(e) {
     const t = e.target; const typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA'); const k = e.key; const S = this.state;
     if ((e.metaKey || e.ctrlKey) && (k === 's' || k === 'S')) { e.preventDefault(); this.save(); return; }
+    if (S.confirmDel) { if (k === 'Escape') { e.preventDefault(); this.confirmDelete('cancel'); } return; }
     if (k === 'Escape' && S.treeDrag) { this._treeDragCancel = true; this.setState({ treeDrag: null }); return; }
     if (typing) {
       if (t.dataset && t.dataset.role === 'filter' && k === 'Enter') { const D = this.derive(); const q = S.query.trim().toLowerCase(); const id = D.order.find(x => (S.nodes[x].title + ' ' + S.nodes[x].body).toLowerCase().includes(q)); if (id) this.nav(id, 'jump'); }
@@ -1692,14 +1692,14 @@ class Component extends DCLogic {
       layoutBtns: SLIDE_LAYOUTS.map(L => ({ label: L.label, layers: L.make(this.layoutContent(cur)).map((l, i) => ({ ...l, id: 'p' + i })), onClick: () => this.applyLayout(L.id) })),
       deckTitle: S.title || name(N.ROOT.children[0]), editTitle: !!DECK && !STATIC && !isPresent, showTitle: !(DECK && !STATIC && !isPresent),
       titleVal: S.title || '', onTitle: e => this.setState({ title: e.target.value }), keyHint: S.saveMsg || S.note || (isPresent ? '← → ↑ ↓  ·  Space next  ·  / search' + (STATIC ? '' : '  ·  Esc') : ''),
-      incFrom: nCur && nCur._inc || '', incHref: nCur && nCur._inc ? 'strata.dc.html?deck=' + nCur._inc : '',
-      incShow: !!DECK && !STATIC && !(nCur && nCur._inc), incVal: (nCur && nCur.include) || '',
-      incDisabled: !!(nCur && !nCur.include && nCur.children.length), onInclude: e => this.setInclude(this.curId(), e.target.value),
-      incOpts: [{ v: '', l: 'None' }].concat((S.decks || []).filter(d => d.slug !== DECK).map(d => ({ v: d.slug, l: d.title + ' (' + d.slug + ')' }))),
       cardModes: [['none', 'None'], ['text', 'Behind text'], ['slide', 'Whole slide']].map(([m, label]) => ({ label, ...tab(cardCfg.mode === m), onClick: () => setCard({ mode: m }) })),
       cardOn: cardCfg.mode !== 'none', cardColor: cardCfg.color, onCardColor: e => setCard({ color: e.target.value }),
       cardOp: cardCfg.opacity, cardOpLabel: Math.round(cardCfg.opacity * 100) + '%', onCardOp: e => setCard({ opacity: +e.target.value }),
       cardBlur: cardCfg.blur, cardBlurLabel: cardCfg.blur + ' px', onCardBlur: e => setCard({ blur: +e.target.value }), deckCard: S.card || null,
+      copyShow: !!DECK && !STATIC, onCopyDeck: e => { const v = e.target.value; if (v) this.copyDeckHere(this.curId(), v); },
+      copyOpts: [{ v: '', l: 'Choose a deck…' }].concat((S.decks || []).filter(d => d.slug !== DECK).map(d => ({ v: d.slug, l: d.title + ' (' + d.slug + ')' }))),
+      delDlg: S.confirmDel && N[S.confirmDel.id] ? { show: true, title: name(S.confirmDel.id), count: S.confirmDel.count, allLabel: 'Delete all ' + (S.confirmDel.count + 1),
+        onAll: () => this.confirmDelete('all'), onKeep: () => this.confirmDelete('keep'), onCancel: () => this.confirmDelete('cancel') } : { show: false, title: '', count: 0, allLabel: '' },
       hasDeck: !!DECK && !STATIC, save: () => this.save(), saveLabel: S.saving ? 'Saving…' : S.saveMsg ? '⚠ Save' : this.isDirty() ? '● Unsaved' : '✓ Saved',
       modeTabs: STATIC ? [] : [{ label: 'Build', ...tab(!isPresent), onClick: () => this.setState({ mode: 'build' }) }, { label: 'Present', ...tab(isPresent), onClick: () => this.setState({ mode: 'present', query: '' }) }],
       isBuild: !isPresent, isPresent, slideCount: D.order.length, query: S.query, onQuery: e => this.setState({ query: e.target.value }),

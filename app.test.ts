@@ -128,98 +128,11 @@ const deckB = () => writeDeck("b", {
 const deckTalk = (t: object = {}, extraTop: string[] = []) =>
   writeDeck("talk", { ROOT: slideNode("ROOT", "", ["t", ...extraTop]), t: slideNode("t", "Intro", [], t), ...Object.fromEntries(extraTop.map(k => [k, slideNode(k, k, [], { include: "b" })])) });
 
-test("an included deck's slides are grafted under the including slide", async () => {
-  await deckB(); await deckTalk({ include: "b" });
-  const { c } = await mount("?deck=talk");
-  const N = c.state.nodes;
-  expect(N.t.children).toEqual(["b:x"]);
-  expect(N["b:x"]).toMatchObject({ _inc: "b", children: ["b:y"] });
-  expect(N["b:x"].frames[0].layers[0].link.id).toBe("b:y");
-  expect(N["b:x"].frames[0].layers[1].imgKey).toBe("b:im1");
-  expect(c.state.images["b:im1"]).toBe("../decks/b/img/a.png");
-  expect(c.isDirty()).toBe(false);
-});
-
-test("edits to included slides are reverted; the including slide stays editable", async () => {
-  await deckB(); await deckTalk({ include: "b" });
-  const { c } = await mount("?deck=talk");
-  // The stub doesn't re-render on setState; the second componentDidUpdate() mimics React re-rendering after the revert.
-  c.setState({ nodes: { ...c.state.nodes, "b:x": { ...c.state.nodes["b:x"], title: "hacked" } } }); c.componentDidUpdate(); c.componentDidUpdate();
-  expect(c.state.nodes["b:x"].title).toBe("Bx");
-  expect(c.state.note).toContain('"b"');
-  c.setState({ nodes: { ...c.state.nodes, t: { ...c.state.nodes.t, children: [] } } }); c.componentDidUpdate(); c.componentDidUpdate();
-  expect(c.state.nodes.t.children).toEqual(["b:x"]);
-  c.setState({ nodes: { ...c.state.nodes, t: { ...c.state.nodes.t, title: "New intro" } } }); c.componentDidUpdate();
-  expect(c.state.nodes.t.title).toBe("New intro");
-});
-
-test("saving keeps included slides and images out of the including deck", async () => {
-  await deckB(); await deckTalk({ include: "b" });
-  const { c } = await mount("?deck=talk");
-  c.setState({ title: "changed" }); await c.save();
-  const d = await onDisk();
-  expect(Object.keys(d.nodes).sort()).toEqual(["ROOT", "t"]);
-  expect(d.nodes.t).toMatchObject({ include: "b", children: [] });
-  expect(d.images).toEqual({});
-  expect(c.state.images["b:im1"]).toBe("../decks/b/img/a.png");
-});
-
-test("a missing deck, an include loop, or a second include of the same deck shows an error slide", async () => {
-  await deckTalk({ include: "nope" });
-  let { c } = await mount("?deck=talk");
-  expect(c.state.nodes["t!err"]).toMatchObject({ title: "Can't include nope" });
-  expect(c.state.nodes.t.children).toEqual(["t!err"]);
-
-  await writeDeck("b", { ROOT: slideNode("ROOT", "", ["x"]), x: slideNode("x", "Bx", [], { include: "talk" }) });
-  await deckTalk({ include: "b" });
-  ({ c } = await mount("?deck=talk"));
-  expect(c.state.nodes["b:x!err"].body).toContain("loop");
-
-  await deckB(); await deckTalk({ include: "b" }, ["u"]);
-  ({ c } = await mount("?deck=talk"));
-  expect(c.state.nodes.t.children).toEqual(["b:x"]);
-  expect(c.state.nodes["u!err"].body).toContain("already included");
-});
-
-test("an included deck with no slides adds nothing", async () => {
-  await writeDeck("b", { ROOT: slideNode("ROOT", "", []) }); await deckTalk({ include: "b" });
-  const { c } = await mount("?deck=talk");
-  expect(c.state.nodes.t.children).toEqual([]);
-});
-
-test("choosing a deck in the Include dropdown grafts it and autosaves the include", async () => {
-  await deckB(); await deckTalk();
-  const { c } = await mount("?deck=talk");
-  await c.setInclude("t", "b"); c.componentDidUpdate();
-  expect(c.state.nodes.t.children).toEqual(["b:x"]);
-  await Bun.sleep(1200);
-  expect((await onDisk()).nodes.t).toMatchObject({ include: "b", children: [] });
-  await c.setInclude("t", ""); c.componentDidUpdate();
-  expect(c.state.nodes.t.children).toEqual([]);
-  expect(c.state.decks.map((d: any) => d.slug)).toEqual(["b", "talk"]);
-});
-
-test("Slide tab template has the Include dropdown and the read-only notice", async () => {
-  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
-  expect(html).toContain('<select value="{{ incVal }}" onChange="{{ onInclude }}"');
-  expect(html).toContain('<a href="{{ incHref }}">');
-});
-
 test("builder saves keep the deck's markdown source", async () => {
   await writeDeck("talk", { ROOT: slideNode("ROOT", "", ["t"]), t: slideNode("t", "Intro") }, { source: "notes/talk.md" });
   const { c } = await mount("?deck=talk");
   c.setState({ title: "edited" }); await c.save();
   expect((await onDisk()).source).toBe("notes/talk.md");
-});
-
-test("an including slide can be deleted, taking its grafts with it", async () => {
-  await deckB(); await deckTalk({ include: "b" }, []);
-  await writeDeck("talk", { ROOT: slideNode("ROOT", "", ["t", "keep"]), t: slideNode("t", "Intro", [], { include: "b" }), keep: slideNode("keep", "Keep") });
-  const { c } = await mount("?deck=talk");
-  c.remove("t"); c.componentDidUpdate(); c.componentDidUpdate();
-  expect(c.state.nodes.t).toBeUndefined();
-  expect(c.state.nodes["b:x"]).toBeUndefined();
-  expect(c.state.note ?? null).toBeNull();
 });
 
 test("a new deck starts with one blank slide named after its slug", async () => {
@@ -405,14 +318,10 @@ test("moving a slide: before, after, inside, across levels, carrying its subtree
   expect(c.state.collapsed.b).toBe(false);                    // dropping inside expands the target
 });
 
-test("refused moves: into its own subtree, included slides, inside an including slide", async () => {
-  await writeDeck("other", { ROOT: slideNode("ROOT", "", ["o"]), o: slideNode("o", "O") });
-  const c = await treeDeck({ ROOT: slideNode("ROOT", "", ["a", "b", "inc"]), inc: slideNode("inc", "Inc", [], { include: "other" }) });
+test("refused move: a slide can't go into its own subtree", async () => {
+  const c = await treeDeck();
   const before = c.state.nodes;
   c.moveNode("a", "a1x", "child");
-  c.moveNode("other:o", "b", "after");
-  c.moveNode("b", "inc", "child");
-  c.moveNode("b", "other:o", "before");
   expect(c.state.nodes).toBe(before);
 });
 
@@ -453,15 +362,118 @@ test("pressing a tree node blocks the browser's own text-selection drag (which c
   expect(html).toMatch(/top:\{\{ n\.y \}\}px;width:76px;opacity:\{\{ n\.opacity \}\};user-select:none/);
 });
 
-test("trying to drag an included slide explains why instead of silently doing nothing", async () => {
-  await writeDeck("other", { ROOT: slideNode("ROOT", "", ["o"]), o: slideNode("o", "O") });
-  await writeDeck("talk", { ROOT: slideNode("ROOT", "", ["a", "inc"]), a: slideNode("a", "A"), inc: slideNode("inc", "Inc", [], { include: "other" }) });
-  const { c, listeners } = await mount("?deck=talk");
-  c.treeRef.current = { scrollLeft: 0, scrollTop: 0, getBoundingClientRect: () => ({ left: 0, top: 0 }) };
-  c.startTreeDrag({ clientX: 0, clientY: 0, button: 0, preventDefault() {} }, "other:o");
-  expect(c.state.note ?? null).toBeNull();                     // a plain press/click says nothing
-  listeners.pointermove({ clientX: 40, clientY: 0 });
-  expect(c.state.note).toContain('"other"');
-  expect(c.state.note).toContain('drag "Inc"');                // names the slide that holds the include
-  expect(c.state.treeDrag ?? null).toBeNull();
+
+// ---- copy deck here (replaces live includes) ----
+const deckBWithImage = async () => { await deckB(); await Bun.write(join(root, "decks/b/img/a.png"), "pngbytes"); };
+const own = (c: any) => Object.values(c.state.nodes) as any[];
+
+test("copying a deck adds its slides under the slide as ordinary slides: fresh ids, remapped links, inlined images", async () => {
+  await deckBWithImage(); await deckTalk();
+  const { c } = await mount("?deck=talk");
+  await c.copyDeckHere("t", "b");
+  const [x] = c.state.nodes.t.children.map((k: string) => c.state.nodes[k]);
+  expect(x.title).toBe("Bx");
+  const y = c.state.nodes[x.children[0]];
+  expect(y.title).toBe("By");
+  expect([x.id, y.id]).not.toContain("x");
+  expect(x.frames[0].layers[0].link.id).toBe(y.id);
+  const key = x.frames[0].layers[1].imgKey;
+  expect(c.state.images[key]).toStartWith("data:image/png;base64,");
+  expect(own(c).some(n => n._inc || n.include)).toBe(false);
+  await c.save();
+  const d = await onDisk();
+  expect(d.nodes[x.id].title).toBe("Bx");
+  expect(d.images[key]).toMatch(/^img\/[0-9a-f]{12}\.png$/);
+});
+
+test("copying the same deck twice gives two independent copies", async () => {
+  await deckBWithImage(); await deckTalk();
+  const { c } = await mount("?deck=talk");
+  await c.copyDeckHere("t", "b"); await c.copyDeckHere("t", "b");
+  const ks = c.state.nodes.t.children;
+  expect(ks.length).toBe(2);
+  expect(new Set(ks).size).toBe(2);
+  expect(c.state.nodes[ks[0]].children[0]).not.toBe(c.state.nodes[ks[1]].children[0]);
+});
+
+test("a deck can't be copied into itself, and a missing deck changes nothing", async () => {
+  await deckTalk();
+  const { c } = await mount("?deck=talk");
+  const before = c.state.nodes;
+  await c.copyDeckHere("t", "talk");
+  expect(c.state.nodes).toBe(before);
+  expect(c.state.note).toContain("loop");
+  await c.copyDeckHere("t", "nope");
+  expect(c.state.nodes).toBe(before);
+  expect(c.state.note).toContain("nope");
+});
+
+test("old live includes are converted to real copies when a deck is opened, then saved", async () => {
+  await deckBWithImage(); await deckTalk({ include: "b" });
+  const { c } = await mount("?deck=talk");
+  const [x] = c.state.nodes.t.children.map((k: string) => c.state.nodes[k]);
+  expect(x.title).toBe("Bx");
+  expect(c.state.nodes.t.include).toBeUndefined();
+  expect(c.isDirty()).toBe(true);
+  await c.save();
+  const d = await onDisk();
+  expect(d.nodes.t.include).toBeUndefined();
+  expect(d.nodes.t.children).toEqual([x.id]);
+  c.moveNode(x.id, "t", "after");                              // copies move like any slide
+  expect(c.state.nodes.ROOT.children).toEqual(["t", x.id]);
+});
+
+test("Slide tab offers 'Copy deck here' and no longer has include/read-only UI", async () => {
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  expect(html).toContain('onChange="{{ onCopyDeck }}"');
+  for (const gone of ["incFrom", "incShow", "guardGrafts", "stripGrafts"]) expect(html).not.toContain(gone);
+});
+
+// ---- delete dialog ----
+test("deleting a slide without children happens immediately", async () => {
+  const c = await treeDeck();
+  c.remove("b");
+  expect(c.state.nodes.b).toBeUndefined();
+  expect(c.state.confirmDel ?? null).toBeNull();
+});
+
+test("deleting a slide with children asks first: delete all, keep children, or cancel", async () => {
+  let c = await treeDeck();
+  c.remove("a");
+  expect(c.state.confirmDel).toEqual({ id: "a", count: 3 });
+  expect(c.state.nodes.a).toBeDefined();
+  c.confirmDelete("cancel");
+  expect(c.state.confirmDel).toBeNull();
+  expect(c.state.nodes.a).toBeDefined();
+
+  c.remove("a"); c.confirmDelete("all");
+  expect(Object.keys(c.state.nodes).sort()).toEqual(["ROOT", "b"]);
+
+  c = await treeDeck();
+  c.remove("a"); c.confirmDelete("keep");
+  expect(c.state.nodes.a).toBeUndefined();
+  expect(c.state.nodes.ROOT.children).toEqual(["a1", "a2", "b"]);
+  expect(c.state.nodes.a1.children).toEqual(["a1x"]);
+
+  c.remove("a1"); key(c, "Escape");
+  expect(c.state.confirmDel).toBeNull();
+  expect(c.state.nodes.a1).toBeDefined();
+});
+
+test("delete dialog is in the template", async () => {
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  expect(html).toContain('<sc-if value="{{ delDlg.show }}">');
+  expect(html).toContain('<div onClick="{{ stopProp }}" role="dialog"');   // clicks inside the box don't reach the cancelling backdrop
+});
+
+test("every {{ name }} the app template uses is provided by renderVals", async () => {
+  const { c } = await mount("?deck=talk");
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  const tpl = html.split("<x-dc>")[1].split("</x-dc>")[0];
+  const loopVars = new Set([...tpl.matchAll(/\bas="(\w+)"/g)].map(m => m[1]));
+  const heads = new Set([...tpl.matchAll(/\{\{\s*([A-Za-z_$][\w$]*)/g)].map(m => m[1]).filter(h => !loopVars.has(h)));
+  const vals = c.renderVals();
+  // Defined only while the frame-transition view is open (all inside <sc-if isTransView>), plus the literal {{ true }}.
+  const onlyInTransView = new Set(["actRows", "allT", "closeTrans", "hasActRows", "noActRows", "previewTrans", "transLayerTitle", "transLeftLabel", "transRightLabel", "transTitle", "true"]);
+  expect([...heads].filter(h => !(h in vals) && !onlyInTransView.has(h)).sort()).toEqual([]);
 });

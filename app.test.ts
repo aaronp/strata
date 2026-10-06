@@ -275,3 +275,18 @@ test("a layout keeps the replaced layers' ids, so a later markdown re-import doe
   const again = importInto({ nodes: c.state.nodes }, parseMarkdown(md).sections);
   expect(again.nodes.a.frames[0].layers.map((l: any) => l.id)).toEqual(["md-title", "md-body"]);
 });
+
+test("the editor measures grown text boxes so the selection outline matches", async () => {
+  const { c } = await mount("?deck=talk");
+  const el = (lid: string, px: number) => ({ dataset: { lid }, firstElementChild: { offsetHeight: px } });
+  let els = [el("a", 300), el("b", 50)];
+  c.stageRef.current = { clientHeight: 500, querySelectorAll: (q: string) => (q === '[data-stage="main"] [data-lid]' ? els : []) };
+  expect(c.measureStage()).toBe(true);
+  expect(c._mh).toEqual({ a: 60, b: 10 });
+  expect(c.measureStage()).toBe(false);          // unchanged → no re-render loop
+  els = [el("a", 250)];
+  expect(c.measureStage()).toBe(true);
+  expect(c._mh).toEqual({ a: 50 });
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  expect(html).toContain('data-stage="main"');
+});

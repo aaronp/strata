@@ -54,3 +54,9 @@ test("Off wins over a stored custom box; deck/on cards have no border", () => {
   expect(render({ layers: [txt({ card: "off", box: BOX })], card: { mode: "text", ...CARD } }).items[0]).toMatchObject({ cardBg: "transparent", cardBorder: "none" });
   expect(render({ layers: [txt({ card: "on" })], card: { mode: "none", ...CARD } }).items[0]).toMatchObject({ cardBg: "rgba(11,18,32,0.5)", cardBorder: "none" });
 });
+
+test("text boxes grow to fit their text and expose their layer id for measuring", () => {
+  expect(html).toContain('data-lid="{{ e.lid }}"');
+  expect(html).toMatch(/<div style="width:100%;min-height:100%;display:flex;flex-direction:column/);
+  expect(render({ layers: [txt()] }).items[0].lid).toBe("t");
+});

@@ -117,7 +117,7 @@ input,textarea,button{font:inherit;color:inherit}
                   <dc-import name="Layers" card="{{ deckCard }}" layers="{{ prevLayers }}" images="{{ images }}" ink="{{ ink }}" shadow="{{ inkShadow }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
                 </div>
               </sc-if>
-              <div style="position:absolute;inset:0;transform:{{ planeB.t }};opacity:{{ planeB.o }};transition:{{ planeTr }}">
+              <div data-stage="main" style="position:absolute;inset:0;transform:{{ planeB.t }};opacity:{{ planeB.o }};transition:{{ planeTr }}">
                 <dc-import name="Layers" card="{{ deckCard }}" layers="{{ stageLayers }}" images="{{ images }}" ink="{{ ink }}" shadow="{{ inkShadow }}" editing-id="{{ editingId }}" show-empty="{{ editable }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
               </div>
               <sc-if value="{{ hasGhost }}">
@@ -796,6 +796,13 @@ class Component extends DCLogic {
     clearTimeout(this._as);
     this._as = setTimeout(() => { if (this.state.saving) this.scheduleSave(); else if (this.isDirty()) this.save(); }, this.state.saveMsg ? 5000 : AUTOSAVE_MS);
   }
+  // Text boxes grow to fit their text; measure the rendered heights (% of the stage) so selection outlines match.
+  measureStage() {
+    const st = this.stageRef.current; if (!st || !st.querySelectorAll || !st.clientHeight) return false;
+    const mh = {}; st.querySelectorAll('[data-stage="main"] [data-lid]').forEach(el => { const t = el.firstElementChild; if (t) mh[el.dataset.lid] = t.offsetHeight / st.clientHeight * 100; });
+    const key = JSON.stringify(mh); if (key === this._mhKey) return false;
+    this._mhKey = key; this._mh = mh; return true;
+  }
   markSaved() { this._savedRefs = DECK_FIELDS.map(k => this.state[k]); this.forceUpdate(); }
   isDirty() { const S = this.state; return !this._savedRefs || DECK_FIELDS.some((k, i) => S[k] !== this._savedRefs[i]); }
   async fetchDeck(slug) {
@@ -920,6 +927,7 @@ class Component extends DCLogic {
       if (u !== this._u) { this._u = u; try { localStorage.setItem(UIKEY, u); } catch (e) {} }
     }
     if (S.cur !== this._lastCur) { this._lastCur = S.cur; this.scrollTree(); }
+    if (this.measureStage()) this.forceUpdate();
     if (DECK && !STATIC && this._loaded && this.isDirty()) this.scheduleSave();
   }
   scrollTree() {
@@ -1307,7 +1315,7 @@ class Component extends DCLogic {
     const curLayers = this.layersOf(cur); const ly = S.layerSel ? curLayers.find(l => l.id === S.layerSel) : null;
     const upL = patch => ly && this.updLayer(cur, ly.id, patch);
     const lname = l => l.type === 'text' ? short(String(l.text || '').split('\n')[0] || 'Text', 24) : l.type === 'image' ? 'Image' : l.type === 'shape' ? ({ rect: 'Rectangle', ellipse: 'Ellipse', triangle: 'Triangle' }[l.shape] || 'Shape') : 'Icon · ' + (l.icon || '');
-    const overlays = curLayers.map((l, i) => ({ l: l.x, t: l.y, w: l.w, h: l.h, rot: l.rot || 0, z: i + 1, selected: l.id === S.layerSel, hidden: !!l.hidden,
+    const overlays = curLayers.map((l, i) => ({ l: l.x, t: l.y, w: l.w, h: Math.max(l.h, (this._mh || {})[l.id] || 0), rot: l.rot || 0, z: i + 1, selected: l.id === S.layerSel, hidden: !!l.hidden,
       outline: l.id === S.layerSel ? '2px solid #1f6fb8' : 'none', label: lname(l) + (l.link ? (l.link.type === 'url' ? '  ↗ ' + short(l.link.url || 'web link', 26) : '  → ' + short(N[l.link.id] ? name(l.link.id) : 'missing slide', 22)) : ''),
       onDown: ev => this.startDrag(ev, l.id, 'move'), onDbl: ev => { ev.stopPropagation(); this.startEdit(l.id); }, onDrop: ev => this.dropOn(ev, l.id),
       onNW: ev => this.startDrag(ev, l.id, 'nw'), onNE: ev => this.startDrag(ev, l.id, 'ne'), onSW: ev => this.startDrag(ev, l.id, 'sw'), onSE: ev => this.startDrag(ev, l.id, 'se'),

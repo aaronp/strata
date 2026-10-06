@@ -271,6 +271,18 @@ input,textarea,button{font:inherit;color:inherit}
               <span style="font-size:12px;color:#6b6458">Slide name · tree and breadcrumbs</span>
               <input ref="{{ titleRef }}" value="{{ cur.title }}" onChange="{{ onTitle }}" placeholder="Slide name" style="padding:8px 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;font-weight:600;outline:none">
             </label>
+            <sc-if value="{{ incFrom }}">
+              <div style="padding:8px 10px;border:1px solid #d6e2ef;border-radius:8px;background:#eef3f9;font-size:12.5px;color:#1f4f80">Included from <b>{{ incFrom }}</b>: read-only here. <a href="{{ incHref }}">Open {{ incFrom }} →</a></div>
+            </sc-if>
+            <sc-if value="{{ incShow }}">
+              <label style="display:flex;flex-direction:column;gap:5px">
+                <span style="font-size:12px;color:#6b6458">Include deck · its slides appear under this one</span>
+                <select value="{{ incVal }}" onChange="{{ onInclude }}" disabled="{{ incDisabled }}" style="padding:7px 8px;border:1px solid #e0d9cb;border-radius:7px;background:#fff;outline:none;font-size:13px">
+                  <sc-for list="{{ incOpts }}" as="o" hint-placeholder-count="2"><option value="{{ o.v }}">{{ o.l }}</option></sc-for>
+                </select>
+                <sc-if value="{{ incDisabled }}"><span style="font-size:11.5px;color:#6b6458">Remove child slides first</span></sc-if>
+              </label>
+            </sc-if>
             <div style="display:flex;flex-direction:column;border:1px solid #e0d9cb;border-radius:10px;background:#fff">
               <div onClick="{{ sec.layout.toggle }}" style="display:flex;align-items:center;gap:8px;padding:9px 10px;cursor:pointer;user-select:none">
                 <span style="width:12px;flex:none;font-size:10px;color:#6b6458">{{ sec.layout.caret }}</span>
@@ -654,9 +666,18 @@ const STATIC = !!window.STRATA_STATIC;
 const UIKEY = 'strata-ui';
 const AUTOSAVE_MS = 800;
 const DECK_FIELDS = ['title', 'nodes', 'bg', 'customBg', 'customAspect', 'opacity', 'base', 'offset', 'margin', 'gap', 'tone', 'speed', 'tdef', 'images'];
-const absUrl = v => typeof v === 'string' && v && !/^(data:|blob:|https?:|\/)/.test(v) ? DECK_BASE + v : v;
+const deckUrl = (slug, v) => typeof v === 'string' && v && !/^(data:|blob:|https?:|\/)/.test(v) ? '../decks/' + slug + '/' + v : v;
+const absUrl = v => DECK ? deckUrl(DECK, v) : v;
 const relUrl = v => typeof v === 'string' && DECK_BASE && v.startsWith(DECK_BASE) ? v.slice(DECK_BASE.length) : v;
 const mapImgs = (im, f) => Object.fromEntries(Object.entries(im || {}).map(([k, v]) => [k, f(v)]));
+// Deck includes: another deck's slides are grafted under the including slide with ids prefixed "<slug>:" and marked _inc.
+const prefixLayer = (l, p) => ({ ...l, ...(l.link && l.link.type === 'slide' ? { link: { ...l.link, id: p + l.link.id } } : {}), ...(l.imgKey ? { imgKey: p + l.imgKey } : {}) });
+const prefixNode = (n, p, from) => ({ ...n, id: p + n.id, _inc: from, children: (n.children || []).map(c => p + c),
+  ...(n.frames ? { frames: n.frames.map(f => ({ ...f, layers: f.layers.map(l => prefixLayer(l, p)) })) } : {}),
+  ...(n.layers ? { layers: n.layers.map(l => prefixLayer(l, p)) } : {}) });
+const stripGrafts = N => { const o = {}; for (const k in N) { const v = N[k]; if (v._inc) continue; o[k] = v.include ? { ...v, children: v.children.filter(c => !(N[c] && N[c]._inc)) } : v; } return o; };
+const ownImages = im => Object.fromEntries(Object.entries(im || {}).filter(([k]) => !k.includes(':')));
+const graftImages = im => Object.fromEntries(Object.entries(im || {}).filter(([k]) => k.includes(':')));
 const TW = 76, COLW = 96, ROWH = 92, TPX = 16, TPY = 18;
 const FONT_LIST = [['grot', 'Grotesk', "'Bricolage Grotesque',sans-serif"], ['serif', 'Serif', "'DM Serif Display',serif"], ['news', 'Book', "'Newsreader',serif"], ['mono', 'Mono', "'JetBrains Mono',monospace"], ['hand', 'Hand', "'Caveat',cursive"]];
 const FONT_CSS = Object.fromEntries(FONT_LIST.map(f => [f[0], f[2]]));
@@ -737,29 +758,83 @@ class Component extends DCLogic {
   }
   markSaved() { this._savedRefs = DECK_FIELDS.map(k => this.state[k]); this.forceUpdate(); }
   isDirty() { const S = this.state; return !this._savedRefs || DECK_FIELDS.some((k, i) => S[k] !== this._savedRefs[i]); }
+  async fetchDeck(slug) {
+    const r = await fetch('../decks/' + slug + '/deck.json', { cache: 'no-store' });
+    if (!r.ok) throw new Error(r.status === 404 ? 'no deck called "' + slug + '"' : 'HTTP ' + r.status);
+    const d = await r.json(); if (!d.nodes || !d.nodes.ROOT) throw new Error('not a deck'); return d;
+  }
+  async graft(own) {
+    const out = { ...own }, images = {}, placed = {};
+    const walk = async (id, prefix, chain) => {
+      const n = out[id]; if (!n) return;
+      if (n.include) {
+        const B = n.include, p = prefix + B + ':'; let kids;
+        try {
+          if (chain.includes(B)) throw new Error('include loop ' + chain.concat(B).join(' → '));
+          if (placed[p]) throw new Error('"' + B + '" is already included at "' + placed[p] + '"');
+          placed[p] = n.title || id;
+          const d = await this.fetchDeck(B);
+          for (const k in d.nodes) if (k !== 'ROOT') out[p + k] = prefixNode(d.nodes[k], p, B);
+          for (const k in d.images || {}) images[p + k] = deckUrl(B, d.images[k]);
+          kids = d.nodes.ROOT.children.map(c => p + c);
+          for (const k of kids) await walk(k, p, chain.concat(B));
+        } catch (e) { out[id + '!err'] = { id: id + '!err', title: "Can't include " + B, body: e.message, children: [], _inc: B }; kids = [id + '!err']; }
+        out[id] = { ...out[id], children: n.children.concat(kids) };
+      }
+      for (const c of n.children) await walk(c, prefix, chain);
+    };
+    await walk('ROOT', '', DECK ? [DECK] : []);
+    return { nodes: out, images };
+  }
+  async setInclude(id, slug) {
+    const own = stripGrafts(this.state.nodes); const n = { ...own[id] };
+    if (slug) n.include = slug; else delete n.include;
+    const g = await this.graft({ ...own, [id]: n });
+    this._graftEdit = true;
+    this.setState(s => ({ nodes: g.nodes, images: { ...ownImages(s.images), ...g.images } }));
+  }
+  // Included slides are read-only here: revert any nodes change that touches them or an including slide's children.
+  guardGrafts() {
+    const S = this.state, prev = this._lastNodes;
+    if (this._graftEdit) { this._graftEdit = false; return false; }
+    if (!prev || S.nodes === prev || this._restoring) return false;
+    let hit = null;
+    for (const k in prev) {
+      const v = prev[k], cur = S.nodes[k];
+      if (v._inc && cur !== v) { hit = v._inc; break; }
+      if (v.include && (!cur || String(cur.children) !== String(v.children))) { hit = v.include; break; }
+    }
+    if (!hit) return false;
+    // Not restore(): prev === _lastNodes, so histTrack would never clear its _restoring flag and the guard would stay off.
+    this.setState(s => ({ nodes: prev, layerSel: null, editing: null, cur: prev[s.cur] ? s.cur : prev.ROOT.children[0] }));
+    clearTimeout(this._nt); this.setState({ note: 'Included from "' + hit + '": open it to edit' }); this._nt = setTimeout(() => this.setState({ note: null }), 3500);
+    return true;
+  }
   async loadDeck() {
     try {
+      if (!STATIC) fetch('/api/decks').then(r => r.json()).then(decks => this.setState({ decks })).catch(() => {});
       const r = await fetch(DECK_BASE + 'deck.json', { cache: 'no-store' });
       if (r.status === 404 && !STATIC) { this._loaded = true; this.save(); return; }   // new deck: seed() is written straight away so it shows in the deck list
       if (!r.ok) throw new Error('HTTP ' + r.status);
       const d = await r.json(); if (!d.nodes || !d.nodes.ROOT) throw new Error('not a deck');
       const pick = Object.fromEntries(DECK_FIELDS.filter(k => k in d).map(k => [k, d[k]]));
-      this._lastNodes = d.nodes;                               // don't record the load as an undo step
-      this.setState({ ...pick, images: mapImgs(d.images, absUrl), customBg: d.customBg ? absUrl(d.customBg) : null,
+      const g = await this.graft(d.nodes);
+      this._lastNodes = g.nodes;                               // don't record the load as an undo step
+      this.setState({ ...pick, nodes: g.nodes, images: { ...mapImgs(d.images, absUrl), ...g.images }, customBg: d.customBg ? absUrl(d.customBg) : null,
         cur: d.nodes.ROOT.children[0], prev: null, phase: 'idle' }, () => { this._loaded = true; this.markSaved(); });
     } catch (e) { this.setState({ saveMsg: 'Could not load deck "' + DECK + '": ' + e.message }); }
   }
   async save() {
     if (!DECK || STATIC || this.state.saving || !this._loaded) return;   // never overwrite a deck we failed (or haven't finished) loading
     const S = this.state; const body = Object.fromEntries(DECK_FIELDS.map(k => [k, S[k]]));
-    body.images = mapImgs(S.images, relUrl); body.customBg = S.customBg ? relUrl(S.customBg) : null;
+    body.nodes = stripGrafts(S.nodes); body.images = mapImgs(ownImages(S.images), relUrl); body.customBg = S.customBg ? relUrl(S.customBg) : null;
     this.setState({ saving: true, saveMsg: null });
     try {
       const r = await fetch('/api/decks/' + DECK, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
       if (!r.ok) throw new Error('HTTP ' + r.status + ' ' + (await r.text()));
       const d = await r.json();
       // Only adopt the server's image paths if nothing changed while saving; otherwise stay dirty and let the next save catch up.
-      if (DECK_FIELDS.every(k => this.state[k] === S[k])) this.setState({ saving: false, images: mapImgs(d.images, absUrl), customBg: d.customBg ? absUrl(d.customBg) : null }, () => this.markSaved());
+      if (DECK_FIELDS.every(k => this.state[k] === S[k])) this.setState({ saving: false, images: { ...graftImages(S.images), ...mapImgs(d.images, absUrl) }, customBg: d.customBg ? absUrl(d.customBg) : null }, () => this.markSaved());
       else this.setState({ saving: false });
     } catch (e) { this.setState({ saving: false, saveMsg: 'Save failed: ' + e.message }); }
   }
@@ -784,8 +859,9 @@ class Component extends DCLogic {
     } catch (e) { this.setState({ clipMsg: 'Clipboard blocked here: select the layer and press Ctrl/⌘+V' }); }
     clearTimeout(this.cmT); this.cmT = setTimeout(() => this.setState({ clipMsg: null }), 3500);
   }
-  componentWillUnmount() { clearTimeout(this._as); window.removeEventListener('beforeunload', this.onUnload); window.removeEventListener('paste', this.onPaste); window.removeEventListener('focus', this.onFocusWin); window.removeEventListener('keydown', this.onKey); window.removeEventListener('resize', this.onResize); clearTimeout(this.t); }
+  componentWillUnmount() { clearTimeout(this._as); clearTimeout(this._nt); window.removeEventListener('beforeunload', this.onUnload); window.removeEventListener('paste', this.onPaste); window.removeEventListener('focus', this.onFocusWin); window.removeEventListener('keydown', this.onKey); window.removeEventListener('resize', this.onResize); clearTimeout(this.t); }
   componentDidUpdate() {
+    if (this.guardGrafts()) return;
     this.histTrack();
     const S = this.state;
     if (!DECK) {
@@ -1370,7 +1446,11 @@ class Component extends DCLogic {
       undo: () => this.undo(), redo: () => this.redo(), undoOp: this._past && this._past.length ? 1 : 0.4, redoOp: this._future && this._future.length ? 1 : 0.4,
       layoutBtns: SLIDE_LAYOUTS.map(L => ({ label: L.label, layers: L.make(this.layoutContent(cur)).map((l, i) => ({ ...l, id: 'p' + i })), onClick: () => this.applyLayout(L.id) })),
       deckTitle: S.title || name(N.ROOT.children[0]), editTitle: !!DECK && !STATIC && !isPresent, showTitle: !(DECK && !STATIC && !isPresent),
-      titleVal: S.title || '', onTitle: e => this.setState({ title: e.target.value }), keyHint: S.saveMsg || (isPresent ? '← → ↑ ↓  ·  Space next  ·  / search' + (STATIC ? '' : '  ·  Esc') : ''),
+      titleVal: S.title || '', onTitle: e => this.setState({ title: e.target.value }), keyHint: S.saveMsg || S.note || (isPresent ? '← → ↑ ↓  ·  Space next  ·  / search' + (STATIC ? '' : '  ·  Esc') : ''),
+      incFrom: nCur && nCur._inc || '', incHref: nCur && nCur._inc ? 'strata.dc.html?deck=' + nCur._inc : '',
+      incShow: !!DECK && !STATIC && !(nCur && nCur._inc), incVal: (nCur && nCur.include) || '',
+      incDisabled: !!(nCur && !nCur.include && nCur.children.length), onInclude: e => this.setInclude(this.curId(), e.target.value),
+      incOpts: [{ v: '', l: 'None' }].concat((S.decks || []).filter(d => d.slug !== DECK).map(d => ({ v: d.slug, l: d.title + ' (' + d.slug + ')' }))),
       hasDeck: !!DECK && !STATIC, save: () => this.save(), saveLabel: S.saving ? 'Saving…' : S.saveMsg ? '⚠ Save' : this.isDirty() ? '● Unsaved' : '✓ Saved',
       modeTabs: STATIC ? [] : [{ label: 'Build', ...tab(!isPresent), onClick: () => this.setState({ mode: 'build' }) }, { label: 'Present', ...tab(isPresent), onClick: () => this.setState({ mode: 'present', query: '' }) }],
       isBuild: !isPresent, isPresent, slideCount: D.order.length, query: S.query, onQuery: e => this.setState({ query: e.target.value }),

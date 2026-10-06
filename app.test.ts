@@ -111,3 +111,91 @@ test("header has an editable deck title", async () => {
   const header = (await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text()).split("<header")[1].split("</header>")[0];
   expect(header).toContain('value="{{ titleVal }}" onChange="{{ onTitle }}"');
 });
+
+const slideNode = (id: string, title: string, children: string[] = [], extra: object = {}) => ({ id, title, body: "", children, ...extra });
+const writeDeck = (slug: string, nodes: Record<string, any>, extra: object = {}) =>
+  Bun.write(join(root, `decks/${slug}/deck.json`), JSON.stringify({ nodes, images: {}, customBg: null, ...extra }));
+const deckB = () => writeDeck("b", {
+  ROOT: slideNode("ROOT", "", ["x"]),
+  x: slideNode("x", "Bx", ["y"], { frames: [{ id: "f1", layers: [{ id: "l1", type: "text", text: "go", link: { type: "slide", id: "y" } }, { id: "l2", type: "image", imgKey: "im1" }] }] }),
+  y: slideNode("y", "By"),
+}, { images: { im1: "img/a.png" } });
+const deckTalk = (t: object = {}, extraTop: string[] = []) =>
+  writeDeck("talk", { ROOT: slideNode("ROOT", "", ["t", ...extraTop]), t: slideNode("t", "Intro", [], t), ...Object.fromEntries(extraTop.map(k => [k, slideNode(k, k, [], { include: "b" })])) });
+
+test("an included deck's slides are grafted under the including slide", async () => {
+  await deckB(); await deckTalk({ include: "b" });
+  const { c } = await mount("?deck=talk");
+  const N = c.state.nodes;
+  expect(N.t.children).toEqual(["b:x"]);
+  expect(N["b:x"]).toMatchObject({ _inc: "b", children: ["b:y"] });
+  expect(N["b:x"].frames[0].layers[0].link.id).toBe("b:y");
+  expect(N["b:x"].frames[0].layers[1].imgKey).toBe("b:im1");
+  expect(c.state.images["b:im1"]).toBe("../decks/b/img/a.png");
+  expect(c.isDirty()).toBe(false);
+});
+
+test("edits to included slides are reverted; the including slide stays editable", async () => {
+  await deckB(); await deckTalk({ include: "b" });
+  const { c } = await mount("?deck=talk");
+  // The stub doesn't re-render on setState; the second componentDidUpdate() mimics React re-rendering after the revert.
+  c.setState({ nodes: { ...c.state.nodes, "b:x": { ...c.state.nodes["b:x"], title: "hacked" } } }); c.componentDidUpdate(); c.componentDidUpdate();
+  expect(c.state.nodes["b:x"].title).toBe("Bx");
+  expect(c.state.note).toContain('"b"');
+  c.setState({ nodes: { ...c.state.nodes, t: { ...c.state.nodes.t, children: [] } } }); c.componentDidUpdate(); c.componentDidUpdate();
+  expect(c.state.nodes.t.children).toEqual(["b:x"]);
+  c.setState({ nodes: { ...c.state.nodes, t: { ...c.state.nodes.t, title: "New intro" } } }); c.componentDidUpdate();
+  expect(c.state.nodes.t.title).toBe("New intro");
+});
+
+test("saving keeps included slides and images out of the including deck", async () => {
+  await deckB(); await deckTalk({ include: "b" });
+  const { c } = await mount("?deck=talk");
+  c.setState({ title: "changed" }); await c.save();
+  const d = await onDisk();
+  expect(Object.keys(d.nodes).sort()).toEqual(["ROOT", "t"]);
+  expect(d.nodes.t).toMatchObject({ include: "b", children: [] });
+  expect(d.images).toEqual({});
+  expect(c.state.images["b:im1"]).toBe("../decks/b/img/a.png");
+});
+
+test("a missing deck, an include loop, or a second include of the same deck shows an error slide", async () => {
+  await deckTalk({ include: "nope" });
+  let { c } = await mount("?deck=talk");
+  expect(c.state.nodes["t!err"]).toMatchObject({ title: "Can't include nope" });
+  expect(c.state.nodes.t.children).toEqual(["t!err"]);
+
+  await writeDeck("b", { ROOT: slideNode("ROOT", "", ["x"]), x: slideNode("x", "Bx", [], { include: "talk" }) });
+  await deckTalk({ include: "b" });
+  ({ c } = await mount("?deck=talk"));
+  expect(c.state.nodes["b:x!err"].body).toContain("loop");
+
+  await deckB(); await deckTalk({ include: "b" }, ["u"]);
+  ({ c } = await mount("?deck=talk"));
+  expect(c.state.nodes.t.children).toEqual(["b:x"]);
+  expect(c.state.nodes["u!err"].body).toContain("already included");
+});
+
+test("an included deck with no slides adds nothing", async () => {
+  await writeDeck("b", { ROOT: slideNode("ROOT", "", []) }); await deckTalk({ include: "b" });
+  const { c } = await mount("?deck=talk");
+  expect(c.state.nodes.t.children).toEqual([]);
+});
+
+test("choosing a deck in the Include dropdown grafts it and autosaves the include", async () => {
+  await deckB(); await deckTalk();
+  const { c } = await mount("?deck=talk");
+  await c.setInclude("t", "b"); c.componentDidUpdate();
+  expect(c.state.nodes.t.children).toEqual(["b:x"]);
+  await Bun.sleep(1200);
+  expect((await onDisk()).nodes.t).toMatchObject({ include: "b", children: [] });
+  await c.setInclude("t", ""); c.componentDidUpdate();
+  expect(c.state.nodes.t.children).toEqual([]);
+  expect(c.state.decks.map((d: any) => d.slug)).toEqual(["b", "talk"]);
+});
+
+test("Slide tab template has the Include dropdown and the read-only notice", async () => {
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  expect(html).toContain('<select value="{{ incVal }}" onChange="{{ onInclude }}"');
+  expect(html).toContain('<a href="{{ incHref }}">');
+});

@@ -1,6 +1,9 @@
 import { test, expect } from "bun:test";
 import { parseMarkdown } from "./markdown";
-import { importInto, layersFor } from "./importer";
+import { importInto, layersFor, importFile } from "./importer";
+import { mkdtemp } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 const md = (body = "Hello there.") => `# A\nslug: a\n\n${body}\n\n- [link:b][To B]\n\n[Src](https://s.com)\n\n## B\nslug: b\n`;
 const imp = (deck: any, text: string) => importInto(deck, parseMarkdown(text).sections);
@@ -53,4 +56,44 @@ test("a slide with legacy `layers` (no frames) becomes frame f0-<id>", () => {
   expect(d.nodes.a.layers).toBeUndefined();
   expect(d.nodes.a.frames[0].id).toBe("f0-a");
   expect(d.nodes.a.frames[0].layers.map((l: any) => l.id)).toEqual(["keep", "md-title"]);
+});
+
+test("importing the example produces 55 linked slides across 5 levels and records its source", async () => {
+  const root = await mkdtemp(join(tmpdir(), "strata-imp-"));
+  const r = await importFile(root, join(import.meta.dir, "examples/current-situation.md"));
+  expect(r.errors).toEqual([]);
+  expect(r.warnings).toEqual([]);
+  expect(r.slug).toBe("current-situation");
+  const d = await Bun.file(join(root, "decks/current-situation/deck.json")).json();
+  const ids = Object.keys(d.nodes).filter(k => k !== "ROOT");
+  expect(ids.length).toBe(55);
+  expect(d.nodes.ROOT.children).toEqual(["current"]);
+  expect(d.nodes["ai-authority"]).toBeDefined();             // level 5
+  const links = ids.flatMap(k => d.nodes[k].frames[0].layers).filter((l: any) => l.link?.type === "slide");
+  expect(links.length).toBeGreaterThan(50);
+  expect(links.every((l: any) => d.nodes[l.link.id])).toBe(true);
+  expect(d.source).toMatch(/examples\/current-situation\.md$/);
+  expect(d.title).toBe("Current Situation");
+});
+
+test("an invalid file writes nothing", async () => {
+  const root = await mkdtemp(join(tmpdir(), "strata-imp-"));
+  await Bun.write(join(root, "bad.md"), "# A\nslug: a\n\n[link:nope][X]\n");
+  const r = await importFile(root, join(root, "bad.md"));
+  expect(r.deck).toBeNull();
+  expect(r.errors[0].msg).toContain("nope");
+  expect(await Bun.file(join(root, "decks/bad/deck.json")).exists()).toBe(false);
+});
+
+test("re-importing keeps layout edits made in deck.json", async () => {
+  const root = await mkdtemp(join(tmpdir(), "strata-imp-"));
+  await Bun.write(join(root, "t.md"), "# A\nslug: a\n\nBody.\n");
+  await importFile(root, join(root, "t.md"), "talk");
+  const p = join(root, "decks/talk/deck.json");
+  const d = await Bun.file(p).json();
+  d.nodes.a.frames[0].layers[1].x = 42;
+  await Bun.write(p, JSON.stringify(d));
+  await Bun.write(join(root, "t.md"), "# A\nslug: a\n\nNew body.\n");
+  await importFile(root, join(root, "t.md"), "talk");
+  expect((await Bun.file(p).json()).nodes.a.frames[0].layers[1]).toMatchObject({ x: 42, text: "New body." });
 });

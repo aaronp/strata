@@ -1,5 +1,5 @@
 PORT ?= 3000
-.PHONY: dev build preview test clean
+.PHONY: dev build preview test clean import
 
 dev:
 	PORT=$(PORT) bun server.ts
@@ -15,3 +15,6 @@ build:
 
 preview: build
 	bunx serve dist -l $(PORT)
+
+import:
+	@if [ -n "$(DECK)" ]; then bun importer.ts --deck $(DECK); else bun importer.ts $(MD) $(SLUG); fi

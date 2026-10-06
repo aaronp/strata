@@ -1,4 +1,6 @@
-import type { Section } from "./markdown";
+import { basename, join, relative, resolve } from "node:path";
+import { parseMarkdown, type Section } from "./markdown";
+import { saveDeck, SLUG } from "./server";
 
 const text = (id: string, geo: object, txt: string, extra: object = {}) => ({
   id, type: "text", text: txt, font: "grot", size: 32, weight: 400, color: null, align: "left", valign: "top",
@@ -47,4 +49,34 @@ export function importInto(deck: any | null, sections: Section[]): any {
   };
   sections.forEach(add);
   return { ...(deck ?? { images: {}, customBg: null }), nodes, title: deck?.title || sections[0]?.title || "" };
+}
+
+export async function importFile(root: string, file: string, slug?: string) {
+  const parsed = parseMarkdown(await Bun.file(file).text());
+  const s = slug ?? basename(file).replace(/\.md$/i, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  if (!SLUG.test(s)) parsed.errors.unshift({ line: 0, msg: `bad deck slug "${s}" (use a-z, 0-9 and -)` });
+  if (parsed.errors.length) return { ...parsed, slug: s, deck: null };
+  const path = join(root, "decks", s, "deck.json");
+  const existing = (await Bun.file(path).exists()) ? await Bun.file(path).json() : null;
+  const deck = await saveDeck(root, s, { ...importInto(existing, parsed.sections), source: relative(root, resolve(root, file)) });
+  return { ...parsed, slug: s, deck };
+}
+
+if (import.meta.main) {
+  const root = process.cwd();
+  const [a, b] = process.argv.slice(2);
+  let file: string | undefined = a, slug: string | undefined = b || undefined;
+  if (a === "--deck") {
+    slug = b;
+    const p = join(root, "decks", b ?? "", "deck.json");
+    file = (await Bun.file(p).exists()) ? (await Bun.file(p).json()).source : undefined;
+    if (!file) { console.error(`decks/${b}: no recorded markdown source; use: make import MD=<file.md> SLUG=${b}`); process.exit(1); }
+  }
+  if (!file) { console.error("usage: make import MD=<file.md> [SLUG=<slug>]  |  make import DECK=<slug>"); process.exit(1); }
+  const r = await importFile(root, resolve(root, file), slug);
+  for (const w of r.warnings) console.warn(`${file}:${w.line}: warning: ${w.msg}`);
+  for (const e of r.errors) console.error(`${file}:${e.line}: error: ${e.msg}`);
+  if (!r.deck) process.exit(1);
+  const count = (ss: any[]): number => ss.reduce((n, s) => n + 1 + count(s.children), 0);
+  console.log(`Imported ${count(r.sections)} slides into decks/${r.slug}/`);
 }

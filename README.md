@@ -7,6 +7,7 @@ Requires [bun](https://bun.sh).
 | Command | What it does |
 |---|---|
 | `make dev` | Local editor at http://127.0.0.1:3000/ (pick or create a deck, ⌘S saves to `decks/<slug>/`) |
+| `make import MD=notes.md [SLUG=name]` | Build `decks/<slug>/` from a markdown outline; re-run (or `make import DECK=<slug>`) after editing the markdown |
 | `make test` | Run server/build tests |
 | `make build` | Present-only static site in `dist/` |
 | `make preview` | Build, then serve `dist/` locally |
@@ -14,6 +15,12 @@ Requires [bun](https://bun.sh).
 Publish: commit `decks/`, push to `main`. In the repo's **Settings → Pages**, set **Source: GitHub Actions** once; `.github/workflows/pages.yml` deploys `dist/` on every push.
 
 Decks live in `decks/<slug>/deck.json`, with images extracted to `decks/<slug>/img/`. Opening the app without `?deck=` uses browser storage only (scratch mode).
+
+### Markdown decks
+Headings become slides (`#` top level, `##` below it, …). Put `slug: <id>` on the line after each heading. `[link:<slug>][Label]` adds a clickable chip that jumps to that slide; dotted paths like `[link:top.child][…]` also work. Ordinary `[text](url)` links become source links. Re-importing rewrites text and links but keeps anything you moved, restyled, hid or added in the builder. See `examples/current-situation.md`.
+
+### Composing decks
+In the builder's Slide tab, **Include deck** shows another deck's slides under the current slide, live: re-importing that deck updates every deck that includes it. Included slides are read-only; use **Open <deck>** to edit them.
 
 ## Overview
 Strata is a presentation tool where slides form a **tree**, not a line. Viewers move ← → between siblings (children of the same parent) and ↑ ↓ between levels, so they can stay at the top level or dig into any topic. One large looping background image sits behind the whole deck and shifts with parallax as you navigate, giving a sense of depth (e.g. sky → ground → underground, or ocean surface → trench).

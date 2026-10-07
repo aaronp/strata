@@ -116,3 +116,11 @@ test("re-import never overwrites a container the builder changed", () => {
     l.id === "md-link-0" ? { ...chip, card: "off", box: { ...chip.box, bg: "#1f6fb8" } } : l) }] } } };
   expect(layer(imp(edited, md()), "a", "md-link-0")).toMatchObject({ card: "off", box: { bg: "#1f6fb8" } });
 });
+
+test("re-import keeps the title page: ROOT's title and frames, and the deck flags", () => {
+  const deck = { titlePage: true, titleView: { zoom: 2, x: 0.5, y: 0.5 },
+    nodes: { ROOT: { id: "ROOT", title: "Big", body: "", children: ["a"], frames: [{ id: "fr", layers: [{ id: "t", type: "text" }] }] }, a: { id: "a", title: "A", body: "", children: [] } } };
+  const d = imp(deck, "# A\nslug: a\n");
+  expect(d.titlePage).toBe(true); expect(d.titleView.zoom).toBe(2);
+  expect(d.nodes.ROOT.title).toBe("Big"); expect(d.nodes.ROOT.frames[0].id).toBe("fr");
+});

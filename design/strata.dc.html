@@ -812,7 +812,7 @@ const DECK_BASE = DECK ? '../decks/' + DECK + '/' : '';
 const STATIC = !!window.STRATA_STATIC;
 const UIKEY = 'strata-ui';
 const AUTOSAVE_MS = 800;
-const DECK_FIELDS = ['title', 'source', 'card', 'nodes', 'bg', 'customBg', 'customAspect', 'bgScale', 'bgRepeat', 'bgY', 'opacity', 'base', 'offset', 'margin', 'gap', 'tone', 'speed', 'tdef', 'images'];
+const DECK_FIELDS = ['title', 'source', 'card', 'nodes', 'bg', 'customBg', 'customAspect', 'bgScale', 'bgRepeat', 'bgY', 'opacity', 'base', 'offset', 'margin', 'gap', 'tone', 'speed', 'tdef', 'titlePage', 'titleView', 'images'];
 const deckUrl = (slug, v) => typeof v === 'string' && v && !/^(data:|blob:|https?:|\/)/.test(v) ? '../decks/' + slug + '/' + v : v;
 const absUrl = v => DECK ? deckUrl(DECK, v) : v;
 const relUrl = v => typeof v === 'string' && DECK_BASE && v.startsWith(DECK_BASE) ? v.slice(DECK_BASE.length) : v;
@@ -964,7 +964,7 @@ class Component extends DCLogic {
     else if (m.type === 'ack') { if (this._fwd && this._fwd.lid === lid) this._fwd.acked = true; }
     else if (m.type === 'done' || m.type === 'back') { const p = this._fwd; this._fwd = null; if (p && p.lid === lid) this.deckMove(p.act); else this.step(m.type === 'done' ? 1 : -1); }
     else if (m.type === 'jumpTo') {
-      const s = String(m.slug || ''), t = N[s] && s !== 'ROOT' ? s : Object.keys(N).find(k => k !== 'ROOT' && (N[k].title || '').toLowerCase() === s.toLowerCase());
+      const s = String(m.slug || ''), t = N[s] && (s !== 'ROOT' || this.state.titlePage) ? s : Object.keys(N).find(k => k !== 'ROOT' && (N[k].title || '').toLowerCase() === s.toLowerCase());
       if (t) this.nav(t, 'jump'); else this.flash('Component asked for unknown slide "' + s + '"');
     }
     else if (m.type === 'nav') { const d = m.dir; if (['left', 'right', 'up', 'down'].includes(d)) this.go(d); else if (d === 'next' || d === 'prev') this.step(d === 'next' ? 1 : -1); }
@@ -1004,6 +1004,7 @@ class Component extends DCLogic {
   }
   // mode 'child': copies go under slide tid; 'replace': they take tid's place and tid (with its subtree) is removed.
   async copyDeckHere(tid, slug, mode = 'child') {
+    if (tid === 'ROOT') mode = 'child';
     try {
       const c = await this.copyDeck(slug, DECK ? [DECK] : []);
       if (!c.tops.length) { this.flash('"' + slug + '" has no slides to copy'); return; }
@@ -1043,7 +1044,7 @@ class Component extends DCLogic {
       }
       this._lastNodes = nodes;                                 // don't record the load as an undo step
       this.setState({ ...pick, nodes, images, customBg: d.customBg ? absUrl(d.customBg) : null,
-        cur: d.nodes.ROOT.children[0], prev: null, phase: 'idle' }, () => { this._loaded = true; if (migrated) this._savedRefs = null; else this.markSaved(); });
+        cur: d.titlePage ? 'ROOT' : d.nodes.ROOT.children[0], prev: null, phase: 'idle' }, () => { this._loaded = true; if (migrated) this._savedRefs = null; else this.markSaved(); });
     } catch (e) { this.setState({ saveMsg: 'Could not load deck "' + DECK + '": ' + e.message }); }
   }
   async save() {
@@ -1086,7 +1087,7 @@ class Component extends DCLogic {
     this.histTrack();
     const S = this.state;
     if (!DECK) {
-      const d = JSON.stringify({ nodes: S.nodes, cur: S.cur, mode: S.mode, view: S.view, rtab: S.rtab, bg: S.bg, customAspect: S.customAspect, bgScale: S.bgScale, bgRepeat: S.bgRepeat, bgY: S.bgY, opacity: S.opacity, base: S.base, offset: S.offset, margin: S.margin, gap: S.gap, tone: S.tone, speed: S.speed, navW: S.navW, rightW: S.rightW, tdef: S.tdef, secOpen: S.secOpen, collapsed: S.collapsed, treeZoom: S.treeZoom, treeFocus: S.treeFocus });
+      const d = JSON.stringify({ nodes: S.nodes, cur: S.cur, mode: S.mode, view: S.view, rtab: S.rtab, bg: S.bg, customAspect: S.customAspect, bgScale: S.bgScale, bgRepeat: S.bgRepeat, bgY: S.bgY, opacity: S.opacity, base: S.base, offset: S.offset, margin: S.margin, gap: S.gap, tone: S.tone, speed: S.speed, navW: S.navW, rightW: S.rightW, tdef: S.tdef, titlePage: S.titlePage, titleView: S.titleView, secOpen: S.secOpen, collapsed: S.collapsed, treeZoom: S.treeZoom, treeFocus: S.treeFocus });
       if (d !== this._d) { this._d = d; try { localStorage.setItem(KEY, d); } catch (e) {} }
       if (S.images !== this._im) { this._im = S.images; try { localStorage.setItem(IKEY, JSON.stringify(S.images)); } catch (e) {} }
       if (S.customBg !== this._bg) { this._bg = S.customBg; try { if (S.customBg) localStorage.setItem(BGKEY, S.customBg); } catch (e) {} }
@@ -1156,6 +1157,13 @@ class Component extends DCLogic {
     return { rect, w, h, CW: cx };
   }
 
+  // Title page on/off. First enable names ROOT after the deck (defaultLayers renders it); off keeps ROOT's slide for next time.
+  setTitlePage(on) {
+    const S = this.state, N = S.nodes, R = N.ROOT, first = R.children[0];
+    const seed = on && !R.title && !R.frames ? { nodes: { ...N, ROOT: { ...R, title: S.title || (N[first] && N[first].title) || 'Title' } } } : {};
+    const go = on ? { cur: 'ROOT' } : S.cur === 'ROOT' ? { cur: first } : null;
+    this.setState({ titlePage: on, ...seed, ...(go ? { ...go, prev: null, phase: 'idle', fi: 0, layerSel: null } : {}) });
+  }
   setNode(id, patch) { this.setState(s => ({ nodes: { ...s.nodes, [id]: { ...s.nodes[id], ...patch } } })); }
   focusTitle() { setTimeout(() => { const el = this.titleRef.current; if (el) { el.focus(); el.select(); } }, 40); }
   // Nav tree zoom (view preference): 30%–150%, stepped, or fit to the panel's width.
@@ -1200,7 +1208,7 @@ class Component extends DCLogic {
   treeDropAt(x, y, dragId) {
     const tp = this._tpos || {};
     for (const id in tp) {
-      const p = tp[id]; if (x < p.x || x > p.x + TW || y < p.y - 4 || y > p.y + 60) continue;
+      if (id === 'ROOT') continue; const p = tp[id]; if (x < p.x || x > p.x + TW || y < p.y - 4 || y > p.y + 60) continue;
       if (id === dragId || this.isUnder(id, dragId)) return null;
       const r = (x - p.x) / TW, where = r < 1 / 3 ? 'before' : r > 2 / 3 ? 'after' : 'child';
       return { id, where };
@@ -1233,11 +1241,11 @@ class Component extends DCLogic {
     this.setState({ nodes: { ...S.nodes, [id]: { id, title: 'New slide', body: '', children: [] }, [pid]: { ...p, children: kids } }, cur: id, prev: null, phase: 'idle', query: '', rtab: 'slide', fi: 0, transSel: null });
     this.focusTitle();
   }
-  addPeer(id) { const D = this.derive(); const pid = D.parent[id]; this.insert(pid, this.state.nodes[pid].children.indexOf(id) + 1); }
+  addPeer(id) { if (id === 'ROOT') return; const D = this.derive(); const pid = D.parent[id]; this.insert(pid, this.state.nodes[pid].children.indexOf(id) + 1); }
   addChild(id) { this.insert(id, this.state.nodes[id].children.length); }
   // Deleting a slide with children asks first: delete them too, or move them up into its place.
   remove(id) {
-    const N = this.state.nodes; if (!N[id]) return;
+    const N = this.state.nodes; if (!N[id] || id === 'ROOT') return;
     const count = (function c(x) { return N[x].children.reduce((n, k) => n + 1 + c(k), 0); })(id);
     if (count) this.setState({ confirmDel: { id, count } }); else this.removeNode(id, false);
   }
@@ -1256,7 +1264,7 @@ class Component extends DCLogic {
     this.setState({ nodes, cur: next || nodes.ROOT.children[0], prev: null, phase: 'idle', fi: 0, transSel: null });
   }
   outdent(id) {
-    const D = this.derive(); const pid = D.parent[id]; if (pid === 'ROOT') return; const gid = D.parent[pid]; const N = this.state.nodes;
+    if (id === 'ROOT') return; const D = this.derive(); const pid = D.parent[id]; if (pid === 'ROOT') return; const gid = D.parent[pid]; const N = this.state.nodes;
     const g = [...N[gid].children]; g.splice(g.indexOf(pid) + 1, 0, id);
     this.setState({ nodes: { ...N, [pid]: { ...N[pid], children: N[pid].children.filter(k => k !== id) }, [gid]: { ...N[gid], children: g } } });
   }
@@ -1302,7 +1310,7 @@ class Component extends DCLogic {
     const layers = L.make(this.layoutContent(id)).map(l => ({ ...l, id: (spare[l.type] || []).shift() || 'l' + uid() })).concat(old.filter(layoutKeeps));
     this.setLayers(id, () => layers); this.setState({ layerSel: null, editing: null, view: 'slide' });
   }
-  curId() { const N = this.state.nodes; return N[this.state.cur] ? this.state.cur : N.ROOT.children[0]; }
+  curId() { const N = this.state.nodes, c = this.state.cur; return N[c] && (c !== 'ROOT' || this.state.titlePage) ? c : N.ROOT.children[0]; }
   defaultLayers(n) {
     const L = [{ id: 't-' + n.id, type: 'text', x: 8, y: n.body ? 30 : 38, w: 84, h: 22, text: n.title || 'Untitled', font: 'grot', size: 104, weight: 800, color: null, align: 'center', valign: 'middle', lh: 1, bullets: 'none', gap: 0.15 }];
     if (n.body) L.push({ id: 'b-' + n.id, type: 'text', x: 14, y: 56, w: 72, h: 16, text: n.body, font: 'grot', size: 36, weight: 400, color: null, align: 'center', valign: 'top', lh: 1.35, bullets: 'none', gap: 0.15 });
@@ -1504,25 +1512,33 @@ class Component extends DCLogic {
   }
 
   neighbour(id, dir, D) {
-    const sibs = this.state.nodes[D.parent[id]].children; const i = sibs.indexOf(id); const n = this.state.nodes[id];
-    if (dir === 'left') return sibs[i - 1]; if (dir === 'right') return sibs[i + 1];
-    if (dir === 'up') return D.parent[id] !== 'ROOT' ? D.parent[id] : null;
-    if (dir === 'down') { const lc = this.state.lastChild[id]; return n.children.includes(lc) ? lc : n.children[0]; }
+    const N = this.state.nodes;
+    if (dir === 'down') { const lc = this.state.lastChild[id]; return N[id].children.includes(lc) ? lc : N[id].children[0]; }
+    if (id === 'ROOT') return null;
+    const pid = D.parent[id];
+    if (dir === 'up') return pid !== 'ROOT' ? pid : this.state.titlePage ? 'ROOT' : null;
+    const sibs = N[pid].children, i = sibs.indexOf(id);
+    return dir === 'left' ? sibs[i - 1] : dir === 'right' ? sibs[i + 1] : undefined;
   }
   nav(id, dir) {
-    const S = this.state; if (!id || id === S.cur || !S.nodes[id]) return;
+    const S = this.state; if (!id || id === S.cur || !S.nodes[id] || (id === 'ROOT' && !S.titlePage)) return;
     if (S.layerSel || S.editing) this.setState({ layerSel: null, editing: null });
-    const D = this.derive(); const lastChild = { ...S.lastChild }; let x = id; while (D.parent[x] && D.parent[x] !== 'ROOT') { lastChild[D.parent[x]] = x; x = D.parent[x]; }
+    const D = this.derive(); const lastChild = { ...S.lastChild }; let x = id; while (D.parent[x]) { lastChild[D.parent[x]] = x; x = D.parent[x]; }
     clearTimeout(this.t);
     const fiNew = dir === 'left' ? Math.max(0, this.framesOf(id).length - 1) : 0; const fx = { fprev: false, fi: fiNew, prevFi: this.fiFor(S.cur), tween: null, transSel: null, confirmDup: null };
     if (S.speed < 50 || (S.mode === 'build' && S.view === 'wire')) { this.setState({ cur: id, prev: null, phase: 'idle', lastChild, ...fx }); return; }
     const [dx, dy] = DIRS[dir];
-    this.setState({ cur: id, prev: S.cur, dx, dy, type: dir === 'jump' ? 'fade' : 'swipe', phase: 'start', lastChild, ...fx });
+    this.setState({ cur: id, prev: S.cur, dx, dy, type: id === 'ROOT' || S.cur === 'ROOT' ? 'zoom' : dir === 'jump' ? 'fade' : 'swipe', phase: 'start', lastChild, ...fx });
     requestAnimationFrame(() => requestAnimationFrame(() => this.setState({ phase: 'run' })));
     this.t = setTimeout(() => this.setState({ prev: null, phase: 'idle' }), S.speed + 60);
   }
   go(dir) { if ((dir === 'right' && this.stepFrame(1)) || (dir === 'left' && this.stepFrame(-1))) return; const D = this.derive(); this.nav(this.neighbour(this.state.cur, dir, D), dir); }
-  step(delta) { if (this.stepFrame(delta)) return; const D = this.derive(); const i = D.order.indexOf(this.state.cur); const id = D.order[i + delta]; if (!id) return; const dd = D.depth[id] - D.depth[this.state.cur]; this.nav(id, dd > 0 ? 'down' : dd < 0 ? 'up' : (delta > 0 ? 'right' : 'left')); }
+  step(delta) {
+    if (this.stepFrame(delta)) return; const D = this.derive(), cur = this.curId();
+    const order = this.state.titlePage ? ['ROOT', ...D.order] : D.order, dep = x => x === 'ROOT' ? -1 : D.depth[x];
+    const id = order[order.indexOf(cur) + delta]; if (!id) return; const dd = dep(id) - dep(cur);
+    this.nav(id, dd > 0 ? 'down' : dd < 0 ? 'up' : (delta > 0 ? 'right' : 'left'));
+  }
   onKey(e) {
     const t = e.target; const typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA'); const k = e.key; const S = this.state;
     if ((e.metaKey || e.ctrlKey) && (k === 's' || k === 'S')) { e.preventDefault(); this.save(); return; }
@@ -1585,13 +1601,13 @@ class Component extends DCLogic {
 
   renderVals() {
     const S = this.state; const N = S.nodes; const D = this.derive(); const B = this.bgInfo(); const L = this.layout(D);
-    const cur = N[S.cur] ? S.cur : N.ROOT.children[0]; const curN = N[cur]; const isPresent = S.mode === 'present'; const isWire = !isPresent && S.view === 'wire';
+    const cur = this.curId(); const curN = N[cur]; const isPresent = S.mode === 'present'; const isWire = !isPresent && S.view === 'wire';
     const q = S.query.trim().toLowerCase(); const name = id => N[id].title || 'Untitled';
     const pathOf = id => { const p = []; let x = id; while (x && x !== 'ROOT') { p.unshift(x); x = D.parent[x]; } return p; };
     const tab = on => ({ bg: on ? '#fbf9f4' : 'transparent', color: on ? '#1d1b17' : '#6b6458', shadow: on ? '0 1px 3px rgba(0,0,0,.12)' : 'none' });
     const match = {}; D.order.forEach(id => { if (!q || (N[id].title + ' ' + N[id].body).toLowerCase().includes(q)) match[id] = true; });
     const light = S.tone === 'light'; const ease = 'cubic-bezier(.65,0,.25,1)';
-    const sibs = N[D.parent[cur]].children; const ci = sibs.indexOf(cur);
+    const sibs = cur === 'ROOT' ? ['ROOT'] : N[D.parent[cur]].children; const ci = sibs.indexOf(cur);
 
     // canvas: width covers the whole tree plus one viewport of slack; image tiles repeat across it
     const CW = L.CW + L.w; const tileW = H * (S.bgScale || 1) * B.aspect;
@@ -1623,7 +1639,7 @@ class Component extends DCLogic {
       if (S.phase === 'start') planeB = fade ? { t: 'none', o: 0 } : { t: `translate(${S.dx * 100}%, ${S.dy * 100}%)`, o: 1 };
       else planeA = fade ? { t: 'none', o: 0 } : { t: `translate(${-S.dx * 100}%, ${-S.dy * 100}%)`, o: 1 };
     }
-    const label = id => { const s = N[D.parent[id]].children; return `Level ${D.depth[id] + 1} · ${s.indexOf(id) + 1} / ${s.length}`; };
+    const label = id => { if (id === 'ROOT') return 'Title page'; const s = N[D.parent[id]].children; return `Level ${D.depth[id] + 1} · ${s.indexOf(id) + 1} / ${s.length}`; };
     const steps = sibs.map((sid, i) => { const done = i < ci, now = i === ci;
       return { title: now ? short(name(sid), 28) : '', pad: now ? '4px 11px 4px 4px' : '4px', full: name(sid), mark: done ? '✓' : String(i + 1), opacity: done || now ? 1 : 0.5,
         lineDisplay: i === 0 ? 'none' : 'block', lineColor: i <= ci ? '#d9432b' : 'rgba(251,249,244,.9)', bg: now ? '#1d1b17' : 'rgba(251,249,244,.92)', color: now ? '#fbf9f4' : '#1d1b17',
@@ -1631,9 +1647,9 @@ class Component extends DCLogic {
     const downT = this.neighbour(cur, 'down', D); const upT = this.neighbour(cur, 'up', D);
     // two-row breadcrumb stack: one row per level on the path, child rows indented under their parent's dot
     const CP = 48, CRH = 34, CS = 42, CD = 17;
-    const path0 = pathOf(cur); let indent = 0;
+    const path0 = cur === 'ROOT' ? [null] : pathOf(cur); let indent = 0;
     const crumbRows = path0.map((pid, k) => {
-      const rowSibs = N[D.parent[pid]].children; const ix = rowSibs.indexOf(pid); const isCur = k === path0.length - 1;
+      const rowSibs = pid ? N[D.parent[pid]].children : N.ROOT.children; const ix = rowSibs.indexOf(pid); const isCur = k === path0.length - 1;
       const row = { indent, top: k * CP, opacity: isCur ? 1 : 0.92, hasLink: k > 0, linkX: indent + CD - 1, linkTop: k * CP - (CP - CRH),
         steps: rowSibs.map((sid, j) => { const done = j < ix, on = j === ix;
           return { title: on ? short(name(sid), isCur ? 28 : 20) : '', pad: on ? '4px 11px 4px 4px' : '4px', full: name(sid), mark: done ? '✓' : String(j + 1), opacity: done || on ? 1 : 0.5,

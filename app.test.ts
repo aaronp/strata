@@ -773,3 +773,69 @@ test("collapsing a parent of the current slide selects that parent, so the colla
   expect(c.state.cur).toBe("a");
   expect(c.treeVisible().vis).toEqual(["a", "a1", "a1x", "a2", "b"]);
 });
+
+// ---- title page (ROOT as an opt-in slide) ----
+async function titleDeck(fields: object = { titlePage: true }) {
+  await writeDeck("talk", {
+    ROOT: slideNode("ROOT", "Big picture", ["a", "b"]),
+    a: slideNode("a", "A", ["a1", "a2"]), a1: slideNode("a1", "A1"), a2: slideNode("a2", "A2"), b: slideNode("b", "B"),
+  }, fields);
+  return (await mount("?deck=talk")).c;
+}
+
+test("title page off: ROOT is unreachable and up from the top row goes nowhere", async () => {
+  const c = await titleDeck({});
+  expect(c.state.cur).toBe("a");
+  expect(c.neighbour("a", "up", c.derive())).toBeNull();
+  c.nav("ROOT", "jump"); expect(c.state.cur).toBe("a");
+  c.setState({ cur: "ROOT" }); expect(c.curId()).toBe("a");
+});
+
+test("title page on: the deck opens on ROOT; up/down link it to the top row with a zoom transition", async () => {
+  const c = await titleDeck();
+  expect(c.state.cur).toBe("ROOT"); expect(c.curId()).toBe("ROOT");
+  const D = c.derive();
+  for (const d of ["left", "right", "up"]) expect(c.neighbour("ROOT", d, D)).toBeNull();
+  expect(c.neighbour("ROOT", "down", D)).toBe("a");
+  c.go("down"); expect(c.state.cur).toBe("a"); expect(c.state.type).toBe("zoom");
+  c.go("right"); expect(c.state.cur).toBe("b"); expect(c.state.type).toBe("swipe");
+  c.go("up"); expect(c.state.cur).toBe("ROOT"); expect(c.state.type).toBe("zoom");
+  c.go("down"); expect(c.state.cur).toBe("b");                 // back to the last-visited top-level slide
+  expect(c.derive().order).not.toContain("ROOT");              // layout untouched
+});
+
+test("Space walks from ROOT into the deck; Shift+Space walks back and stops at ROOT", async () => {
+  const c = await titleDeck();
+  c.step(1); expect(c.state.cur).toBe("a");
+  c.step(1); expect(c.state.cur).toBe("a1");
+  c.step(-1); c.step(-1); expect(c.state.cur).toBe("ROOT");
+  c.step(-1); expect(c.state.cur).toBe("ROOT");
+});
+
+test("turning the title page on seeds its title once and goes there; off keeps it and leaves ROOT", async () => {
+  await writeDeck("talk", { ROOT: slideNode("ROOT", "", ["a"]), a: slideNode("a", "A") }, { title: "My talk" });
+  const { c } = await mount("?deck=talk");
+  c.setTitlePage(true);
+  expect(c.state.titlePage).toBe(true); expect(c.state.cur).toBe("ROOT"); expect(c.state.nodes.ROOT.title).toBe("My talk");
+  c.setNode("ROOT", { title: "Renamed" });
+  c.setTitlePage(false);
+  expect(c.state.cur).toBe("a"); expect(c.state.nodes.ROOT.title).toBe("Renamed");
+  c.setTitlePage(true); expect(c.state.nodes.ROOT.title).toBe("Renamed");
+});
+
+test("ROOT can't be deleted, given a sibling, outdented, dropped beside, or replaced by a copied deck", async () => {
+  const c = await titleDeck(); const before = c.state.nodes;
+  c.addPeer("ROOT"); c.remove("ROOT"); c.outdent("ROOT");
+  expect(c.state.nodes).toBe(before);
+  c._tpos = { ROOT: { x: 0, y: 0 } }; expect(c.treeDropAt(10, 10, "a")).toBeNull();
+  await deckBWithImage(); await c.copyDeckHere("ROOT", "b", "replace");
+  expect(c.state.nodes.ROOT.children.slice(0, 2)).toEqual(["a", "b"]);   // copied as children, ROOT kept
+  c.addChild("ROOT"); expect(c.state.nodes.ROOT.children.length).toBe(4); // "+ below" adds a top-level slide
+});
+
+test("titlePage and titleView are saved and reloaded", async () => {
+  const c = await titleDeck();
+  c.setState({ titleView: { zoom: 2, x: 0.3, y: 0.6 } }); await c.save();
+  const d = await Bun.file(join(root, "decks/talk/deck.json")).json();
+  expect(d.titlePage).toBe(true); expect(d.titleView).toEqual({ zoom: 2, x: 0.3, y: 0.6 });
+});

@@ -915,3 +915,18 @@ test("Title view controls set zoom/Fit/Cover/pan; the Canvas tab toggles the tit
   v = c.renderVals(); v.onTitlePage({ target: { checked: false } });
   expect(c.state.titlePage).toBe(false); expect(c.renderVals().isTitlePage).toBe(false);
 });
+
+test("toggling the title page mid frame-tween clears the tween, so render doesn't read a missing frame", async () => {
+  const c = await titleDeck({});
+  c.setState({ tween: { a: 0 }, transSel: 0, fprev: true });
+  c.setTitlePage(true);
+  expect(c.state.tween).toBeNull(); expect(c.state.fprev).toBe(false);
+  expect(() => c.renderVals()).not.toThrow();
+});
+
+test("the wireframe title rect is clamped to the canvas, so all four dashed edges show at Fit", async () => {
+  const c = await titleDeck();
+  const f = c.renderVals().titleFrame;
+  expect(+f.t).toBeGreaterThanOrEqual(0); expect(+f.t + +f.h).toBeLessThanOrEqual(100.001);
+  expect(+f.l).toBeGreaterThanOrEqual(0);
+});

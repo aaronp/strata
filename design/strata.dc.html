@@ -1200,7 +1200,7 @@ class Component extends DCLogic {
     const S = this.state, N = S.nodes, R = N.ROOT, first = R.children[0];
     const seed = on && !R.title && !R.frames ? { nodes: { ...N, ROOT: { ...R, title: S.title || (N[first] && N[first].title) || 'Title' } } } : {};
     const go = on ? { cur: 'ROOT' } : S.cur === 'ROOT' ? { cur: first } : null;
-    this.setState({ titlePage: on, ...seed, ...(go ? { ...go, prev: null, phase: 'idle', fi: 0, layerSel: null } : {}) });
+    this.setState({ titlePage: on, ...seed, ...(go ? { ...go, prev: null, phase: 'idle', fi: 0, layerSel: null, editing: null, tween: null, transSel: null, fprev: false, confirmDup: null } : {}) });
   }
   setNode(id, patch) { this.setState(s => ({ nodes: { ...s.nodes, [id]: { ...s.nodes[id], ...patch } } })); }
   focusTitle() { setTimeout(() => { const el = this.titleRef.current; if (el) { el.focus(); el.select(); } }, 40); }
@@ -1720,7 +1720,8 @@ class Component extends DCLogic {
     D.order.filter(id => D.parent[id] !== 'ROOT').forEach(id => { const a = L.rect[D.parent[id]], b = L.rect[id];
       const xa = (a.x + a.w * 0.1) / CW * 100, ya = (a.y + a.h) / H * 100, xb = (b.x + b.w * 0.1) / CW * 100, yb = b.y / H * 100, my = (ya + yb) / 2;
       wireLinesSafe.push([xa, ya, xa, my], [xa, my, xb, my], [xb, my, xb, yb]); });
-    const titleFrame = S.titlePage ? { show: true, l: f3(TC.view.l), t: f3(TC.view.t), w: f3(TC.view.w), h: f3(TC.view.h) } : { show: false };
+    const tvL = Math.max(0, TC.view.l), tvT = Math.max(0, TC.view.t);   // clamp to the canvas, else the letterboxed edges fall outside the box
+    const titleFrame = S.titlePage ? { show: true, l: f3(tvL), t: f3(tvT), w: f3(Math.min(TC.view.l + TC.view.w, L.CW / CW * 100) - tvL), h: f3(Math.min(TC.view.t + TC.view.h, 100) - tvT) } : { show: false };
 
     // layer editing
     const editable = !isPresent && !isWire && !active;

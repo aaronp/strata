@@ -839,3 +839,36 @@ test("titlePage and titleView are saved and reloaded", async () => {
   const d = await Bun.file(join(root, "decks/talk/deck.json")).json();
   expect(d.titlePage).toBe(true); expect(d.titleView).toEqual({ zoom: 2, x: 0.3, y: 0.6 });
 });
+
+test("title camera: Fit shows the whole content width letterboxed; Cover fills the height; pan clamps to the content", async () => {
+  const c = await titleDeck();
+  const L = c.layout(c.derive()), CW = L.CW + L.w;
+  let t = c.titleCam(L, CW);
+  expect(t.s).toBeCloseTo(L.w / L.CW); expect(t.tx).toBeCloseTo(0);
+  expect(t.Hc).toBeLessThan(1);                                         // this deck is wider than 16:9
+  expect(t.ty).toBeCloseTo((1 - t.Hc) / 2 / (100 / L.h) * 100);        // centred vertically
+  expect(t.view.l).toBeCloseTo(0); expect(t.view.w).toBeCloseTo(L.CW / CW * 100);
+  c.setState({ titleView: { zoom: c.titleCover(L), x: 1, y: 0.5 } }); t = c.titleCam(L, CW);
+  expect(t.Hc).toBeCloseTo(1); expect(t.ty).toBeCloseTo(0);
+  expect(t.view.l + t.view.w).toBeCloseTo(L.CW / CW * 100);             // panned fully right = the content's right edge
+});
+
+test("Cover never drops below Fit, even on a canvas narrower than 16:9", async () => {
+  await writeDeck("talk", { ROOT: slideNode("ROOT", "T", ["a"]), a: slideNode("a", "A") }, { titlePage: true });
+  const { c } = await mount("?deck=talk");
+  expect(c.titleCover(c.layout(c.derive()))).toBeGreaterThanOrEqual(1);
+});
+
+test("the stage camera frames the title page, and a zoom transition crossfades the layers", async () => {
+  const c = await titleDeck();
+  let v = c.renderVals();
+  expect(v.curCam).toMatch(/^translate\([-\d.]+%, [-\d.]+%\) scale\(0\.\d+\)$/);
+  expect(v.titleFrame.show).toBe(true);
+  c.go("down"); v = c.renderVals();
+  expect(v.curCam).toMatch(/ scale\(1\)$/);
+  expect(v.planeB).toEqual({ t: "none", o: 0 });                        // zoom start: incoming layers transparent, not swiped
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  expect(html).toContain("transform:{{ curCam }};transform-origin:0 0");
+  expect(html).toContain("transform:{{ n.cam }};transform-origin:0 0");
+  expect(html).toContain("{{ titleFrame.show }}");
+});

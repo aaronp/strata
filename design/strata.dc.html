@@ -90,7 +90,7 @@ input,textarea,button{font:inherit;color:inherit}
             <sc-for list="{{ treeNodes }}" as="n" hint-placeholder-count="6">
               <div style="position:absolute;left:{{ n.x }}px;top:{{ n.y }}px;width:76px;opacity:{{ n.opacity }};user-select:none">
                 <div onPointerDown="{{ n.onDragStart }}" onClick="{{ n.onClick }}" onDoubleClick="{{ n.onRename }}" title="{{ n.full }}" style="position:relative;width:76px;height:43px;border-radius:5px;overflow:hidden;background:{{ base }};cursor:pointer;outline:{{ n.outline }};outline-offset:1px;box-shadow:0 1px 3px rgba(0,0,0,.18)">
-                  <div style="position:absolute;left:0;top:0;width:{{ cam.w }}%;height:{{ cam.h }}%;transform:{{ n.cam }}">
+                  <div style="position:absolute;left:0;top:0;width:{{ cam.w }}%;height:{{ cam.h }}%;transform:{{ n.cam }};transform-origin:0 0">
                     <sc-for list="{{ tiles }}" as="tl" hint-placeholder-count="0">
                       <div style="position:absolute;top:{{ tl.t }}%;height:{{ tl.h }}%;left:{{ tl.l }}%;width:calc({{ tl.w }}% + 2px);background:{{ bgCss }};opacity:{{ opacity }}"></div>
                     </sc-for>
@@ -139,7 +139,7 @@ input,textarea,button{font:inherit;color:inherit}
         <sc-if value="{{ showStage }}" hint-placeholder-val="{{ true }}">
           <div style="position:absolute;inset:0;display:grid;place-items:center;padding:136px 66px 60px">
             <div ref="{{ stageRef }}" style="position:relative;width:min(100cqw - 132px, (100cqh - 196px) * 16 / 9);aspect-ratio:16/9;overflow:hidden;border-radius:12px;background:{{ base }};container-type:inline-size;box-shadow:0 30px 80px -30px rgba(0,0,0,.55)">
-              <div style="position:absolute;left:0;top:0;width:{{ cam.w }}%;height:{{ cam.h }}%;transform:{{ curCam }};transition:{{ camTransition }}">
+              <div style="position:absolute;left:0;top:0;width:{{ cam.w }}%;height:{{ cam.h }}%;transform:{{ curCam }};transform-origin:0 0;transition:{{ camTransition }}">
                 <sc-for list="{{ tiles }}" as="tl" hint-placeholder-count="0">
                   <div style="position:absolute;top:{{ tl.t }}%;height:{{ tl.h }}%;left:{{ tl.l }}%;width:calc({{ tl.w }}% + 2px);background:{{ bgCss }};opacity:{{ opacity }}"></div>
                 </sc-for>
@@ -294,6 +294,9 @@ input,textarea,button{font:inherit;color:inherit}
                   <div style="position:absolute;left:5px;top:4px;right:5px;font-size:11px;font-weight:600;line-height:1.1;color:#fbf9f4;text-shadow:0 1px 3px rgba(0,0,0,.7);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ wr.title }}</div>
                 </div>
               </sc-for>
+              <sc-if value="{{ titleFrame.show }}">
+                <div title="Title page view" style="position:absolute;left:{{ titleFrame.l }}%;top:{{ titleFrame.t }}%;width:{{ titleFrame.w }}%;height:{{ titleFrame.h }}%;border:2px dashed #fbf9f4;border-radius:3px;box-sizing:border-box;pointer-events:none"></div>
+              </sc-if>
             </div>
           </div>
         </sc-if>
@@ -1156,6 +1159,16 @@ class Component extends DCLogic {
     let cx = w * this.state.gap; N.ROOT.children.forEach(k => { cx = place(k, cx); });
     return { rect, w, h, CW: cx };
   }
+  // Title page framing. Zoom 1 fits the content width (L.CW, not the slack-padded CW) to the slide; x/y is the focus point (0–1).
+  // Camera plane = CW/L.w stage-widths × H/L.h stage-heights; per axis: smaller than the stage → centred, else focus centred and clamped.
+  // view: the visible region in % of the canvas (CW × H), for the wireframe.
+  titleCover(L) { return Math.max(1, L.CW * L.h / (H * L.w)); }
+  titleCam(L, CW) {
+    const tv = { zoom: 1, x: 0.5, y: 0.5, ...this.state.titleView }, Pw = CW / L.w, Ph = H / L.h, s = tv.zoom * L.w / L.CW;
+    const Wc = tv.zoom, Hc = s * Ph, off = (size, f) => size <= 1 ? (1 - size) / 2 : Math.min(0, Math.max(1 - size, 0.5 - f * size));
+    const ox = off(Wc, tv.x), oy = off(Hc, tv.y);
+    return { s, tx: ox / Pw * 100, ty: oy / Ph * 100, Wc, Hc, view: { l: -ox / Wc * L.CW / CW * 100, t: -oy / Hc * 100, w: L.CW / CW / Wc * 100, h: 100 / Hc } };
+  }
 
   // Title page on/off. First enable names ROOT after the deck (defaultLayers renders it); off keeps ROOT's slide for next time.
   setTitlePage(on) {
@@ -1613,7 +1626,9 @@ class Component extends DCLogic {
     const CW = L.CW + L.w; const tileW = H * (S.bgScale || 1) * B.aspect;
     const tiles = this.bgTileRects(CW, B);
     const cam = { w: f3(CW / L.w * 100), h: f3(H / L.h * 100) };
-    const camOf = id => { const r = L.rect[id]; return `translate(${f3(-r.x / CW * 100)}%, ${f3(-r.y / H * 100)}%)`; };
+    const TC = this.titleCam(L, CW);
+    const camOf = id => { if (id === 'ROOT') return `translate(${f3(TC.tx)}%, ${f3(TC.ty)}%) scale(${+TC.s.toFixed(5)})`;
+      const r = L.rect[id]; return `translate(${f3(-r.x / CW * 100)}%, ${f3(-r.y / H * 100)}%) scale(1)`; };
 
     // thumbnail tree
     let leaf = 0; const tp = {}; const TV = this.treeVisible();
@@ -1633,7 +1648,7 @@ class Component extends DCLogic {
     const tops = N.ROOT.children; const topEdge = tops.length > 1 ? [{ d: `M${tp[tops[0]].x + TW / 2} ${TPY - 8}H${tp[tops[tops.length - 1]].x + TW / 2}` }].concat(tops.map(t => ({ d: `M${tp[t].x + TW / 2} ${TPY - 8}V${TPY - 2}` }))) : [];
 
     // stage
-    const active = S.prev && N[S.prev] && S.phase !== 'idle'; const fade = S.type === 'fade';
+    const active = S.prev && N[S.prev] && S.phase !== 'idle'; const fade = S.type === 'fade' || S.type === 'zoom';
     let planeA = { t: 'none', o: 1 }, planeB = { t: 'none', o: 1 };
     if (active) {
       if (S.phase === 'start') planeB = fade ? { t: 'none', o: 0 } : { t: `translate(${S.dx * 100}%, ${S.dy * 100}%)`, o: 1 };
@@ -1675,6 +1690,7 @@ class Component extends DCLogic {
     D.order.filter(id => D.parent[id] !== 'ROOT').forEach(id => { const a = L.rect[D.parent[id]], b = L.rect[id];
       const xa = (a.x + a.w * 0.1) / CW * 100, ya = (a.y + a.h) / H * 100, xb = (b.x + b.w * 0.1) / CW * 100, yb = b.y / H * 100, my = (ya + yb) / 2;
       wireLinesSafe.push([xa, ya, xa, my], [xa, my, xb, my], [xb, my, xb, yb]); });
+    const titleFrame = S.titlePage ? { show: true, l: f3(TC.view.l), t: f3(TC.view.t), w: f3(TC.view.w), h: f3(TC.view.h) } : { show: false };
 
     // layer editing
     const editable = !isPresent && !isWire && !active;
@@ -1940,7 +1956,7 @@ class Component extends DCLogic {
       hasUp: !!upT, upTitle: upT ? short(name(upT), 24) : '', goUp: () => this.go('up'),
       hasDown: !!downT, goDown: () => this.go('down'), downLabel: downT ? `${curN.children.length} below · ${short(name(downT), 22)}` : '',
 
-      canvasRatio: f3(CW / H), wireRects, wireLines: wireLinesSafe.map(([x1, y1, x2, y2]) => ({ x1: f3(x1) + '%', y1: f3(y1) + '%', x2: f3(x2) + '%', y2: f3(y2) + '%' })),
+      canvasRatio: f3(CW / H), wireRects, titleFrame, wireLines: wireLinesSafe.map(([x1, y1, x2, y2]) => ({ x1: f3(x1) + '%', y1: f3(y1) + '%', x2: f3(x2) + '%', y2: f3(y2) + '%' })),
 
       rTabs: [['slide', 'Slide'], ['layout', 'Layout'], ['canvas', 'Canvas']].map(([id, label]) => ({ label, ...tab(S.rtab === id), onClick: () => this.setState(id === 'layout' ? { rtab: id, view: 'wire' } : { rtab: id }) })),
       tabSlide: S.rtab === 'slide', tabLayout: S.rtab === 'layout', tabCanvas: S.rtab === 'canvas',

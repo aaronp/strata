@@ -6,6 +6,7 @@ const html = await Bun.file(join(import.meta.dir, "design/Layers.dc.html")).text
 const js = html.split(/<script type="text\/x-dc" data-dc-script[^>]*>/)[1].split("</script>")[0];
 const Component = new Function("DCLogic", js + "\nreturn Component;")(class { props: any; constructor(p: any) { this.props = p; } });
 const render = (props: any) => new Component(props).renderVals();
+const HELPER = new Function("DCLogic", js + "\nreturn HELPER;")(class {});
 
 const txt = (extra = {}) => ({ id: "t", type: "text", text: "Hi", x: 0, y: 0, w: 10, h: 10, ...extra });
 const shape = { id: "s", type: "shape", x: 0, y: 0, w: 10, h: 10 };
@@ -68,4 +69,48 @@ test("image layers: zoom about a focus point, which also pans a cropped image", 
   expect(render({ layers: [img({ fit: "contain" })], images: { k: "data:x" } }).items[0]).toMatchObject({ imgBg: 'url("data:x") 50% 50% / contain no-repeat', zoom: 1, focus: "50% 50%" });
   expect(render({ layers: [img()], images: {} }).items[0].hasImg).toBe(false);
   expect(html).toContain("transform:scale({{ e.zoom }});transform-origin:{{ e.focus }}");
+});
+
+const comp = (o = {}) => ({ id: "c1", type: "component", x: 0, y: 0, w: 50, h: 50, name: "Demo", code: "<b>hi</b><script>strata.ready({steps:true})</script>", ...o });
+const doc = (src: string) => decodeURIComponent(src.replace("data:text/html;charset=utf-8,", ""));
+
+test("a live component renders a sandboxed iframe running the helper, then the snippet", () => {
+  const it = render({ layers: [comp()], live: "s1" }).items[0];
+  expect(it).toMatchObject({ isComponent: true, live: true, placeholder: false, name: "Demo", lid: "c1" });
+  expect(it.src.startsWith("data:text/html;charset=utf-8,")).toBe(true);
+  const d = doc(it.src);
+  expect(d.indexOf("window.strata=")).toBeLessThan(d.indexOf("<b>hi</b>"));
+  expect(d).toContain("<!-- strata s1 -->");
+  expect(html).toContain('sandbox="allow-scripts"');
+  expect(html).not.toContain("allow-same-origin");
+});
+
+test("the same component keeps an identical src across frames (no reload), but not across slides", () => {
+  const a = render({ layers: [comp({ x: 0 })], live: "s1" }).items[0].src;
+  expect(render({ layers: [comp({ x: 40, w: 20, opacity: 0.5 })], live: "s1" }).items[0].src).toBe(a);
+  expect(render({ layers: [comp()], live: "s2" }).items[0].src).not.toBe(a);
+});
+
+test("not live (thumbnails, previews): a placeholder card with the name, no iframe", () => {
+  expect(render({ layers: [comp()] }).items[0]).toMatchObject({ isComponent: true, live: false, placeholder: true, name: "Demo", src: "" });
+});
+
+test("a pasted full HTML document keeps the helper first", () => {
+  const d = doc(render({ layers: [comp({ code: "<!doctype html><html><head><title>x</title></head><body><p>y</p></body></html>" })], live: "s1" }).items[0].src);
+  expect(d.indexOf("window.strata=")).toBeLessThan(d.indexOf("<title>x</title>"));
+});
+
+test("the helper: forwards messages to handlers, acks next/prev, reports errors, says hello on load", () => {
+  const posted: any[] = [], L: Record<string, Function> = {}, parent = { postMessage: (m: any) => posted.push(m) }, win: any = {};
+  new Function("parent", "addEventListener", "window", HELPER)(parent, (t: string, f: Function) => (L[t] = f), win);
+  const got: any[] = [];
+  win.strata.on("next", (m: any) => got.push(m.type));
+  L.message({ source: parent, data: { strata: 1, type: "next" } });
+  L.message({ source: {}, data: { strata: 1, type: "next" } });          // not from the slide: ignored
+  expect(got).toEqual(["next"]);
+  expect(posted).toEqual([{ strata: 1, type: "ack" }]);
+  win.strata.ready({ steps: true }); win.strata.done(); win.strata.jumpTo("intro"); win.strata.nav("up");
+  L.error({ message: "boom", lineno: 3 }); L.load();
+  expect(posted.slice(1)).toEqual([{ strata: 1, type: "ready", steps: true }, { strata: 1, type: "done" }, { strata: 1, type: "jumpTo", slug: "intro" },
+    { strata: 1, type: "nav", dir: "up" }, { strata: 1, type: "error", message: "boom", line: 3 }, { strata: 1, type: "hello" }]);
 });

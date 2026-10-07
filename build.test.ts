@@ -26,3 +26,17 @@ test("build fails loudly if the static-flag injection point is missing", async (
   await Bun.write(join(root, "design/strata.dc.html"), "<head></head>");
   await expect(build(root, join(root, "dist"))).rejects.toThrow("support.js");
 });
+
+test("build with a deck publishes only that deck and opens it from the site root", async () => {
+  const root = await mkdtemp(join(tmpdir(), "strata-b-"));
+  await Bun.write(join(root, "design/strata.dc.html"), '<head>\n<script src="./support.js"></script>\n</head>');
+  for (const s of ["talk", "scratch"]) await Bun.write(join(root, `decks/${s}/deck.json`), JSON.stringify({ title: s, nodes: { ROOT: { children: [] } } }));
+  const out = join(root, "dist");
+  await build(root, out, "talk");
+  expect(await Bun.file(join(out, "decks/talk/deck.json")).exists()).toBe(true);
+  expect(await Bun.file(join(out, "decks/scratch/deck.json")).exists()).toBe(false);
+  expect(await Bun.file(join(out, "decks/index.json")).json()).toEqual([{ slug: "talk", title: "talk" }]);
+  const index = await Bun.file(join(out, "index.html")).text();
+  expect(index).toContain('<meta http-equiv="refresh" content="0; url=design/strata.dc.html?deck=talk">');
+  await expect(build(root, out, "missing")).rejects.toThrow('no deck "missing"');
+});

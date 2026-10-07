@@ -1,12 +1,14 @@
 name: pages
 on:
   push:
-    branches: [main]
+    branches: [master]
   workflow_dispatch:
 permissions:
   contents: read
   pages: write
   id-token: write
+env:
+  DECK: digital-wallets   # the published deck: the site root opens it (it must be committed: git add -f decks/<slug>)
 concurrency:
   group: pages
   cancel-in-progress: true
@@ -20,7 +22,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
       - run: bun test
-      - run: make build
+      - run: make build DECK=$DECK
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

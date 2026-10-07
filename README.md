@@ -9,10 +9,10 @@ Requires [bun](https://bun.sh).
 | `make dev` | Local editor at http://127.0.0.1:3067/ (pick or create a deck, ⌘S saves to `decks/<slug>/`) |
 | `make import MD=notes.md [SLUG=name]` | Build `decks/<slug>/` from a markdown outline; re-run (or `make import DECK=<slug>`) after editing the markdown |
 | `make test` | Run server/build tests |
-| `make build` | Present-only static site in `dist/` |
+| `make build [DECK=slug]` | Present-only static site in `dist/` (with `DECK`: just that deck, opened from the site root) |
 | `make preview` | Build, then serve `dist/` locally |
 
-Publish: commit `decks/`, push to `main`. In the repo's **Settings → Pages**, set **Source: GitHub Actions** once; `.github/workflows/pages.yml` deploys `dist/` on every push.
+Publish one deck: set `DECK:` in `.github/workflows/pages.yml`, commit that deck (`decks/` is git-ignored, so `git add -f decks/<slug>`), and push to `master`. In the repo's **Settings → Pages**, set **Source: GitHub Actions** once. The workflow runs `make build DECK=<slug>`, which publishes only that deck and makes the site root open it; `make build` with no `DECK` publishes every deck behind a list page.
 
 Decks live in `decks/<slug>/deck.json`, with images extracted to `decks/<slug>/img/`. Opening the app without `?deck=` uses browser storage only (scratch mode).
 

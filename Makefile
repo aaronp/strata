@@ -11,7 +11,7 @@ clean:
 	rm -rf dist
 
 build:
-	bun build.ts
+	bun build.ts $(DECK)
 
 preview: build
 	bunx serve dist -l $(PORT)

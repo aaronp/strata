@@ -872,3 +872,32 @@ test("the stage camera frames the title page, and a zoom transition crossfades t
   expect(html).toContain("transform:{{ n.cam }};transform-origin:0 0");
   expect(html).toContain("{{ titleFrame.show }}");
 });
+
+test("on the title page the crumbs show the top row with nothing current; elsewhere a ⌂ crumb leads home", async () => {
+  const c = await titleDeck();
+  let v = c.renderVals();
+  expect(v.crumbRows.length).toBe(1);
+  expect(v.crumbRows[0].steps.map((s: any) => s.full)).toEqual(["A", "B"]);
+  expect(v.crumbRows[0].steps.every((s: any) => s.title === "")).toBe(true);   // nothing highlighted
+  expect(v.hasDownHint).toBe(true); expect(v.curLabel).toBe("Title page");
+  expect(v.hasLeft || v.hasRight).toBe(false);
+  c.go("down"); v = c.renderVals();
+  expect(v.crumbRows[0].steps[0].mark).toBe("⌂");
+  expect(v.upTitle).toBe("Big picture");
+  v.crumbRows[0].steps[0].onClick(); expect(c.state.cur).toBe("ROOT");
+  const off = await titleDeck({});
+  expect(off.renderVals().crumbRows[0].steps[0].mark).not.toBe("⌂");
+});
+
+test("tree: the title page sits centred above the top row, joined to it, with no sibling/delete/collapse", async () => {
+  const c = await titleDeck();
+  const v = c.renderVals(), at = (t: string) => v.treeNodes.find((n: any) => n.full === t);
+  const r = at("Big picture"), a = at("A"), b = at("B");
+  expect(r.canPeer).toBe(false); expect(r.hasKids).toBe(false); expect(a.canPeer).toBe(true);
+  expect(a.y).toBeGreaterThan(r.y); expect(r.x).toBeCloseTo((a.x + b.x) / 2);
+  expect(v.treeEdges.length).toBe(4);                              // ROOT→a, ROOT→b, a→a1, a→a2
+  expect(v.slideOptions[0].id).toBe("ROOT");
+  expect(v.treeH).toBeGreaterThan((await titleDeck({})).renderVals().treeH);
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  expect(html).toContain("{{ n.canPeer }}");
+});

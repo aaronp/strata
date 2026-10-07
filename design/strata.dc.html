@@ -102,9 +102,9 @@ input,textarea,button{font:inherit;color:inherit}
                   <div style="flex:1;min-width:0;font-size:10.5px;line-height:1.1;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:{{ n.weight }}">{{ n.title }}</div>
                 </div>
                 <sc-if value="{{ n.selected }}">
-                  <button onClick="{{ n.onPeer }}" title="Add slide after (Enter)" style="position:absolute;left:80px;top:12px;width:20px;height:20px;padding:0;border:0;border-radius:50%;background:#1d1b17;color:#fbf9f4;cursor:pointer;font-size:13px;line-height:20px">+</button>
+                  <sc-if value="{{ n.canPeer }}"><button onClick="{{ n.onPeer }}" title="Add slide after (Enter)" style="position:absolute;left:80px;top:12px;width:20px;height:20px;padding:0;border:0;border-radius:50%;background:#1d1b17;color:#fbf9f4;cursor:pointer;font-size:13px;line-height:20px">+</button></sc-if>
                   <button onClick="{{ n.onChild }}" title="Add slide below (Tab)" style="position:absolute;left:28px;top:62px;width:20px;height:20px;padding:0;border:0;border-radius:50%;background:#1d1b17;color:#fbf9f4;cursor:pointer;font-size:13px;line-height:20px">+</button>
-                  <button onClick="{{ n.onDelete }}" title="Delete slide and everything below it" style="position:absolute;right:-7px;top:-7px;width:17px;height:17px;padding:0;border:0;border-radius:50%;background:#fff;color:#a8301d;box-shadow:0 1px 3px rgba(0,0,0,.25);cursor:pointer;font-size:9px;line-height:17px;opacity:{{ n.delOpacity }}">✕</button>
+                  <sc-if value="{{ n.canPeer }}"><button onClick="{{ n.onDelete }}" title="Delete slide and everything below it" style="position:absolute;right:-7px;top:-7px;width:17px;height:17px;padding:0;border:0;border-radius:50%;background:#fff;color:#a8301d;box-shadow:0 1px 3px rgba(0,0,0,.25);cursor:pointer;font-size:9px;line-height:17px;opacity:{{ n.delOpacity }}">✕</button></sc-if>
                 </sc-if>
               </div>
             </sc-for>
@@ -1615,7 +1615,7 @@ class Component extends DCLogic {
   renderVals() {
     const S = this.state; const N = S.nodes; const D = this.derive(); const B = this.bgInfo(); const L = this.layout(D);
     const cur = this.curId(); const curN = N[cur]; const isPresent = S.mode === 'present'; const isWire = !isPresent && S.view === 'wire';
-    const q = S.query.trim().toLowerCase(); const name = id => N[id].title || 'Untitled';
+    const q = S.query.trim().toLowerCase(); const name = id => N[id].title || (id === 'ROOT' ? 'Title page' : 'Untitled');
     const pathOf = id => { const p = []; let x = id; while (x && x !== 'ROOT') { p.unshift(x); x = D.parent[x]; } return p; };
     const tab = on => ({ bg: on ? '#fbf9f4' : 'transparent', color: on ? '#1d1b17' : '#6b6458', shadow: on ? '0 1px 3px rgba(0,0,0,.12)' : 'none' });
     const match = {}; D.order.forEach(id => { if (!q || (N[id].title + ' ' + N[id].body).toLowerCase().includes(q)) match[id] = true; });
@@ -1634,18 +1634,20 @@ class Component extends DCLogic {
     let leaf = 0; const tp = {}; const TV = this.treeVisible();
     const countUnder = id => N[id].children.reduce((n, k) => n + 1 + countUnder(k), 0);
     const lay = (id, d) => { const kids = TV.kids(id); if (!kids.length) { tp[id] = { x: TPX + leaf * COLW, y: TPY + d * ROWH }; leaf++; } else { kids.forEach(k => lay(k, d + 1)); tp[id] = { x: (tp[kids[0]].x + tp[kids[kids.length - 1]].x) / 2, y: TPY + d * ROWH }; } };
-    TV.kids('ROOT').forEach(k => lay(k, 0)); this._tpos = tp; this._treeW = TPX * 2 + Math.max(1, leaf) * COLW + 20;
+    const r0 = S.titlePage ? 1 : 0; TV.kids('ROOT').forEach(k => lay(k, r0));
+    if (r0) { const tk = TV.kids('ROOT'); tp.ROOT = { x: tk.length ? (tp[tk[0]].x + tp[tk[tk.length - 1]].x) / 2 : TPX, y: TPY }; }
+    this._tpos = tp; this._treeW = TPX * 2 + Math.max(1, leaf) * COLW + 20;
     const td = S.treeDrag;
-    const treeNodes = TV.vis.map(id => ({ x: tp[id].x, y: tp[id].y, title: name(id),
-      hasKids: N[id].children.length > 0, toggleLabel: TV.kids(id).length ? '▾' : '▸ ' + countUnder(id), toggleTitle: TV.kids(id).length ? 'Collapse' : 'Expand',
+    const treeNodes = (r0 ? ['ROOT'] : []).concat(TV.vis).map(id => ({ x: tp[id].x, y: tp[id].y, title: name(id),
+      hasKids: id !== 'ROOT' && N[id].children.length > 0, canPeer: id !== 'ROOT', toggleLabel: TV.kids(id).length ? '▾' : '▸ ' + countUnder(id), toggleTitle: TV.kids(id).length ? 'Collapse' : 'Expand',
       // A slide whose children are hidden only by Focus: clicking its toggle goes there instead of collapsing.
       onToggle: e => { e.stopPropagation(); if (S.treeFocus && !TV.kids(id).length && TV.expanded(id)) this.nav(id, 'jump'); else this.toggleCollapse(id); },
-      onDragStart: ev => this.startTreeDrag(ev, id), dragOp: td && td.id === id ? 0.35 : 1, full: name(id), cam: camOf(id), layers: this.layersOf(id), selected: id === cur, outline: id === cur ? '2px solid #d9432b' : 'none',
+      onDragStart: ev => { if (id !== 'ROOT') this.startTreeDrag(ev, id); }, dragOp: td && td.id === id ? 0.35 : 1, full: name(id), cam: camOf(id), layers: this.layersOf(id), selected: id === cur, outline: id === cur ? '2px solid #d9432b' : 'none',
       weight: id === cur ? 700 : 500, opacity: q && !match[id] ? 0.35 : 1, delOpacity: D.order.length > 1 ? 1 : 0.4,
       onClick: () => { if (this._suppressClick) { this._suppressClick = false; return; } this.nav(id, 'jump'); }, onRename: () => { this.nav(id, 'jump'); this.setState({ rtab: 'slide' }); this.focusTitle(); },
       onPeer: e => { e.stopPropagation(); this.addPeer(id); }, onChild: e => { e.stopPropagation(); this.addChild(id); }, onDelete: e => { e.stopPropagation(); this.remove(id); } }));
-    const treeEdges = TV.vis.filter(id => D.parent[id] !== 'ROOT').map(id => { const a = tp[D.parent[id]], b = tp[id]; const x1 = a.x + TW / 2, y1 = a.y + 60, x2 = b.x + TW / 2, y2 = b.y - 2; return { d: `M${x1} ${y1}V${y1 + 12}H${x2}V${y2}` }; });
-    const tops = N.ROOT.children; const topEdge = tops.length > 1 ? [{ d: `M${tp[tops[0]].x + TW / 2} ${TPY - 8}H${tp[tops[tops.length - 1]].x + TW / 2}` }].concat(tops.map(t => ({ d: `M${tp[t].x + TW / 2} ${TPY - 8}V${TPY - 2}` }))) : [];
+    const treeEdges = TV.vis.filter(id => tp[D.parent[id]]).map(id => { const a = tp[D.parent[id]], b = tp[id]; const x1 = a.x + TW / 2, y1 = a.y + 60, x2 = b.x + TW / 2, y2 = b.y - 2; return { d: `M${x1} ${y1}V${y1 + 12}H${x2}V${y2}` }; });
+    const tops = N.ROOT.children; const topEdge = !r0 && tops.length > 1 ? [{ d: `M${tp[tops[0]].x + TW / 2} ${TPY - 8}H${tp[tops[tops.length - 1]].x + TW / 2}` }].concat(tops.map(t => ({ d: `M${tp[t].x + TW / 2} ${TPY - 8}V${TPY - 2}` }))) : [];
 
     // stage
     const active = S.prev && N[S.prev] && S.phase !== 'idle'; const fade = S.type === 'fade' || S.type === 'zoom';
@@ -1662,22 +1664,25 @@ class Component extends DCLogic {
     const downT = this.neighbour(cur, 'down', D); const upT = this.neighbour(cur, 'up', D);
     // two-row breadcrumb stack: one row per level on the path, child rows indented under their parent's dot
     const CP = 48, CRH = 34, CS = 42, CD = 17;
+    const home = S.titlePage && cur !== 'ROOT' ? 1 : 0;
+    const homeStep = { title: '', pad: '4px', full: name('ROOT'), mark: '⌂', opacity: 1, lineDisplay: 'none', lineColor: '#d9432b', bg: 'rgba(251,249,244,.92)', color: '#1d1b17',
+      dotBg: 'transparent', dotColor: '#1d1b17', dotBorder: '1.5px solid #1d1b17', onClick: () => this.nav('ROOT', 'up') };
     const path0 = cur === 'ROOT' ? [null] : pathOf(cur); let indent = 0;
     const crumbRows = path0.map((pid, k) => {
-      const rowSibs = pid ? N[D.parent[pid]].children : N.ROOT.children; const ix = rowSibs.indexOf(pid); const isCur = k === path0.length - 1;
+      const rowSibs = pid ? N[D.parent[pid]].children : N.ROOT.children; const ix = rowSibs.indexOf(pid); const isCur = k === path0.length - 1; const off = k === 0 ? home : 0;
       const row = { indent, top: k * CP, opacity: isCur ? 1 : 0.92, hasLink: k > 0, linkX: indent + CD - 1, linkTop: k * CP - (CP - CRH),
-        steps: rowSibs.map((sid, j) => { const done = j < ix, on = j === ix;
+        steps: (off ? [homeStep] : []).concat(rowSibs.map((sid, j) => { const done = j < ix, on = j === ix;
           return { title: on ? short(name(sid), isCur ? 28 : 20) : '', pad: on ? '4px 11px 4px 4px' : '4px', full: name(sid), mark: done ? '✓' : String(j + 1), opacity: done || on ? 1 : 0.5,
-            lineDisplay: j === 0 ? 'none' : 'block', lineColor: j <= ix ? '#d9432b' : 'rgba(251,249,244,.9)',
+            lineDisplay: j === 0 && !off ? 'none' : 'block', lineColor: j <= ix ? '#d9432b' : 'rgba(251,249,244,.9)',
             bg: on ? (isCur ? '#1d1b17' : '#fbf9f4') : 'rgba(251,249,244,.92)', color: on && isCur ? '#fbf9f4' : '#1d1b17',
             dotBg: done ? '#d9432b' : on ? (isCur ? '#fbf9f4' : '#1d1b17') : 'transparent', dotColor: done ? '#fff' : on && !isCur ? '#fbf9f4' : '#1d1b17', dotBorder: done || on ? '0' : '1.5px solid #1d1b17',
-            onClick: () => { if (sid === cur) return; if (isCur) this.nav(sid, j < ix ? 'left' : 'right'); else this.nav(sid, sid === pid ? 'up' : 'jump'); } }; }) };
-      indent += CS * ix; return row;
+            onClick: () => { if (sid === cur) return; if (isCur) this.nav(sid, j < ix ? 'left' : 'right'); else this.nav(sid, sid === pid ? 'up' : 'jump'); } }; })) };
+      indent += CS * (ix + off); return row;
     });
     const firstVis = Math.max(0, crumbRows.length - 2);
     const crumbTx = -crumbRows[firstVis].indent, crumbTy = -firstVis * CP;
     const curRow = crumbRows[crumbRows.length - 1];
-    const downHint = this.neighbour(cur, 'down', D) ? { x: curRow.indent + CD - 1 + CS * ci - 9, y: curRow.top + CRH, title: 'Below: ' + name(this.neighbour(cur, 'down', D)) } : null;
+    const downHint = this.neighbour(cur, 'down', D) ? { x: curRow.indent + CD - 1 + CS * (ci + (path0.length === 1 ? home : 0)) - 9, y: curRow.top + CRH, title: 'Below: ' + name(this.neighbour(cur, 'down', D)) } : null;
     const crumbH = Math.min(2, crumbRows.length) * CP - (CP - CRH) + (downHint ? 28 : 0);
 
 
@@ -1889,7 +1894,7 @@ class Component extends DCLogic {
       linkIsUrl: !!linkOf && linkOf.type === 'url', linkIsSlide: !!linkOf && linkOf.type === 'slide',
       linkUrl: linkOf && linkOf.url || '', onLinkUrl: e => upL({ link: { type: 'url', url: e.target.value } }),
       linkSlide: linkOf && linkOf.id || '', onLinkSlide: e => upL({ link: { type: 'slide', id: e.target.value } }),
-      slideOptions: D.order.map(id => ({ id, label: '\u00a0'.repeat(D.depth[id] * 3) + name(id) + (id === cur ? '  (this slide)' : '') })),
+      slideOptions: (S.titlePage ? ['ROOT'] : []).concat(D.order).map(id => ({ id, label: '\u00a0'.repeat(id === 'ROOT' ? 0 : D.depth[id] * 3) + name(id) + (id === cur ? '  (this slide)' : '') })),
       followLink: () => linkOf && linkOf.id && this.nav(linkOf.id, 'jump'),
       showLinkSpots: isPresent && !active,
       linkSpots: isPresent ? curLayers.filter(l => l.link && !l.hidden && ((l.link.type === 'url' && l.link.url) || (l.link.type === 'slide' && N[l.link.id]))).map(l => ({ l: l.x, t: l.y, w: l.w, h: l.h, rot: l.rot || 0,
@@ -1914,7 +1919,7 @@ class Component extends DCLogic {
       transCountText: (c => c ? `${c} slide${c === 1 ? ' has' : 's have'} custom transition settings. Undo restores them.` : 'No custom settings yet: every transition uses these defaults.')(Object.values(N).filter(n => n.ftrans && Object.values(n.ftrans).some(m => Object.keys(m || {}).length)).length),
       undo: () => this.undo(), redo: () => this.redo(), undoOp: this._past && this._past.length ? 1 : 0.4, redoOp: this._future && this._future.length ? 1 : 0.4,
       layoutBtns: SLIDE_LAYOUTS.map(L => ({ label: L.label, layers: L.make(this.layoutContent(cur)).map((l, i) => ({ ...l, id: 'p' + i })), onClick: () => this.applyLayout(L.id) })),
-      deckTitle: S.title || name(N.ROOT.children[0]), editTitle: !!DECK && !STATIC && !isPresent, showTitle: !(DECK && !STATIC && !isPresent),
+      deckTitle: S.title || (S.titlePage && N.ROOT.title) || name(N.ROOT.children[0]), editTitle: !!DECK && !STATIC && !isPresent, showTitle: !(DECK && !STATIC && !isPresent),
       titleVal: S.title || '', onTitle: e => this.setState({ title: e.target.value }), keyHint: S.saveMsg || S.note || (isPresent ? '← → ↑ ↓  ·  Space next  ·  / search' + (STATIC ? '' : '  ·  Esc') : ''),
       cardModes: [['none', 'None'], ['text', 'Behind text'], ['slide', 'Whole slide']].map(([m, label]) => ({ label, ...tab(cardCfg.mode === m), onClick: () => setCard({ mode: m }) })),
       cardOn: cardCfg.mode !== 'none', cardColor: cardCfg.color, onCardColor: e => setCard({ color: e.target.value }),
@@ -1937,8 +1942,8 @@ class Component extends DCLogic {
       treeZoom: S.treeZoom || 1, treeZoomLabel: Math.round((S.treeZoom || 1) * 100) + '%', treeZoomIn: () => this.treeZoomStep(1), treeZoomOut: () => this.treeZoomStep(-1),
       treeZoomReset: () => this.setTreeZoom(1), treeZoomFit: () => this.treeZoomFit(), toggleFocus: () => this.setState(s => ({ treeFocus: !s.treeFocus })),
       focusBg: S.treeFocus ? '#1d1b17' : '#fff', focusColor: S.treeFocus ? '#fbf9f4' : '#1d1b17',
-      treeWz: Math.ceil((TPX * 2 + Math.max(1, leaf) * COLW + 20) * (S.treeZoom || 1)), treeHz: Math.ceil((TPY + D.levels * ROWH + 20) * (S.treeZoom || 1)),
-      treeRef: this.treeRef, treeW: TPX * 2 + Math.max(1, leaf) * COLW + 20, treeH: TPY + D.levels * ROWH + 20, treeNodes, treeEdges: topEdge.concat(treeEdges),
+      treeWz: Math.ceil((TPX * 2 + Math.max(1, leaf) * COLW + 20) * (S.treeZoom || 1)), treeHz: Math.ceil((TPY + (D.levels + r0) * ROWH + 20) * (S.treeZoom || 1)),
+      treeRef: this.treeRef, treeW: TPX * 2 + Math.max(1, leaf) * COLW + 20, treeH: TPY + (D.levels + r0) * ROWH + 20, treeNodes, treeEdges: topEdge.concat(treeEdges),
       viewTabs: [{ label: 'Slide', ...tab(S.view === 'slide'), onClick: () => this.setState({ view: 'slide' }) }, { label: 'Wireframe', ...tab(S.view === 'wire'), onClick: () => this.setState({ view: 'wire' }) }],
       viewHint: isWire ? 'Every slide on the looping canvas. Click to select, double-click to open.' : 'What viewers see. Arrow keys move around the tree.',
       stageAreaBg: isPresent ? '#05070c' : '#e6e0d3', showStage: !isWire, showWire: isWire,

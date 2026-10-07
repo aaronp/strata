@@ -60,3 +60,12 @@ test("text boxes grow to fit their text and expose their layer id for measuring"
   expect(html).toMatch(/<div style="width:100%;min-height:100%;display:flex;flex-direction:column/);
   expect(render({ layers: [txt()] }).items[0].lid).toBe("t");
 });
+
+test("image layers: zoom about a focus point, which also pans a cropped image", () => {
+  const img = (extra = {}) => ({ id: "i", type: "image", x: 0, y: 0, w: 10, h: 10, imgKey: "k", ...extra });
+  const v = render({ layers: [img({ zoom: 2, focusX: 20, focusY: 80 })], images: { k: "data:x" } }).items[0];
+  expect(v).toMatchObject({ hasImg: true, imgBg: 'url("data:x") 20% 80% / cover no-repeat', zoom: 2, focus: "20% 80%", boxBg: "transparent" });
+  expect(render({ layers: [img({ fit: "contain" })], images: { k: "data:x" } }).items[0]).toMatchObject({ imgBg: 'url("data:x") 50% 50% / contain no-repeat', zoom: 1, focus: "50% 50%" });
+  expect(render({ layers: [img()], images: {} }).items[0].hasImg).toBe(false);
+  expect(html).toContain("transform:scale({{ e.zoom }});transform-origin:{{ e.focus }}");
+});

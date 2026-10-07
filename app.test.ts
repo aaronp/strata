@@ -504,3 +504,30 @@ test("Copy deck has an As children / Replace toggle", async () => {
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
   expect(html).toContain('<sc-for list="{{ copyModes }}"');
 });
+
+// ---- background scale / repeat / vertical position ----
+test("background tiles: scale, repeat (across / tile / once) and vertical position", async () => {
+  const { c } = await mount("?deck=talk");
+  const B = { src: "x.svg", aspect: 2 };
+  const T = (o: object) => { Object.assign(c.state, { bgScale: 1, bgRepeat: "x", bgY: 0, offset: 0 }, o); return c.bgTileRects(500, B).map((t: any) => [+t.l, +t.t, +(t.w - 0.05).toFixed(3), +(t.h - 0.05).toFixed(3)]); };
+  expect(T({})).toEqual([[0, 0, 40, 100], [40, 0, 40, 100], [80, 0, 40, 100]]);            // today's behaviour
+  expect(T({ bgScale: 0.5, bgY: 1 })).toEqual([0, 20, 40, 60, 80].map(l => [l, 50, 20, 50])); // half height, at the bottom
+  expect(T({ bgScale: 0.5, bgRepeat: "xy" }).length).toBe(10);                                 // 2 rows × 5
+  expect(T({ bgRepeat: "none", offset: 0.25 })).toEqual([[-10, 0, 40, 100]]);
+  expect(c.bgTileRects(500, { src: null, aspect: 1 })).toEqual([]);
+});
+
+test("background scale, repeat and vertical position are saved with the deck", async () => {
+  const { c } = await mount("?deck=talk");
+  c.setState({ bgScale: 0.5, bgRepeat: "xy", bgY: 0.3 }); await c.save();
+  expect(await onDisk()).toMatchObject({ bgScale: 0.5, bgRepeat: "xy", bgY: 0.3 });
+});
+
+test("Background tab and image layer settings have the new controls", async () => {
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  expect(html).toContain('<sc-for list="{{ bgRepeatBtns }}"');
+  expect(html).toContain('onChange="{{ onBgScale }}"');
+  expect(html).toContain('onChange="{{ onBgY }}"');
+  expect(html).toContain('<sc-for list="{{ imgFields }}"');
+  expect(html).toMatch(/top:\{\{ tl\.t \}\}%;height:\{\{ tl\.h \}\}%/);
+});

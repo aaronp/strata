@@ -83,7 +83,7 @@ input,textarea,button{font:inherit;color:inherit}
                 <div onPointerDown="{{ n.onDragStart }}" onClick="{{ n.onClick }}" onDoubleClick="{{ n.onRename }}" title="{{ n.full }}" style="position:relative;width:76px;height:43px;border-radius:5px;overflow:hidden;background:{{ base }};cursor:pointer;outline:{{ n.outline }};outline-offset:1px;box-shadow:0 1px 3px rgba(0,0,0,.18)">
                   <div style="position:absolute;left:0;top:0;width:{{ cam.w }}%;height:{{ cam.h }}%;transform:{{ n.cam }}">
                     <sc-for list="{{ tiles }}" as="tl" hint-placeholder-count="0">
-                      <div style="position:absolute;top:0;bottom:0;left:{{ tl.l }}%;width:calc({{ tl.w }}% + 2px);background:{{ bgCss }};opacity:{{ opacity }}"></div>
+                      <div style="position:absolute;top:{{ tl.t }}%;height:{{ tl.h }}%;left:{{ tl.l }}%;width:calc({{ tl.w }}% + 2px);background:{{ bgCss }};opacity:{{ opacity }}"></div>
                     </sc-for>
                   </div>
                   <dc-import name="Layers" card="{{ deckCard }}" layers="{{ n.layers }}" images="{{ images }}" ink="{{ ink }}" shadow="{{ inkShadow }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
@@ -131,7 +131,7 @@ input,textarea,button{font:inherit;color:inherit}
             <div ref="{{ stageRef }}" style="position:relative;width:min(100cqw - 132px, (100cqh - 196px) * 16 / 9);aspect-ratio:16/9;overflow:hidden;border-radius:12px;background:{{ base }};container-type:inline-size;box-shadow:0 30px 80px -30px rgba(0,0,0,.55)">
               <div style="position:absolute;left:0;top:0;width:{{ cam.w }}%;height:{{ cam.h }}%;transform:{{ curCam }};transition:{{ camTransition }}">
                 <sc-for list="{{ tiles }}" as="tl" hint-placeholder-count="0">
-                  <div style="position:absolute;top:0;bottom:0;left:{{ tl.l }}%;width:calc({{ tl.w }}% + 2px);background:{{ bgCss }};opacity:{{ opacity }}"></div>
+                  <div style="position:absolute;top:{{ tl.t }}%;height:{{ tl.h }}%;left:{{ tl.l }}%;width:calc({{ tl.w }}% + 2px);background:{{ bgCss }};opacity:{{ opacity }}"></div>
                 </sc-for>
               </div>
               <sc-if value="{{ hasPrev }}">
@@ -272,7 +272,7 @@ input,textarea,button{font:inherit;color:inherit}
           <div style="position:absolute;inset:0;overflow:auto;display:flex;align-items:center;padding:24px">
             <div style="position:relative;flex:none;height:min(100cqh - 48px, 100%);aspect-ratio:{{ canvasRatio }};margin:0 auto;background:{{ base }};border-radius:6px;box-shadow:0 20px 60px -24px rgba(0,0,0,.5);overflow:hidden">
               <sc-for list="{{ tiles }}" as="tl" hint-placeholder-count="0">
-                <div style="position:absolute;top:0;bottom:0;left:{{ tl.l }}%;width:{{ tl.w }}%;background:{{ bgCss }};opacity:{{ opacity }};box-shadow:inset 1px 0 0 rgba(251,249,244,.25)"></div>
+                <div style="position:absolute;top:{{ tl.t }}%;height:{{ tl.h }}%;left:{{ tl.l }}%;width:{{ tl.w }}%;background:{{ bgCss }};opacity:{{ opacity }};box-shadow:inset 1px 0 0 rgba(251,249,244,.25)"></div>
               </sc-for>
               <svg width="100%" height="100%" style="position:absolute;inset:0;overflow:visible;pointer-events:none">
                 <sc-for list="{{ wireLines }}" as="wl" hint-placeholder-count="0">
@@ -556,6 +556,12 @@ input,textarea,button{font:inherit;color:inherit}
                   <button onClick="{{ o.onClick }}" title="{{ o.title }}" style="padding:5px 0;border:0;border-radius:6px;cursor:pointer;background:{{ o.bg }};box-shadow:{{ o.shadow }};font-size:12px;font-weight:{{ o.weight }};font-family:{{ o.font }};white-space:nowrap;overflow:hidden">{{ o.label }}</button>
                 </sc-for>
               </div>
+              <sc-for list="{{ imgFields }}" as="im" hint-placeholder-count="3">
+                <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
+                  <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>{{ im.label }}</span><span style="font-family:'JetBrains Mono',monospace">{{ im.valLabel }}</span></span>
+                  <input type="range" min="{{ im.min }}" max="{{ im.max }}" step="{{ im.step }}" value="{{ im.value }}" onChange="{{ im.onChange }}" style="accent-color:#1d1b17;width:100%;min-width:0">
+                </label>
+              </sc-for>
                   <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
                 <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>Corner radius</span><span style="font-family:'JetBrains Mono',monospace">{{ radiusLabel }}</span></span>
                 <input type="range" min="0" max="200" step="1" value="{{ lyRadius }}" onChange="{{ onLyRadius }}" style="accent-color:#1d1b17;width:100%;min-width:0">
@@ -701,6 +707,24 @@ input,textarea,button{font:inherit;color:inherit}
               <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>Horizontal offset</span><span style="font-family:'JetBrains Mono',monospace">{{ offsetLabel }}</span></span>
               <input type="range" min="0" max="1" step="0.01" value="{{ offset }}" onChange="{{ onOffset }}" style="accent-color:#1d1b17;width:100%;min-width:0">
             </label>
+            <sc-if value="{{ hasBgImage }}">
+              <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
+                <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>Scale · image height vs canvas</span><span style="font-family:'JetBrains Mono',monospace">{{ bgScaleLabel }}</span></span>
+                <input type="range" min="0.25" max="3" step="0.05" value="{{ bgScale }}" onChange="{{ onBgScale }}" style="accent-color:#1d1b17;width:100%;min-width:0">
+              </label>
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-size:12px;color:#6b6458;flex:1">Repeat</span>
+                <div style="display:flex;gap:2px;padding:3px;border-radius:9px;background:#ece6d9">
+                  <sc-for list="{{ bgRepeatBtns }}" as="br" hint-placeholder-count="3">
+                    <button onClick="{{ br.onClick }}" style="padding:4px 10px;border:0;border-radius:7px;cursor:pointer;background:{{ br.bg }};color:{{ br.color }};box-shadow:{{ br.shadow }};font-size:12.5px;white-space:nowrap">{{ br.label }}</button>
+                  </sc-for>
+                </div>
+              </div>
+              <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
+                <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>Vertical position</span><span style="font-family:'JetBrains Mono',monospace">{{ bgYLabel }}</span></span>
+                <input type="range" min="0" max="1" step="0.01" value="{{ bgY }}" onChange="{{ onBgY }}" style="accent-color:#1d1b17;width:100%;min-width:0">
+              </label>
+            </sc-if>
             <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
               <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>Opacity</span><span style="font-family:'JetBrains Mono',monospace">{{ opacityLabel }}</span></span>
               <input type="range" min="0" max="1" step="0.05" value="{{ opacity }}" onChange="{{ onOpacity }}" style="accent-color:#1d1b17;width:100%;min-width:0">
@@ -756,7 +780,7 @@ const DECK_BASE = DECK ? '../decks/' + DECK + '/' : '';
 const STATIC = !!window.STRATA_STATIC;
 const UIKEY = 'strata-ui';
 const AUTOSAVE_MS = 800;
-const DECK_FIELDS = ['title', 'source', 'card', 'nodes', 'bg', 'customBg', 'customAspect', 'opacity', 'base', 'offset', 'margin', 'gap', 'tone', 'speed', 'tdef', 'images'];
+const DECK_FIELDS = ['title', 'source', 'card', 'nodes', 'bg', 'customBg', 'customAspect', 'bgScale', 'bgRepeat', 'bgY', 'opacity', 'base', 'offset', 'margin', 'gap', 'tone', 'speed', 'tdef', 'images'];
 const deckUrl = (slug, v) => typeof v === 'string' && v && !/^(data:|blob:|https?:|\/)/.test(v) ? '../decks/' + slug + '/' + v : v;
 const absUrl = v => DECK ? deckUrl(DECK, v) : v;
 const relUrl = v => typeof v === 'string' && DECK_BASE && v.startsWith(DECK_BASE) ? v.slice(DECK_BASE.length) : v;
@@ -968,7 +992,7 @@ class Component extends DCLogic {
     this.histTrack();
     const S = this.state;
     if (!DECK) {
-      const d = JSON.stringify({ nodes: S.nodes, cur: S.cur, mode: S.mode, view: S.view, rtab: S.rtab, bg: S.bg, customAspect: S.customAspect, opacity: S.opacity, base: S.base, offset: S.offset, margin: S.margin, gap: S.gap, tone: S.tone, speed: S.speed, navW: S.navW, rightW: S.rightW, tdef: S.tdef, secOpen: S.secOpen, collapsed: S.collapsed });
+      const d = JSON.stringify({ nodes: S.nodes, cur: S.cur, mode: S.mode, view: S.view, rtab: S.rtab, bg: S.bg, customAspect: S.customAspect, bgScale: S.bgScale, bgRepeat: S.bgRepeat, bgY: S.bgY, opacity: S.opacity, base: S.base, offset: S.offset, margin: S.margin, gap: S.gap, tone: S.tone, speed: S.speed, navW: S.navW, rightW: S.rightW, tdef: S.tdef, secOpen: S.secOpen, collapsed: S.collapsed });
       if (d !== this._d) { this._d = d; try { localStorage.setItem(KEY, d); } catch (e) {} }
       if (S.images !== this._im) { this._im = S.images; try { localStorage.setItem(IKEY, JSON.stringify(S.images)); } catch (e) {} }
       if (S.customBg !== this._bg) { this._bg = S.customBg; try { if (S.customBg) localStorage.setItem(BGKEY, S.customBg); } catch (e) {} }
@@ -994,6 +1018,15 @@ class Component extends DCLogic {
     const walk = (id, d) => { N[id].children.forEach(k => { parent[k] = id; depth[k] = d; order.push(k); walk(k, d + 1); }); };
     walk('ROOT', 0);
     return { parent, depth, order, levels: order.length ? Math.max(...order.map(i => depth[i])) + 1 : 1 };
+  }
+  // Background tiles in % of the canvas (CW × H). bgScale: image height vs canvas; bgRepeat 'x' (across) | 'xy' (tile) | 'none' (once);
+  // bgY: vertical position (slides the image through the slack, or shifts the grid when tiling); offset: horizontal shift in tile widths.
+  bgTileRects(CW, B) {
+    const S = this.state; if (!B.src) return [];
+    const th = H * (S.bgScale || 1), tw = th * B.aspect, rep = S.bgRepeat || 'x', y0 = S.bgY || 0, xoff = (S.offset || 0) * tw;
+    const ys = []; if (rep === 'xy') for (let y = -y0 * th; y < H; y += th) ys.push(y); else ys.push((H - th) * y0);
+    const xs = []; if (rep === 'none') xs.push(-xoff); else for (let x = -xoff; x < CW; x += tw) xs.push(x);
+    return ys.flatMap(y => xs.map(x => ({ l: f3(x / CW * 100), w: f3(tw / CW * 100 + 0.05), t: f3(y / H * 100), h: f3(th / H * 100 + 0.05) })));
   }
   bgInfo() {
     const S = this.state; const t = BGS[S.bg] || BGS.sky;
@@ -1431,8 +1464,8 @@ class Component extends DCLogic {
     const sibs = N[D.parent[cur]].children; const ci = sibs.indexOf(cur);
 
     // canvas: width covers the whole tree plus one viewport of slack; image tiles repeat across it
-    const CW = L.CW + L.w; const tileW = H * B.aspect; const off = S.offset * tileW;
-    const tiles = []; if (B.src) for (let x = -off; x < CW; x += tileW) tiles.push({ l: f3(x / CW * 100), w: f3(tileW / CW * 100 + 0.05) });
+    const CW = L.CW + L.w; const tileW = H * (S.bgScale || 1) * B.aspect;
+    const tiles = this.bgTileRects(CW, B);
     const cam = { w: f3(CW / L.w * 100), h: f3(H / L.h * 100) };
     const camOf = id => { const r = L.rect[id]; return `translate(${f3(-r.x / CW * 100)}%, ${f3(-r.y / H * 100)}%)`; };
 
@@ -1547,6 +1580,8 @@ class Component extends DCLogic {
       colorHex: toHex(curColor), onColorPick: e => upL({ [colorKey]: e.target.value }),
       lyThumb: ly && ly.imgKey && S.images[ly.imgKey] ? `#efeae0 url("${S.images[ly.imgKey]}") center / contain no-repeat` : 'repeating-linear-gradient(45deg,#e4ddcf 0 10px,#efeae0 10px 20px)',
       chooseImage: () => ly && this.chooseImage(ly.id), clearImage: () => upL({ imgKey: null }),
+      imgFields: ly && ly.type === 'image' ? [['Zoom', 'zoom', 1, 4, 0.05, 1, v => Math.round(v * 100) + '%'], ['Horizontal focus', 'focusX', 0, 100, 1, 50, v => v + '%'], ['Vertical focus', 'focusY', 0, 100, 1, 50, v => v + '%']]
+        .map(([label, k, min, max, step, def, fmt]) => ({ label, min, max, step, value: ly[k] ?? def, valLabel: fmt(ly[k] ?? def), onChange: e => upL({ [k]: +e.target.value }) })) : [],
       fitBtns: [['cover', 'Fill frame'], ['contain', 'Fit inside']].map(([f, label]) => ({ label, title: label, ...tabOn(ly && (ly.fit || 'cover') === f), onClick: () => upL({ fit: f }) })),
       lyRadius: ly ? (ly.radius || 0) : 0, radiusLabel: ly ? (ly.radius || 0) + '' : '', onLyRadius: e => upL({ radius: +e.target.value }),
       shapeBtns: [['rect', 'Rectangle'], ['ellipse', 'Ellipse'], ['triangle', 'Triangle']].map(([k, label]) => ({ label, title: label, ...tabOn(ly && ly.shape === k), onClick: () => upL({ shape: k }) })),
@@ -1756,6 +1791,9 @@ class Component extends DCLogic {
       speed: S.speed, speedLabel: S.speed + 'ms', onSpeed: e => this.setState({ speed: +e.target.value }),
       bgTiles: ['sky', 'ocean', 'none'].concat(S.customBg ? ['custom'] : []).map(id => { const src = id === 'custom' ? S.customBg : BGS[id].src;
         return { label: BGS[id].label, border: S.bg === id ? '2px solid #1d1b17' : '1px solid #e0d9cb', thumb: src ? `#e9e3d6 url("${src}") center 20% / cover` : '#efeae0', onClick: () => this.setState({ bg: id }) }; }),
+      hasBgImage: !!B.src, bgScale: S.bgScale || 1, bgScaleLabel: Math.round((S.bgScale || 1) * 100) + '%', onBgScale: e => this.setState({ bgScale: +e.target.value }),
+      bgY: S.bgY || 0, bgYLabel: Math.round((S.bgY || 0) * 100) + '%', onBgY: e => this.setState({ bgY: +e.target.value }),
+      bgRepeatBtns: [['x', 'Across'], ['xy', 'Tile'], ['none', 'Once']].map(([v, label]) => ({ label, ...tab((S.bgRepeat || 'x') === v), onClick: () => this.setState({ bgRepeat: v }) })),
       onUpload: e => this.onUpload(e), offset: S.offset, offsetLabel: Math.round(S.offset * 100) + '%', onOffset: e => this.setState({ offset: +e.target.value }),
       opacityLabel: Math.round(S.opacity * 100) + '%', onOpacity: e => this.setState({ opacity: +e.target.value }),
       baseSwatches: BASES.map(v => ({ value: v, border: S.base === v ? '2px solid #d9432b' : '1px solid rgba(29,27,23,.2)', onClick: () => this.setState({ base: v }) })),

@@ -573,3 +573,11 @@ test("tree panel has zoom controls, a zoom wrapper and the Focus toggle", async 
   for (const s of ['onClick="{{ treeZoomIn }}"', 'onClick="{{ treeZoomOut }}"', 'onClick="{{ treeZoomFit }}"', 'onClick="{{ toggleFocus }}"', "transform:scale({{ treeZoom }});transform-origin:0 0"])
     expect(html).toContain(s);
 });
+
+test("Insert deck is a collapsible section holding the mode toggle and deck chooser", async () => {
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  const i = html.indexOf('<sc-if value="{{ copyShow }}">'), blk = html.slice(i, html.indexOf("</select>", i));
+  expect(blk).toContain('onClick="{{ sec.insert.toggle }}"');
+  expect(blk).toContain(">Insert deck<");
+  expect(blk.indexOf('<sc-if value="{{ sec.insert.open }}">')).toBeLessThan(blk.indexOf('list="{{ copyModes }}"'));
+});

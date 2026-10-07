@@ -315,16 +315,24 @@ input,textarea,button{font:inherit;color:inherit}
               <input ref="{{ titleRef }}" value="{{ cur.title }}" onChange="{{ onTitle }}" placeholder="Slide name" style="padding:8px 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;font-weight:600;outline:none">
             </label>
             <sc-if value="{{ copyShow }}">
-              <div style="display:flex;flex-direction:column;gap:5px">
-                <span style="font-size:12px;color:#6b6458">Copy deck here</span>
-                <div style="display:flex;gap:2px;padding:3px;border-radius:9px;background:#ece6d9">
-                  <sc-for list="{{ copyModes }}" as="cm" hint-placeholder-count="2">
-                    <button onClick="{{ cm.onClick }}" style="flex:1;padding:5px 6px;border:0;border-radius:7px;cursor:pointer;background:{{ cm.bg }};color:{{ cm.color }};box-shadow:{{ cm.shadow }};font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ cm.label }}</button>
-                  </sc-for>
+              <div style="display:flex;flex-direction:column;border:1px solid #e0d9cb;border-radius:10px;background:#fff">
+                <div onClick="{{ sec.insert.toggle }}" style="display:flex;align-items:center;gap:8px;padding:9px 10px;cursor:pointer;user-select:none">
+                  <span style="width:12px;flex:none;font-size:10px;color:#6b6458">{{ sec.insert.caret }}</span>
+                  <span style="flex:1;min-width:0;font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#1d1b17;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Insert deck</span>
                 </div>
-                <select value="" onChange="{{ onCopyDeck }}" style="padding:7px 8px;border:1px solid #e0d9cb;border-radius:7px;background:#fff;outline:none;font-size:13px">
-                  <sc-for list="{{ copyOpts }}" as="o" hint-placeholder-count="2"><option value="{{ o.v }}">{{ o.l }}</option></sc-for>
-                </select>
+                <sc-if value="{{ sec.insert.open }}">
+                  <div style="display:flex;flex-direction:column;gap:6px;padding:0 10px 10px">
+                    <span style="font-size:12px;line-height:1.45;color:#6b6458">Copies another deck's slides into this one as ordinary, editable slides.</span>
+                    <div style="display:flex;gap:2px;padding:3px;border-radius:9px;background:#ece6d9">
+                      <sc-for list="{{ copyModes }}" as="cm" hint-placeholder-count="2">
+                        <button onClick="{{ cm.onClick }}" style="flex:1;padding:5px 6px;border:0;border-radius:7px;cursor:pointer;background:{{ cm.bg }};color:{{ cm.color }};box-shadow:{{ cm.shadow }};font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ cm.label }}</button>
+                      </sc-for>
+                    </div>
+                    <select value="" onChange="{{ onCopyDeck }}" style="padding:7px 8px;border:1px solid #e0d9cb;border-radius:7px;background:#fff;outline:none;font-size:13px">
+                      <sc-for list="{{ copyOpts }}" as="o" hint-placeholder-count="2"><option value="{{ o.v }}">{{ o.l }}</option></sc-for>
+                    </select>
+                  </div>
+                </sc-if>
               </div>
             </sc-if>
             <div style="display:flex;flex-direction:column;border:1px solid #e0d9cb;border-radius:10px;background:#fff">
@@ -1757,7 +1765,7 @@ class Component extends DCLogic {
 
     return {
       ...layerVals, ...linkVals, textFields, boxModes, boxModeLabel, boxColors, boxFields, ...frameVals,
-      sec: Object.fromEntries(['layout', 'frames', 'layers', 'tdef', 'box'].map(k => { const open = !!(S.secOpen || {})[k]; return [k, { open, caret: open ? '▾' : '▸', toggle: () => this.setState(st => ({ secOpen: { ...st.secOpen, [k]: !open } })) }]; })),
+      sec: Object.fromEntries(['layout', 'frames', 'layers', 'tdef', 'box', 'insert'].map(k => { const open = !!(S.secOpen || {})[k]; return [k, { open, caret: open ? '▾' : '▸', toggle: () => this.setState(st => ({ secOpen: { ...st.secOpen, [k]: !open } })) }]; })),
       defAll: Object.fromEntries(['ease', 'dur', 'delay'].map(key => { const on = !!S.dAll[key]; const fb = { ease: 'both', dur: 600, delay: 0 }[key];
         return [key, { label: on ? '✓ All' : 'All', bg: on ? '#1d1b17' : '#fff', color: on ? '#fbf9f4' : '#1d1b17', border: on ? '#1d1b17' : '#cfc6b4',
           onClick: () => this.setState(st => { const next = !on; const out = { dAll: { ...st.dAll, [key]: next } }; if (next) { const v = ((st.tdef || {}).move || {})[key] ?? fb; const td = { ...(st.tdef || {}) }; DEF_ACTS.forEach(a => { td[a] = { ...(td[a] || {}), [key]: v }; }); out.tdef = td; } return out; }) }]; })),
@@ -1780,7 +1788,7 @@ class Component extends DCLogic {
       copyShow: !!DECK && !STATIC, onCopyDeck: e => { const v = e.target.value; if (v) this.copyDeckHere(this.curId(), v, S.copyMode || 'child'); },
       copyModes: [['child', 'As children'], ['replace', 'Replace this slide' + (nCur && nCur.children.length ? ' (+' + (function c(x) { return N[x].children.reduce((n, k) => n + 1 + c(k), 0); })(this.curId()) + ' below)' : '')]]
         .map(([m, label]) => ({ label, ...tab((S.copyMode || 'child') === m), onClick: () => this.setState({ copyMode: m }) })),
-      copyOpts: [{ v: '', l: 'Choose a deck…' }].concat((S.decks || []).filter(d => d.slug !== DECK).map(d => ({ v: d.slug, l: d.title + ' (' + d.slug + ')' }))),
+      copyOpts: [{ v: '', l: 'Choose a deck to insert…' }].concat((S.decks || []).filter(d => d.slug !== DECK).map(d => ({ v: d.slug, l: d.title + ' (' + d.slug + ')' }))),
       delDlg: S.confirmDel && N[S.confirmDel.id] ? { show: true, title: name(S.confirmDel.id), count: S.confirmDel.count, allLabel: 'Delete all ' + (S.confirmDel.count + 1),
         onAll: () => this.confirmDelete('all'), onKeep: () => this.confirmDelete('keep'), onCancel: () => this.confirmDelete('cancel') } : { show: false, title: '', count: 0, allLabel: '' },
       hasDeck: !!DECK && !STATIC, save: () => this.save(), saveLabel: S.saving ? 'Saving…' : S.saveMsg ? '⚠ Save' : this.isDirty() ? '● Unsaved' : '✓ Saved',

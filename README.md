@@ -140,3 +140,6 @@ A layer keeps the **same `id`** across frames; that's how it's matched for tween
 5. Layer editor (select, drag, resize, rotate, text editing, images, paste).
 6. Frames, the transition view, per-action timing, bezier paths and defaults.
 7. Links, layout presets, wireframe view, frame preview and progress dots.
+
+### Components
+**+ Component** (Layers) adds a live, sandboxed HTML/CSS/JS snippet you place and animate like any layer. Paste code into its editor and **Apply**. It talks to the slide through a `strata` helper: it hears `enter` and `frame` (with the frame number and its own tween `duration`), can claim the presenter's → / ← (`strata.ready({ steps: true })`, then `next` / `prev`, handing back with `strata.done()` / `strata.back()`), and can `strata.jumpTo('slide')` or `strata.nav('right')`. **Copy AI guide** copies a brief for an AI to write one; **Interact** lets you click into it while editing. A second → overrides a component that stops responding.

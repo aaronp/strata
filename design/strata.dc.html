@@ -181,7 +181,7 @@ input,textarea,button{font:inherit;color:inherit}
                   <sc-if value="{{ guideV }}"><div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#d9432b;pointer-events:none"></div></sc-if>
                   <sc-if value="{{ guideH }}"><div style="position:absolute;top:50%;left:0;right:0;height:1px;background:#d9432b;pointer-events:none"></div></sc-if>
                   <sc-for list="{{ overlays }}" as="o" hint-placeholder-count="0">
-                    <div onPointerDown="{{ o.onDown }}" onDoubleClick="{{ o.onDbl }}" onDragOver="{{ allowDrop }}" onDrop="{{ o.onDrop }}" style="position:absolute;left:{{ o.l }}%;top:{{ o.t }}%;width:{{ o.w }}%;height:{{ o.h }}%;transform:rotate({{ o.rot }}deg);outline:{{ o.outline }};outline-offset:1px;cursor:move;z-index:{{ o.z }}" style-hover="box-shadow:0 0 0 1px rgba(251,249,244,.8), 0 0 0 2px rgba(0,0,0,.3)">
+                    <div onPointerDown="{{ o.onDown }}" onDoubleClick="{{ o.onDbl }}" onDragOver="{{ allowDrop }}" onDrop="{{ o.onDrop }}" style="position:absolute;left:{{ o.l }}%;top:{{ o.t }}%;width:{{ o.w }}%;height:{{ o.h }}%;transform:rotate({{ o.rot }}deg);outline:{{ o.outline }};outline-offset:1px;cursor:move;z-index:{{ o.z }};pointer-events:{{ o.pe }}" style-hover="box-shadow:0 0 0 1px rgba(251,249,244,.8), 0 0 0 2px rgba(0,0,0,.3)">
                       <sc-if value="{{ o.single }}">
                         <div style="position:absolute;left:-2px;bottom:calc(100% + 6px);padding:2px 6px;border-radius:4px;background:#1f6fb8;color:#fff;font-family:'JetBrains Mono',monospace;font-size:10px;white-space:nowrap;pointer-events:none">{{ o.label }}</div>
                         <div onPointerDown="{{ o.onNW }}" style="position:absolute;left:-7px;top:-7px;width:11px;height:11px;border-radius:3px;background:#fff;border:2px solid #1f6fb8;cursor:nwse-resize"></div>
@@ -561,6 +561,19 @@ input,textarea,button{font:inherit;color:inherit}
                 <input type="color" value="{{ colorHex }}" onChange="{{ onColorPick }}" style="width:28px;height:24px;padding:0;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer">
               </div>
                 </sc-if>
+                <sc-if value="{{ lyIsComponent }}">
+                  <label style="display:flex;flex-direction:column;gap:4px"><span style="font-size:12px;color:#6b6458">Name</span>
+                    <input value="{{ compName }}" onChange="{{ onCompName }}" placeholder="Component" style="padding:7px 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;outline:none"></label>
+                  <span style="font-size:12px;line-height:1.45;color:#6b6458">Paste a snippet (HTML, CSS and JS), then Apply. It runs sandboxed and talks to the slide through <code>strata</code>; Copy AI guide has the details.</span>
+                  <textarea value="{{ compCode }}" onChange="{{ onCompCode }}" rows="14" spellcheck="false" style="width:100%;padding:8px 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;font-family:'JetBrains Mono',monospace;font-size:11.5px;line-height:1.45;outline:none;resize:vertical"></textarea>
+                  <sc-if value="{{ hasCompErr }}"><span style="font-family:'JetBrains Mono',monospace;font-size:11.5px;color:#a8301d">⚠ {{ compErrText }}</span></sc-if>
+                  <div style="display:flex;flex-wrap:wrap;gap:6px">
+                    <button onClick="{{ onCompApply }}" style="padding:6px 12px;border:0;border-radius:8px;background:#1d1b17;color:#fbf9f4;cursor:pointer;font-size:12.5px">Apply</button>
+                    <button onClick="{{ onCompRevert }}" style="padding:6px 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer;font-size:12.5px">Revert</button>
+                    <button onClick="{{ onCompInteract }}" title="Let clicks reach the component on the stage" style="padding:6px 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer;font-size:12.5px">{{ interactLabel }}</button>
+                    <button onClick="{{ onCopyCompGuide }}" style="padding:6px 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer;font-size:12.5px">Copy AI guide</button>
+                  </div>
+                </sc-if>
                 <sc-if value="{{ lyIsImage }}">
                   <div style="height:110px;border-radius:8px;border:1px solid #e0d9cb;background:{{ lyThumb }}"></div>
                   <sc-if value="{{ clipMsgOn }}"><span style="font-size:11.5px;color:#a8301d">{{ clipMsg }}</span></sc-if>
@@ -837,6 +850,29 @@ const LT = (text, g) => ({ type: 'text', text, font: 'grot', size: 40, weight: 4
 const LI = (imgKey, g) => ({ type: 'image', imgKey: imgKey || null, radius: 16, fit: 'cover', rot: 0, opacity: 1, ...g });
 const LS = g => ({ type: 'shape', shape: 'rect', fill: '#d9432b', radius: 0, rot: 0, opacity: 1, ...g });
 const LC = (icon, g) => ({ type: 'icon', icon, fill: null, sw: 1.8, rot: 0, opacity: 1, ...g });
+// Component layers: the default snippet (a self-documenting demo) and the brief for an AI writing one.
+const COMPONENT_DEFAULT = `<div id="out" style="height:100%;display:grid;place-items:center;font:600 7vw system-ui;color:#fbf9f4;background:rgba(31,111,184,.35);border-radius:12px"></div>
+<script>
+  // Talks to the slide via the injected \`strata\` helper.
+  let frame = 0, step = 0;
+  const show = () => out.textContent = 'frame ' + (frame + 1) + ' · step ' + step;
+  strata.on('enter', m => { frame = m.frame; show(); });
+  strata.on('frame', m => { frame = m.frame; show(); });
+  strata.on('next', () => { if (step < 3) { step++; show(); } else strata.done(); });
+  strata.on('prev', () => { if (step > 0) { step--; show(); } else strata.back(); });
+  strata.ready({ steps: true });   // claim →/← in Present
+<\/script>`;
+const COMPONENT_GUIDE = `Write a Strata slide component: one HTML snippet (markup + <style> + <script>) that runs in a sandboxed iframe filling a box on a slide.
+Rules: no access to the parent page, cookies or storage; you may load libraries from CDNs and fetch public URLs. Use a transparent background unless asked; size everything to the iframe (100% width/height, vw/vh units).
+A global \`strata\` object connects it to the slide:
+  strata.on('enter', m => …)   // arrived on the slide: m.frame (0-based), m.frames, m.mode ('build'|'present'), m.slide {id,title}
+  strata.on('frame', m => …)   // the slide's frame changed: m.frame, m.frames, m.from, m.duration (ms this layer's own tween takes; 0 for a jump)
+  strata.ready({ steps: true }) // claim the presenter's → / ← keys in Present mode
+  strata.on('next', () => …)   // → pressed (only after claiming); call strata.done() when there's nothing left to show
+  strata.on('prev', () => …)   // ← pressed; call strata.back() when already at the start
+  strata.done() / strata.back() // hand control back to the deck (also auto-advance, e.g. when a video ends)
+  strata.jumpTo('slide-id-or-title'), strata.nav('left'|'right'|'up'|'down'|'next'|'prev')
+Reply with the complete snippet in one \`\`\`html block.`;
 const SLIDE_LAYOUTS = [
   { id: 'title', label: 'Title', make: c => [LT(c.title, { x: 8, y: 30, w: 84, h: 24, size: 110, weight: 800, align: 'center', valign: 'middle', lh: 1 }), LT(c.sub, { x: 16, y: 57, w: 68, h: 14, size: 36, align: 'center', lh: 1.35 })] },
   { id: 'list', label: 'Title + list', make: c => [LT(c.title, { x: 8, y: 8, w: 84, h: 18, size: 80, weight: 800, valign: 'bottom', lh: 1 }), LT(c.list, { x: 8, y: 33, w: 74, h: 58, size: 40, bullets: 'disc', lh: 1.3, gap: 0.45 })] },
@@ -1329,7 +1365,8 @@ class Component extends DCLogic {
     const D0 = { text: { x: 20, y: 40, w: 60, h: 14, text: 'New text', font: 'grot', size: 56, weight: 600, color: null, align: 'left', valign: 'top', lh: 1.2, bullets: 'none', gap: 0.15 },
       image: { x: 30, y: 20, w: 40, h: 60, radius: 16, fit: 'cover', imgKey: null },
       shape: { x: 40, y: 35, w: 20, h: 30, shape: 'rect', fill: '#d9432b', radius: 24 },
-      icon: { x: 45, y: 41, w: 10, h: 17.78, icon: 'star', fill: null, sw: 1.8 } };
+      icon: { x: 45, y: 41, w: 10, h: 17.78, icon: 'star', fill: null, sw: 1.8 },
+      component: { x: 20, y: 15, w: 60, h: 70, name: 'Component', code: COMPONENT_DEFAULT } };
     const l = { id: lid, type, rot: 0, opacity: 1, ...D0[type], ...(extra || {}) };
     this.setLayers(id, ls => [...ls, l]); this.setState({ layerSel: lid, rtab: 'slide', view: 'slide' });
     if (type === 'text') setTimeout(() => this.startEdit(lid), 40);
@@ -1613,16 +1650,16 @@ class Component extends DCLogic {
     const editable = !isPresent && !isWire && !active;
     const curLayers = this.layersOf(cur); const ly = S.layerSel ? curLayers.find(l => l.id === S.layerSel) : null;
     const upL = patch => ly && this.updLayer(cur, ly.id, patch);
-    const lname = l => l.type === 'text' ? short(String(l.text || '').split('\n')[0] || 'Text', 24) : l.type === 'image' ? 'Image' : l.type === 'shape' ? ({ rect: 'Rectangle', ellipse: 'Ellipse', triangle: 'Triangle' }[l.shape] || 'Shape') : 'Icon · ' + (l.icon || '');
+    const lname = l => l.type === 'text' ? short(String(l.text || '').split('\n')[0] || 'Text', 24) : l.type === 'image' ? 'Image' : l.type === 'shape' ? ({ rect: 'Rectangle', ellipse: 'Ellipse', triangle: 'Triangle' }[l.shape] || 'Shape') : l.type === 'component' ? '⧉ ' + (l.name || 'Component') : 'Icon · ' + (l.icon || '');
     const selIds = this.selIds(), multi = selIds.length > 1, hits = S.marqueeHits || [], mh = this._mh || {};
-    const overlays = curLayers.map((l, i) => ({ l: l.x, t: l.y, w: l.w, h: Math.max(l.h, mh[l.id] || 0), rot: l.rot || 0, z: i + 1, selected: selIds.includes(l.id), single: !multi && l.id === S.layerSel, hidden: !!l.hidden,
+    const overlays = curLayers.map((l, i) => ({ l: l.x, t: l.y, w: l.w, h: Math.max(l.h, mh[l.id] || 0), rot: l.rot || 0, z: i + 1, pe: S.interact === l.id ? 'none' : 'auto', selected: selIds.includes(l.id), single: !multi && l.id === S.layerSel, hidden: !!l.hidden,
       outline: selIds.includes(l.id) || hits.includes(l.id) ? '2px solid #1f6fb8' : 'none', label: lname(l) + (l.link ? (l.link.type === 'url' ? '  ↗ ' + short(l.link.url || 'web link', 26) : '  → ' + short(N[l.link.id] ? name(l.link.id) : 'missing slide', 22)) : ''),
       onDown: ev => this.startDrag(ev, l.id, 'move'), onDbl: ev => { ev.stopPropagation(); this.startEdit(l.id); }, onDrop: ev => this.dropOn(ev, l.id),
       onNW: ev => this.startDrag(ev, l.id, 'nw'), onNE: ev => this.startDrag(ev, l.id, 'ne'), onSW: ev => this.startDrag(ev, l.id, 'sw'), onSE: ev => this.startDrag(ev, l.id, 'se'),
       onW: ev => this.startDrag(ev, l.id, 'w'), onE: ev => this.startDrag(ev, l.id, 'e') })).filter(o => !o.hidden);
     const edL = S.editing ? curLayers.find(l => l.id === S.editing) : null;
     const ed = edL ? { text: edL.text, l: edL.x, t: edL.y, w: edL.w, h: edL.h, font: FONT_CSS[edL.font] || FONT_CSS.grot, fs: (edL.size || 40) / 16, weight: edL.weight || 400, color: edL.color || (light ? '#fbf9f4' : '#15171c'), align: edL.align || 'left', lh: edL.lh || 1.2 } : {};
-    const layerRows = curLayers.map((l, i) => ({ l, i })).reverse().map(({ l, i }) => ({ name: lname(l), glyph: { text: 'T', image: 'IMG', shape: '■', icon: '★' }[l.type], bg: selIds.includes(l.id) ? '#eef3f9' : '#fff', weight: selIds.includes(l.id) ? 700 : 500, opacity: l.hidden ? 0.45 : 1,
+    const layerRows = curLayers.map((l, i) => ({ l, i })).reverse().map(({ l, i }) => ({ name: lname(l), glyph: { text: 'T', image: 'IMG', shape: '■', icon: '★', component: '⧉' }[l.type], bg: selIds.includes(l.id) ? '#eef3f9' : '#fff', weight: selIds.includes(l.id) ? 700 : 500, opacity: l.hidden ? 0.45 : 1,
       eye: l.hidden ? '◌' : '◉', eyeTitle: l.hidden ? 'Show' : 'Hide', upOp: i < curLayers.length - 1 ? 0.8 : 0.25, downOp: i > 0 ? 0.8 : 0.25,
       onClick: e => { if (e && (e.shiftKey || e.metaKey || e.ctrlKey)) this.selectToggle(l.id); else this.setSelection([l.id]); this.setState({ view: 'slide' }); }, onEye: e => { e.stopPropagation(); this.updLayer(cur, l.id, { hidden: !l.hidden }); },
       onUp: e => { e.stopPropagation(); this.zLayer(l.id, 1); }, onDown: e => { e.stopPropagation(); this.zLayer(l.id, -1); } }));
@@ -1635,7 +1672,17 @@ class Component extends DCLogic {
       onEditText: e => edL && this.updLayer(cur, edL.id, { text: e.target.value }), stopEditing: () => this.setState({ editing: null }), stopProp: e => e.stopPropagation(),
       onStageDown: ev => this.startMarquee(ev), allowDrop: e => e.preventDefault(), onStageDrop: e => this.dropOn(e, null),
       rightW: Math.max(240, Math.min(S.rightW, (typeof window !== 'undefined' ? window.innerWidth : 1400) - S.navW - 380)), onRightResize: e => this.rightResize(e),
-      addBtns: [['text', '+ Text'], ['image', '+ Image'], ['shape', '+ Shape'], ['icon', '+ Icon']].map(([t, label]) => ({ label, onClick: () => this.addLayer(t) })),
+      lyIsComponent: !!(ly && ly.type === 'component'), compName: ly && ly.name || '', onCompName: e => upL({ name: e.target.value }),
+      compCode: ly && ly.type === 'component' ? ((S.compDraft || {})[ly.id] ?? ly.code ?? '') : '',
+      onCompCode: e => { const v = e.target.value; this.setState(s => ({ compDraft: { ...(s.compDraft || {}), [ly.id]: v } })); },
+      compDirty: !!(ly && (S.compDraft || {})[ly.id] != null && S.compDraft[ly.id] !== ly.code),
+      onCompApply: () => { const d = (S.compDraft || {})[ly.id]; if (d != null) upL({ code: d }); this.setState(s => { const cd = { ...(s.compDraft || {}) }, ce = { ...(s.compErr || {}) }; delete cd[ly.id]; delete ce[ly.id]; return { compDraft: cd, compErr: ce }; }); },
+      onCompRevert: () => this.setState(s => { const cd = { ...(s.compDraft || {}) }; delete cd[ly.id]; return { compDraft: cd }; }),
+      compErrText: ly && (S.compErr || {})[ly.id] || '', hasCompErr: !!(ly && (S.compErr || {})[ly.id]),
+      compInteract: !!(ly && S.interact === ly.id), onCompInteract: () => this.setState(s => ({ interact: s.interact === ly.id ? null : ly.id })),
+      interactLabel: ly && S.interact === ly.id ? '✓ Interacting' : 'Interact',
+      onCopyCompGuide: () => navigator.clipboard.writeText(COMPONENT_GUIDE).then(() => this.flash('Component guide copied: paste it into your AI'), e => this.flash('Clipboard blocked: ' + e.message)),
+      addBtns: [['text', '+ Text'], ['image', '+ Image'], ['shape', '+ Shape'], ['icon', '+ Icon'], ['component', '+ Component']].map(([t, label]) => ({ label, onClick: () => this.addLayer(t) })),
       layerRows, noLayers: curLayers.length === 0, hasLayer: !!ly && !multi, noLayerSel: !ly,
       hasMulti: multi, multiLabel: selIds.length + ' layers selected', onDupSel: () => this.dupSel(), onDelSel: () => this.delSel(),
       hasGroup: multi && editable, grp: (g => ({ l: g.x, t: g.y, w: g.w, h: g.h, label: selIds.length + ' layers' }))(multi ? groupBox(curLayers.filter(l => selIds.includes(l.id)).map(l => ({ ...l, h: Math.max(l.h, mh[l.id] || 0) }))) : { x: 0, y: 0, w: 0, h: 0 }),
@@ -1720,7 +1767,7 @@ class Component extends DCLogic {
       return { ...g, opacity: 0, hidden: false, _z: 0, _tr: tr, _tr2: tr2 };
     });
     const tv = S.transSel != null && S.transSel < framesCur.length - 1 ? S.transSel : null;
-    const lname2 = l => l.type === 'text' ? short(String(l.text || '').split('\n')[0] || 'Text', 20) : l.type === 'image' ? 'Image' : l.type === 'shape' ? (l.shape || 'Shape') : 'Icon · ' + (l.icon || '');
+    const lname2 = l => l.type === 'text' ? short(String(l.text || '').split('\n')[0] || 'Text', 20) : l.type === 'image' ? 'Image' : l.type === 'shape' ? (l.shape || 'Shape') : l.type === 'component' ? '⧉ ' + (l.name || 'Component') : 'Icon · ' + (l.icon || '');
     const diff = (a, b) => { if (!a) return 'appears'; if (!b) return 'disappears'; const c = [];
       if (Math.abs(a.x - b.x) > 0.05 || Math.abs(a.y - b.y) > 0.05) c.push('move'); if (Math.abs(a.w - b.w) > 0.05 || Math.abs(a.h - b.h) > 0.05) c.push('scale');
       if ((a.rot || 0) !== (b.rot || 0)) c.push('rotate'); if ((a.color || a.fill) !== (b.color || b.fill)) c.push('colour'); if ((a.opacity ?? 1) !== (b.opacity ?? 1) || !!a.hidden !== !!b.hidden) c.push('fade');

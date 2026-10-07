@@ -669,3 +669,31 @@ test("component errors are kept per layer", async () => {
   send({ type: "error", message: "x is not defined", line: 4 });
   expect(c.state.compErr).toEqual({ c1: "x is not defined (line 4)" });
 });
+
+test("+ Component adds a working default; Apply writes the draft, Revert discards it; errors show; Interact frees the overlay", async () => {
+  const { c, send } = await compDeck();
+  c.addLayer("component");
+  const l = () => c.layersOf("a").find((x: any) => x.id === c.state.layerSel);
+  expect(l()).toMatchObject({ type: "component", name: "Component" });
+  expect(l().code).toContain("strata.ready({ steps: true })");
+  expect(c.renderVals().addBtns.map((b: any) => b.label)).toContain("+ Component");
+  let v = c.renderVals();
+  expect(v.lyIsComponent).toBe(true);
+  v.onCompCode({ target: { value: "<p>new</p>" } }); v = c.renderVals();
+  expect(v.compDirty).toBe(true);
+  expect(l().code).not.toBe("<p>new</p>");
+  v.onCompRevert(); v = c.renderVals();
+  expect(v.compCode).toBe(l().code);
+  v.onCompCode({ target: { value: "<p>new</p>" } }); c.renderVals().onCompApply();
+  expect(l().code).toBe("<p>new</p>");
+  c.setState({ compErr: { [c.state.layerSel]: "boom (line 1)" } });
+  expect(c.renderVals().compErrText).toBe("boom (line 1)");
+  c.renderVals().onCompInteract();
+  expect(c.renderVals().overlays.find((o: any) => o.selected).pe).toBe("none");
+});
+
+test("the layers list and template know about components", async () => {
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  for (const s of ['<sc-if value="{{ lyIsComponent }}">', 'onClick="{{ onCompApply }}"', 'onClick="{{ onCopyCompGuide }}"', 'pointer-events:{{ o.pe }}', 'live="{{ cur }}"'])
+    expect(html).toContain(s);
+});

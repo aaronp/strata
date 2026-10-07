@@ -1603,7 +1603,9 @@ class Component extends DCLogic {
     const td = S.treeDrag;
     const treeNodes = TV.vis.map(id => ({ x: tp[id].x, y: tp[id].y, title: name(id),
       hasKids: N[id].children.length > 0, toggleLabel: TV.kids(id).length ? '▾' : '▸ ' + countUnder(id), toggleTitle: TV.kids(id).length ? 'Collapse' : 'Expand',
-      onToggle: e => { e.stopPropagation(); if (S.treeFocus && !TV.kids(id).length && TV.expanded(id)) this.nav(id, 'jump'); else this.toggleCollapse(id); },   // hidden by Focus: go there instead onDragStart: ev => this.startTreeDrag(ev, id), dragOp: td && td.id === id ? 0.35 : 1, full: name(id), cam: camOf(id), layers: this.layersOf(id), selected: id === cur, outline: id === cur ? '2px solid #d9432b' : 'none',
+      // A slide whose children are hidden only by Focus: clicking its toggle goes there instead of collapsing.
+      onToggle: e => { e.stopPropagation(); if (S.treeFocus && !TV.kids(id).length && TV.expanded(id)) this.nav(id, 'jump'); else this.toggleCollapse(id); },
+      onDragStart: ev => this.startTreeDrag(ev, id), dragOp: td && td.id === id ? 0.35 : 1, full: name(id), cam: camOf(id), layers: this.layersOf(id), selected: id === cur, outline: id === cur ? '2px solid #d9432b' : 'none',
       weight: id === cur ? 700 : 500, opacity: q && !match[id] ? 0.35 : 1, delOpacity: D.order.length > 1 ? 1 : 0.4,
       onClick: () => { if (this._suppressClick) { this._suppressClick = false; return; } this.nav(id, 'jump'); }, onRename: () => { this.nav(id, 'jump'); this.setState({ rtab: 'slide' }); this.focusTitle(); },
       onPeer: e => { e.stopPropagation(); this.addPeer(id); }, onChild: e => { e.stopPropagation(); this.addChild(id); }, onDelete: e => { e.stopPropagation(); this.remove(id); } }));

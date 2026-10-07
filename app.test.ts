@@ -753,3 +753,12 @@ test("a repeated error doesn't re-render; Interact only applies while the compon
   expect(html).toContain('<sc-if value="{{ compDirty }}">');
   expect((html.match(/cards="true"/g) || []).length).toBe(3);   // tree, layout previews, frame strip
 });
+
+test("regression: every tree node carries its selection, drag, thumbnail framing and layers", async () => {
+  const c = await treeDeck();
+  const n = c.renderVals().treeNodes.find((t: any) => t.title === "A");
+  expect(n).toMatchObject({ selected: true, outline: "2px solid #d9432b", full: "A", dragOp: 1 });
+  expect(typeof n.onDragStart).toBe("function");
+  expect(typeof n.cam).toBe("string");
+  expect(Array.isArray(n.layers)).toBe(true);
+});

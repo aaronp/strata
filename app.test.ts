@@ -581,3 +581,91 @@ test("Insert deck is a collapsible section holding the mode toggle and deck choo
   expect(blk).toContain(">Insert deck<");
   expect(blk.indexOf('<sc-if value="{{ sec.insert.open }}">')).toBeLessThan(blk.indexOf('list="{{ copyModes }}"'));
 });
+
+// ---- component layers: protocol ----
+async function compDeck() {
+  await writeDeck("talk", { ROOT: slideNode("ROOT", "", ["a", "b"]),
+    a: slideNode("a", "Alpha", [], { frames: [{ id: "f1", layers: [{ id: "c1", type: "component", x: 0, y: 0, w: 50, h: 50, code: "" }] }, { id: "f2", layers: [{ id: "c1", type: "component", x: 0, y: 0, w: 50, h: 50, code: "" }] }] }),
+    b: slideNode("b", "Beta") });
+  const { c, listeners } = await mount("?deck=talk");
+  const win: any = { posted: [] as any[], postMessage(m: any) { this.posted.push(m); } };
+  c.stageRef.current = { clientHeight: 0, querySelectorAll: (q: string) => q === '[data-stage="main"] iframe[data-lid]' ? [{ dataset: { lid: "c1" }, contentWindow: win }] : [] };
+  const send = (data: object, source: any = win) => listeners.message({ source, data: { strata: 1, ...data } });
+  return { c, win, send };
+}
+
+test("hello is answered with enter (frame, frames, mode, slide); frame changes are posted", async () => {
+  const { c, win, send } = await compDeck();
+  send({ type: "hello" });
+  expect(win.posted.at(-1)).toEqual({ strata: 1, type: "enter", frame: 0, frames: 2, mode: "build", slide: { id: "a", title: "Alpha" } });
+  c.componentDidUpdate();                                  // React runs an update after the load; the stub harness doesn't
+  c.setState({ nodes: { ...c.state.nodes, a: { ...c.state.nodes.a, ftrans: { f1: { c1: { move: { dur: 900, delay: 100 }, fade: { dur: 300 } } } } } } });
+  c.setState({ fi: 1 }); c.componentDidUpdate();
+  expect(win.posted.at(-1)).toEqual({ strata: 1, type: "frame", frame: 1, frames: 2, from: 0, duration: 1000 });
+});
+
+test("messages from anything but a main-stage component iframe are ignored", async () => {
+  const { c, win, send } = await compDeck();
+  send({ type: "hello" }, { postMessage() {} });
+  send({ type: "nav", dir: "right" }, {});
+  expect(win.posted).toEqual([]);
+  expect(c.state.cur).toBe("a");
+});
+
+test("Present: a claiming component gets → as next; done advances, ack doesn't; an unacknowledged press is bypassed", async () => {
+  const { c, win, send } = await compDeck();
+  c.setState({ mode: "present" });
+  send({ type: "ready", steps: true });
+  key(c, "ArrowRight");
+  expect(win.posted.at(-1)).toEqual({ strata: 1, type: "next" });
+  expect(c.fiFor("a")).toBe(0);
+  send({ type: "ack" });
+  key(c, "ArrowRight");                                   // acknowledged → forwarded again
+  expect(win.posted.filter((m: any) => m.type === "next").length).toBe(2);
+  send({ type: "done" });                                 // component finished → deck moves (next frame)
+  expect(c.fiFor("a")).toBe(1);
+  key(c, "ArrowRight");                                   // forwarded, never acknowledged…
+  key(c, "ArrowRight");                                   // …so this one bypasses the component
+  expect(c.state.cur).toBe("b");
+});
+
+test("Present: ← and Shift+Space go to the component as prev; back moves the deck back", async () => {
+  const { c, win, send } = await compDeck();
+  c.setState({ mode: "present", fi: 1 });
+  send({ type: "ready", steps: true });
+  key(c, " ", { shiftKey: true });
+  expect(win.posted.at(-1)).toEqual({ strata: 1, type: "prev" });
+  send({ type: "back" });
+  expect(c.fiFor("a")).toBe(0);
+});
+
+test("keys are never routed in build mode, and claims end when the slide changes", async () => {
+  const { c, win, send } = await compDeck();
+  send({ type: "ready", steps: true });
+  key(c, "ArrowRight");
+  expect(win.posted.filter((m: any) => m.type === "next")).toEqual([]);
+  c.setState({ mode: "present", cur: "b" }); c.componentDidUpdate();
+  expect(c.claimer()).toBeNull();
+});
+
+test("component-initiated navigation: done without a pending key, jumpTo by id or title, nav, unknown slug", async () => {
+  const { c, send } = await compDeck();
+  send({ type: "jumpTo", slug: "beta" });
+  expect(c.state.cur).toBe("b");
+  c.setState({ cur: "a" });
+  send({ type: "jumpTo", slug: "b" });
+  expect(c.state.cur).toBe("b");
+  c.setState({ cur: "a", fi: 0 });
+  send({ type: "done" });
+  expect(c.fiFor("a")).toBe(1);
+  send({ type: "nav", dir: "right" });
+  expect(c.state.cur).toBe("b");
+  send({ type: "jumpTo", slug: "nowhere" });
+  expect(c.state.note).toContain('"nowhere"');
+});
+
+test("component errors are kept per layer", async () => {
+  const { c, send } = await compDeck();
+  send({ type: "error", message: "x is not defined", line: 4 });
+  expect(c.state.compErr).toEqual({ c1: "x is not defined (line 4)" });
+});

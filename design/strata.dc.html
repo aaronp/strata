@@ -150,7 +150,7 @@ input,textarea,button{font:inherit;color:inherit}
                 </div>
               </sc-if>
               <div data-stage="main" style="position:absolute;inset:0;transform:{{ planeB.t }};opacity:{{ planeB.o }};transition:{{ planeTr }}">
-                <dc-import name="Layers" card="{{ deckCard }}" layers="{{ stageLayers }}" images="{{ images }}" ink="{{ ink }}" shadow="{{ inkShadow }}" editing-id="{{ editingId }}" show-empty="{{ editable }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
+                <dc-import name="Layers" card="{{ deckCard }}" live="{{ cur }}" layers="{{ stageLayers }}" images="{{ images }}" ink="{{ ink }}" shadow="{{ inkShadow }}" editing-id="{{ editingId }}" show-empty="{{ editable }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
               </div>
               <sc-if value="{{ hasGhost }}">
                 <div style="position:absolute;inset:0;opacity:.5;pointer-events:none;z-index:4">
@@ -889,11 +889,43 @@ class Component extends DCLogic {
     this.onResize = () => this.forceUpdate(); window.addEventListener('resize', this.onResize);
     this.onPaste = this.onPaste.bind(this); window.addEventListener('paste', this.onPaste);
     this.onFocusWin = () => this.probeClip(); window.addEventListener('focus', this.onFocusWin);
+    this.onMsg = e => this.onCompMessage(e); window.addEventListener('message', this.onMsg);
     this.onUnload = e => { if (DECK && !STATIC && this.isDirty()) { e.preventDefault(); e.returnValue = ''; } }; window.addEventListener('beforeunload', this.onUnload);
   }
   scheduleSave() {   // debounced autosave; retries slower after a failure
     clearTimeout(this._as);
     this._as = setTimeout(() => { if (this.state.saving) this.scheduleSave(); else if (this.isDirty()) this.save(); }, this.state.saveMsg ? 5000 : AUTOSAVE_MS);
+  }
+  // ---- component layers: messaging (see the helper in Layers.dc.html) ----
+  compFrames() {
+    const st = this.stageRef.current; if (!st || !st.querySelectorAll) return [];
+    return [...st.querySelectorAll('[data-stage="main"] iframe[data-lid]')].map(el => ({ lid: el.dataset.lid, win: el.contentWindow }));
+  }
+  postComp(win, msg) { try { win && win.postMessage(Object.assign({ strata: 1 }, msg), '*'); } catch (e) {} }
+  compInfo() { const id = this.curId(); return { frame: this.fiFor(id), frames: this.framesOf(id).length }; }
+  claimer() { const c = this._claims || {}; return this.layersOf(this.curId()).map(l => l.id).filter(id => c[id]).pop() || null; }
+  deckMove(act) { if (act === 'right' || act === 'left') this.go(act); else this.step(act === 'step+' ? 1 : -1); }
+  // Present-mode →/←/Space: a claiming component gets next/prev; an unacknowledged forward is bypassed on the next press.
+  routeToComponent(act) {
+    const fwd = act === 'right' || act === 'step+', lid = this.claimer(); if (!lid) return false;
+    const p = this._fwd; if (p && !p.acked && p.fwd === fwd) { this._fwd = null; return false; }
+    const f = this.compFrames().find(x => x.lid === lid); if (!f) return false;
+    this._fwd = { lid, act, fwd, acked: false }; this.postComp(f.win, { type: fwd ? 'next' : 'prev' }); return true;
+  }
+  onCompMessage(e) {
+    const m = e && e.data; if (!m || m.strata !== 1) return;
+    const f = this.compFrames().find(x => x.win === e.source); if (!f) return;
+    const lid = f.lid, N = this.state.nodes, id = this.curId();
+    if (m.type === 'hello') { this._claims = { ...(this._claims || {}), [lid]: false }; this.postComp(f.win, { type: 'enter', ...this.compInfo(), mode: this.state.mode, slide: { id, title: N[id].title } }); }
+    else if (m.type === 'ready') this._claims = { ...(this._claims || {}), [lid]: !!m.steps };
+    else if (m.type === 'ack') { if (this._fwd && this._fwd.lid === lid) this._fwd.acked = true; }
+    else if (m.type === 'done' || m.type === 'back') { const p = this._fwd; this._fwd = null; if (p && p.lid === lid) this.deckMove(p.act); else this.step(m.type === 'done' ? 1 : -1); }
+    else if (m.type === 'jumpTo') {
+      const s = String(m.slug || ''), t = N[s] && s !== 'ROOT' ? s : Object.keys(N).find(k => k !== 'ROOT' && (N[k].title || '').toLowerCase() === s.toLowerCase());
+      if (t) this.nav(t, 'jump'); else this.flash('Component asked for unknown slide "' + s + '"');
+    }
+    else if (m.type === 'nav') { const d = m.dir; if (['left', 'right', 'up', 'down'].includes(d)) this.go(d); else if (d === 'next' || d === 'prev') this.step(d === 'next' ? 1 : -1); }
+    else if (m.type === 'error') this.setState(s => ({ compErr: { ...(s.compErr || {}), [lid]: String(m.message || 'error') + (m.line ? ' (line ' + m.line + ')' : '') } }));
   }
   // Text boxes grow to fit their text; measure the rendered heights (% of the stage) so selection outlines match.
   measureStage() {
@@ -1005,7 +1037,7 @@ class Component extends DCLogic {
     } catch (e) { this.setState({ clipMsg: 'Clipboard blocked here: select the layer and press Ctrl/⌘+V' }); }
     clearTimeout(this.cmT); this.cmT = setTimeout(() => this.setState({ clipMsg: null }), 3500);
   }
-  componentWillUnmount() { clearTimeout(this._as); clearTimeout(this._nt); window.removeEventListener('beforeunload', this.onUnload); window.removeEventListener('paste', this.onPaste); window.removeEventListener('focus', this.onFocusWin); window.removeEventListener('keydown', this.onKey); window.removeEventListener('resize', this.onResize); clearTimeout(this.t); }
+  componentWillUnmount() { window.removeEventListener('message', this.onMsg); clearTimeout(this._as); clearTimeout(this._nt); window.removeEventListener('beforeunload', this.onUnload); window.removeEventListener('paste', this.onPaste); window.removeEventListener('focus', this.onFocusWin); window.removeEventListener('keydown', this.onKey); window.removeEventListener('resize', this.onResize); clearTimeout(this.t); }
   componentDidUpdate() {
     this.histTrack();
     const S = this.state;
@@ -1020,6 +1052,14 @@ class Component extends DCLogic {
     }
     if (S.cur !== this._lastCur) { this._lastCur = S.cur; this.scrollTree(); }
     if (this.measureStage()) this.forceUpdate();
+    const ck = this.curId(), cf = this.fiFor(ck);
+    if (ck !== this._compCur) { this._compCur = ck; this._compFi = cf; this._claims = {}; this._fwd = null; }
+    else if (cf !== this._compFi) {   // per component: its own transition time for this step (0 for a multi-frame jump)
+      const from = this._compFi; this._compFi = cf; const info = this.compInfo(), a = Math.min(from, cf), adj = Math.abs(cf - from) === 1;
+      this.compFrames().forEach(f => { const t = this.transFor(ck, a, f.lid);
+        const duration = adj ? Math.max(...DEF_ACTS.map(act => { const s = this.actT(t, act); return s.dur + s.delay; })) : 0;
+        this.postComp(f.win, { type: 'frame', ...info, from, duration }); });
+    }
     const te = this.treeRef.current;
     if (te !== this._wheelEl) {
       if (this._wheelEl) this._wheelEl.removeEventListener('wheel', this.onTreeWheel);
@@ -1473,6 +1513,8 @@ class Component extends DCLogic {
         return;
       }
     }
+    if (S.mode === 'present' && (k === 'ArrowRight' || k === 'ArrowLeft' || k === ' ')
+      && this.routeToComponent(k === ' ' ? (e.shiftKey ? 'step-' : 'step+') : k === 'ArrowRight' ? 'right' : 'left')) { e.preventDefault(); return; }
     if (k.startsWith('Arrow')) { e.preventDefault(); this.go(k.slice(5).toLowerCase()); }
     else if (k === ' ') { e.preventDefault(); this.step(e.shiftKey ? -1 : 1); }
     else if (S.mode === 'present') {

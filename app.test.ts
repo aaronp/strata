@@ -531,3 +531,45 @@ test("Background tab and image layer settings have the new controls", async () =
   expect(html).toContain('<sc-for list="{{ imgFields }}"');
   expect(html).toMatch(/top:\{\{ tl\.t \}\}%;height:\{\{ tl\.h \}\}%/);
 });
+
+// ---- nav tree: focus filter + zoom ----
+test("Focus shows only the path of parents, the current slide's siblings, and its children", async () => {
+  const c = await treeDeck();
+  c.setState({ treeFocus: true, cur: "b" });
+  expect(c.treeVisible().vis).toEqual(["a", "b"]);
+  c.setState({ cur: "a1" });
+  expect(c.treeVisible().vis).toEqual(["a", "a1", "a1x", "a2"]);
+  c.setState({ cur: "a1x" });
+  expect(c.treeVisible().vis).toEqual(["a", "a1", "a1x"]);
+  c.setState({ cur: "a1", collapsed: { a1: true } });             // collapse still applies to the current slide's children
+  expect(c.treeVisible().vis).toEqual(["a", "a1", "a2"]);
+  c.setState({ treeFocus: false, collapsed: {} });
+  expect(c.treeVisible().vis).toEqual(["a", "a1", "a1x", "a2", "b"]);
+});
+
+test("tree zoom: steps, limits and fit-to-width", async () => {
+  const c = await treeDeck();
+  c.treeZoomStep(1); expect(c.state.treeZoom).toBe(1.25);
+  c.treeZoomStep(-1); c.treeZoomStep(-1); expect(c.state.treeZoom).toBe(0.8);
+  c.setTreeZoom(9); expect(c.state.treeZoom).toBe(1.5);
+  c.setTreeZoom(0.01); expect(c.state.treeZoom).toBe(0.3);
+  c._treeW = 1000; c.treeRef.current = { clientWidth: 408 };
+  c.treeZoomFit(); expect(c.state.treeZoom).toBe(0.4);
+});
+
+test("dragging in a zoomed tree hit-tests in unzoomed tree coordinates", async () => {
+  await writeDeck("talk", { ROOT: slideNode("ROOT", "", ["a", "b"]), a: slideNode("a", "A"), b: slideNode("b", "B") });
+  const { c, listeners } = await mount("?deck=talk");
+  c.setState({ treeZoom: 0.5 });
+  c._tpos = { a: { x: 16, y: 18 }, b: { x: 112, y: 18 } };
+  c.treeRef.current = { scrollLeft: 0, scrollTop: 0, getBoundingClientRect: () => ({ left: 0, top: 0 }) };
+  c.startTreeDrag({ clientX: 70, clientY: 15, button: 0, preventDefault() {} }, "b");
+  listeners.pointermove({ clientX: (16 + 5) * 0.5, clientY: 15 });
+  expect(c.state.treeDrag.drop).toEqual({ id: "a", where: "before" });
+});
+
+test("tree panel has zoom controls, a zoom wrapper and the Focus toggle", async () => {
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  for (const s of ['onClick="{{ treeZoomIn }}"', 'onClick="{{ treeZoomOut }}"', 'onClick="{{ treeZoomFit }}"', 'onClick="{{ toggleFocus }}"', "transform:scale({{ treeZoom }});transform-origin:0 0"])
+    expect(html).toContain(s);
+});

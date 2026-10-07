@@ -19,7 +19,7 @@ type Deck = { …;
 ```
 - `titlePage` and `titleView` join `DECK_FIELDS` (saved, loaded, published).
 - With the flag on, `ROOT` uses the normal slide fields: `title`, `frames`, `ftrans`, `showFrames`.
-- **First enable:** if `ROOT` has no `frames`, seed one frame with a single text layer holding the deck title (`S.title`, falling back to the first top-level slide's name), positioned like the "Title" layout preset.
+- **First enable:** if `ROOT` has no `title` and no `frames`, set `ROOT.title` to the deck title (`S.title`, falling back to the first top-level slide's name). The existing `defaultLayers()` then render it as a big centred title, with no frame seeding needed. Enabling also navigates to ROOT.
 - **Disable:** clear the flag only. `ROOT`'s frames stay, so turning it back on restores them.
 - **Markdown re-import** already keeps `old.ROOT`'s fields (`importer.ts:41`), so the title page survives. The importer leaves `titlePage`/`titleView` untouched, the same as other deck fields.
 
@@ -28,9 +28,8 @@ type Deck = { …;
 - `neighbour('ROOT', 'down')`: `lastChild.ROOT` if it is still a child, else `ROOT.children[0]`. This already falls out of the existing code, because `nav()` records `lastChild` up the path; the loop just has to also record `lastChild.ROOT`.
 - `neighbour('ROOT', 'left' | 'right')`: `null`. ← / → only step frames.
 - **Space / Shift+Space:** the depth-first order is `['ROOT', ...D.order]`. `step()` uses this list, and `dd` treats ROOT as depth −1.
-- **Present mode** opens on `ROOT`, and so does a fresh deck load with no saved `cur`.
+- **Opening a deck** (the builder or the published site) starts on `ROOT`. The builder's Present button keeps the current slide, as it does now.
 - **Valid `cur`:** everywhere that currently falls back with `N[cur] ? cur : ROOT.children[0]` (`curId()`, `render()`, load, delete) accepts `'ROOT'` only when the flag is on. Turning the flag off while on ROOT moves `cur` to `ROOT.children[0]`.
-- **Search:** ROOT matches on its title and jumps like any slide.
 - **Links:** `slideOptions` lists ROOT first (as "Title page") when the flag is on. `jumpTo('ROOT')` works.
 
 ## Rendering
@@ -50,10 +49,10 @@ type Deck = { …;
 - ponytail: separately interpolating translate and scale makes the path drift a little instead of locking onto a fixed point. If that looks off, the upgrade is a rAF tween of a fixed-point zoom.
 
 ### Editing the framing
-On the right panel's Slide tab, when `cur === 'ROOT'`, a collapsible **Title view** section contains:
+On the right panel's Slide tab, when `cur === 'ROOT'`, a **Title view** box contains:
 - a **Zoom** slider (1×–8×, plus whatever Cover needs if that is higher), with **Fit** and **Cover** buttons;
 - **Pan X** and **Pan Y** sliders (0–100%). They have no effect on an axis where the canvas is letterboxed; the hint text says so.
-- Edits go through undo/redo like other deck settings.
+- Edits are not on undo/redo. Undo covers `nodes` only, the same as every other Canvas setting.
 - Skipped: dragging on the stage to pan. It clashes with marquee/layer selection. Add as Alt-drag if wanted.
 
 ### Tree panel

@@ -317,6 +317,28 @@ input,textarea,button{font:inherit;color:inherit}
               <span style="font-size:12px;color:#6b6458">Slide name · tree and breadcrumbs</span>
               <input ref="{{ titleRef }}" value="{{ cur.title }}" onChange="{{ onTitle }}" placeholder="Slide name" style="padding:8px 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;font-weight:600;outline:none">
             </label>
+            <sc-if value="{{ isTitlePage }}">
+              <div style="display:flex;flex-direction:column;gap:8px;padding:10px;border:1px solid #e0d9cb;border-radius:10px;background:#fff">
+                <span style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#1d1b17">Title view · whole canvas</span>
+                <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
+                  <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>Zoom</span><span style="font-family:'JetBrains Mono',monospace">{{ tvZoomLabel }}</span></span>
+                  <input type="range" min="1" max="{{ tvZoomMax }}" step="0.05" value="{{ tvZoom }}" onChange="{{ onTvZoom }}" style="accent-color:#1d1b17;width:100%;min-width:0">
+                </label>
+                <div style="display:flex;gap:6px">
+                  <button onClick="{{ tvFit }}" style="flex:1;padding:5px 0;border:1px solid #e0d9cb;border-radius:7px;background:#fff;cursor:pointer;font-size:12.5px">Fit</button>
+                  <button onClick="{{ tvCover }}" style="flex:1;padding:5px 0;border:1px solid #e0d9cb;border-radius:7px;background:#fff;cursor:pointer;font-size:12.5px">Cover</button>
+                </div>
+                <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
+                  <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>Pan X</span><span style="font-family:'JetBrains Mono',monospace">{{ tvXLabel }}</span></span>
+                  <input type="range" min="0" max="1" step="0.01" value="{{ tvX }}" onChange="{{ onTvX }}" style="accent-color:#1d1b17;width:100%;min-width:0">
+                </label>
+                <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
+                  <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>Pan Y</span><span style="font-family:'JetBrains Mono',monospace">{{ tvYLabel }}</span></span>
+                  <input type="range" min="0" max="1" step="0.01" value="{{ tvY }}" onChange="{{ onTvY }}" style="accent-color:#1d1b17;width:100%;min-width:0">
+                </label>
+                <span style="font-size:12px;line-height:1.45;color:#6b6458">{{ tvHint }}</span>
+              </div>
+            </sc-if>
             <sc-if value="{{ copyShow }}">
               <div style="display:flex;flex-direction:column;border:1px solid #e0d9cb;border-radius:10px;background:#fff">
                 <div onClick="{{ sec.insert.toggle }}" style="display:flex;align-items:center;gap:8px;padding:9px 10px;cursor:pointer;user-select:none">
@@ -725,6 +747,9 @@ input,textarea,button{font:inherit;color:inherit}
           </sc-if>
 
           <sc-if value="{{ tabCanvas }}">
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+              <input type="checkbox" checked="{{ titlePage }}" onChange="{{ onTitlePage }}" style="accent-color:#1d1b17">Title page · the whole canvas as a first slide
+            </label>
             <span style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#6b6458">Canvas image · loops left to right</span>
             <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px">
               <sc-for list="{{ bgTiles }}" as="b" hint-placeholder-count="3">
@@ -1903,7 +1928,16 @@ class Component extends DCLogic {
     };
     const results = isPresent && q ? D.order.filter(id => match[id]).slice(0, 10).map(id => ({ title: name(id), path: pathOf(id).slice(0, -1).map(name).join(' › ') || 'Top level', onClick: () => { this.setState({ query: '' }); this.nav(id, 'jump'); } })) : [];
 
+    const tvw = { zoom: 1, x: 0.5, y: 0.5, ...S.titleView }, setTv = p => this.setState(s => ({ titleView: { zoom: 1, x: 0.5, y: 0.5, ...s.titleView, ...p } }));
+    const tvFree = [TC.Wc <= 1.001 && 'Pan X', TC.Hc <= 1.001 && 'Pan Y'].filter(Boolean);
+
     return {
+      isTitlePage: cur === 'ROOT', titlePage: !!S.titlePage, onTitlePage: e => this.setTitlePage(!!e.target.checked),
+      tvZoom: tvw.zoom, tvZoomMax: Math.max(8, Math.ceil(this.titleCover(L))), tvZoomLabel: tvw.zoom.toFixed(2) + '×', onTvZoom: e => setTv({ zoom: +e.target.value }),
+      tvFit: () => setTv({ zoom: 1 }), tvCover: () => setTv({ zoom: this.titleCover(L) }),
+      tvX: tvw.x, tvXLabel: Math.round(tvw.x * 100) + '%', onTvX: e => setTv({ x: +e.target.value }),
+      tvY: tvw.y, tvYLabel: Math.round(tvw.y * 100) + '%', onTvY: e => setTv({ y: +e.target.value }),
+      tvHint: tvFree.length ? 'The whole canvas fits this way, so ' + tvFree.join(' and ') + ' has no effect.' : '',
       ...layerVals, ...linkVals, textFields, boxModes, boxModeLabel, boxColors, boxFields, ...frameVals,
       sec: Object.fromEntries(['layout', 'frames', 'layers', 'tdef', 'box', 'insert'].map(k => { const open = !!(S.secOpen || {})[k]; return [k, { open, caret: open ? '▾' : '▸', toggle: () => this.setState(st => ({ secOpen: { ...st.secOpen, [k]: !open } })) }]; })),
       defAll: Object.fromEntries(['ease', 'dur', 'delay'].map(key => { const on = !!S.dAll[key]; const fb = { ease: 'both', dur: 600, delay: 0 }[key];

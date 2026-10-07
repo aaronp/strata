@@ -901,3 +901,17 @@ test("tree: the title page sits centred above the top row, joined to it, with no
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
   expect(html).toContain("{{ n.canPeer }}");
 });
+
+test("Title view controls set zoom/Fit/Cover/pan; the Canvas tab toggles the title page", async () => {
+  const c = await titleDeck();
+  let v = c.renderVals();
+  expect(v.isTitlePage).toBe(true); expect(v.titlePage).toBe(true);
+  expect(v.tvHint).toMatch(/Pan Y/);                                   // Fit on a wide deck: letterboxed vertically
+  v.onTvZoom({ target: { value: "3" } }); expect(c.state.titleView.zoom).toBe(3);
+  v = c.renderVals(); v.onTvX({ target: { value: "0.2" } }); expect(c.state.titleView).toEqual({ zoom: 3, x: 0.2, y: 0.5 });
+  v = c.renderVals(); v.onTvY({ target: { value: "0.7" } }); expect(c.state.titleView.y).toBe(0.7);
+  v = c.renderVals(); v.tvFit(); expect(c.state.titleView.zoom).toBe(1);
+  v = c.renderVals(); v.tvCover(); expect(c.state.titleView.zoom).toBeCloseTo(c.titleCover(c.layout(c.derive())));
+  v = c.renderVals(); v.onTitlePage({ target: { checked: false } });
+  expect(c.state.titlePage).toBe(false); expect(c.renderVals().isTitlePage).toBe(false);
+});

@@ -762,3 +762,14 @@ test("regression: every tree node carries its selection, drag, thumbnail framing
   expect(typeof n.cam).toBe("string");
   expect(Array.isArray(n.layers)).toBe(true);
 });
+
+test("collapsing a parent of the current slide selects that parent, so the collapse takes effect", async () => {
+  const c = await treeDeck();
+  c.setState({ cur: "a1x" });
+  c.toggleCollapse("a");
+  expect(c.state.cur).toBe("a");
+  expect(c.treeVisible().vis).toEqual(["a", "b"]);
+  c.toggleCollapse("a");                                     // expanding leaves the selection alone
+  expect(c.state.cur).toBe("a");
+  expect(c.treeVisible().vis).toEqual(["a", "a1", "a1x", "a2", "b"]);
+});

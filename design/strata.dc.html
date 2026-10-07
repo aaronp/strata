@@ -1180,7 +1180,11 @@ class Component extends DCLogic {
     walk('ROOT');
     return { vis, expanded, kids };
   }
-  toggleCollapse(id) { this.setState(s => ({ collapsed: { ...(s.collapsed || {}), [id]: !(s.collapsed || {})[id] } })); }
+  toggleCollapse(id) {
+    const closing = !(this.state.collapsed || {})[id], cur = this.curId();
+    this.setState(s => ({ collapsed: { ...(s.collapsed || {}), [id]: closing } }));
+    if (closing && cur !== id && this.isUnder(cur, id)) this.nav(id, 'jump');   // collapsing above the current slide: select the collapsed slide so it actually closes
+  }
   isUnder(id, anc) { const D = this.derive(); for (let x = id; x; x = D.parent[x]) if (x === anc) return true; return false; }
   // Move a slide (with its subtree) before/after a slide, or inside it as its last child.
   moveNode(id, tid, where) {

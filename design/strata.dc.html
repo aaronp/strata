@@ -317,6 +317,9 @@ input,textarea,button{font:inherit;color:inherit}
               <span style="font-size:12px;color:#6b6458">Slide name · tree and breadcrumbs</span>
               <input ref="{{ titleRef }}" value="{{ cur.title }}" onChange="{{ onTitle }}" placeholder="Slide name" style="padding:8px 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;font-weight:600;outline:none">
             </label>
+            <sc-if value="{{ exportShow }}">
+              <button onClick="{{ onExportMd }}" title="Download this slide and everything below it as markdown (with slug lines), ready to import as a new deck" style="align-self:flex-start;padding:6px 12px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer;font-size:12.5px">↓ Export markdown</button>
+            </sc-if>
             <sc-if value="{{ isTitlePage }}">
               <div style="display:flex;flex-direction:column;gap:8px;padding:10px;border:1px solid #e0d9cb;border-radius:10px;background:#fff">
                 <span style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#1d1b17">Title view · whole canvas</span>
@@ -1202,6 +1205,16 @@ class Component extends DCLogic {
     const go = on ? { cur: 'ROOT' } : S.cur === 'ROOT' ? { cur: first } : null;
     this.setState({ titlePage: on, ...seed, ...(go ? { ...go, prev: null, phase: 'idle', fi: 0, layerSel: null, editing: null, tween: null, transSel: null, fprev: false, confirmDup: null } : {}) });
   }
+  // A slide's branch as markdown (POSTs the live, possibly unsaved nodes; the server shares the importer's format code).
+  async exportMarkdown(id) {
+    const r = await fetch('/api/export', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ nodes: this.state.nodes, id, deck: DECK || 'scratch' }) });
+    const t = await r.text(); if (!r.ok) throw new Error(t || 'HTTP ' + r.status); return t;
+  }
+  async downloadMarkdown(id) {
+    try { const md = await this.exportMarkdown(id); const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([md], { type: 'text/markdown' })); a.download = (id === 'ROOT' ? DECK || 'deck' : id) + '.md'; a.click(); URL.revokeObjectURL(a.href); }
+    catch (e) { this.flash('Couldn\'t export markdown: ' + e.message, 6000); }
+  }
   setNode(id, patch) { this.setState(s => ({ nodes: { ...s.nodes, [id]: { ...s.nodes[id], ...patch } } })); }
   focusTitle() { setTimeout(() => { const el = this.titleRef.current; if (el) { el.focus(); el.select(); } }, 40); }
   // Nav tree zoom (view preference): 30%–150%, stepped, or fit to the panel's width.
@@ -1933,6 +1946,7 @@ class Component extends DCLogic {
     const tvFree = [TC.Wc <= 1.001 && 'Pan X', TC.Hc <= 1.001 && 'Pan Y'].filter(Boolean);
 
     return {
+      exportShow: !STATIC, onExportMd: () => this.downloadMarkdown(cur),
       isTitlePage: cur === 'ROOT', titlePage: !!S.titlePage, onTitlePage: e => this.setTitlePage(!!e.target.checked),
       tvZoom: tvw.zoom, tvZoomMax: Math.max(8, Math.ceil(this.titleCover(L))), tvZoomLabel: tvw.zoom.toFixed(2) + '×', onTvZoom: e => setTv({ zoom: +e.target.value }),
       tvFit: () => setTv({ zoom: 1 }), tvCover: () => setTv({ zoom: this.titleCover(L) }),

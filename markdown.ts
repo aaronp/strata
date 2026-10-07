@@ -103,3 +103,46 @@ export function parseMarkdown(md: string): { sections: Section[]; errors: Issue[
   errors.sort((a, b) => a.line - b.line);
   return { sections: top, errors, warnings };
 }
+
+// The reverse: a slide and its subtree as markdown that parseMarkdown reads back (for a fresh deck, not a merge).
+// Bodies come from each slide's first-frame text layers in reading order; images, shapes and styling don't travel.
+// Slide links outside the branch become plain text, else the new deck wouldn't import.
+export function toMarkdown(nodes: Record<string, any>, id: string, meta: { deck: string; date: string }): string {
+  const inBranch = new Set<string>(), walk = (k: string) => { inBranch.add(k); nodes[k].children.forEach(walk); };
+  walk(id);
+  const height = (k: string): number => 1 + Math.max(0, ...nodes[k].children.map(height));
+  const levels = id === "ROOT" ? height(id) - 1 : height(id);
+  if (levels > 6) throw new Error(`"${nodes[id].title}" is ${levels} levels deep; markdown headings stop at 6 levels`);
+  const one = (s: string) => String(s ?? "").replace(/\s+/g, " ").trim();
+  const safe = (s: string) => /^#{1,6}\s/.test(s) ? " " + s : s;   // a leading space keeps a text line from parsing as a heading
+  const body = (n: any): string[] => {
+    const layers = n.frames?.[0]?.layers ?? n.layers;
+    if (!layers) return n.body ? [n.body.trim()] : [];                     // never edited: the app shows the notes as its default body
+    const blocks: string[] = [];
+    [...layers].filter(l => l.type === "text" && !l.hidden && one(l.text) && one(l.text) !== one(n.title))
+      .sort((a, b) => a.y - b.y || a.x - b.x)
+      .forEach(l => {
+        const lk = l.link;
+        if (lk?.type === "slide") { const label = one(l.text).replace(/\s*→$/, ""); blocks.push(inBranch.has(lk.id) ? `- [link:${lk.id}][${label}]` : safe(label)); return; }
+        if (lk?.type === "url") { blocks.push(`[${one(l.text).replace(/\s*↗$/, "")}](${lk.url})`); return; }
+        let items: string[] = [];
+        const flush = () => { if (items.length) blocks.push(items.join("\n")); items = []; };
+        String(l.text).split("\n").map(s => s.trim()).filter(Boolean).forEach(s => {
+          const dot = /^[•*-]\s+(.*)$/.exec(s);
+          if (l.bullets && l.bullets !== "none") items.push("- " + s);
+          else if (dot) items.push("- " + dot[1]);
+          else { flush(); blocks.push(safe(s)); }
+        });
+        flush();
+      });
+    return blocks;
+  };
+  const out = [`<!-- Exported from deck "${meta.deck}", ${id === "ROOT" ? "whole deck" : `slide "${one(nodes[id].title)}" (${id})`}, ${meta.date} -->`];
+  const emit = (k: string, depth: number) => {
+    const n = nodes[k];
+    out.push(`${"#".repeat(depth)} ${one(n.title) || "Untitled"}\nslug: ${k}`, ...body(n));
+    n.children.forEach((c: string) => emit(c, depth + 1));
+  };
+  if (id === "ROOT") nodes.ROOT.children.forEach((c: string) => emit(c, 1)); else emit(id, 1);
+  return out.join("\n\n") + "\n";
+}

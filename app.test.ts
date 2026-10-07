@@ -930,3 +930,14 @@ test("the wireframe title rect is clamped to the canvas, so all four dashed edge
   expect(+f.t).toBeGreaterThanOrEqual(0); expect(+f.t + +f.h).toBeLessThanOrEqual(100.001);
   expect(+f.l).toBeGreaterThanOrEqual(0);
 });
+
+test("Slide tab: Export markdown fetches the current slide's branch as markdown from the live (unsaved) state", async () => {
+  const c = await titleDeck({});
+  c.setNode("a", { title: "A renamed" });                      // not saved yet
+  const md = await c.exportMarkdown("a");
+  expect(md).toContain("# A renamed\nslug: a");
+  expect(md).toContain("## A1\nslug: a1");
+  expect(c.renderVals().exportShow).toBe(true);
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  expect(html).toContain('onClick="{{ onExportMd }}"');
+});

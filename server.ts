@@ -2,6 +2,7 @@ import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { importMarkdown } from "./importer";
+import { toMarkdown } from "./markdown";
 
 export const SLUG = /^[a-z0-9-]+$/;
 export type DeckInfo = { slug: string; title: string };
@@ -82,6 +83,12 @@ export function handler(root: string) {
       const deck = await req.json().catch(() => null);
       if (!deck?.nodes?.ROOT) return new Response("bad deck: expected { nodes: { ROOT } }", { status: 400 });
       return Response.json(await saveDeck(root, m[1], deck));
+    }
+    if (p === "/api/export" && req.method === "POST") {
+      const b = await req.json().catch(() => null);
+      if (!b?.nodes?.[b.id]) return new Response("bad export: expected { nodes, id, deck }", { status: 400 });
+      try { return new Response(toMarkdown(b.nodes, b.id, { deck: String(b.deck ?? ""), date: new Date().toISOString().slice(0, 10) }), { headers: { "content-type": "text/markdown; charset=utf-8" } }); }
+      catch (e: any) { return new Response(e.message, { status: 400 }); }
     }
     const im = /^\/api\/import\/(.+)$/.exec(p);
     if (im && req.method === "POST") {

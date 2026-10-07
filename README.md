@@ -19,6 +19,8 @@ Decks live in `decks/<slug>/deck.json`, with images extracted to `decks/<slug>/i
 ### Markdown decks
 Headings become slides (`#` top level, `##` below it, …). Put `slug: <id>` on the line after each heading. `[link:<slug>][Label]` adds a clickable chip that jumps to that slide; dotted paths like `[link:top.child][…]` also work. Ordinary `[text](url)` links become source links. Re-importing rewrites text and links but keeps anything you moved, restyled, hid or added in the builder. See `examples/current-situation.md`.
 
+**Export markdown** (Slide tab) does the reverse: it downloads the current slide and everything below it as markdown with `slug:` lines (on the title page: the whole deck), ready to edit and import as a new deck. Bodies come from each slide's text layers; links to slides outside the branch become plain text; images, shapes, styling and later frames don't travel.
+
 ### Composing decks
 In the builder's Slide tab, **Copy deck here** copies another deck's slides (and images) under the current slide as ordinary, editable slides. Copies are independent: later changes to the source deck don't flow into them. Decks saved with the older live "Include deck" are converted to copies the first time they're opened.
 

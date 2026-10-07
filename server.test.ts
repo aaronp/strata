@@ -125,3 +125,14 @@ test("writes from another origin (e.g. a sandboxed component, Origin: null) are 
   expect((await req("PUT", "/api/decks/talk", "http://elsewhere.example", JSON.stringify(deck()))).status).toBe(403);
   expect((await req("PUT", "/api/decks/talk", "http://x", JSON.stringify(deck()))).status).toBe(200);
 });
+
+test("POST /api/export turns a slide's subtree into markdown; bad requests get 400", async () => {
+  const nodes = { ROOT: { id: "ROOT", title: "", body: "", children: ["a"] }, a: { id: "a", title: "A", body: "Notes.", children: [] } };
+  const exp = (body: string) => handler(root)(new Request("http://x/api/export", { method: "POST", body }));
+  const res = await exp(JSON.stringify({ nodes, id: "a", deck: "talk" }));
+  expect(res.status).toBe(200);
+  expect(res.headers.get("content-type")).toContain("text/markdown");
+  expect(await res.text()).toContain("# A\nslug: a\n\nNotes.\n");
+  expect((await exp(JSON.stringify({ nodes, id: "nope", deck: "talk" }))).status).toBe(400);
+  expect((await exp("not json")).status).toBe(400);
+});

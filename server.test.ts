@@ -118,3 +118,10 @@ test("dev index offers markdown import; the published index does not", async () 
   expect(await (await get("/")).text()).toContain('id="imp"');
   expect(indexHtml([], false)).not.toContain('id="imp"');
 });
+
+test("writes from another origin (e.g. a sandboxed component, Origin: null) are refused", async () => {
+  const req = (method: string, path: string, origin: string, body = "x") => handler(root)(new Request("http://x" + path, { method, body, headers: { origin } }));
+  expect((await req("POST", "/api/import/evil", "null", "# A\nslug: a\n")).status).toBe(403);
+  expect((await req("PUT", "/api/decks/talk", "http://elsewhere.example", JSON.stringify(deck()))).status).toBe(403);
+  expect((await req("PUT", "/api/decks/talk", "http://x", JSON.stringify(deck()))).status).toBe(200);
+});

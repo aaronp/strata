@@ -95,7 +95,7 @@ input,textarea,button{font:inherit;color:inherit}
                       <div style="position:absolute;top:{{ tl.t }}%;height:{{ tl.h }}%;left:{{ tl.l }}%;width:calc({{ tl.w }}% + 2px);background:{{ bgCss }};opacity:{{ opacity }}"></div>
                     </sc-for>
                   </div>
-                  <dc-import name="Layers" card="{{ deckCard }}" layers="{{ n.layers }}" images="{{ images }}" ink="{{ ink }}" shadow="{{ inkShadow }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
+                  <dc-import name="Layers" card="{{ deckCard }}" cards="true" layers="{{ n.layers }}" images="{{ images }}" ink="{{ ink }}" shadow="{{ inkShadow }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
                 </div>
                 <div style="margin-top:3px;display:flex;align-items:center;gap:2px;opacity:{{ n.dragOp }}">
                   <sc-if value="{{ n.hasKids }}"><button onClick="{{ n.onToggle }}" title="{{ n.toggleTitle }}" style="flex:none;min-width:18px;height:16px;padding:0 4px;border:1px solid #cfc6b4;border-radius:5px;background:#fff;color:#1d1b17;cursor:pointer;font-size:11px;line-height:14px;font-weight:700;white-space:nowrap">{{ n.toggleLabel }}</button></sc-if>
@@ -347,7 +347,7 @@ input,textarea,button{font:inherit;color:inherit}
                 <sc-for list="{{ layoutBtns }}" as="lb" hint-placeholder-count="8">
                   <button onClick="{{ lb.onClick }}" title="{{ lb.label }}" style="display:flex;flex-direction:column;gap:4px;padding:4px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer;text-align:left;min-width:0" style-hover="border-color:#1d1b17">
                     <div style="position:relative;width:100%;aspect-ratio:16/9;border-radius:4px;overflow:hidden;background:{{ base }}">
-                      <dc-import name="Layers" card="{{ deckCard }}" layers="{{ lb.layers }}" images="{{ images }}" ink="{{ ink }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
+                      <dc-import name="Layers" card="{{ deckCard }}" cards="true" layers="{{ lb.layers }}" images="{{ images }}" ink="{{ ink }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
                     </div>
                     <span style="font-size:11px;font-weight:600;padding:0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ lb.label }}</span>
                   </button>
@@ -373,7 +373,7 @@ input,textarea,button{font:inherit;color:inherit}
                   </sc-if>
                   <div style="flex:none;display:flex;flex-direction:column;align-items:center;gap:3px">
                     <button onClick="{{ fr.onClick }}" style="position:relative;width:78px;aspect-ratio:16/9;padding:0;border:0;border-radius:5px;overflow:hidden;background:{{ base }};cursor:pointer;outline:{{ fr.outline }};outline-offset:1px">
-                      <dc-import name="Layers" card="{{ deckCard }}" layers="{{ fr.layers }}" images="{{ images }}" ink="{{ ink }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
+                      <dc-import name="Layers" card="{{ deckCard }}" cards="true" layers="{{ fr.layers }}" images="{{ images }}" ink="{{ ink }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
                     </button>
                     <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:{{ fr.labelColor }};font-weight:{{ fr.weight }}">{{ fr.label }}</span>
                   </div>
@@ -567,6 +567,7 @@ input,textarea,button{font:inherit;color:inherit}
                   <span style="font-size:12px;line-height:1.45;color:#6b6458">Paste a snippet (HTML, CSS and JS), then Apply. It runs sandboxed and talks to the slide through <code>strata</code>; Copy AI guide has the details.</span>
                   <textarea value="{{ compCode }}" onChange="{{ onCompCode }}" rows="14" spellcheck="false" style="width:100%;padding:8px 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;font-family:'JetBrains Mono',monospace;font-size:11.5px;line-height:1.45;outline:none;resize:vertical"></textarea>
                   <sc-if value="{{ hasCompErr }}"><span style="font-family:'JetBrains Mono',monospace;font-size:11.5px;color:#a8301d">⚠ {{ compErrText }}</span></sc-if>
+                  <sc-if value="{{ compDirty }}"><span style="font-size:11.5px;color:#a8301d">● Unapplied changes: press Apply to run them</span></sc-if>
                   <div style="display:flex;flex-wrap:wrap;gap:6px">
                     <button onClick="{{ onCompApply }}" style="padding:6px 12px;border:0;border-radius:8px;background:#1d1b17;color:#fbf9f4;cursor:pointer;font-size:12.5px">Apply</button>
                     <button onClick="{{ onCompRevert }}" style="padding:6px 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer;font-size:12.5px">Revert</button>
@@ -872,6 +873,7 @@ A global \`strata\` object connects it to the slide:
   strata.on('prev', () => …)   // ← pressed; call strata.back() when already at the start
   strata.done() / strata.back() // hand control back to the deck (also auto-advance, e.g. when a video ends)
   strata.jumpTo('slide-id-or-title'), strata.nav('left'|'right'|'up'|'down'|'next'|'prev')
+Keys pressed inside the component (arrows, Space, Escape) are passed to the deck unless you call preventDefault() on them. alert/confirm, popups and form submits are blocked; errors from CDN scripts show only as "Script error.".
 Reply with the complete snippet in one \`\`\`html block.`;
 const SLIDE_LAYOUTS = [
   { id: 'title', label: 'Title', make: c => [LT(c.title, { x: 8, y: 30, w: 84, h: 24, size: 110, weight: 800, align: 'center', valign: 'middle', lh: 1 }), LT(c.sub, { x: 16, y: 57, w: 68, h: 14, size: 36, align: 'center', lh: 1.35 })] },
@@ -939,7 +941,10 @@ class Component extends DCLogic {
   }
   postComp(win, msg) { try { win && win.postMessage(Object.assign({ strata: 1 }, msg), '*'); } catch (e) {} }
   compInfo() { const id = this.curId(); return { frame: this.fiFor(id), frames: this.framesOf(id).length }; }
-  claimer() { const c = this._claims || {}; return this.layersOf(this.curId()).map(l => l.id).filter(id => c[id]).pop() || null; }
+  claimer() { const c = this._claims || {}; return this.layersOf(this.curId()).filter(l => !l.hidden && c[l.id]).map(l => l.id).pop() || null; }
+  // Code and name belong to the component, not a frame: write them to every frame so stepping frames never reloads it.
+  updLayerAllFrames(id, lid, patch) { this.setState(s => { const n = s.nodes[id], { layers: _legacy, ...rest } = n;
+    return { nodes: { ...s.nodes, [id]: { ...rest, frames: this.framesOfNode(n).map(f => ({ ...f, layers: f.layers.map(l => l.id === lid ? { ...l, ...patch } : l) })) } } }; }); }
   deckMove(act) { if (act === 'right' || act === 'left') this.go(act); else this.step(act === 'step+' ? 1 : -1); }
   // Present-mode →/←/Space: a claiming component gets next/prev; an unacknowledged forward is bypassed on the next press.
   routeToComponent(act) {
@@ -952,6 +957,8 @@ class Component extends DCLogic {
     const m = e && e.data; if (!m || m.strata !== 1) return;
     const f = this.compFrames().find(x => x.win === e.source); if (!f) return;
     const lid = f.lid, N = this.state.nodes, id = this.curId();
+    // While editing, component navigation only runs with Interact on for it (else an auto-advancing snippet makes its own slide uneditable).
+    if (['done', 'back', 'jumpTo', 'nav'].includes(m.type) && this.state.mode !== 'present' && this.state.interact !== lid) { this.flash('Component asked to navigate (ignored while editing: turn on Interact to try it)'); return; }
     if (m.type === 'hello') { this._claims = { ...(this._claims || {}), [lid]: false }; this.postComp(f.win, { type: 'enter', ...this.compInfo(), mode: this.state.mode, slide: { id, title: N[id].title } }); }
     else if (m.type === 'ready') this._claims = { ...(this._claims || {}), [lid]: !!m.steps };
     else if (m.type === 'ack') { if (this._fwd && this._fwd.lid === lid) this._fwd.acked = true; }
@@ -961,7 +968,8 @@ class Component extends DCLogic {
       if (t) this.nav(t, 'jump'); else this.flash('Component asked for unknown slide "' + s + '"');
     }
     else if (m.type === 'nav') { const d = m.dir; if (['left', 'right', 'up', 'down'].includes(d)) this.go(d); else if (d === 'next' || d === 'prev') this.step(d === 'next' ? 1 : -1); }
-    else if (m.type === 'error') this.setState(s => ({ compErr: { ...(s.compErr || {}), [lid]: String(m.message || 'error') + (m.line ? ' (line ' + m.line + ')' : '') } }));
+    else if (m.type === 'key') { if (this.state.mode === 'present') this.onKey({ key: m.key, shiftKey: !!m.shiftKey, target: {}, preventDefault() {} }); }   // keys pressed inside a focused component
+    else if (m.type === 'error') { const t = String(m.message || 'error') + (m.line ? ' (line ' + m.line + ')' : ''); if ((this.state.compErr || {})[lid] !== t) this.setState(s => ({ compErr: { ...(s.compErr || {}), [lid]: t } })); }
   }
   // Text boxes grow to fit their text; measure the rendered heights (% of the stage) so selection outlines match.
   measureStage() {
@@ -1652,7 +1660,7 @@ class Component extends DCLogic {
     const upL = patch => ly && this.updLayer(cur, ly.id, patch);
     const lname = l => l.type === 'text' ? short(String(l.text || '').split('\n')[0] || 'Text', 24) : l.type === 'image' ? 'Image' : l.type === 'shape' ? ({ rect: 'Rectangle', ellipse: 'Ellipse', triangle: 'Triangle' }[l.shape] || 'Shape') : l.type === 'component' ? '⧉ ' + (l.name || 'Component') : 'Icon · ' + (l.icon || '');
     const selIds = this.selIds(), multi = selIds.length > 1, hits = S.marqueeHits || [], mh = this._mh || {};
-    const overlays = curLayers.map((l, i) => ({ l: l.x, t: l.y, w: l.w, h: Math.max(l.h, mh[l.id] || 0), rot: l.rot || 0, z: i + 1, pe: S.interact === l.id ? 'none' : 'auto', selected: selIds.includes(l.id), single: !multi && l.id === S.layerSel, hidden: !!l.hidden,
+    const overlays = curLayers.map((l, i) => ({ l: l.x, t: l.y, w: l.w, h: Math.max(l.h, mh[l.id] || 0), rot: l.rot || 0, z: i + 1, pe: S.interact === l.id && S.layerSel === l.id ? 'none' : 'auto', selected: selIds.includes(l.id), single: !multi && l.id === S.layerSel, hidden: !!l.hidden,
       outline: selIds.includes(l.id) || hits.includes(l.id) ? '2px solid #1f6fb8' : 'none', label: lname(l) + (l.link ? (l.link.type === 'url' ? '  ↗ ' + short(l.link.url || 'web link', 26) : '  → ' + short(N[l.link.id] ? name(l.link.id) : 'missing slide', 22)) : ''),
       onDown: ev => this.startDrag(ev, l.id, 'move'), onDbl: ev => { ev.stopPropagation(); this.startEdit(l.id); }, onDrop: ev => this.dropOn(ev, l.id),
       onNW: ev => this.startDrag(ev, l.id, 'nw'), onNE: ev => this.startDrag(ev, l.id, 'ne'), onSW: ev => this.startDrag(ev, l.id, 'sw'), onSE: ev => this.startDrag(ev, l.id, 'se'),
@@ -1672,11 +1680,11 @@ class Component extends DCLogic {
       onEditText: e => edL && this.updLayer(cur, edL.id, { text: e.target.value }), stopEditing: () => this.setState({ editing: null }), stopProp: e => e.stopPropagation(),
       onStageDown: ev => this.startMarquee(ev), allowDrop: e => e.preventDefault(), onStageDrop: e => this.dropOn(e, null),
       rightW: Math.max(240, Math.min(S.rightW, (typeof window !== 'undefined' ? window.innerWidth : 1400) - S.navW - 380)), onRightResize: e => this.rightResize(e),
-      lyIsComponent: !!(ly && ly.type === 'component'), compName: ly && ly.name || '', onCompName: e => upL({ name: e.target.value }),
+      lyIsComponent: !!(ly && ly.type === 'component'), compName: ly && ly.name || '', onCompName: e => this.updLayerAllFrames(cur, ly.id, { name: e.target.value }),
       compCode: ly && ly.type === 'component' ? ((S.compDraft || {})[ly.id] ?? ly.code ?? '') : '',
       onCompCode: e => { const v = e.target.value; this.setState(s => ({ compDraft: { ...(s.compDraft || {}), [ly.id]: v } })); },
       compDirty: !!(ly && (S.compDraft || {})[ly.id] != null && S.compDraft[ly.id] !== ly.code),
-      onCompApply: () => { const d = (S.compDraft || {})[ly.id]; if (d != null) upL({ code: d }); this.setState(s => { const cd = { ...(s.compDraft || {}) }, ce = { ...(s.compErr || {}) }; delete cd[ly.id]; delete ce[ly.id]; return { compDraft: cd, compErr: ce }; }); },
+      onCompApply: () => { const d = (S.compDraft || {})[ly.id]; if (d != null) this.updLayerAllFrames(cur, ly.id, { code: d }); this.setState(s => { const cd = { ...(s.compDraft || {}) }, ce = { ...(s.compErr || {}) }; delete cd[ly.id]; delete ce[ly.id]; return { compDraft: cd, compErr: ce }; }); },
       onCompRevert: () => this.setState(s => { const cd = { ...(s.compDraft || {}) }; delete cd[ly.id]; return { compDraft: cd }; }),
       compErrText: ly && (S.compErr || {})[ly.id] || '', hasCompErr: !!(ly && (S.compErr || {})[ly.id]),
       compInteract: !!(ly && S.interact === ly.id), onCompInteract: () => this.setState(s => ({ interact: s.interact === ly.id ? null : ly.id })),

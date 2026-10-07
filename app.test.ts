@@ -650,6 +650,7 @@ test("keys are never routed in build mode, and claims end when the slide changes
 
 test("component-initiated navigation: done without a pending key, jumpTo by id or title, nav, unknown slug", async () => {
   const { c, send } = await compDeck();
+  c.setState({ mode: "present" });                         // while editing, navigation needs Interact (tested separately)
   send({ type: "jumpTo", slug: "beta" });
   expect(c.state.cur).toBe("b");
   c.setState({ cur: "a" });
@@ -696,4 +697,59 @@ test("the layers list and template know about components", async () => {
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
   for (const s of ['<sc-if value="{{ lyIsComponent }}">', 'onClick="{{ onCompApply }}"', 'onClick="{{ onCopyCompGuide }}"', 'pointer-events:{{ o.pe }}', 'live="{{ cur }}"'])
     expect(html).toContain(s);
+});
+
+// ---- component review fixes ----
+test("Apply and Name write to every frame of the slide, so stepping frames never reloads with old code", async () => {
+  const { c } = await compDeck();
+  c.setState({ layerSel: "c1" });
+  const v = c.renderVals(); v.onCompCode({ target: { value: "<p>new</p>" } }); c.renderVals().onCompApply(); c.renderVals().onCompName({ target: { value: "Clock" } });
+  expect(c.framesOf("a").map((f: any) => [f.layers[0].code, f.layers[0].name])).toEqual([["<p>new</p>", "Clock"], ["<p>new</p>", "Clock"]]);
+});
+
+test("a claim made before hello survives it (the helper replays ready)", async () => {
+  const { c, win, send } = await compDeck();
+  c.setState({ mode: "present" });
+  send({ type: "ready", steps: true }); send({ type: "hello" }); send({ type: "ready", steps: true });
+  key(c, "ArrowRight");
+  expect(win.posted.at(-1)).toEqual({ strata: 1, type: "next" });
+});
+
+test("keys pressed inside a component reach the deck in Present", async () => {
+  const { c, send } = await compDeck();
+  c.setState({ mode: "present" });
+  send({ type: "key", key: "ArrowRight", shiftKey: false });
+  expect(c.fiFor("a")).toBe(1);
+});
+
+test("while editing, a component can't navigate unless Interact is on for it", async () => {
+  const { c, send } = await compDeck();
+  send({ type: "done" });
+  expect(c.state.cur).toBe("a");
+  expect(c.fiFor("a")).toBe(0);
+  expect(c.state.note).toContain("Interact");
+  c.setState({ interact: "c1", layerSel: "c1" });
+  send({ type: "jumpTo", slug: "b" });
+  expect(c.state.cur).toBe("b");
+});
+
+test("a hidden component can't claim the keys", async () => {
+  const { c, send } = await compDeck();
+  c.setState({ nodes: { ...c.state.nodes, a: { ...c.state.nodes.a, frames: c.state.nodes.a.frames.map((f: any) => ({ ...f, layers: f.layers.map((l: any) => ({ ...l, hidden: true })) })) } } });
+  send({ type: "ready", steps: true });
+  expect(c.claimer()).toBeNull();
+});
+
+test("a repeated error doesn't re-render; Interact only applies while the component is selected; unapplied changes are shown", async () => {
+  const { c, send } = await compDeck();
+  send({ type: "error", message: "x", line: 1 }); const e1 = c.state.compErr;
+  send({ type: "error", message: "x", line: 1 });
+  expect(c.state.compErr).toBe(e1);
+  c.setState({ interact: "c1", layerSel: "c1" });
+  expect(c.renderVals().overlays[0].pe).toBe("none");
+  c.setState({ layerSel: null });
+  expect(c.renderVals().overlays[0].pe).toBe("auto");
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  expect(html).toContain('<sc-if value="{{ compDirty }}">');
+  expect((html.match(/cards="true"/g) || []).length).toBe(3);   // tree, layout previews, frame strip
 });

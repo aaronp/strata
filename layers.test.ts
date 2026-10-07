@@ -91,8 +91,9 @@ test("the same component keeps an identical src across frames (no reload), but n
   expect(render({ layers: [comp()], live: "s2" }).items[0].src).not.toBe(a);
 });
 
-test("not live (thumbnails, previews): a placeholder card with the name, no iframe", () => {
-  expect(render({ layers: [comp()] }).items[0]).toMatchObject({ isComponent: true, live: false, placeholder: true, name: "Demo", src: "" });
+test("not live: a name card in builder thumbnails (cards), nothing in the swipe/ghost planes", () => {
+  expect(render({ layers: [comp()], cards: "true" }).items[0]).toMatchObject({ isComponent: true, live: false, placeholder: true, name: "Demo", src: "" });
+  expect(render({ layers: [comp()] }).items[0]).toMatchObject({ isComponent: true, live: false, placeholder: false, src: "" });
 });
 
 test("a pasted full HTML document keeps the helper first", () => {
@@ -110,7 +111,25 @@ test("the helper: forwards messages to handlers, acks next/prev, reports errors,
   expect(got).toEqual(["next"]);
   expect(posted).toEqual([{ strata: 1, type: "ack" }]);
   win.strata.ready({ steps: true }); win.strata.done(); win.strata.jumpTo("intro"); win.strata.nav("up");
-  L.error({ message: "boom", lineno: 3 }); L.load();
+  L.error({ message: "boom", lineno: 3 }); L.DOMContentLoaded();
   expect(posted.slice(1)).toEqual([{ strata: 1, type: "ready", steps: true }, { strata: 1, type: "done" }, { strata: 1, type: "jumpTo", slug: "intro" },
-    { strata: 1, type: "nav", dir: "up" }, { strata: 1, type: "error", message: "boom", line: 3 }, { strata: 1, type: "hello" }]);
+    { strata: 1, type: "nav", dir: "up" }, { strata: 1, type: "error", message: "boom", line: 3 }, { strata: 1, type: "hello" },
+    { strata: 1, type: "ready", steps: true }]);   // ready is replayed after hello: the host resets claims on hello
+});
+
+test("helper relays navigation keys pressed inside the component unless it handled them", async () => {
+  const posted: any[] = [], L: Record<string, Function> = {}, parent = { postMessage: (m: any) => posted.push(m) }, win: any = {};
+  new Function("parent", "addEventListener", "window", HELPER)(parent, (t: string, f: Function) => (L[t] = f), win);
+  L.keydown({ key: "ArrowRight", shiftKey: false, defaultPrevented: false });
+  L.keydown({ key: " ", shiftKey: true, defaultPrevented: false });
+  L.keydown({ key: "ArrowLeft", defaultPrevented: true });
+  L.keydown({ key: "a", defaultPrevented: false });
+  await Bun.sleep(5);
+  expect(posted).toEqual([{ strata: 1, type: "key", key: "ArrowRight", shiftKey: false }, { strata: 1, type: "key", key: " ", shiftKey: true }]);
+});
+
+test("a component that isn't showing in this frame doesn't catch clicks", () => {
+  expect(render({ layers: [comp()], live: "s1" }).items[0].pe).toBe("auto");
+  expect(render({ layers: [comp({ opacity: 0 })], live: "s1" }).items[0].pe).toBe("none");
+  expect(html).toContain("pointer-events:{{ e.pe }}");
 });

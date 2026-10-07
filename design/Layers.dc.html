@@ -31,7 +31,7 @@
       </sc-if>
       <sc-if value="{{ e.isComponent }}">
         <sc-if value="{{ e.live }}">
-          <iframe data-lid="{{ e.lid }}" sandbox="allow-scripts" src="{{ e.src }}" title="{{ e.name }}" style="display:block;width:100%;height:100%;border:0;background:transparent;pointer-events:auto"></iframe>
+          <iframe data-lid="{{ e.lid }}" sandbox="allow-scripts" src="{{ e.src }}" title="{{ e.name }}" style="display:block;width:100%;height:100%;border:0;background:transparent;pointer-events:{{ e.pe }}"></iframe>
         </sc-if>
         <sc-if value="{{ e.placeholder }}">
           <div style="width:100%;height:100%;display:grid;place-items:center;border-radius:1cqw;background:rgba(29,27,23,.78);color:#fbf9f4;font-family:'JetBrains Mono',monospace;font-size:1.4cqw;letter-spacing:.06em;overflow:hidden;white-space:nowrap">⧉ {{ e.name }}</div>
@@ -49,7 +49,7 @@
   </sc-for>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:800,&quot;height&quot;:450},&quot;layers&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;array&quot;},&quot;live&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;string&quot;},&quot;card&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;object&quot;},&quot;images&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;object&quot;},&quot;ink&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#15171c&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;shadow&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;none&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;editingId&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;string&quot;},&quot;showEmpty&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;}}">
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:800,&quot;height&quot;:450},&quot;layers&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;array&quot;},&quot;live&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;string&quot;},&quot;cards&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;string&quot;},&quot;card&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;object&quot;},&quot;images&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;object&quot;},&quot;ink&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#15171c&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;shadow&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;none&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;editingId&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;string&quot;},&quot;showEmpty&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;}}">
 const FONTS = { grot: "'Bricolage Grotesque',sans-serif", serif: "'DM Serif Display',serif", news: "'Newsreader',serif", mono: "'JetBrains Mono',monospace", hand: "'Caveat',cursive" };
 const ICONS = {
   arrow: 'M5 12h14M13 6l6 6-6 6', check: 'M5 12.5l4.5 4.5L19 7.5', star: 'M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z',
@@ -61,12 +61,13 @@ const ICONS = {
 const MARKS = { disc: '•', dash: '–', check: '✓', arrow: '→' };
 const rgba = (hex, a) => { const n = parseInt(/^#[0-9a-f]{6}$/i.test(hex || '') ? hex.slice(1) : '0b1220', 16); return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`; };
 // Component layers: a snippet runs in a sandboxed iframe; this helper (injected first) is its only link to the slide.
-const HELPER = "(function(){var h={};function emit(t,d){parent.postMessage(Object.assign({strata:1,type:t},d||{}),'*');}" +
+const HELPER = "(function(){var h={},r=null;function emit(t,d){parent.postMessage(Object.assign({strata:1,type:t},d||{}),'*');}" +
   "addEventListener('message',function(e){var m=e.data;if(e.source!==parent||!m||m.strata!==1)return;(h[m.type]||[]).forEach(function(f){f(m);});if(m.type==='next'||m.type==='prev')emit('ack');});" +
   "addEventListener('error',function(e){emit('error',{message:String(e.message),line:e.lineno});});" +
   "addEventListener('unhandledrejection',function(e){var r=e.reason;emit('error',{message:String(r&&r.message||r)});});" +
-  "addEventListener('load',function(){emit('hello');});" +
-  "window.strata={on:function(t,f){(h[t]=h[t]||[]).push(f);},emit:emit,ready:function(o){emit('ready',o||{});},done:function(){emit('done');},back:function(){emit('back');}," +
+  "addEventListener('DOMContentLoaded',function(){emit('hello');if(r)emit('ready',r);});" +
+  "addEventListener('keydown',function(e){if(/^(Arrow|PageUp|PageDown|Escape| )/.test(e.key))setTimeout(function(){if(!e.defaultPrevented)emit('key',{key:e.key,shiftKey:!!e.shiftKey});},0);});" +
+  "window.strata={on:function(t,f){(h[t]=h[t]||[]).push(f);},emit:emit,ready:function(o){r=o||{};emit('ready',r);},done:function(){emit('done');},back:function(){emit('back');}," +
   "jumpTo:function(s){emit('jumpTo',{slug:s});},nav:function(d){emit('nav',{dir:d});}};})();";
 // Note '<\/script>': a literal closing tag here would end this <script> block when the page is parsed.
 const componentDoc = (code, key) => '<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;height:100%;background:transparent;overflow:hidden}</style><script>' +
@@ -103,9 +104,14 @@ class Component extends DCLogic {
       }
       if (l.type === 'icon') return { ...base, path: ICONS[l.icon] || ICONS.star, fill: l.fill || ink, sw: l.sw || 1.8 };
       if (l.type === 'component') {
-        const live = !!p.live;
-        return { ...base, isComponent: true, live, placeholder: !live, name: l.name || 'Component',
-          src: live ? 'data:text/html;charset=utf-8,' + encodeURIComponent(componentDoc(l.code, p.live)) : '' };
+        const live = !!p.live; let src = '';
+        if (live) {   // cache per layer: re-encoding a big snippet on every drag/tween render would jank
+          this._src = this._src || {}; const c = this._src[l.id];
+          if (c && c.code === l.code && c.key === p.live) src = c.src;
+          else { src = 'data:text/html;charset=utf-8,' + encodeURIComponent(componentDoc(l.code, p.live)); this._src[l.id] = { code: l.code, key: p.live, src }; }
+        }
+        // Name cards only in builder thumbnails (cards); the swipe/ghost planes show nothing rather than a card popping in.
+        return { ...base, isComponent: true, live, placeholder: !live && !!p.cards, name: l.name || 'Component', src, pe: base.op > 0 ? 'auto' : 'none' };
       }
       const u = l.imgKey ? imgs[l.imgKey] : null;
       // Zoom scales the image about its focus point; the focus also chooses which part shows when the image is cropped.

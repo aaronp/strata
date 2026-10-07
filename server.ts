@@ -72,6 +72,9 @@ export function handler(root: string) {
   return async (req: Request): Promise<Response> => {
     let p: string;
     try { p = decodeURIComponent(new URL(req.url).pathname); } catch { return new Response("bad path", { status: 400 }); }
+    // Writes only from this origin: a sandboxed component (Origin: null) or another site can't change decks.
+    const origin = req.headers.get("origin");
+    if (req.method !== "GET" && req.method !== "HEAD" && origin && origin !== new URL(req.url).origin) return new Response("cross-origin write refused", { status: 403 });
     if (p === "/api/decks" && req.method === "GET") return Response.json(await deckList(root));
     const m = /^\/api\/decks\/(.+)$/.exec(p);
     if (m && req.method === "PUT") {

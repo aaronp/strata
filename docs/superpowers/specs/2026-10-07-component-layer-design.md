@@ -44,7 +44,10 @@ strata.emit(type, data)    // low level
 ## Protocol (`{ strata: 1, type, ... }`)
 **Slide → component:**
 - `enter` `{ frame, frames, mode: 'build' | 'present', slide: { id, title } }`: the reply to `hello`.
-- `frame` `{ frame, frames }`: whenever the slide's current frame changes, while the component is on screen.
+- `frame` `{ frame, frames, from, duration }`: whenever the slide's current frame changes, while the component is on screen.
+  - `from` is the previous frame.
+  - `duration` is this component's own transition time for the step in ms: the longest of its move/scale/rotate/colour/size/fade timings (`dur + delay`) from the transition settings. It is 0 for a jump of more than one frame. A component can use it to sync its internal animation with the slide's tween.
+  - **Frames behave as for any layer:** a component present in consecutive frames is the same layer. It keeps running, tweens its box, and gets `frame`. A component absent from a frame fades out like any layer (its iframe stays loaded while it's invisible).
 - `next`, `prev`: only to a component that claimed steps, in Present mode.
 
 **Component → slide:**

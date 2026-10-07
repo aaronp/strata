@@ -155,8 +155,9 @@ test("hello is answered with enter (frame, frames, mode, slide); frame changes a
   const { c, win, send } = await compDeck();
   send({ type: "hello" });
   expect(win.posted.at(-1)).toEqual({ strata: 1, type: "enter", frame: 0, frames: 2, mode: "build", slide: { id: "a", title: "Alpha" } });
+  c.setState({ nodes: { ...c.state.nodes, a: { ...c.state.nodes.a, ftrans: { f1: { c1: { move: { dur: 900, delay: 100 }, fade: { dur: 300 } } } } } } });
   c.setState({ fi: 1 }); c.componentDidUpdate();
-  expect(win.posted.at(-1)).toEqual({ strata: 1, type: "frame", frame: 1, frames: 2 });
+  expect(win.posted.at(-1)).toEqual({ strata: 1, type: "frame", frame: 1, frames: 2, from: 0, duration: 1000 });
 });
 
 test("messages from anything but a main-stage component iframe are ignored", async () => {
@@ -271,7 +272,12 @@ In `componentDidUpdate` (after `measureStage`):
 ```js
     const ck = this.curId(), cf = this.fiFor(ck);
     if (ck !== this._compCur) { this._compCur = ck; this._compFi = cf; this._claims = {}; this._fwd = null; }
-    else if (cf !== this._compFi) { this._compFi = cf; const info = this.compInfo(); this.compFrames().forEach(f => this.postComp(f.win, { type: 'frame', ...info })); }
+    else if (cf !== this._compFi) {   // per component: its own transition time for this step (0 for a multi-frame jump)
+      const from = this._compFi; this._compFi = cf; const info = this.compInfo(), a = Math.min(from, cf), adj = Math.abs(cf - from) === 1;
+      this.compFrames().forEach(f => { const t = this.transFor(ck, a, f.lid);
+        const duration = adj ? Math.max(...DEF_ACTS.map(act => { const s = this.actT(t, act); return s.dur + s.delay; })) : 0;
+        this.postComp(f.win, { type: 'frame', ...info, from, duration }); });
+    }
 ```
 
 In `onKey`, immediately before the generic `if (k.startsWith('Arrow')) { e.preventDefault(); this.go(…`:
@@ -347,7 +353,7 @@ const COMPONENT_GUIDE = `Write a Strata slide component: one HTML snippet (marku
 Rules: no access to the parent page, cookies or storage; you may load libraries from CDNs and fetch public URLs. Use a transparent background unless asked; size everything to the iframe (100% width/height, vw/vh units).
 A global \`strata\` object connects it to the slide:
   strata.on('enter', m => …)   // arrived on the slide: m.frame (0-based), m.frames, m.mode ('build'|'present'), m.slide {id,title}
-  strata.on('frame', m => …)   // the slide's frame changed: m.frame, m.frames
+  strata.on('frame', m => …)   // the slide's frame changed: m.frame, m.frames, m.from, m.duration (ms this layer's own tween takes; 0 for a jump)
   strata.ready({ steps: true }) // claim the presenter's → / ← keys in Present mode
   strata.on('next', () => …)   // → pressed (only after claiming); call strata.done() when there's nothing left to show
   strata.on('prev', () => …)   // ← pressed; call strata.back() when already at the start

@@ -206,8 +206,13 @@ input,textarea,button{font:inherit;color:inherit}
                   </sc-if>
                   <sc-if value="{{ isEditingText }}">
                     <textarea ref="{{ editRef }}" value="{{ ed.text }}" onChange="{{ onEditText }}" onBlur="{{ stopEditing }}" onSelect="{{ onEditSel }}" onKeyUp="{{ onEditSel }}" onPointerUp="{{ onEditSel }}" onPointerDown="{{ stopProp }}" style="position:absolute;left:{{ ed.l }}%;top:{{ ed.t }}%;width:{{ ed.w }}%;height:{{ ed.h }}%;padding:0;margin:0;border:0;outline:2px solid #1f6fb8;outline-offset:1px;background:rgba(10,14,28,.25);resize:none;overflow:hidden;font-family:{{ ed.font }};font-size:{{ ed.fs }}cqw;font-weight:{{ ed.weight }};color:{{ ed.color }};text-align:{{ ed.align }};line-height:{{ ed.lh }};z-index:999"></textarea>
+                  </sc-if>
+                  <sc-if value="{{ isEditingRich }}">
+                    <div ref="{{ wysRef }}" contenteditable="true" data-role="wysiwyg" spellcheck="true" onBlur="{{ stopEditing }}" onPointerDown="{{ stopProp }}" style="position:absolute;left:{{ ed.l }}%;top:{{ ed.t }}%;width:{{ ed.w }}%;min-height:{{ ed.h }}%;padding:0;margin:0;outline:2px solid #1f6fb8;outline-offset:1px;background:rgba(10,14,28,.12);white-space:pre-wrap;overflow-wrap:anywhere;font-family:{{ ed.font }};font-size:{{ ed.fs }}cqw;font-weight:{{ ed.weight }};color:{{ ed.color }};text-align:{{ ed.align }};line-height:{{ ed.lh }};z-index:999;cursor:text"></div>
+                  </sc-if>
                     <sc-if value="{{ fmtShow }}">
                       <div data-role="fmtbar" onPointerDown="{{ stopProp }}" onBlur="{{ onFmtBlur }}" style="position:absolute;{{ fmtPos }};z-index:30;display:flex;align-items:center;gap:4px;padding:4px;border-radius:9px;background:#fbf9f4;box-shadow:0 4px 14px rgba(0,0,0,.25)">
+                        <button onPointerDown="{{ fmtDown }}" onMouseDown="{{ fmtDown }}" onClick="{{ onFmtMode }}" title="Switch between formatted editing and markup" style="height:26px;padding:0 6px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px">{{ fmtModeLabel }}</button>
                         <button onPointerDown="{{ fmtDown }}" onMouseDown="{{ fmtDown }}" onClick="{{ onFmtBold }}" title="Bold (⌘B)" style="width:26px;height:26px;padding:0;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer;font-weight:800">B</button>
                         <button onPointerDown="{{ fmtDown }}" onMouseDown="{{ fmtDown }}" onClick="{{ onFmtItalic }}" title="Italic (⌘I)" style="width:26px;height:26px;padding:0;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer;font-style:italic;font-family:serif">I</button>
                         <select value="" onChange="{{ onFmtStyle }}" title="Style for the selection" style="height:26px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;font-size:12px"><sc-for list="{{ fmtStyleOpts }}" as="o" hint-placeholder-count="5"><option value="{{ o.v }}" disabled="{{ o.off }}">{{ o.l }}</option></sc-for></select>
@@ -218,7 +223,14 @@ input,textarea,button{font:inherit;color:inherit}
                         <button onPointerDown="{{ fmtDown }}" onMouseDown="{{ fmtDown }}" onClick="{{ onFmtClear }}" title="Clear formatting (the selection, or all if nothing is selected)" style="height:26px;padding:0 7px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer;font-size:12px">⌫ Clear</button>
                       </div>
                     </sc-if>
-                  </sc-if>
+                    <sc-if value="{{ linkPopShow }}">
+                      <div data-role="fmtbar" onPointerDown="{{ stopProp }}" style="position:absolute;{{ linkPopPos }};z-index:31;display:flex;align-items:center;gap:6px;padding:5px 7px;border-radius:9px;background:#1d1b17;color:#fbf9f4;font-size:12px;box-shadow:0 4px 14px rgba(0,0,0,.3)">
+                        <span style="white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis">{{ linkPopLabel }}</span>
+                        <sc-if value="{{ linkPick }}"><select value="" onChange="{{ onLinkPick }}" style="height:24px;max-width:150px;border:0;border-radius:5px;font-size:12px"><sc-for list="{{ fmtLinkOpts }}" as="o" hint-placeholder-count="5"><option value="{{ o.v }}" disabled="{{ o.off }}">{{ o.l }}</option></sc-for></select></sc-if>
+                        <button onPointerDown="{{ fmtDown }}" onMouseDown="{{ fmtDown }}" onClick="{{ onLinkPopChange }}" style="padding:2px 7px;border:1px solid rgba(251,249,244,.4);border-radius:5px;background:none;color:inherit;cursor:pointer">Change</button>
+                        <button onPointerDown="{{ fmtDown }}" onMouseDown="{{ fmtDown }}" onClick="{{ onLinkPopRemove }}" style="padding:2px 7px;border:1px solid rgba(251,249,244,.4);border-radius:5px;background:none;color:inherit;cursor:pointer">Remove</button>
+                      </div>
+                    </sc-if>
                   <sc-if value="{{ showPaths }}">
                     <svg viewBox="0 0 100 100" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;z-index:900">
                       <sc-for list="{{ pathLines }}" as="pl" hint-placeholder-count="0">
@@ -1224,9 +1236,9 @@ class Component extends DCLogic {
   state = {
     nodes: seed(), cur: 'a', prev: null, phase: 'idle', dx: 0, dy: 0, type: 'swipe', mode: STATIC ? 'present' : 'build', view: 'slide', rtab: 'slide',
     query: '', bg: 'balloons', customBg: null, customAspect: 1, opacity: 1, base: '#0b1220', offset: 0,
-    tAll: { ease: false, dur: false, delay: false }, tdef: {}, dAll: { ease: false, dur: false, delay: false }, secOpen: { layout: true, frames: true, layers: true, tdef: false }, collapsed: {}, rowGap: 0, gap: 0.12, tone: 'light', speed: 900, lastChild: {}, navW: 280, rightW: 340, images: {}, layerSel: null, editing: null, guides: {},
+    tAll: { ease: false, dur: false, delay: false }, tdef: {}, dAll: { ease: false, dur: false, delay: false }, secOpen: { layout: true, frames: true, layers: true, tdef: false }, collapsed: {}, rowGap: 0, gap: 0.12, tone: 'light', editMode: 'rich', speed: 900, lastChild: {}, navW: 280, rightW: 340, images: {}, layerSel: null, editing: null, guides: {},
   };
-  treeRef = React.createRef(); titleRef = React.createRef(); searchRef = React.createRef(); stageRef = React.createRef(); editRef = React.createRef(); imgInputRef = React.createRef();
+  treeRef = React.createRef(); titleRef = React.createRef(); searchRef = React.createRef(); stageRef = React.createRef(); editRef = React.createRef(); wysRef = React.createRef(); imgInputRef = React.createRef();
 
   componentDidMount() {
     if (DECK) {
@@ -1482,6 +1494,22 @@ class Component extends DCLogic {
         const duration = adj ? Math.max(...DEF_ACTS.map(act => { const s = this.actT(t, act); return s.dur + s.delay; })) : 0;
         this.postComp(f.win, { type: 'frame', ...info, from, duration }); });
     }
+    // Rich editor: attach native listeners once per element; (re)build when editing opens or the text changed from outside.
+    const root = this.wysRef.current;
+    if (root !== this._wysEl) { this._wysEl = root; this._wysFor = null;
+      if (root && root.addEventListener) {
+        root.addEventListener('beforeinput', e => { const r = wysBefore(root, this._wysLines || [[]], e); if (!r) return; e.preventDefault(); this._wysLines = r.lines; this.saveWys(); this._wysSel = { start: r.start, end: r.end }; this.rebuildWys(r.start, r.end); });
+        root.addEventListener('input', () => { if (this._composing) return; this._wysLines = readLines(root, this._wysLines || [[]]); this.saveWys(); });
+        root.addEventListener('compositionstart', () => { this._composing = true; });
+        root.addEventListener('compositionend', () => { this._composing = false; this._wysLines = readLines(root, this._wysLines || [[]]); this.saveWys(); });
+        const track = () => { const o = getOffsets(root); if (o) { this._wysSel = o; const p = this.state.wysSel; if (!p || p.start !== o.start || p.end !== o.end) this.setState({ wysSel: o }); } };
+        root.addEventListener('keyup', track); root.addEventListener('mouseup', track); root.addEventListener('pointerup', track);
+      } }
+    if (root && root.ownerDocument && S.editing && S.editMode !== 'markup') {
+      const l = this.layersOf(this.curId()).find(x => x.id === S.editing), text = l ? String(l.text ?? '') : '';
+      if (this._wysFor !== S.editing) { this._wysFor = S.editing; this._wysLines = linesOf(text); this._wysText = text; this.rebuildWys(); root.focus && root.focus(); const end = toPlain(this._wysLines).length; setOffsets(root, end, end); }
+      else if (l && text !== this._wysText) { this._wysLines = linesOf(text); this._wysText = text; const o = this._wysSel || { start: 0, end: 0 }; this.rebuildWys(o.start, o.end); }   // undo/redo or an outside change
+    } else if (!S.editing) { this._wysFor = null; this._wysLines = null; }
     const te = this.treeRef.current;
     if (te !== this._wheelEl) {
       if (this._wheelEl) this._wheelEl.removeEventListener('wheel', this.onTreeWheel);
@@ -1826,6 +1854,7 @@ class Component extends DCLogic {
     return sid;
   }  // Format the editor's selection (live if the textarea has focus, else the last remembered one), then put focus and selection back.
   formatSel(op) {
+    if (this.state.editMode !== 'markup') { const root = this.wysRef.current, o = (root && root.ownerDocument && getOffsets(root)) || this._wysSel || this.state.wysSel || { start: 0, end: 0 }; this.formatRange(o.start, o.end, op); return; }
     const id = this.curId(), l = this.layersOf(id).find(x => x.id === this.state.editing); if (!l) return;
     const t = this.editRef.current, live = t && typeof document !== 'undefined' && document.activeElement === t;
     const sel = live ? { start: t.selectionStart, end: t.selectionEnd } : (this._sel || { start: 0, end: 0 });
@@ -1840,6 +1869,20 @@ class Component extends DCLogic {
     else if (ds.href && typeof window !== 'undefined' && window.open) window.open(ds.href, '_blank', 'noopener');
   }
   focusInBar() { const a = typeof document !== 'undefined' && document.activeElement; return !!(a && a.closest && a.closest('[data-role="fmtbar"]')); }
+  // The rich editor's model → stored text (remembered so typing doesn't trigger a rebuild).
+  saveWys() { const id = this.curId(), lid = this.state.editing; if (!lid || !this._wysLines) return; const text = textOf(this._wysLines); this._wysText = text; this.updLayer(id, lid, { text }); }
+  rebuildWys(start, end) { const root = this.wysRef.current, id = this.curId(), l = this.layersOf(id).find(x => x.id === this.state.editing); if (!root || !l || !root.ownerDocument) return;
+    const n = this.state.nodes[id], look = sid => this.styles()[sid] || (n && n._from && ((this._graftStyles || {})[n._from] || {})[sid]) || null;
+    buildEditor(root, this._wysLines, this.resolveLayer(l, id), look); if (start != null) setOffsets(root, start, end ?? start); }
+  // A rich-mode format action on a plain range (op as in applyFormat: bold / italic / attrs / clear).
+  formatRange(start, end, op) {
+    const id = this.curId(), l = this.layersOf(id).find(x => x.id === this.state.editing); if (!l) return;
+    const lines = this._wysLines || linesOf(l.text); let out;
+    if (op.bold || op.italic) out = toggleAttr(lines, start, end, op.bold ? 'b' : 'i');
+    else if (op.clear) out = start === end ? clearRange(lines, 0, toPlain(lines).length) : clearRange(lines, start, end);
+    else if (op.attrs) { const p = {}; for (const k in op.attrs) { const v = op.attrs[k]; p[k] = v === null || v === '' ? null : k === 'size' || k === 'weight' ? +v : v; } out = setAttr(lines, start, end, p); }
+    if (!out) return; this._wysLines = out; this.saveWys(); this._wysSel = { start, end }; this.rebuildWys(start, end);
+  }
 
   // Layers using the style keep its look (written onto them) and become Custom; linked-in slides are left alone.
   deleteStyle(sid) {
@@ -2011,12 +2054,14 @@ class Component extends DCLogic {
     this.nav(id, dd > 0 ? 'down' : dd < 0 ? 'up' : (delta > 0 ? 'right' : 'left'));
   }
   onKey(e) {
-    const t = e.target; const typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || !!(t.closest && t.closest('[data-role="fmtbar"]'))); const k = e.key; const S = this.state;
+    const t = e.target; const typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || !!t.isContentEditable || !!(t.closest && t.closest('[data-role="fmtbar"]'))); const k = e.key; const S = this.state;
     if ((e.metaKey || e.ctrlKey) && (k === 's' || k === 'S')) { e.preventDefault(); this.save(); return; }
     if (S.confirmDel) { if (k === 'Escape') { e.preventDefault(); this.confirmDelete('cancel'); } return; }
     if (k === 'Escape' && S.treeDrag) { this._treeDragCancel = true; this.setState({ treeDrag: null }); return; }
     if (typing) {
-      if (t === this.editRef.current && (e.metaKey || e.ctrlKey) && /^[bi]$/i.test(k)) { e.preventDefault(); this.formatSel(k.toLowerCase() === 'b' ? { bold: true } : { italic: true }); return; }
+      if ((t === this.editRef.current || t.isContentEditable) && (e.metaKey || e.ctrlKey) && /^[bi]$/i.test(k)) { e.preventDefault(); this.formatSel(k.toLowerCase() === 'b' ? { bold: true } : { italic: true }); return; }
+      if ((e.metaKey || e.ctrlKey) && (k === 'k' || k === 'K') && t.isContentEditable) { e.preventDefault(); this.setState({ linkPick: true }); return; }
+      if (k === 'Escape' && t.isContentEditable) { this.setState({ editing: null, linkPick: false }); return; }
       if (t.dataset && t.dataset.role === 'filter' && k === 'Enter') { const D = this.derive(); const q = S.query.trim().toLowerCase(); const id = D.order.find(x => (S.nodes[x].title + ' ' + S.nodes[x].body).toLowerCase().includes(q)); if (id) this.nav(id, 'jump'); }
       if (k === 'Escape') { t.blur(); this.setState({ query: '' }); }
       if (k === 'Enter' && t === this.titleRef.current) { e.preventDefault(); t.blur(); }
@@ -2186,8 +2231,8 @@ class Component extends DCLogic {
     const colorKey = ly && ly.type === 'text' ? 'color' : 'fill';
     const curColor = lv ? lv[colorKey] : null;
     const layerVals = {
-      editable, curLayers, prevLayers: active ? this.shown(S.prev, this.layersOf(S.prev, S.prevFi || 0)) : [], images: S.images, editingId: S.editing || '', stageRef: this.stageRef, editRef: this.editRef, imgInputRef: this.imgInputRef,
-      onImgFile: e => this.onImgFile(e), overlays, guideV: !!S.guides.v, guideH: !!S.guides.h, isEditingText: !!edL, ed,
+      editable, curLayers, prevLayers: active ? this.shown(S.prev, this.layersOf(S.prev, S.prevFi || 0)) : [], images: S.images, editingId: S.editing || '', stageRef: this.stageRef, editRef: this.editRef, wysRef: this.wysRef, imgInputRef: this.imgInputRef,
+      onImgFile: e => this.onImgFile(e), overlays, guideV: !!S.guides.v, guideH: !!S.guides.h, isEditingText: !!edL && !(editable && S.editMode !== 'markup'), ed,
       onEditText: e => edL && this.updLayer(cur, edL.id, { text: e.target.value }), stopEditing: () => setTimeout(() => { if (!this.focusInBar()) this.setState({ editing: null }); }, 0),   // a click into the formatting bar keeps editing
       onEditSel: e => { this._sel = { start: e.target.selectionStart, end: e.target.selectionEnd }; }, stopProp: e => e.stopPropagation(),
       onStageDown: ev => this.startMarquee(ev), allowDrop: e => e.preventDefault(), onStageDrop: e => this.dropOn(e, null),
@@ -2378,6 +2423,9 @@ class Component extends DCLogic {
     const results = isPresent && q ? D.order.filter(id => match[id]).slice(0, 10).map(id => ({ title: name(id), path: pathOf(id).slice(0, -1).map(name).join(' › ') || 'Top level', onClick: () => { this.setState({ query: '' }); this.nav(id, 'jump'); } })) : [];
 
     const styleCount = {}; for (const k in N) { if (N[k]._from) continue; this.framesOf(k).forEach(f => f.layers.forEach(l => { if (l.style) styleCount[l.style] = (styleCount[l.style] || 0) + 1; })); }   // ponytail: per-render scan; memoise on nodes if it shows in a profile
+    const rich = !!edL && editable && S.editMode !== 'markup';
+    const wl = rich ? (this._wysLines || linesOf(edL.text)) : null, ws = S.wysSel || this._wysSel || null;
+    const lk = rich && ws ? linkAt(wl, ws.start) : null;
     const tvw = { zoom: 1, x: 0.5, y: 0.5, ...S.titleView }, setTv = p => this.setState(s => ({ titleView: { zoom: 1, x: 0.5, y: 0.5, ...s.titleView, ...p } }));
     const tvFree = [TC.Wc <= 1.001 && 'Pan X', TC.Hc <= 1.001 && 'Pan Y'].filter(Boolean);
 
@@ -2409,6 +2457,16 @@ class Component extends DCLogic {
       onFmtUrlApply: () => { const u = (S.fmtUrlVal || '').trim(); if (u) this.formatSel({ attrs: { href: /^(https?:|mailto:)/i.test(u) ? u : 'https://' + u, link: null } }); this.setState({ fmtUrl: false }); },
       onStageLinkClick: e => { if (!isPresent) return; const el = e.target && e.target.closest && e.target.closest('[data-link],[data-href]');
         if (el && (el.dataset.link || el.dataset.href)) { e.stopPropagation(); this.followInline(el.dataset); } }, onFmtClear: () => this.formatSel({ clear: true }),
+      isEditingRich: rich, isEditingMarkup: !!edL && !rich, fmtModeLabel: rich ? '</>' : 'Aa',
+      onFmtMode: () => { this.setState({ editMode: S.editMode === 'markup' ? 'rich' : 'markup', linkPick: false }); this._wysFor = null; },
+      linkPopShow: rich && (!!lk || !!S.linkPick), linkPick: !!S.linkPick,
+      linkPopLabel: lk ? (lk.link ? '→ ' + (N[lk.link] ? name(lk.link) : 'missing slide') : '↗ ' + short(lk.href, 32)) : 'Link the selection',
+      linkPopPos: edL ? `left:min(${edL.x}%, calc(100% - 260px));top:calc(${edL.y}% - 76px)` : '',
+      onLinkPopChange: () => this.setState({ linkPick: true }),
+      onLinkPopRemove: () => { if (lk) this.formatRange(lk.start, lk.end, { attrs: { link: null, href: null } }); },
+      onLinkPick: e => { const v = e.target.value; if (!v) return; const r = lk || ws || { start: 0, end: 0 };
+        if (v === '@url') { this.setState({ fmtUrl: true }); return; }
+        this.formatRange(r.start, r.end, { attrs: v === '-' ? { link: null, href: null } : { link: v, href: null } }); this.setState({ linkPick: false }); },
       exportShow: !STATIC, onExportMd: () => this.downloadMarkdown(cur),
       isTitlePage: cur === 'ROOT', titlePage: !!S.titlePage, onTitlePage: e => this.setTitlePage(!!e.target.checked),
       tvZoom: tvw.zoom, tvZoomMax: Math.max(8, Math.ceil(this.titleCover(L))), tvZoomLabel: tvw.zoom.toFixed(2) + '×', onTvZoom: e => setTv({ zoom: +e.target.value }),

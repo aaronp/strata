@@ -4,6 +4,7 @@ import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { handler } from "./server";
+import { Window } from "happy-dom";
 
 const js = (await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text()).split('<script type="text/x-dc" data-dc-script>')[1].split("</script>")[0];
 class DCLogic { state: any; setState(u: any, cb?: () => void) { this.state = { ...this.state, ...(typeof u === "function" ? u(this.state) : u) }; cb?.(); } forceUpdate() {} }
@@ -1322,7 +1323,7 @@ test("resolveLayer gives every text layer display runs, with style spans looked 
 test("formatting bar: shown only while editing; formats the remembered selection; ⌘B works in the editor; blur into the bar keeps editing", async () => {
   const c = await styledDeck({}, [TL("a", { text: "say hello now" })]);
   expect(c.renderVals().fmtShow).toBe(false);
-  c.setState({ editing: "a", layerSel: "a" }); let v = c.renderVals();
+  c.setState({ editing: "a", layerSel: "a", editMode: "markup" }); let v = c.renderVals();
   expect(v.fmtShow).toBe(true); expect(v.fmtStyleOpts.map((o: any) => o.l)).toEqual(["Style", "Plain", "H1", "H2", "H3", "Body"]);
   v.onEditSel({ target: { selectionStart: 4, selectionEnd: 9 } });
   v.onFmtBold();
@@ -1356,7 +1357,7 @@ test("applyFormat normalises the selection: trims spaces, includes or toggles ma
 
 test("formatting bar: Plain is choosable, focus in the bar counts as typing, leaving the bar ends editing, the bar stays on the slide", async () => {
   const c = await styledDeck({}, [TL("a", { text: "[x]{style=h2} y", x: 80, y: 80, h: 18 })]);
-  c.setState({ editing: "a", layerSel: "a" }); let v = c.renderVals();
+  c.setState({ editing: "a", layerSel: "a", editMode: "markup" }); let v = c.renderVals();
   expect(v.fmtStyleOpts[0]).toMatchObject({ v: "", off: true }); expect(v.fmtStyleOpts[1]).toMatchObject({ v: "-", l: "Plain" });
   v.onEditSel({ target: { selectionStart: 1, selectionEnd: 2 } }); v.onFmtStyle({ target: { value: "-" } });
   expect(c.layersOf("s")[0].text).toBe("x y");
@@ -1408,7 +1409,7 @@ test("inline links: parsed into runs, broken targets flagged, followed in presen
   expect(runs[1]).toMatchObject({ text: "here", link: "costs" }); expect(runs[1].broken).toBeUndefined();
   expect(runs[3]).toMatchObject({ text: "there", link: "gone", broken: true });
   c.followInline({ link: "costs" }); expect(c.state.cur).toBe("costs");
-  c.setState({ cur: "s", editing: "a", layerSel: "a" }); const v = c.renderVals();
+  c.setState({ cur: "s", editing: "a", layerSel: "a", editMode: "markup" }); const v = c.renderVals();
   expect(v.fmtLinkOpts.map((o: any) => o.v).slice(0, 3)).toEqual(["", "-", "s"]); expect(v.fmtLinkOpts.at(-1).v).toBe("@url");
   v.onEditSel({ target: { selectionStart: 0, selectionEnd: 2 } }); v.onFmtLink({ target: { value: "costs" } });
   expect(c.layersOf("s")[0].text.startsWith("[go]{link=costs}")).toBe(true);
@@ -1475,4 +1476,35 @@ test("run operations: set/clear attributes, toggle (incl. word at cursor), break
   expect(R.linkAt(L, 2)).toBeNull();
   expect(R.toPlain(L)).toBe("say hello now\ngo on");
   expect(R.locate(L, 14)).toEqual([1, 0]);
+});
+
+// ---- WYSIWYG: app ----
+test("rich editing: the editor fills in, Enter goes through the model, bar actions use run operations, </> switches to markup", async () => {
+  const c = await styledDeck({}, [TL("a", { text: "say hello\nnow" })]);
+  const w = new Window(); const root = w.document.createElement("div"); w.document.body.appendChild(root); c.wysRef.current = root;
+  c.setState({ editing: "a", layerSel: "a" }); c.componentDidUpdate();
+  expect(root.querySelectorAll("[data-line]").length).toBe(2);
+  c.renderVals(); expect(c.renderVals().isEditingRich).toBe(true); expect(c.renderVals().isEditingMarkup).toBe(false);
+  c.constructor.rich.setOffsets(root, 3, 3);
+  const ev = new w.InputEvent("beforeinput", { inputType: "insertParagraph", cancelable: true }); root.dispatchEvent(ev);
+  expect(ev.defaultPrevented).toBe(true); expect(c.layersOf("s")[0].text).toBe("say\n hello\nnow");
+  c.constructor.rich.setOffsets(root, 5, 10); c.renderVals().onFmtBold();                     // the live selection
+  expect(c.layersOf("s")[0].text).toBe("say\n **hello**\nnow");
+  c.renderVals().onFmtMode(); expect(c.state.editMode).toBe("markup"); expect(c.renderVals().isEditingMarkup).toBe(true);
+  const typing = { isContentEditable: true, tagName: "DIV" }; const n = c.layersOf("s").length;
+  c.setState({ editMode: "rich" }); c.onKey({ key: "Backspace", target: typing, preventDefault() {} }); expect(c.layersOf("s").length).toBe(n);   // typing doesn't delete the layer
+});
+
+test("link popover: shown with the cursor in a link run; Remove clears the whole link; ⌘K opens the chooser for a selection", async () => {
+  await writeDeck("talk", { ROOT: slideNode("ROOT", "", ["s", "costs"]), s: slideNode("s", "S", [], { frames: [{ id: "f", layers: [TL("a", { text: "see [the costs]{link=costs} now" })] }] }), costs: slideNode("costs", "Costs") });
+  const { c } = await mount("?deck=talk");
+  c.setState({ cur: "s", editing: "a", layerSel: "a", wysSel: { start: 6, end: 6 } }); let v = c.renderVals();
+  expect(v.linkPopShow).toBe(true); expect(v.linkPopLabel).toBe("→ Costs");
+  v.onLinkPopRemove(); expect(c.layersOf("s")[0].text).toBe("see the costs now");
+  c.setState({ wysSel: { start: 0, end: 3 } }); c._wysSel = { start: 0, end: 3 };
+  c.onKey({ key: "k", metaKey: true, target: { isContentEditable: true, tagName: "DIV" }, preventDefault() {} });
+  v = c.renderVals(); expect(v.linkPick).toBe(true); expect(v.linkPopShow).toBe(true);
+  v.onLinkPick({ target: { value: "costs" } }); expect(c.layersOf("s")[0].text).toBe("[see]{link=costs} the costs now");
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  for (const h of ['data-role="wysiwyg"', 'ref="{{ wysRef }}"', "{{ onFmtMode }}", "{{ linkPopShow }}", "{{ onLinkPick }}"]) expect(html).toContain(h);
 });

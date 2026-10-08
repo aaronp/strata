@@ -774,6 +774,17 @@ input,textarea,button{font:inherit;color:inherit}
             <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
               <input type="checkbox" checked="{{ titlePage }}" onChange="{{ onTitlePage }}" style="accent-color:#1d1b17">Title page · the whole canvas as a first slide
             </label>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#6b6458">Text styles</span>
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <sc-for list="{{ styleRows }}" as="sr" hint-placeholder-count="4">
+                <div style="display:flex;align-items:center;gap:6px">
+                  <input value="{{ sr.name }}" onChange="{{ sr.onName }}" title="Style name (its id stays {{ sr.id }})" style="flex:1;min-width:0;height:28px;padding:0 8px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;font-size:12.5px">
+                  <span style="flex:none;font-size:11.5px;color:#6b6458;width:64px;text-align:right">{{ sr.count }}</span>
+                  <sc-if value="{{ sr.canDelete }}"><button onClick="{{ sr.onDelete }}" title="Delete: layers using it keep their look and become Custom" style="flex:none;width:22px;height:22px;padding:0;border:0;background:none;cursor:pointer;color:#a8301d">✕</button></sc-if>
+                </div>
+              </sc-for>
+              <button onClick="{{ onNewStyle }}" disabled="{{ newStyleOff }}" title="Make a style from the selected text layer's look" style="align-self:flex-start;padding:5px 10px;border:1px solid #e0d9cb;border-radius:7px;background:#fff;cursor:pointer;font-size:12.5px">+ New style from selected layer</button>
+            </div>
             <span style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#6b6458">Canvas image · loops left to right</span>
             <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px">
               <sc-for list="{{ bgTiles }}" as="b" hint-placeholder-count="3">
@@ -1563,7 +1574,27 @@ class Component extends DCLogic {
     this.setLayers(id, ls => ls.map(l => { if (l.id !== lid) return l;
       if (!sid) { const o = { ...this.resolveLayer(l, id) }; delete o.style; return o; }
       const o = { ...l, style: sid }; STYLE_KEYS.forEach(k => delete o[k]); return o; }));
+  }  // A new named style from a layer's current look; the layer then uses it with no overrides.
+  newStyleFrom(id, lid) {
+    const l = this.layersOf(id).find(x => x.id === lid); if (!l || l.type !== 'text') return null;
+    const all = this.styles(), names = Object.values(all).map(st => st.name); let n = 1; while (names.includes('Style ' + n)) n++;
+    const name = 'Style ' + n, base = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'style';
+    let sid = base, i = 2; while (all[sid]) sid = base + '-' + i++;
+    const r = this.resolveLayer(l, id), st = { name }; STYLE_KEYS.forEach(k => { if (r[k] !== undefined) st[k] = r[k]; });
+    this.setState(s => ({ styles: { ...(s.styles || {}), [sid]: st } }));
+    this.chooseStyle(id, lid, sid);
+    return sid;
   }
+  // Layers using the style keep its look (written onto them) and become Custom; linked-in slides are left alone.
+  deleteStyle(sid) {
+    if (BUILTIN_STYLES[sid]) return; const st = this.styles()[sid]; if (!st) return;
+    this.setState(s => { const nodes = {};
+      for (const k in s.nodes) { const n = s.nodes[k];
+        nodes[k] = n._from || !n.frames ? n : { ...n, frames: n.frames.map(f => ({ ...f, layers: f.layers.map(l => { if (l.style !== sid) return l;
+          const o = { ...l }; delete o.style; STYLE_KEYS.forEach(q => { if (o[q] === undefined && st[q] !== undefined) o[q] = st[q]; }); return o; }) })) }; }
+      const { [sid]: _gone, ...styles } = s.styles || {}; return { nodes, styles }; });
+  }
+
   addLayer(type, extra) {
     const id = this.curId(); const lid = 'l' + uid();
     const D0 = { text: { x: 20, y: 40, w: 60, h: 14, text: 'New text', style: 'body' },
@@ -2084,6 +2115,7 @@ class Component extends DCLogic {
     };
     const results = isPresent && q ? D.order.filter(id => match[id]).slice(0, 10).map(id => ({ title: name(id), path: pathOf(id).slice(0, -1).map(name).join(' › ') || 'Top level', onClick: () => { this.setState({ query: '' }); this.nav(id, 'jump'); } })) : [];
 
+    const styleCount = {}; for (const k in N) { if (N[k]._from) continue; this.framesOf(k).forEach(f => f.layers.forEach(l => { if (l.style) styleCount[l.style] = (styleCount[l.style] || 0) + 1; })); }   // ponytail: per-render scan; memoise on nodes if it shows in a profile
     const tvw = { zoom: 1, x: 0.5, y: 0.5, ...S.titleView }, setTv = p => this.setState(s => ({ titleView: { zoom: 1, x: 0.5, y: 0.5, ...s.titleView, ...p } }));
     const tvFree = [TC.Wc <= 1.001 && 'Pan X', TC.Hc <= 1.001 && 'Pan Y'].filter(Boolean);
 
@@ -2099,6 +2131,9 @@ class Component extends DCLogic {
       lyHasOverrides: styled && STYLE_KEYS.some(over), onClearOverrides: () => ly && this.clearKeys(cur, ly.id, STYLE_KEYS),
       colorLabel: 'Colour' + (over('color') ? ' •' : ''), colorOver: over('color'), onColorReset: () => ly && this.clearKeys(cur, ly.id, ['color']),
       boxOver: over('card') || over('box'), onBoxReset: e => { e && e.stopPropagation && e.stopPropagation(); ly && this.clearKeys(cur, ly.id, ['card', 'box']); },
+      styleRows: Object.entries(this.styles()).map(([id, st]) => ({ id, name: st.name || id, count: (styleCount[id] || 0) + ' layer' + (styleCount[id] === 1 ? '' : 's'), canDelete: !BUILTIN_STYLES[id],
+        onName: e => this.setStyle(id, { name: e.target.value }), onDelete: () => this.deleteStyle(id) })),
+      newStyleOff: !(ly && ly.type === 'text'), onNewStyle: () => ly && this.newStyleFrom(cur, ly.id),
       exportShow: !STATIC, onExportMd: () => this.downloadMarkdown(cur),
       isTitlePage: cur === 'ROOT', titlePage: !!S.titlePage, onTitlePage: e => this.setTitlePage(!!e.target.checked),
       tvZoom: tvw.zoom, tvZoomMax: Math.max(8, Math.ceil(this.titleCover(L))), tvZoomLabel: tvw.zoom.toFixed(2) + '×', onTvZoom: e => setTv({ zoom: +e.target.value }),

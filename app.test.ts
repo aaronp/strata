@@ -1221,3 +1221,21 @@ test("+ Text creates a Body layer", async () => {
   c.addLayer("text"); const l = c.layersOf("s").at(-1);
   expect(l.style).toBe("body"); expect(l.size).toBeUndefined(); expect(c.resolveLayer(l, "s").size).toBe(32);
 });
+
+test("Styles section: counts, rename keeps the id, new style from a layer, delete keeps the look and goes Custom", async () => {
+  const c = await styledDeck();
+  let v = c.renderVals();
+  expect(v.styleRows.map((r: any) => [r.id, r.name, r.count, r.canDelete])).toEqual([["h1", "H1", "2 layers", false], ["h2", "H2", "0 layers", false], ["h3", "H3", "0 layers", false], ["body", "Body", "0 layers", false]]);
+  v.styleRows[0].onName({ target: { value: "Heading" } }); expect(c.styles().h1.name).toBe("Heading");
+  expect(c.renderVals().newStyleOff).toBe(true);
+  c.setState({ layerSel: "c" }); v = c.renderVals(); expect(v.newStyleOff).toBe(false);
+  v.onNewStyle();
+  expect(c.styles()["style-1"]).toMatchObject({ name: "Style 1", size: 20 });
+  expect(c.layersOf("s")[2]).toMatchObject({ style: "style-1" }); expect(c.layersOf("s")[2].size).toBeUndefined();
+  v = c.renderVals(); const row = v.styleRows.find((r: any) => r.id === "style-1");
+  expect(row.canDelete).toBe(true); row.onDelete();
+  expect(c.styles()["style-1"]).toBeUndefined(); expect(c.state.styles["style-1"]).toBeUndefined();
+  expect(c.layersOf("s")[2].style).toBeUndefined(); expect(c.layersOf("s")[2].size).toBe(20);
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  for (const h of ["{{ styleRows }}", "{{ onNewStyle }}"]) expect(html).toContain(h);
+});

@@ -565,12 +565,11 @@ test("tree panel has zoom controls, a zoom wrapper and the Focus toggle", async 
     expect(html).toContain(s);
 });
 
-test("Insert deck is a collapsible section holding the mode toggle and deck chooser", async () => {
+test("Insert deck opens from the ⊕ button and holds the mode toggle and deck chooser", async () => {
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
-  const i = html.indexOf('<sc-if value="{{ copyShow }}">'), blk = html.slice(i, html.indexOf("</select>", i));
-  expect(blk).toContain('onClick="{{ sec.insert.toggle }}"');
-  expect(blk).toContain(">Insert deck<");
-  expect(blk.indexOf('<sc-if value="{{ sec.insert.open }}">')).toBeLessThan(blk.indexOf('list="{{ copyModes }}"'));
+  const i = html.indexOf('<sc-if value="{{ insertOpen }}">'), blk = html.slice(i, html.indexOf("</select>", i));
+  expect(i).toBeGreaterThan(-1);
+  expect(blk).toContain('list="{{ copyModes }}"'); expect(blk).toContain('onChange="{{ onCopyDeck }}"');
 });
 
 // ---- component layers: protocol ----
@@ -1102,4 +1101,21 @@ test("Even steps (default): every sibling move is one step, whatever the subtree
   L = c.layout(c.derive()); expect(L.rect.b.x - L.rect.a.x).toBeCloseTo(3 * step);
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
   expect(html).toContain("{{ spacingBtns }}");
+});
+
+test("Slide tab: export and insert icon buttons beside the title; Layout / Frames / Layers tabs, with transition defaults inside Frames", async () => {
+  await deckTalk(); const { c } = await mount("?deck=talk");
+  let v = c.renderVals();
+  expect(v.stabBtns.map((b: any) => b.label)).toEqual(["Layout", "Frames", "Layers"]);
+  expect([v.stabLayout, v.stabFrames, v.stabLayers]).toEqual([false, false, true]);          // Layers by default
+  expect(v.insertOpen).toBe(false); v.onInsertToggle(); expect(c.renderVals().insertOpen).toBe(true);
+  c.renderVals().stabBtns[1].onClick(); v = c.renderVals(); expect(v.stabFrames).toBe(true); expect(v.layerPane).toBe(false);
+  c.setState({ transSel: 0 }); c.renderVals().stabBtns[2].onClick();
+  expect(c.state.transSel).toBeNull(); expect(c.renderVals().stabLayers).toBe(true);           // leaving Frames closes the transition view
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  const row = html.slice(html.indexOf('value="{{ cur.title }}"'), html.indexOf('{{ stabBtns }}'));
+  expect(row).toContain('onClick="{{ onExportMd }}"'); expect(row).toContain('onClick="{{ onInsertToggle }}"');
+  const frames = html.slice(html.indexOf('<sc-if value="{{ stabFrames }}">'), html.indexOf('<sc-if value="{{ stabLayers }}">'));
+  expect(frames).toContain("Transition defaults"); expect(frames).toContain("{{ isTransView }}");
+  expect(html).not.toContain("sec.insert.toggle");
 });

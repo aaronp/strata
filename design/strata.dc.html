@@ -322,11 +322,12 @@ input,textarea,button{font:inherit;color:inherit}
             <sc-if value="{{ ownSlide }}">
             <label style="display:flex;flex-direction:column;gap:5px">
               <span style="font-size:12px;color:#6b6458">Slide name · tree and breadcrumbs</span>
-              <input ref="{{ titleRef }}" value="{{ cur.title }}" onChange="{{ onTitle }}" placeholder="Slide name" style="padding:8px 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;font-weight:600;outline:none">
+              <div style="display:flex;gap:6px;align-items:center">
+                <input ref="{{ titleRef }}" value="{{ cur.title }}" onChange="{{ onTitle }}" placeholder="Slide name" style="flex:1;min-width:0;padding:8px 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;font-weight:600;outline:none">
+                <sc-if value="{{ exportShow }}"><button onClick="{{ onExportMd }}" title="Export markdown: download this slide and everything below it (with slug lines), ready to import as a new deck" style="flex:none;width:36px;height:36px;padding:0;border:1px solid #e0d9cb;border-radius:8px;cursor:pointer;font-size:16px;line-height:1;background:#fff">⤓</button></sc-if>
+                <sc-if value="{{ copyShow }}"><button onClick="{{ onInsertToggle }}" title="Insert deck: copy or link another deck's slides here" style="flex:none;width:36px;height:36px;padding:0;border:1px solid #e0d9cb;border-radius:8px;cursor:pointer;font-size:16px;line-height:1;background:{{ insertBg }}">⊕</button></sc-if>
+              </div>
             </label>
-            <sc-if value="{{ exportShow }}">
-              <button onClick="{{ onExportMd }}" title="Download this slide and everything below it as markdown (with slug lines), ready to import as a new deck" style="align-self:flex-start;padding:6px 12px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer;font-size:12.5px">↓ Export markdown</button>
-            </sc-if>
             <sc-if value="{{ isTitlePage }}">
               <div style="display:flex;flex-direction:column;gap:8px;padding:10px;border:1px solid #e0d9cb;border-radius:10px;background:#fff">
                 <span style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#1d1b17">Title view · whole canvas</span>
@@ -349,14 +350,8 @@ input,textarea,button{font:inherit;color:inherit}
                 <span style="font-size:12px;line-height:1.45;color:#6b6458">{{ tvHint }}</span>
               </div>
             </sc-if>
-            <sc-if value="{{ copyShow }}">
-              <div style="display:flex;flex-direction:column;border:1px solid #e0d9cb;border-radius:10px;background:#fff">
-                <div onClick="{{ sec.insert.toggle }}" style="display:flex;align-items:center;gap:8px;padding:9px 10px;cursor:pointer;user-select:none">
-                  <span style="width:12px;flex:none;font-size:10px;color:#6b6458">{{ sec.insert.caret }}</span>
-                  <span style="flex:1;min-width:0;font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#1d1b17;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Insert deck</span>
-                </div>
-                <sc-if value="{{ sec.insert.open }}">
-                  <div style="display:flex;flex-direction:column;gap:6px;padding:0 10px 10px">
+            <sc-if value="{{ insertOpen }}">
+              <div style="display:flex;flex-direction:column;gap:6px;padding:10px;border:1px solid #e0d9cb;border-radius:10px;background:#fff">
                     <span style="font-size:12px;line-height:1.45;color:#6b6458">{{ insertHint }}</span>
                     <div style="display:flex;gap:2px;padding:3px;border-radius:9px;background:#ece6d9">
                       <sc-for list="{{ copyModes }}" as="cm" hint-placeholder-count="2">
@@ -372,16 +367,14 @@ input,textarea,button{font:inherit;color:inherit}
                         <button onClick="{{ onLink }}" disabled="{{ linkOff }}" style="flex:none;padding:6px 12px;border:0;border-radius:7px;background:#1d1b17;color:#fbf9f4;cursor:pointer;font-size:12.5px;white-space:nowrap">{{ linkLabel }}</button>
                       </div>
                     </sc-if>
-                  </div>
-                </sc-if>
               </div>
             </sc-if>
-            <div style="display:flex;flex-direction:column;border:1px solid #e0d9cb;border-radius:10px;background:#fff">
-              <div onClick="{{ sec.layout.toggle }}" style="display:flex;align-items:center;gap:8px;padding:9px 10px;cursor:pointer;user-select:none">
-                <span style="width:12px;flex:none;font-size:10px;color:#6b6458">{{ sec.layout.caret }}</span>
-                <span style="flex:1;min-width:0;font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#1d1b17;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Layout</span>
-              </div>
-              <sc-if value="{{ sec.layout.open }}">
+            <div style="display:flex;gap:2px;padding:3px;border-radius:9px;background:#ece6d9">
+              <sc-for list="{{ stabBtns }}" as="st" hint-placeholder-count="3">
+                <button onClick="{{ st.onClick }}" style="flex:1;padding:5px 0;border:0;border-radius:7px;cursor:pointer;background:{{ st.bg }};color:{{ st.color }};box-shadow:{{ st.shadow }};font-size:12.5px;font-weight:600;white-space:nowrap">{{ st.label }}</button>
+              </sc-for>
+            </div>
+            <sc-if value="{{ stabLayout }}">
               <div style="display:flex;flex-direction:column;gap:6px;padding:0 10px 10px">
               <span style="font-size:12px;color:#6b6458;margin-top:-2px">Rearranges this slide's text and images. Undo to go back.</span>
               <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:6px">
@@ -395,17 +388,12 @@ input,textarea,button{font:inherit;color:inherit}
                 </sc-for>
               </div>
               </div>
-              </sc-if>
-            </div>
-            <div style="display:flex;flex-direction:column;border:1px solid #e0d9cb;border-radius:10px;background:#fff">
-              <div onClick="{{ sec.frames.toggle }}" style="display:flex;align-items:center;gap:8px;padding:9px 10px;cursor:pointer;user-select:none">
-                <span style="width:12px;flex:none;font-size:10px;color:#6b6458">{{ sec.frames.caret }}</span>
-                <span style="flex:1;min-width:0;font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#1d1b17;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Frames · {{ frameCount }}</span>
-                <label onClick="{{ stopProp }}" style="display:flex;align-items:center;gap:5px;font-size:12px;color:#6b6458;cursor:pointer;white-space:nowrap">
+            </sc-if>
+            <sc-if value="{{ stabFrames }}">
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:#6b6458;cursor:pointer;white-space:nowrap">
                   <input type="checkbox" checked="{{ showFramesOn }}" onChange="{{ onShowFrames }}" style="accent-color:#1d1b17">Progress
-                </label>
-              </div>
-              <sc-if value="{{ sec.frames.open }}">
+              </label>
               <div style="display:flex;flex-direction:column;gap:6px;padding:0 10px 10px">
               <div style="display:flex;align-items:flex-start;gap:4px;overflow-x:auto;padding:3px 2px 4px">
                 <sc-for list="{{ frameItems }}" as="fr" hint-placeholder-count="1">
@@ -435,8 +423,6 @@ input,textarea,button{font:inherit;color:inherit}
                 </div>
               </sc-if>
               </div>
-              </sc-if>
-            </div>
             <div style="display:flex;flex-direction:column;border:1px solid #e0d9cb;border-radius:10px;background:#fff">
               <div onClick="{{ sec.tdef.toggle }}" style="display:flex;align-items:center;gap:8px;padding:9px 10px;cursor:pointer;user-select:none">
                 <span style="width:12px;flex:none;font-size:10px;color:#6b6458">{{ sec.tdef.caret }}</span>
@@ -515,14 +501,9 @@ input,textarea,button{font:inherit;color:inherit}
                 <span style="font-size:11.5px;line-height:1.45;color:#6b6458">Click a layer on either side to select it in that frame, then move, resize or rotate it on the slide. An empty cell means the layer appears or disappears; click it to copy the layer into that frame.</span>
               </div>
             </sc-if>
-
-            <sc-if value="{{ notTransView }}">
-            <div style="display:flex;flex-direction:column;border:1px solid #e0d9cb;border-radius:10px;background:#fff">
-              <div onClick="{{ sec.layers.toggle }}" style="display:flex;align-items:center;gap:8px;padding:9px 10px;cursor:pointer;user-select:none">
-                <span style="width:12px;flex:none;font-size:10px;color:#6b6458">{{ sec.layers.caret }}</span>
-                <span style="flex:1;min-width:0;font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#1d1b17;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Layers</span>
-              </div>
-              <sc-if value="{{ sec.layers.open }}">
+            </div>
+            </sc-if>
+            <sc-if value="{{ stabLayers }}">
               <div style="display:flex;flex-direction:column;gap:6px;padding:0 10px 10px">
               <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px">
                 <sc-for list="{{ addBtns }}" as="ab" hint-placeholder-count="4">
@@ -542,10 +523,8 @@ input,textarea,button{font:inherit;color:inherit}
                 <sc-if value="{{ noLayers }}"><div style="padding:10px;font-size:12px;color:#6b6458">No layers yet.</div></sc-if>
               </div>
               </div>
-              </sc-if>
-            </div>
-
             </sc-if>
+            <sc-if value="{{ layerPane }}">
             <sc-if value="{{ hasLayer }}">
               <div style="display:flex;flex-direction:column;gap:12px;padding-top:12px;border-top:1px solid #e0d9cb">
                 <div style="display:flex;align-items:center;gap:6px">
@@ -740,6 +719,7 @@ input,textarea,button{font:inherit;color:inherit}
                 </sc-for>
               </div>
             </div>
+            </sc-if>
             </sc-if>
           </sc-if>
 
@@ -1204,12 +1184,12 @@ class Component extends DCLogic {
     this.histTrack();
     const S = this.state;
     if (!DECK) {
-      const d = JSON.stringify({ nodes: stripGrafts(S.nodes), cur: S.cur, mode: S.mode, view: S.view, rtab: S.rtab, bg: S.bg, customAspect: S.customAspect, bgScale: S.bgScale, bgRepeat: S.bgRepeat, bgY: S.bgY, opacity: S.opacity, base: S.base, offset: S.offset, margin: S.margin, gap: S.gap, tone: S.tone, speed: S.speed, navW: S.navW, rightW: S.rightW, tdef: S.tdef, titlePage: S.titlePage, titleView: S.titleView, spacing: S.spacing, secOpen: S.secOpen, collapsed: S.collapsed, treeZoom: S.treeZoom, treeFocus: S.treeFocus });
+      const d = JSON.stringify({ nodes: stripGrafts(S.nodes), cur: S.cur, mode: S.mode, view: S.view, rtab: S.rtab, bg: S.bg, customAspect: S.customAspect, bgScale: S.bgScale, bgRepeat: S.bgRepeat, bgY: S.bgY, opacity: S.opacity, base: S.base, offset: S.offset, margin: S.margin, gap: S.gap, tone: S.tone, speed: S.speed, navW: S.navW, rightW: S.rightW, tdef: S.tdef, titlePage: S.titlePage, titleView: S.titleView, spacing: S.spacing, secOpen: S.secOpen, stab: S.stab, collapsed: S.collapsed, treeZoom: S.treeZoom, treeFocus: S.treeFocus });
       if (d !== this._d) { this._d = d; try { localStorage.setItem(KEY, d); } catch (e) {} }
       if (S.images !== this._im) { this._im = S.images; try { localStorage.setItem(IKEY, JSON.stringify(S.images)); } catch (e) {} }
       if (S.customBg !== this._bg) { this._bg = S.customBg; try { if (S.customBg) localStorage.setItem(BGKEY, S.customBg); } catch (e) {} }
     } else if (!STATIC) {
-      const u = JSON.stringify({ navW: S.navW, rightW: S.rightW, secOpen: S.secOpen, view: S.view, rtab: S.rtab, collapsed: S.collapsed, treeZoom: S.treeZoom, treeFocus: S.treeFocus });
+      const u = JSON.stringify({ navW: S.navW, rightW: S.rightW, secOpen: S.secOpen, stab: S.stab, view: S.view, rtab: S.rtab, collapsed: S.collapsed, treeZoom: S.treeZoom, treeFocus: S.treeFocus });
       if (u !== this._u) { this._u = u; try { localStorage.setItem(UIKEY, u); } catch (e) {} }
     }
     if (S.cur !== this._lastCur) { this._lastCur = S.cur; this.scrollTree(); }
@@ -2017,7 +1997,7 @@ class Component extends DCLogic {
       frameItems: framesCur.map((f, k) => ({ layers: f.layers, label: 'F' + (k + 1), outline: k === fiCur && tv == null ? '2px solid #d9432b' : (tv != null && (k === tv || k === tv + 1)) ? '2px solid #1f6fb8' : '1px solid #e0d9cb',
         labelColor: k === fiCur ? '#1d1b17' : '#6b6458', weight: k === fiCur ? 700 : 500, onClick: () => this.setState({ fi: k, transSel: null, tween: null, layerSel: null, view: 'slide' }),
         hasArrow: k > 0, arrowTitle: `Edit transition F${k} → F${k + 1}`, arrowBg: tv === k - 1 ? '#1f6fb8' : '#fff', arrowColor: tv === k - 1 ? '#fff' : '#1f6fb8', arrowBorder: tv === k - 1 ? '0' : '1.5px solid #9db8d3',
-        onArrow: () => this.setState({ transSel: k - 1, fi: k - 1, layerSel: null, tween: null, view: 'slide' }) })),
+        onArrow: () => this.setState({ transSel: k - 1, fi: k - 1, layerSel: null, tween: null, view: 'slide', stab: 'frames' }) })),
       dupFrame: () => this.dupFrame(fiCur), delFrame: () => this.delFrame(fiCur), delFrameOp: framesCur.length > 1 ? 1 : 0.4,
       confirmDupOpen: S.confirmDup != null, confirmDupText: S.confirmDup != null ? `Frame ${S.confirmDup + 1} has transition settings into frame ${S.confirmDup + 2}. The copy goes between them, so those settings will be lost.` : '',
       cancelDup: () => this.setState({ confirmDup: null }), forceDup: () => this.dupFrame(S.confirmDup, true),
@@ -2047,6 +2027,10 @@ class Component extends DCLogic {
     const tvFree = [TC.Wc <= 1.001 && 'Pan X', TC.Hc <= 1.001 && 'Pan Y'].filter(Boolean);
 
     return {
+      ...(st => ({ stabBtns: [['layout', 'Layout'], ['frames', 'Frames'], ['layers', 'Layers']].map(([v, label]) => ({ label, ...tab(st === v), onClick: () => this.setState(v === 'frames' ? { stab: v } : { stab: v, transSel: null }) })),   // leaving Frames closes the transition view
+        stabLayout: st === 'layout', stabFrames: st === 'frames', stabLayers: st === 'layers', layerPane: st === 'layers' || transVals.isTransView }))(S.stab || 'layers'),
+      insertOpen: !!DECK && !STATIC && !!(S.secOpen || {}).insert, insertBg: (S.secOpen || {}).insert ? '#ece6d9' : '#fff',
+      onInsertToggle: () => this.setState(st => ({ secOpen: { ...st.secOpen, insert: !(st.secOpen || {}).insert } })),
       fromDeck: curN._from || '', fromHref: '?deck=' + (curN._from || ''), ownSlide: !curN._from, linkedDeck: curN.include || '', linkedHref: '?deck=' + (curN.include || ''),
       exportShow: !STATIC, onExportMd: () => this.downloadMarkdown(cur),
       isTitlePage: cur === 'ROOT', titlePage: !!S.titlePage, onTitlePage: e => this.setTitlePage(!!e.target.checked),

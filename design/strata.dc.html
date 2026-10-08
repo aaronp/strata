@@ -350,7 +350,7 @@ input,textarea,button{font:inherit;color:inherit}
                 </div>
                 <sc-if value="{{ sec.insert.open }}">
                   <div style="display:flex;flex-direction:column;gap:6px;padding:0 10px 10px">
-                    <span style="font-size:12px;line-height:1.45;color:#6b6458">Copies another deck's slides into this one as ordinary, editable slides.</span>
+                    <span style="font-size:12px;line-height:1.45;color:#6b6458">{{ insertHint }}</span>
                     <div style="display:flex;gap:2px;padding:3px;border-radius:9px;background:#ece6d9">
                       <sc-for list="{{ copyModes }}" as="cm" hint-placeholder-count="2">
                         <button onClick="{{ cm.onClick }}" style="flex:1;padding:5px 6px;border:0;border-radius:7px;cursor:pointer;background:{{ cm.bg }};color:{{ cm.color }};box-shadow:{{ cm.shadow }};font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ cm.label }}</button>
@@ -359,6 +359,12 @@ input,textarea,button{font:inherit;color:inherit}
                     <select value="" onChange="{{ onCopyDeck }}" style="padding:7px 8px;border:1px solid #e0d9cb;border-radius:7px;background:#fff;outline:none;font-size:13px">
                       <sc-for list="{{ copyOpts }}" as="o" hint-placeholder-count="2"><option value="{{ o.v }}">{{ o.l }}</option></sc-for>
                     </select>
+                    <sc-if value="{{ isLinkMode }}">
+                      <div style="display:flex;gap:6px;align-items:center">
+                        <input value="{{ linkSlug }}" onChange="{{ onLinkSlug }}" placeholder="slug" title="The linked slide's slug: its slides become slug.slide" style="flex:1;min-width:0;padding:6px 8px;border:1px solid #e0d9cb;border-radius:7px;background:#fff;outline:none;font-family:'JetBrains Mono',monospace;font-size:12px">
+                        <button onClick="{{ onLink }}" disabled="{{ linkOff }}" style="flex:none;padding:6px 12px;border:0;border-radius:7px;background:#1d1b17;color:#fbf9f4;cursor:pointer;font-size:12.5px;white-space:nowrap">{{ linkLabel }}</button>
+                      </div>
+                    </sc-if>
                   </div>
                 </sc-if>
               </div>
@@ -1049,6 +1055,19 @@ class Component extends DCLogic {
   }
   freeId(base, taken = []) { const N = this.state.nodes; let s = base, i = 2; while (N[s] || taken.includes(s)) s = base + '-' + i++; return s; }
   graftMsg(id) { return 'read-only'; }
+  // Live link: a new linked node (readable slug id) as the last child of tid, with deck B grafted under it. One undo step.
+  async createLink(tid, B, slug) {
+    const N = this.state.nodes;
+    if (!B) return false;
+    if (!/^[a-z0-9-]+$/.test(slug || '') || N[slug]) { this.flash('Slug "' + (slug || '') + '" is ' + (N[slug] ? 'taken' : 'not valid (use a-z, 0-9 and -)')); return false; }
+    if (N[tid]._from || N[tid].include) { this.flash(this.graftMsg(tid)); return false; }
+    let d; try { d = await this.fetchDeck(B); } catch (e) { this.flash('Couldn\'t link "' + B + '": ' + e.message); return false; }
+    const first = d.nodes[d.nodes.ROOT.children[0]];
+    const own = { ...N, [slug]: { id: slug, title: d.title || (first && first.title) || B, body: '', children: [], include: B }, [tid]: { ...N[tid], children: [...N[tid].children, slug] } };
+    const g = await this.graft(own); this._graftEdit = true;
+    this.setState(s => ({ nodes: g.nodes, images: { ...ownImages(s.images), ...g.images }, cur: slug, prev: null, phase: 'idle', fi: 0, linkDeck: null, layerSel: null }));
+    return true;
+  }
   // Copy another deck's slides as ordinary slides: fresh ids, slide links remapped, images inlined. Linked nodes stay live links.
   async copyDeck(slug, chain = []) {
     if (chain.includes(slug)) throw new Error('copy loop ' + [...chain, slug].join(' → '));
@@ -1276,6 +1295,7 @@ class Component extends DCLogic {
   moveNode(id, tid, where) {
     const N = this.state.nodes, D = this.derive(), T = N[tid];
     if (!N[id] || !T || id === tid || this.isUnder(tid, id)) return;
+    if (where === 'child' && T.include) { this.flash(this.graftMsg(tid)); return; }
     const nodes = { ...N }, pid = D.parent[id];
     nodes[pid] = { ...N[pid], children: N[pid].children.filter(k => k !== id) };
     if (where === 'child') nodes[tid] = { ...nodes[tid], children: [...nodes[tid].children, id] };
@@ -1289,7 +1309,7 @@ class Component extends DCLogic {
       if (id === 'ROOT') continue; const p = tp[id]; if (x < p.x || x > p.x + TW || y < p.y - 4 || y > p.y + 60) continue;
       if (id === dragId || this.isUnder(id, dragId)) return null;
       const r = (x - p.x) / TW, where = r < 1 / 3 ? 'before' : r > 2 / 3 ? 'after' : 'child';
-      return { id, where };
+      return where === 'child' && this.state.nodes[id].include ? null : { id, where };
     }
     return null;
   }
@@ -1315,6 +1335,7 @@ class Component extends DCLogic {
     window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
   }
   insert(pid, index) {
+    if (this.state.nodes[pid]._from || this.state.nodes[pid].include) { this.flash(this.graftMsg(pid)); return; }
     const S = this.state; const id = uid(); const p = S.nodes[pid]; const kids = [...p.children]; kids.splice(index, 0, id);
     this.setState({ nodes: { ...S.nodes, [id]: { id, title: 'New slide', body: '', children: [] }, [pid]: { ...p, children: kids } }, cur: id, prev: null, phase: 'idle', query: '', rtab: 'slide', fi: 0, transSel: null });
     this.focusTitle();
@@ -1324,6 +1345,7 @@ class Component extends DCLogic {
   // Deleting a slide with children asks first: delete them too, or move them up into its place.
   remove(id) {
     const N = this.state.nodes; if (!N[id] || id === 'ROOT') return;
+    if (N[id].include) { this.removeNode(id, false); this.flash('Removed link to "' + N[id].include + '"'); return; }   // its children are the graft, not yours
     const count = (function c(x) { return N[x].children.reduce((n, k) => n + 1 + c(k), 0); })(id);
     if (count) this.setState({ confirmDel: { id, count } }); else this.removeNode(id, false);
   }
@@ -2001,8 +2023,11 @@ class Component extends DCLogic {
       cardOn: cardCfg.mode !== 'none', cardColor: cardCfg.color, onCardColor: e => setCard({ color: e.target.value }),
       cardOp: cardCfg.opacity, cardOpLabel: Math.round(cardCfg.opacity * 100) + '%', onCardOp: e => setCard({ opacity: +e.target.value }),
       cardBlur: cardCfg.blur, cardBlurLabel: cardCfg.blur + ' px', onCardBlur: e => setCard({ blur: +e.target.value }), deckCard: S.card || null,
-      copyShow: !!DECK && !STATIC, onCopyDeck: e => { const v = e.target.value; if (v) this.copyDeckHere(this.curId(), v, S.copyMode || 'child'); },
-      copyModes: [['child', 'As children'], ['replace', 'Replace this slide' + (nCur && nCur.children.length ? ' (+' + (function c(x) { return N[x].children.reduce((n, k) => n + 1 + c(k), 0); })(this.curId()) + ' below)' : '')]]
+      copyShow: !!DECK && !STATIC, onCopyDeck: e => { const v = e.target.value; if (!v) return; if ((S.copyMode || 'child') === 'link') this.setState({ linkDeck: v, linkSlug: this.freeId(v) }); else this.copyDeckHere(this.curId(), v, S.copyMode || 'child'); },
+      isLinkMode: (S.copyMode || 'child') === 'link', linkSlug: S.linkSlug || '', onLinkSlug: e => this.setState({ linkSlug: e.target.value }),
+      linkLabel: S.linkDeck ? 'Link ' + S.linkDeck : 'Choose a deck above', linkOff: !S.linkDeck, onLink: () => this.createLink(this.curId(), S.linkDeck, S.linkSlug),
+      insertHint: (S.copyMode || 'child') === 'link' ? 'Shows another deck\'s slides under a new linked slide here, live and read-only: edits to that deck show when this one is reopened.' : 'Copies another deck\'s slides into this one as ordinary, editable slides.',
+      copyModes: [['child', 'As children'], ['replace', 'Replace this slide' + (nCur && nCur.children.length ? ' (+' + (function c(x) { return N[x].children.reduce((n, k) => n + 1 + c(k), 0); })(this.curId()) + ' below)' : '')], ['link', 'Link (live)']]
         .map(([m, label]) => ({ label, ...tab((S.copyMode || 'child') === m), onClick: () => this.setState({ copyMode: m }) })),
       copyOpts: [{ v: '', l: 'Choose a deck to insert…' }].concat((S.decks || []).filter(d => d.slug !== DECK).map(d => ({ v: d.slug, l: d.title + ' (' + d.slug + ')' }))),
       delDlg: S.confirmDel && N[S.confirmDel.id] ? { show: true, title: name(S.confirmDel.id), count: S.confirmDel.count, allLabel: 'Delete all ' + (S.confirmDel.count + 1),

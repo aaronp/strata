@@ -984,3 +984,34 @@ test("copying a deck keeps its linked nodes live, with their slug (or -2 if take
   expect(lk).toBe("t-2"); expect(c.state.nodes[lk]).toMatchObject({ include: "b", children: ["t-2.x"] });
   expect(s).not.toBe("s");                                                        // ordinary slides still get fresh ids
 });
+
+test("Link (live) adds a linked node under the current slide: deduped slug, grafted at once, one undo step", async () => {
+  await deckBWithImage(); await deckTalk();
+  const { c } = await mount("?deck=talk"); await Bun.sleep(150);
+  c.setState({ copyMode: "link" }); let v = c.renderVals();
+  expect(v.isLinkMode).toBe(true);
+  v.onCopyDeck({ target: { value: "b" } }); expect(c.state.linkDeck).toBe("b"); expect(c.state.linkSlug).toBe("b");
+  expect(c.freeId("t")).toBe("t-2");
+  expect(await c.createLink("t", "b", "Bad Slug")).toBe(false); expect(c.state.note).toMatch(/not valid/);
+  expect(await c.createLink("t", "b", "b")).toBe(true); c.componentDidUpdate();
+  expect(c.state.nodes.t.children).toEqual(["b"]);
+  expect(c.state.nodes.b).toMatchObject({ include: "b", title: "Bx", children: ["b.x"] });
+  expect(c.state.nodes["b.x"]).toBeTruthy(); expect(c.state.cur).toBe("b");
+  c.undo(); c.componentDidUpdate();
+  expect(c.state.nodes.b).toBeUndefined(); expect(c.state.nodes["b.x"]).toBeUndefined();
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  expect(html).toContain('onClick="{{ onLink }}"');
+});
+
+test("a linked node moves with its graft, deletes at once (undo restores), and can't take children of its own", async () => {
+  const c = await linkTalk(); await Bun.sleep(150);
+  c.moveNode("w2", "t", "before"); c.componentDidUpdate();
+  expect(kids(c, "ROOT")).toEqual(["w2", "t"]); expect(kids(c, "w2")).toEqual(["w2.x"]);
+  c.remove("t"); c.componentDidUpdate();
+  expect(c.state.confirmDel).toBeFalsy(); expect(c.state.nodes.t).toBeUndefined(); expect(c.state.nodes["t.x"]).toBeUndefined();
+  expect(c.state.note).toBe('Removed link to "b"');
+  c.undo(); c.componentDidUpdate(); expect(kids(c, "t")).toEqual(["t.x"]);
+  const before = c.state.nodes;
+  c.addChild("t"); expect(c.state.nodes).toBe(before);
+  c.moveNode("w2", "t", "child"); expect(c.state.nodes).toBe(before);
+});

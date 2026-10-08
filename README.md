@@ -49,7 +49,7 @@ type Deck = {
   base: string;           // colour behind the background
   offset: number;         // horizontal background offset (background loops infinitely)
   margin: number;         // vertical margin between levels (% of canvas height)
-  gap: number;            // horizontal gap between slides (fraction of slide width)
+  gap: number;            // column step − 1: left edge to left edge is w·(1+gap); 0 = slides abut (background moves in sync), < 0 overlaps (parallax)
   tdef: Partial<Record<Action, Timing>>;   // deck-wide transition defaults
   images: Record<string, string>;          // imgKey -> dataURL (stored separately in the prototype)
 };

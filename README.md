@@ -146,5 +146,8 @@ A layer keeps the **same `id`** across frames; that's how it's matched for tween
 6. Frames, the transition view, per-action timing, bezier paths and defaults.
 7. Links, layout presets, wireframe view, frame preview and progress dots.
 
+### Text styles
+Text layers can use deck-wide named styles: built-in **H1, H2, H3, Body**, plus your own (Canvas tab → Text styles: rename, see how many layers use each, **+ New style from selected layer**, delete). A style covers font, size, weight, colour, alignment, line height, letter spacing, bullets, paragraph gap and the Container. On a text layer, pick its **Style** (or Custom), then **Edits apply to: This layer | <Style> style**: *This layer* makes an override (marked •, ↺ to reset, **Clear overrides** for all); *<Style> style* edits the style for every layer using it. Saved as `deck.styles` (only what differs from the built-ins); markdown import makes titles H1 and bodies Body. Style edits aren't on undo (like other Canvas settings). Slides linked in from another deck use this deck's style of the same name, else their own.
+
 ### Components
 **+ Component** (Layers) adds a live, sandboxed HTML/CSS/JS snippet you place and animate like any layer. Paste code into its editor and **Apply**. It talks to the slide through a `strata` helper: it hears `enter` and `frame` (with the frame number and its own tween `duration`), can claim the presenter's → / ← (`strata.ready({ steps: true })`, then `next` / `prev`, handing back with `strata.done()` / `strata.back()`), and can `strata.jumpTo('slide')` or `strata.nav('right')`. **Copy AI guide** copies a brief for an AI to write one; **Interact** lets you click into it while editing. A second → overrides a component that stops responding.

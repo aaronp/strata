@@ -973,6 +973,43 @@ function runsToMarkup(runs) {
 }
 const linesOf = text => String(text ?? '').split('\n').map(l => parseRich(l, null, { raw: true }));
 const textOf = lines => lines.map(runsToMarkup).join('\n');
+// ---- Run operations: pure, on lines of source runs, by plain offset (a line break counts 1).
+const lineLen = line => line.reduce((n, r) => n + r.text.length, 0);
+const toPlain = lines => lines.map(l => l.map(r => r.text).join('')).join('\n');
+const locate = (lines, off) => { for (let n = 0; n < lines.length; n++) { const L = lineLen(lines[n]); if (off <= L) return [n, off]; off -= L + 1; } const n = lines.length - 1; return [n, lineLen(lines[n] || [])]; };
+const splitAt = (line, col) => { const a = [], b = []; let pos = 0;
+  for (const r of line) { const e = pos + r.text.length; if (e <= col) a.push(r); else if (pos >= col) b.push(r); else { a.push({ ...r, text: r.text.slice(0, col - pos) }); b.push({ ...r, text: r.text.slice(col - pos) }); } pos = e; }
+  return [a, b]; };
+const mapRange = (lines, start, end, fn) => { const [sl, sc] = locate(lines, start), [el, ec] = locate(lines, end);
+  return lines.map((line, n) => { if (n < sl || n > el) return line; const from = n === sl ? sc : 0, to = n === el ? ec : lineLen(line);
+    const [left, rest] = splitAt(line, from), [mid, right] = splitAt(rest, to - from); return mergeLine([...left, ...mid.map(fn), ...right]); }); };
+const patchRun = (r, patch) => { const o = { ...r }; for (const k in patch) { if (patch[k] === null || patch[k] === undefined) delete o[k]; else o[k] = patch[k]; } return o; };
+const setAttr = (lines, start, end, patch) => mapRange(lines, start, end, r => patchRun(r, patch));
+const clearRange = (lines, start, end) => mapRange(lines, start, end, r => ({ text: r.text }));
+function toggleAttr(lines, start, end, key) {
+  if (start === end) { const t = toPlain(lines); let a = start, b = start; while (a > 0 && /[\w']/.test(t[a - 1])) a--; while (b < t.length && /[\w']/.test(t[b])) b++; if (a === b) return lines; start = a; end = b; }
+  let all = true; mapRange(lines, start, end, r => { if (r.text.trim() && !r[key]) all = false; return r; });
+  return setAttr(lines, start, end, { [key]: all ? null : true });
+}
+const insertBreak = (lines, at) => { const [n, c] = locate(lines, at), [a, b] = splitAt(lines[n], c); return [...lines.slice(0, n), mergeLine(a), mergeLine(b), ...lines.slice(n + 1)]; };
+function insertPlain(lines, at, text) {
+  const [n, c] = locate(lines, at), line = lines[n]; let pos = 0, base = line[0] || { text: '' };
+  for (const r of line) { if (c > pos && c <= pos + r.text.length) { base = r; break; } pos += r.text.length; }
+  const { text: _t, ...attrs } = base, mk = t => (t ? [{ ...attrs, text: t }] : []);
+  const parts = String(text).replace(/\r\n?/g, '\n').split('\n'), [a, b] = splitAt(line, c);
+  if (parts.length === 1) return [...lines.slice(0, n), mergeLine([...a, ...mk(parts[0]), ...b]), ...lines.slice(n + 1)];
+  return [...lines.slice(0, n), mergeLine([...a, ...mk(parts[0])]), ...parts.slice(1, -1).map(p => mergeLine(mk(p))), mergeLine([...mk(parts[parts.length - 1]), ...b]), ...lines.slice(n + 1)];
+}
+const deleteRange = (lines, start, end) => { const [sl, sc] = locate(lines, start), [el, ec] = locate(lines, end);
+  const [left] = splitAt(lines[sl], sc), [, right] = splitAt(lines[el], ec); return [...lines.slice(0, sl), mergeLine([...left, ...right]), ...lines.slice(el + 1)]; };
+// The link run under a plain offset, with its full range (merged neighbours share the link).
+function linkAt(lines, off) {
+  const [n, c] = locate(lines, off); let base = 0; for (let k = 0; k < n; k++) base += lineLen(lines[k]) + 1;
+  let pos = 0; for (const r of lines[n]) { const e = pos + r.text.length;
+    if ((c > pos && c < e) || (c === e && c > pos) || (c === pos && c < e && pos === 0)) return r.link || r.href ? { link: r.link, href: r.href, start: base + pos, end: base + e } : null;
+    pos = e; }
+  return null;
+}
 const plainText = text => String(text ?? '').split('\n').map(l => l === '' ? '' : parseRich(l).map(r => r.text).join('')).join('\n');
 // Format the [start,end) selection; returns the new text and a selection on the same words (inside any markers).
 // The selection is normalised first (ordered, clamped, trimmed; a whole formatted piece means its content). A wrap that would leave stray
@@ -1116,7 +1153,7 @@ function seed() {
 }
 
 class Component extends DCLogic {
-  static rich = { parseRich, plainText, applyFormat, runsToMarkup, linesOf, textOf };
+  static rich = { parseRich, plainText, applyFormat, runsToMarkup, linesOf, textOf, toPlain, lineLen, locate, setAttr, toggleAttr, clearRange, insertBreak, insertPlain, deleteRange, linkAt };
   state = {
     nodes: seed(), cur: 'a', prev: null, phase: 'idle', dx: 0, dy: 0, type: 'swipe', mode: STATIC ? 'present' : 'build', view: 'slide', rtab: 'slide',
     query: '', bg: 'balloons', customBg: null, customAspect: 1, opacity: 1, base: '#0b1220', offset: 0,

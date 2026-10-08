@@ -1314,3 +1314,13 @@ test("applyFormat: toggles bold, wraps lines, updates or unwraps spans, clears, 
   expect(applyFormat("a **b** [c]{size=9}", 0, 0, { clear: true }).text).toBe("a b c");
   expect(applyFormat("a **b** c", 2, 7, { clear: true })).toEqual({ text: "a b c", start: 2, end: 3 });
 });
+
+test("resolveLayer gives every text layer display runs, with style spans looked up like layer styles; names are plain", async () => {
+  const c = await styledDeck({ styles: { h2: { size: 41 } } }, [TL("a", { text: "x [y]{style=h2} **z**" }), TL("b", { style: "h1", text: "plain" })]);
+  const [a, b] = c.layersOf("s").map((l: any) => c.resolveLayer(l, "s"));
+  expect(a._lines).toEqual([[{ text: "x " }, { text: "y", size: 41, weight: 700, font: "grot", ls: 0 }, { text: " " }, { text: "z", b: true }]]);   // H2's colour is null, so it's not taken
+  expect(b._lines).toEqual([[{ text: "plain" }]]);
+  expect(c.layersOf("s")[0]._lines).toBeUndefined();                         // never stored
+  c.chooseStyle("s", "a", ""); expect(c.layersOf("s")[0]._lines).toBeUndefined();
+  c.setState({ layerSel: "a" }); expect(c.renderVals().layerRows.find((r: any) => r.name.startsWith("x")).name).toBe("x y z");
+});

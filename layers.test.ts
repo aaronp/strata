@@ -133,3 +133,13 @@ test("a component that isn't showing in this frame doesn't catch clicks", () => 
   expect(render({ layers: [comp({ opacity: 0 })], live: "s1" }).items[0].pe).toBe("none");
   expect(html).toContain("pointer-events:{{ e.pe }}");
 });
+
+test("text runs render as spans with their own weight, style, size, colour and font; plain text renders as one run", () => {
+  const v = render({ layers: [txt({ text: "a b", _lines: [[{ text: "a " }, { text: "b", b: true, i: true, size: 32, color: "#ff0000", font: "serif" }]] })] });
+  expect(v.items[0].lines[0].runs).toEqual([
+    { text: "a ", fw: "", fst: "", fsz: "", col: "", fam: "", lsp: "" },
+    { text: "b", fw: "bolder", fst: "italic", fsz: "2cqw", col: "#ff0000", fam: "'DM Serif Display',serif", lsp: "" }]);
+  expect(render({ layers: [txt()] }).items[0].lines[0].runs).toEqual([{ text: "Hi", fw: "", fst: "", fsz: "", col: "", fam: "", lsp: "" }]);
+  const w = render({ layers: [txt({ text: "x", _lines: [[{ text: "x", b: true, weight: 300 }]] })] });
+  expect(w.items[0].lines[0].runs[0].fw).toBe(300);                           // an explicit weight wins over bold
+});

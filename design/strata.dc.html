@@ -1357,12 +1357,14 @@ class Component extends DCLogic {
   styles() { if (this._stylesOf !== this.state.styles || !this._styles) { this._stylesOf = this.state.styles; this._styles = mergeStyles(this.state.styles); } return this._styles; }
   // A styled text layer over its style: the host's style of that id, else (for a linked-in slide) its own deck's. Display and comparison only.
   resolveLayer(l, nodeId) {
-    if (!l || l.type !== 'text' || !l.style) return l;
-    const n = this.state.nodes[nodeId], st = this.styles()[l.style] || (n && n._from && ((this._graftStyles || {})[n._from] || {})[l.style]);
-    if (!st) return l;
-    const r = { ...l }; for (const k of STYLE_KEYS) if (r[k] === undefined && st[k] !== undefined) r[k] = st[k];
+    if (!l || l.type !== 'text') return l;
+    const n = this.state.nodes[nodeId], look = sid => this.styles()[sid] || (n && n._from && ((this._graftStyles || {})[n._from] || {})[sid]) || null;
+    const st = l.style ? look(l.style) : null, r = { ...l };
+    if (st) for (const k of STYLE_KEYS) if (r[k] === undefined && st[k] !== undefined) r[k] = st[k];
+    r._lines = String(r.text ?? '').split('\n').map(line => parseRich(line, look));   // display-only runs; never saved
     return r;
   }
+
   shown(nodeId, ls) { return (ls || []).map(l => this.resolveLayer(l, nodeId)); }
   layout(D) {
     const N = this.state.nodes; const L = D.levels, rg = this.state.rowGap; let h, top, step;
@@ -1643,7 +1645,7 @@ class Component extends DCLogic {
   // '' = Custom: keep the look by writing the resolved values onto the layer. Otherwise adopt the style fully.
   chooseStyle(id, lid, sid) {
     this.setLayers(id, ls => ls.map(l => { if (l.id !== lid) return l;
-      if (!sid) return { ...this.resolveLayer(l, id), style: '' };   // '' = chosen Custom (re-import leaves it alone)
+      if (!sid) { const { _lines, ...o } = this.resolveLayer(l, id); return { ...o, style: '' }; }   // '' = chosen Custom (re-import leaves it alone)
       const o = { ...l, style: sid }; STYLE_KEYS.forEach(k => delete o[k]); return o; }));
   }  // A new named style from a layer's current look; the layer then uses it with no overrides.
   newStyleFrom(id, lid) {
@@ -1982,7 +1984,7 @@ class Component extends DCLogic {
     const upL = patch => { if (!ly) return; if (!toStyle) { this.updLayer(cur, ly.id, patch); return; }
       const sp = {}, lp = {}; for (const k in patch) (STYLE_KEYS.includes(k) ? sp : lp)[k] = patch[k];
       if (Object.keys(sp).length) this.setStyle(ly.style, sp); if (Object.keys(lp).length) this.updLayer(cur, ly.id, lp); };
-    const lname = l => l.type === 'text' ? short(String(l.text || '').split('\n')[0] || 'Text', 24) : l.type === 'image' ? 'Image' : l.type === 'shape' ? ({ rect: 'Rectangle', ellipse: 'Ellipse', triangle: 'Triangle' }[l.shape] || 'Shape') : l.type === 'component' ? '⧉ ' + (l.name || 'Component') : 'Icon · ' + (l.icon || '');
+    const lname = l => l.type === 'text' ? short(plainText(l.text).split('\n')[0] || 'Text', 24) : l.type === 'image' ? 'Image' : l.type === 'shape' ? ({ rect: 'Rectangle', ellipse: 'Ellipse', triangle: 'Triangle' }[l.shape] || 'Shape') : l.type === 'component' ? '⧉ ' + (l.name || 'Component') : 'Icon · ' + (l.icon || '');
     const selIds = this.selIds(), multi = selIds.length > 1, hits = S.marqueeHits || [], mh = this._mh || {};
     const overlays = curLayers.map((l, i) => ({ l: l.x, t: l.y, w: l.w, h: Math.max(l.h, mh[l.id] || 0), rot: l.rot || 0, z: i + 1, pe: S.interact === l.id && S.layerSel === l.id ? 'none' : 'auto', selected: selIds.includes(l.id), single: !multi && l.id === S.layerSel, hidden: !!l.hidden,
       outline: selIds.includes(l.id) || hits.includes(l.id) ? '2px solid #1f6fb8' : 'none', label: lname(l) + (l.link ? (l.link.type === 'url' ? '  ↗ ' + short(l.link.url || 'web link', 26) : '  → ' + short(N[l.link.id] ? name(l.link.id) : 'missing slide', 22)) : ''),
@@ -2101,7 +2103,7 @@ class Component extends DCLogic {
       return { ...g, opacity: 0, hidden: false, _z: 0, _tr: tr, _tr2: tr2 };
     });
     const tv = S.transSel != null && S.transSel < framesCur.length - 1 ? S.transSel : null;
-    const lname2 = l => l.type === 'text' ? short(String(l.text || '').split('\n')[0] || 'Text', 20) : l.type === 'image' ? 'Image' : l.type === 'shape' ? (l.shape || 'Shape') : l.type === 'component' ? '⧉ ' + (l.name || 'Component') : 'Icon · ' + (l.icon || '');
+    const lname2 = l => l.type === 'text' ? short(plainText(l.text).split('\n')[0] || 'Text', 20) : l.type === 'image' ? 'Image' : l.type === 'shape' ? (l.shape || 'Shape') : l.type === 'component' ? '⧉ ' + (l.name || 'Component') : 'Icon · ' + (l.icon || '');
     const diff = (a, b) => { if (!a) return 'appears'; if (!b) return 'disappears'; const c = [];
       if (Math.abs(a.x - b.x) > 0.05 || Math.abs(a.y - b.y) > 0.05) c.push('move'); if (Math.abs(a.w - b.w) > 0.05 || Math.abs(a.h - b.h) > 0.05) c.push('scale');
       if ((a.rot || 0) !== (b.rot || 0)) c.push('rotate'); if ((a.color || a.fill) !== (b.color || b.fill)) c.push('colour'); if ((a.opacity ?? 1) !== (b.opacity ?? 1) || !!a.hidden !== !!b.hidden) c.push('fade');

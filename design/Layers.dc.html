@@ -16,7 +16,7 @@
           <sc-for list="{{ e.lines }}" as="ln" hint-placeholder-count="1">
             <div style="display:flex;gap:.45em;align-items:baseline;justify-content:{{ e.hjust }}">
               <sc-if value="{{ ln.hasMark }}"><span style="flex:none;min-width:{{ e.markW }};opacity:.85">{{ ln.mark }}</span></sc-if>
-              <span style="white-space:pre-wrap;text-wrap:pretty;min-width:0">{{ ln.text }}</span>
+              <span style="white-space:pre-wrap;text-wrap:pretty;min-width:0"><sc-for list="{{ ln.runs }}" as="r" hint-placeholder-count="1"><span style="font-weight:{{ r.fw }};font-style:{{ r.fst }};font-size:{{ r.fsz }};color:{{ r.col }};font-family:{{ r.fam }};letter-spacing:{{ r.lsp }}">{{ r.text }}</span></sc-for></span>
             </div>
           </sc-for>
         </div>
@@ -91,7 +91,9 @@ class Component extends DCLogic {
         isText: l.type === 'text', isShape: l.type === 'shape', isIcon: l.type === 'icon', isImage: l.type === 'image' };
       if (l.type === 'text') {
         const b = l.bullets || 'none'; const raw = String(l.text ?? '').split('\n');
-        const lines = raw.map((t, i) => ({ text: t === '' ? '\u00a0' : t, hasMark: b !== 'none' && t !== '', mark: b === 'number' ? (raw.slice(0, i + 1).filter(x => x !== '').length) + '.' : MARKS[b] || '' }));
+        const run = r => ({ text: r.text, fw: r.weight || (r.b ? 'bolder' : ''), fst: r.i ? 'italic' : '', fsz: r.size ? r.size / 16 + 'cqw' : '', col: r.color || '', fam: r.font ? (FONTS[r.font] || '') : '', lsp: r.ls ? r.ls + 'em' : '' });
+        const lines = raw.map((t, i) => ({ text: t === '' ? '\u00a0' : t, runs: ((l._lines && l._lines[i]) || [{ text: t === '' ? '\u00a0' : t }]).map(run),
+          hasMark: b !== 'none' && t !== '', mark: b === 'number' ? (raw.slice(0, i + 1).filter(x => x !== '').length) + '.' : MARKS[b] || '' }));
         const align = l.align || 'left';
         return { ...base, lines, font: FONTS[l.font] || FONTS.grot, fs: (l.size || 40) / 16, weight: l.weight || 400, color: l.color || ink, align, lh: l.lh || 1.2, ls: l.ls || 0,
           gap: l.gap ?? 0.15, hjust: b !== 'none' ? 'flex-start' : align === 'center' ? 'center' : align === 'right' ? 'flex-end' : 'flex-start',

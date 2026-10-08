@@ -40,3 +40,17 @@ test("build with a deck publishes only that deck and opens it from the site root
   expect(index).toContain('<meta http-equiv="refresh" content="0; url=design/strata.dc.html?deck=talk">');
   await expect(build(root, out, "missing")).rejects.toThrow('no deck "missing"');
 });
+
+test("publishing a deck also publishes the decks it links to, through chains and loops; a missing link fails", async () => {
+  const root = await mkdtemp(join(tmpdir(), "strata-b-"));
+  await Bun.write(join(root, "design/strata.dc.html"), '<head>\n<script src="./support.js"></script>\n</head>');
+  const deck = (s: string, inc?: string) => Bun.write(join(root, `decks/${s}/deck.json`),
+    JSON.stringify({ title: s, nodes: { ROOT: { children: inc ? ["l"] : [] }, ...(inc ? { l: { id: "l", title: "L", include: inc, children: [] } } : {}) } }));
+  await deck("talk", "dw"); await deck("dw", "df"); await deck("df", "dw"); await deck("other");
+  const out = join(root, "dist");
+  await build(root, out, "talk");
+  expect((await Bun.file(join(out, "decks/index.json")).json()).map((d: any) => d.slug).sort()).toEqual(["df", "dw", "talk"]);
+  expect(await Bun.file(join(out, "decks/other/deck.json")).exists()).toBe(false);
+  await deck("broken", "nope");
+  await expect(build(root, out, "broken")).rejects.toThrow(`deck "broken" links to "nope", which isn't in decks/`);
+});

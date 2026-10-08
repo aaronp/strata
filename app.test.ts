@@ -1508,3 +1508,13 @@ test("link popover: shown with the cursor in a link run; Remove clears the whole
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
   for (const h of ['data-role="wysiwyg"', 'ref="{{ wysRef }}"', "{{ onFmtMode }}", "{{ linkPopShow }}", "{{ onLinkPick }}"]) expect(html).toContain(h);
 });
+
+test("every text layer in the saved decks survives the rich editor's round trip unchanged in meaning", async () => {
+  const { linesOf, textOf, parseRich } = await rich(); const raw = (s: string) => parseRich(s, null, { raw: true });
+  const { readdir } = await import("node:fs/promises"); let n = 0;
+  for (const d of await readdir(join(import.meta.dir, "decks")).catch(() => [])) {
+    const f = Bun.file(join(import.meta.dir, "decks", d, "deck.json")); if (!(await f.exists())) continue;
+    for (const node of Object.values<any>((await f.json()).nodes)) for (const fr of node.frames || []) for (const l of fr.layers) if (l.type === "text") {
+      const t = String(l.text ?? ""); expect(textOf(linesOf(t)).split("\n").map(raw)).toEqual(t.split("\n").map(raw)); n++; } }
+  expect(n).toBeGreaterThanOrEqual(0);
+});

@@ -1015,3 +1015,23 @@ test("a linked node moves with its graft, deletes at once (undo restores), and c
   c.addChild("t"); expect(c.state.nodes).toBe(before);
   c.moveNode("w2", "t", "child"); expect(c.state.nodes).toBe(before);
 });
+
+test("grafted slides are read-only: tree edits refused with a message, the guard reverts anything else, the stage isn't editable", async () => {
+  const c = await linkTalk(); await Bun.sleep(150); const before = c.state.nodes;
+  c.addPeer("t.x"); c.addChild("t.x"); c.remove("t.x"); c.outdent("t.y"); c.moveNode("t.x", "w2", "after"); c.moveNode("w2", "t.x", "after");
+  expect(c.state.nodes).toBe(before);
+  expect(c.state.note).toBe('Slides from "b" can\'t be changed here: open b, or move/delete "Intro"');
+  c.setNode("t.x", { title: "hacked" }); c.componentDidUpdate();                    // a path with no explicit block
+  expect(c.state.nodes["t.x"].title).toBe("Bx");
+  c.setState({ cur: "t.x", prev: null, phase: "idle" }); let v = c.renderVals();
+  expect(v.editable).toBe(false); expect(v.ownSlide).toBe(false);
+  expect(v.fromDeck).toBe("b"); expect(v.fromHref).toBe("?deck=b");
+  const tn = v.treeNodes.find((n: any) => n.full === "Bx");
+  expect(tn.canPeer).toBe(false); expect(tn.canAdd).toBe(false); expect(tn.ring).toContain("#9db8d3");
+  expect(v.treeNodes.find((n: any) => n.full === "Intro").title).toBe("⛓ Intro");
+  c._tpos = { "t.x": { x: 0, y: 0 } }; expect(c.treeDropAt(40, 10, "w2")).toBeNull();
+  c.setState({ cur: "t" }); v = c.renderVals();
+  expect(v.ownSlide).toBe(true); expect(v.linkedDeck).toBe("b"); expect(v.treeNodes.find((n: any) => n.full === "Intro").canAdd).toBe(false);
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  for (const h of ["{{ fromDeck }}", "{{ ownSlide }}", "{{ linkedDeck }}", "{{ n.ring }}", "{{ n.canAdd }}"]) expect(html).toContain(h);
+});

@@ -89,7 +89,7 @@ input,textarea,button{font:inherit;color:inherit}
             </svg>
             <sc-for list="{{ treeNodes }}" as="n" hint-placeholder-count="6">
               <div style="position:absolute;left:{{ n.x }}px;top:{{ n.y }}px;width:76px;opacity:{{ n.opacity }};user-select:none">
-                <div onPointerDown="{{ n.onDragStart }}" onClick="{{ n.onClick }}" onDoubleClick="{{ n.onRename }}" title="{{ n.full }}" style="position:relative;width:76px;height:43px;border-radius:5px;overflow:hidden;background:{{ base }};cursor:pointer;outline:{{ n.outline }};outline-offset:1px;box-shadow:0 1px 3px rgba(0,0,0,.18)">
+                <div onPointerDown="{{ n.onDragStart }}" onClick="{{ n.onClick }}" onDoubleClick="{{ n.onRename }}" title="{{ n.from }}" style="position:relative;width:76px;height:43px;border-radius:5px;overflow:hidden;background:{{ base }};cursor:pointer;outline:{{ n.outline }};outline-offset:1px;box-shadow:{{ n.ring }}">
                   <div style="position:absolute;left:0;top:0;width:{{ cam.w }}%;height:{{ cam.h }}%;transform:{{ n.cam }};transform-origin:0 0">
                     <sc-for list="{{ tiles }}" as="tl" hint-placeholder-count="0">
                       <div style="position:absolute;top:{{ tl.t }}%;height:{{ tl.h }}%;left:{{ tl.l }}%;width:calc({{ tl.w }}% + 2px);background:{{ bgCss }};opacity:{{ opacity }}"></div>
@@ -103,7 +103,7 @@ input,textarea,button{font:inherit;color:inherit}
                 </div>
                 <sc-if value="{{ n.selected }}">
                   <sc-if value="{{ n.canPeer }}"><button onClick="{{ n.onPeer }}" title="Add slide after (Enter)" style="position:absolute;left:80px;top:12px;width:20px;height:20px;padding:0;border:0;border-radius:50%;background:#1d1b17;color:#fbf9f4;cursor:pointer;font-size:13px;line-height:20px">+</button></sc-if>
-                  <button onClick="{{ n.onChild }}" title="Add slide below (Tab)" style="position:absolute;left:28px;top:62px;width:20px;height:20px;padding:0;border:0;border-radius:50%;background:#1d1b17;color:#fbf9f4;cursor:pointer;font-size:13px;line-height:20px">+</button>
+                  <sc-if value="{{ n.canAdd }}"><button onClick="{{ n.onChild }}" title="Add slide below (Tab)" style="position:absolute;left:28px;top:62px;width:20px;height:20px;padding:0;border:0;border-radius:50%;background:#1d1b17;color:#fbf9f4;cursor:pointer;font-size:13px;line-height:20px">+</button></sc-if>
                   <sc-if value="{{ n.canPeer }}"><button onClick="{{ n.onDelete }}" title="Delete slide and everything below it" style="position:absolute;right:-7px;top:-7px;width:17px;height:17px;padding:0;border:0;border-radius:50%;background:#fff;color:#a8301d;box-shadow:0 1px 3px rgba(0,0,0,.25);cursor:pointer;font-size:9px;line-height:17px;opacity:{{ n.delOpacity }}">✕</button></sc-if>
                 </sc-if>
               </div>
@@ -313,6 +313,13 @@ input,textarea,button{font:inherit;color:inherit}
         </div>
         <div style="flex:1;min-height:0;overflow:auto;padding:14px 14px 24px;display:flex;flex-direction:column;gap:16px">
           <sc-if value="{{ tabSlide }}">
+            <sc-if value="{{ fromDeck }}">
+              <div style="padding:8px 10px;border:1px solid #d6e2ef;border-radius:8px;background:#eef3f9;font-size:12.5px;line-height:1.45;color:#1f4f80">From <b>{{ fromDeck }}</b>: read-only here. <a href="{{ fromHref }}">Open it →</a> to edit or export.</div>
+            </sc-if>
+            <sc-if value="{{ linkedDeck }}">
+              <div style="padding:8px 10px;border:1px solid #d6e2ef;border-radius:8px;background:#eef3f9;font-size:12.5px;line-height:1.45;color:#1f4f80">Linked deck: <b>{{ linkedDeck }}</b> · <code>{{ cur.id }}</code> · <a href="{{ linkedHref }}">Open it →</a></div>
+            </sc-if>
+            <sc-if value="{{ ownSlide }}">
             <label style="display:flex;flex-direction:column;gap:5px">
               <span style="font-size:12px;color:#6b6458">Slide name · tree and breadcrumbs</span>
               <input ref="{{ titleRef }}" value="{{ cur.title }}" onChange="{{ onTitle }}" placeholder="Slide name" style="padding:8px 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;font-weight:600;outline:none">
@@ -733,6 +740,7 @@ input,textarea,button{font:inherit;color:inherit}
                 </sc-for>
               </div>
             </div>
+            </sc-if>
           </sc-if>
 
           <sc-if value="{{ tabLayout }}">
@@ -1054,7 +1062,27 @@ class Component extends DCLogic {
     return { nodes: out, images };
   }
   freeId(base, taken = []) { const N = this.state.nodes; let s = base, i = 2; while (N[s] || taken.includes(s)) s = base + '-' + i++; return s; }
-  graftMsg(id) { return 'read-only'; }
+  // The read-only message, naming the linked node that holds a grafted slide (that's what you can move or delete).
+  graftMsg(id) {
+    const N = this.state.nodes, D = this.derive(), n = N[id] || {};
+    if (!n._from) return 'Its slides come from "' + n.include + '": open ' + n.include + ' to change them';
+    let h = id; while (h && N[h] && N[h]._from) h = D.parent[h];
+    return 'Slides from "' + n._from + '" can\'t be changed here: open ' + n._from + ', or move/delete "' + ((N[h] && N[h].title) || h) + '"';
+  }
+  // Grafted slides are read-only: revert any nodes change that alters one, or a linked node's children. A fresh graft sets _graftEdit.
+  guardGrafts() {
+    const S = this.state, prev = this._lastNodes;
+    if (this._graftEdit) { this._graftEdit = false; return false; }
+    if (!prev || S.nodes === prev || this._restoring) return false;
+    for (const k in prev) {
+      const v = prev[k], cur = S.nodes[k]; if (!cur) continue;   // deleted along with its linked node
+      if ((v._from && cur !== v) || (v.include && String(cur.children) !== String(v.children))) {
+        this.setState(s => ({ nodes: prev, layerSel: null, editing: null, cur: prev[s.cur] ? s.cur : prev.ROOT.children[0] }));
+        this.flash(this.graftMsg(k)); return true;
+      }
+    }
+    return false;
+  }
   // Live link: a new linked node (readable slug id) as the last child of tid, with deck B grafted under it. One undo step.
   async createLink(tid, B, slug) {
     const N = this.state.nodes;
@@ -1161,6 +1189,7 @@ class Component extends DCLogic {
   }
   componentWillUnmount() { window.removeEventListener('message', this.onMsg); clearTimeout(this._as); clearTimeout(this._nt); window.removeEventListener('beforeunload', this.onUnload); window.removeEventListener('paste', this.onPaste); window.removeEventListener('focus', this.onFocusWin); window.removeEventListener('keydown', this.onKey); window.removeEventListener('resize', this.onResize); clearTimeout(this.t); }
   componentDidUpdate() {
+    if (this.guardGrafts()) return;
     this.histTrack();
     const S = this.state;
     if (!DECK) {
@@ -1295,6 +1324,7 @@ class Component extends DCLogic {
   moveNode(id, tid, where) {
     const N = this.state.nodes, D = this.derive(), T = N[tid];
     if (!N[id] || !T || id === tid || this.isUnder(tid, id)) return;
+    if (N[id]._from || T._from) { this.flash(this.graftMsg(N[id]._from ? id : tid)); return; }
     if (where === 'child' && T.include) { this.flash(this.graftMsg(tid)); return; }
     const nodes = { ...N }, pid = D.parent[id];
     nodes[pid] = { ...N[pid], children: N[pid].children.filter(k => k !== id) };
@@ -1308,6 +1338,7 @@ class Component extends DCLogic {
     for (const id in tp) {
       if (id === 'ROOT') continue; const p = tp[id]; if (x < p.x || x > p.x + TW || y < p.y - 4 || y > p.y + 60) continue;
       if (id === dragId || this.isUnder(id, dragId)) return null;
+      if (this.state.nodes[id]._from) return null;
       const r = (x - p.x) / TW, where = r < 1 / 3 ? 'before' : r > 2 / 3 ? 'after' : 'child';
       return where === 'child' && this.state.nodes[id].include ? null : { id, where };
     }
@@ -1323,6 +1354,7 @@ class Component extends DCLogic {
     const move = e => {
       if (this._treeDragCancel) return;
       if (!dragging && Math.abs(e.clientX - ev.clientX) + Math.abs(e.clientY - ev.clientY) < 5) return; dragging = true;
+      if (this.state.nodes[id]._from) { up(); this.flash(this.graftMsg(id), 6000); return; }
       const p = at(e); this.setState({ treeDrag: { id, x: p.x, y: p.y, drop: this.treeDropAt(p.x, p.y, id) } });
     };
     const up = () => {
@@ -1340,11 +1372,12 @@ class Component extends DCLogic {
     this.setState({ nodes: { ...S.nodes, [id]: { id, title: 'New slide', body: '', children: [] }, [pid]: { ...p, children: kids } }, cur: id, prev: null, phase: 'idle', query: '', rtab: 'slide', fi: 0, transSel: null });
     this.focusTitle();
   }
-  addPeer(id) { if (id === 'ROOT') return; const D = this.derive(); const pid = D.parent[id]; this.insert(pid, this.state.nodes[pid].children.indexOf(id) + 1); }
+  addPeer(id) { if (id === 'ROOT') return; if (this.state.nodes[id]._from) { this.flash(this.graftMsg(id)); return; } const D = this.derive(); const pid = D.parent[id]; this.insert(pid, this.state.nodes[pid].children.indexOf(id) + 1); }
   addChild(id) { this.insert(id, this.state.nodes[id].children.length); }
   // Deleting a slide with children asks first: delete them too, or move them up into its place.
   remove(id) {
     const N = this.state.nodes; if (!N[id] || id === 'ROOT') return;
+    if (N[id]._from) { this.flash(this.graftMsg(id)); return; }
     if (N[id].include) { this.removeNode(id, false); this.flash('Removed link to "' + N[id].include + '"'); return; }   // its children are the graft, not yours
     const count = (function c(x) { return N[x].children.reduce((n, k) => n + 1 + c(k), 0); })(id);
     if (count) this.setState({ confirmDel: { id, count } }); else this.removeNode(id, false);
@@ -1364,7 +1397,8 @@ class Component extends DCLogic {
     this.setState({ nodes, cur: next || nodes.ROOT.children[0], prev: null, phase: 'idle', fi: 0, transSel: null });
   }
   outdent(id) {
-    if (id === 'ROOT') return; const D = this.derive(); const pid = D.parent[id]; if (pid === 'ROOT') return; const gid = D.parent[pid]; const N = this.state.nodes;
+    if (id === 'ROOT') return; if (this.state.nodes[id]._from) { this.flash(this.graftMsg(id)); return; }
+    const D = this.derive(); const pid = D.parent[id]; if (pid === 'ROOT') return; const gid = D.parent[pid]; const N = this.state.nodes;
     const g = [...N[gid].children]; g.splice(g.indexOf(pid) + 1, 0, id);
     this.setState({ nodes: { ...N, [pid]: { ...N[pid], children: N[pid].children.filter(k => k !== id) }, [gid]: { ...N[gid], children: g } } });
   }
@@ -1725,8 +1759,8 @@ class Component extends DCLogic {
     if (r0) { const tk = TV.kids('ROOT'); tp.ROOT = { x: tk.length ? (tp[tk[0]].x + tp[tk[tk.length - 1]].x) / 2 : TPX, y: TPY }; }
     this._tpos = tp; this._treeW = TPX * 2 + Math.max(1, leaf) * COLW + 20;
     const td = S.treeDrag;
-    const treeNodes = (r0 ? ['ROOT'] : []).concat(TV.vis).map(id => ({ x: tp[id].x, y: tp[id].y, title: name(id),
-      hasKids: id !== 'ROOT' && N[id].children.length > 0, canPeer: id !== 'ROOT', toggleLabel: TV.kids(id).length ? '▾' : '▸ ' + countUnder(id), toggleTitle: TV.kids(id).length ? 'Collapse' : 'Expand',
+    const treeNodes = (r0 ? ['ROOT'] : []).concat(TV.vis).map(id => ({ x: tp[id].x, y: tp[id].y, title: (N[id].include ? '⛓ ' : '') + name(id),
+      hasKids: id !== 'ROOT' && N[id].children.length > 0, canPeer: id !== 'ROOT' && !N[id]._from, canAdd: id === 'ROOT' || (!N[id]._from && !N[id].include), ring: N[id]._from ? '0 0 0 2px #9db8d3' : '0 1px 3px rgba(0,0,0,.18)', from: N[id]._from ? 'From ' + N[id]._from : name(id), toggleLabel: TV.kids(id).length ? '▾' : '▸ ' + countUnder(id), toggleTitle: TV.kids(id).length ? 'Collapse' : 'Expand',
       // A slide whose children are hidden only by Focus: clicking its toggle goes there instead of collapsing.
       onToggle: e => { e.stopPropagation(); if (S.treeFocus && !TV.kids(id).length && TV.expanded(id)) this.nav(id, 'jump'); else this.toggleCollapse(id); },
       onDragStart: ev => { if (id !== 'ROOT') this.startTreeDrag(ev, id); }, dragOp: td && td.id === id ? 0.35 : 1, full: name(id), cam: camOf(id), layers: this.layersOf(id), selected: id === cur, outline: id === cur ? '2px solid #d9432b' : 'none',
@@ -1786,7 +1820,7 @@ class Component extends DCLogic {
     const titleFrame = S.titlePage ? { show: true, l: f3(tvL), t: f3(tvT), w: f3(Math.min(TC.view.l + TC.view.w, L.CW / CW * 100) - tvL), h: f3(Math.min(TC.view.t + TC.view.h, 100) - tvT) } : { show: false };
 
     // layer editing
-    const editable = !isPresent && !isWire && !active;
+    const editable = !isPresent && !isWire && !active && !curN._from;
     const curLayers = this.layersOf(cur); const ly = S.layerSel ? curLayers.find(l => l.id === S.layerSel) : null;
     const upL = patch => ly && this.updLayer(cur, ly.id, patch);
     const lname = l => l.type === 'text' ? short(String(l.text || '').split('\n')[0] || 'Text', 24) : l.type === 'image' ? 'Image' : l.type === 'shape' ? ({ rect: 'Rectangle', ellipse: 'Ellipse', triangle: 'Triangle' }[l.shape] || 'Shape') : l.type === 'component' ? '⧉ ' + (l.name || 'Component') : 'Icon · ' + (l.icon || '');
@@ -1995,6 +2029,7 @@ class Component extends DCLogic {
     const tvFree = [TC.Wc <= 1.001 && 'Pan X', TC.Hc <= 1.001 && 'Pan Y'].filter(Boolean);
 
     return {
+      fromDeck: curN._from || '', fromHref: '?deck=' + (curN._from || ''), ownSlide: !curN._from, linkedDeck: curN.include || '', linkedHref: '?deck=' + (curN.include || ''),
       exportShow: !STATIC, onExportMd: () => this.downloadMarkdown(cur),
       isTitlePage: cur === 'ROOT', titlePage: !!S.titlePage, onTitlePage: e => this.setTitlePage(!!e.target.checked),
       tvZoom: tvw.zoom, tvZoomMax: Math.max(8, Math.ceil(this.titleCover(L))), tvZoomLabel: tvw.zoom.toFixed(2) + '×', onTvZoom: e => setTv({ zoom: +e.target.value }),

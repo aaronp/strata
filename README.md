@@ -22,7 +22,9 @@ Headings become slides (`#` top level, `##` below it, …). Put `slug: <id>` on 
 **Export markdown** (Slide tab) does the reverse: it downloads the current slide and everything below it as markdown with `slug:` lines (on the title page: the whole deck), ready to edit and import as a new deck. Bodies come from each slide's text layers; links to slides outside the branch become plain text; images, shapes, styling and later frames don't travel.
 
 ### Composing decks
-In the builder's Slide tab, **Copy deck here** copies another deck's slides (and images) under the current slide as ordinary, editable slides. Copies are independent: later changes to the source deck don't flow into them. Decks saved with the older live "Include deck" are converted to copies the first time they're opened.
+In the builder's Slide tab, **Insert deck** offers:
+- **As children / Replace this slide**: copy another deck's slides (and images) as ordinary, editable slides. Copies are independent: later changes to the source deck don't flow into them.
+- **Link (live)**: add a *linked slide* (⛓) whose children are another deck's slides, live and read-only, laid out on this deck's canvas. Grafted slides are named `<linked slug>.<slide slug>` (e.g. `wallets.costs`), so links and `[link:wallets.costs]` reach into them; linked decks can link further decks. Edit them by opening their deck; move or delete the linked slide like any other. In markdown, a linked slide is a heading with `include: <deck>` after its `slug:` line. Publishing a deck (`make build DECK=…`) also publishes every deck it links to, so commit those too.
 
 
 ## Overview

@@ -205,7 +205,17 @@ input,textarea,button{font:inherit;color:inherit}
                     <div style="position:absolute;left:{{ mq.l }}%;top:{{ mq.t }}%;width:{{ mq.w }}%;height:{{ mq.h }}%;border:1px solid #1f6fb8;background:rgba(31,111,184,.12);pointer-events:none;z-index:901"></div>
                   </sc-if>
                   <sc-if value="{{ isEditingText }}">
-                    <textarea ref="{{ editRef }}" value="{{ ed.text }}" onChange="{{ onEditText }}" onBlur="{{ stopEditing }}" onPointerDown="{{ stopProp }}" style="position:absolute;left:{{ ed.l }}%;top:{{ ed.t }}%;width:{{ ed.w }}%;height:{{ ed.h }}%;padding:0;margin:0;border:0;outline:2px solid #1f6fb8;outline-offset:1px;background:rgba(10,14,28,.25);resize:none;overflow:hidden;font-family:{{ ed.font }};font-size:{{ ed.fs }}cqw;font-weight:{{ ed.weight }};color:{{ ed.color }};text-align:{{ ed.align }};line-height:{{ ed.lh }};z-index:999"></textarea>
+                    <textarea ref="{{ editRef }}" value="{{ ed.text }}" onChange="{{ onEditText }}" onBlur="{{ stopEditing }}" onSelect="{{ onEditSel }}" onKeyUp="{{ onEditSel }}" onPointerUp="{{ onEditSel }}" onPointerDown="{{ stopProp }}" style="position:absolute;left:{{ ed.l }}%;top:{{ ed.t }}%;width:{{ ed.w }}%;height:{{ ed.h }}%;padding:0;margin:0;border:0;outline:2px solid #1f6fb8;outline-offset:1px;background:rgba(10,14,28,.25);resize:none;overflow:hidden;font-family:{{ ed.font }};font-size:{{ ed.fs }}cqw;font-weight:{{ ed.weight }};color:{{ ed.color }};text-align:{{ ed.align }};line-height:{{ ed.lh }};z-index:999"></textarea>
+                    <sc-if value="{{ fmtShow }}">
+                      <div data-role="fmtbar" onPointerDown="{{ stopProp }}" style="position:absolute;{{ fmtPos }};z-index:30;display:flex;align-items:center;gap:4px;padding:4px;border-radius:9px;background:#fbf9f4;box-shadow:0 4px 14px rgba(0,0,0,.25)">
+                        <button onPointerDown="{{ fmtDown }}" onClick="{{ onFmtBold }}" title="Bold (⌘B)" style="width:26px;height:26px;padding:0;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer;font-weight:800">B</button>
+                        <button onPointerDown="{{ fmtDown }}" onClick="{{ onFmtItalic }}" title="Italic (⌘I)" style="width:26px;height:26px;padding:0;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer;font-style:italic;font-family:serif">I</button>
+                        <select value="" onChange="{{ onFmtStyle }}" title="Style for the selection" style="height:26px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;font-size:12px"><sc-for list="{{ fmtStyleOpts }}" as="o" hint-placeholder-count="5"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select>
+                        <select value="" onChange="{{ onFmtSize }}" title="Size for the selection" style="height:26px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;font-size:12px"><sc-for list="{{ fmtSizeOpts }}" as="o" hint-placeholder-count="5"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select>
+                        <input type="color" onChange="{{ onFmtColor }}" title="Colour for the selection" style="width:28px;height:26px;padding:0;border:1px solid #e0d9cb;border-radius:6px;background:#fff">
+                        <button onPointerDown="{{ fmtDown }}" onClick="{{ onFmtClear }}" title="Clear formatting (the selection, or all if nothing is selected)" style="height:26px;padding:0 7px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer;font-size:12px">⌫ Clear</button>
+                      </div>
+                    </sc-if>
                   </sc-if>
                   <sc-if value="{{ showPaths }}">
                     <svg viewBox="0 0 100 100" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;z-index:900">
@@ -1657,7 +1667,17 @@ class Component extends DCLogic {
     this.setState(s => ({ styles: { ...(s.styles || {}), [sid]: st } }));
     this.chooseStyle(id, lid, sid);
     return sid;
+  }  // Format the editor's selection (live if the textarea has focus, else the last remembered one), then put focus and selection back.
+  formatSel(op) {
+    const id = this.curId(), l = this.layersOf(id).find(x => x.id === this.state.editing); if (!l) return;
+    const t = this.editRef.current, live = t && typeof document !== 'undefined' && document.activeElement === t;
+    const sel = live ? { start: t.selectionStart, end: t.selectionEnd } : (this._sel || { start: 0, end: 0 });
+    const r = applyFormat(l.text, sel.start, sel.end, op);
+    this.updLayer(id, l.id, { text: r.text }); this._sel = { start: r.start, end: r.end };
+    setTimeout(() => { const t2 = this.editRef.current; if (t2 && t2.focus) { t2.focus(); t2.setSelectionRange && t2.setSelectionRange(r.start, r.end); } }, 0);
   }
+  focusInBar() { const a = typeof document !== 'undefined' && document.activeElement; return !!(a && a.closest && a.closest('[data-role="fmtbar"]')); }
+
   // Layers using the style keep its look (written onto them) and become Custom; linked-in slides are left alone.
   deleteStyle(sid) {
     if (BUILTIN_STYLES[sid]) return; const st = this.styles()[sid]; if (!st || st.deleted) return;
@@ -1833,6 +1853,7 @@ class Component extends DCLogic {
     if (S.confirmDel) { if (k === 'Escape') { e.preventDefault(); this.confirmDelete('cancel'); } return; }
     if (k === 'Escape' && S.treeDrag) { this._treeDragCancel = true; this.setState({ treeDrag: null }); return; }
     if (typing) {
+      if (t === this.editRef.current && (e.metaKey || e.ctrlKey) && /^[bi]$/i.test(k)) { e.preventDefault(); this.formatSel(k.toLowerCase() === 'b' ? { bold: true } : { italic: true }); return; }
       if (t.dataset && t.dataset.role === 'filter' && k === 'Enter') { const D = this.derive(); const q = S.query.trim().toLowerCase(); const id = D.order.find(x => (S.nodes[x].title + ' ' + S.nodes[x].body).toLowerCase().includes(q)); if (id) this.nav(id, 'jump'); }
       if (k === 'Escape') { t.blur(); this.setState({ query: '' }); }
       if (k === 'Enter' && t === this.titleRef.current) { e.preventDefault(); t.blur(); }
@@ -2004,7 +2025,8 @@ class Component extends DCLogic {
     const layerVals = {
       editable, curLayers, prevLayers: active ? this.shown(S.prev, this.layersOf(S.prev, S.prevFi || 0)) : [], images: S.images, editingId: S.editing || '', stageRef: this.stageRef, editRef: this.editRef, imgInputRef: this.imgInputRef,
       onImgFile: e => this.onImgFile(e), overlays, guideV: !!S.guides.v, guideH: !!S.guides.h, isEditingText: !!edL, ed,
-      onEditText: e => edL && this.updLayer(cur, edL.id, { text: e.target.value }), stopEditing: () => this.setState({ editing: null }), stopProp: e => e.stopPropagation(),
+      onEditText: e => edL && this.updLayer(cur, edL.id, { text: e.target.value }), stopEditing: () => setTimeout(() => { if (!this.focusInBar()) this.setState({ editing: null }); }, 0),   // a click into the formatting bar keeps editing
+      onEditSel: e => { this._sel = { start: e.target.selectionStart, end: e.target.selectionEnd }; }, stopProp: e => e.stopPropagation(),
       onStageDown: ev => this.startMarquee(ev), allowDrop: e => e.preventDefault(), onStageDrop: e => this.dropOn(e, null),
       rightW: Math.max(240, Math.min(S.rightW, (typeof window !== 'undefined' ? window.innerWidth : 1400) - S.navW - 380)), onRightResize: e => this.rightResize(e),
       lyIsComponent: !!(ly && ly.type === 'component'), compName: ly && ly.name || '', onCompName: e => this.updLayerAllFrames(cur, ly.id, { name: e.target.value }),
@@ -2207,6 +2229,12 @@ class Component extends DCLogic {
       styleRows: Object.entries(this.styles()).filter(([, st]) => !st.deleted).map(([id, st]) => ({ id, name: st.name || id, count: (styleCount[id] || 0) + ' layer' + (styleCount[id] === 1 ? '' : 's'), canDelete: !BUILTIN_STYLES[id],
         onName: e => this.setStyle(id, { name: e.target.value }), onDelete: () => this.deleteStyle(id) })),
       newStyleOff: !(ly && ly.type === 'text'), onNewStyle: () => ly && this.newStyleFrom(cur, ly.id),
+      fmtShow: !!edL && editable, fmtPos: edL ? (edL.y < 12 ? `left:${edL.x}%;top:calc(${edL.y + Math.max(edL.h, mh[edL.id] || 0)}% + 6px)` : `left:${edL.x}%;top:calc(${edL.y}% - 40px)`) : '',
+      fmtStyleOpts: [{ v: '', l: 'Plain' }].concat(Object.entries(this.styles()).filter(([, st]) => !st.deleted).map(([id, st]) => ({ v: id, l: st.name || id }))),
+      fmtSizeOpts: [{ v: '', l: 'Size' }].concat([12, 16, 20, 24, 28, 32, 40, 48, 56, 64, 72, 96, 128].map(v => ({ v: String(v), l: v + ' px' }))),
+      fmtDown: e => e.preventDefault(), onFmtBold: () => this.formatSel({ bold: true }), onFmtItalic: () => this.formatSel({ italic: true }),
+      onFmtStyle: e => this.formatSel({ attrs: { style: e.target.value || null } }), onFmtSize: e => this.formatSel({ attrs: { size: e.target.value || null } }),
+      onFmtColor: e => this.formatSel({ attrs: { color: e.target.value } }), onFmtClear: () => this.formatSel({ clear: true }),
       exportShow: !STATIC, onExportMd: () => this.downloadMarkdown(cur),
       isTitlePage: cur === 'ROOT', titlePage: !!S.titlePage, onTitlePage: e => this.setTitlePage(!!e.target.checked),
       tvZoom: tvw.zoom, tvZoomMax: Math.max(8, Math.ceil(this.titleCover(L))), tvZoomLabel: tvw.zoom.toFixed(2) + '×', onTvZoom: e => setTv({ zoom: +e.target.value }),

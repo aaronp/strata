@@ -1324,3 +1324,23 @@ test("resolveLayer gives every text layer display runs, with style spans looked 
   c.chooseStyle("s", "a", ""); expect(c.layersOf("s")[0]._lines).toBeUndefined();
   c.setState({ layerSel: "a" }); expect(c.renderVals().layerRows.find((r: any) => r.name.startsWith("x")).name).toBe("x y z");
 });
+
+test("formatting bar: shown only while editing; formats the remembered selection; ⌘B works in the editor; blur into the bar keeps editing", async () => {
+  const c = await styledDeck({}, [TL("a", { text: "say hello now" })]);
+  expect(c.renderVals().fmtShow).toBe(false);
+  c.setState({ editing: "a", layerSel: "a" }); let v = c.renderVals();
+  expect(v.fmtShow).toBe(true); expect(v.fmtStyleOpts.map((o: any) => o.l)).toEqual(["Plain", "H1", "H2", "H3", "Body"]);
+  v.onEditSel({ target: { selectionStart: 4, selectionEnd: 9 } });
+  v.onFmtBold();
+  expect(c.layersOf("s")[0].text).toBe("say **hello** now");
+  c.renderVals().onFmtSize({ target: { value: "72" } });
+  expect(c.layersOf("s")[0].text).toBe("say **[hello]{size=72}** now");
+  const ta = { tagName: "TEXTAREA", focus() {}, setSelectionRange() {} }; c.editRef.current = ta;
+  c._sel = { start: 0, end: 3 };
+  c.onKey({ key: "i", metaKey: true, shiftKey: false, target: ta, preventDefault() {} });
+  expect(c.layersOf("s")[0].text).toBe("*say* **[hello]{size=72}** now");
+  c.focusInBar = () => true; c.renderVals().stopEditing(); await Bun.sleep(5); expect(c.state.editing).toBe("a");
+  c.focusInBar = () => false; c.renderVals().stopEditing(); await Bun.sleep(5); expect(c.state.editing).toBeNull();
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  for (const h of ['data-role="fmtbar"', "{{ onFmtBold }}", "{{ onEditSel }}"]) expect(html).toContain(h);
+});

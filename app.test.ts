@@ -1139,3 +1139,49 @@ test("row step: 100% stacks rows edge to edge and fills the canvas; below 100% o
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
   expect(html).toContain('value="{{ rowStep }}" onChange="{{ onRowStep }}"');
 });
+
+// ---- text styles ----
+const TL = (id: string, extra: object = {}) => ({ id, type: "text", text: id, x: 5, y: 5, w: 50, h: 20, ...extra });
+const styledDeck = async (extra: object = {}, layers: any[] = [TL("a", { style: "h1" }), TL("b", { style: "h1", size: 50 }), TL("c", { size: 20 })]) => {
+  await writeDeck("talk", { ROOT: slideNode("ROOT", "", ["s"]), s: slideNode("s", "S", [], { frames: [{ id: "f0", layers }] }) }, extra);
+  return (await mount("?deck=talk")).c;
+};
+
+test("styles resolve in order: renderer default < style < layer override; deck.styles edits built-ins; unknown style = Custom", async () => {
+  const c = await styledDeck({ styles: { h1: { size: 70 }, callout: { name: "Callout", size: 28, card: "custom", box: { bg: "#ff0000" } } } });
+  const S = c.styles();
+  expect(Object.keys(S)).toEqual(["h1", "h2", "h3", "body", "callout"]);
+  expect(S.h1).toMatchObject({ name: "H1", size: 70, weight: 800, valign: "bottom", lh: 1.05 });
+  const [a, b, cc] = c.layersOf("s").map((l: any) => c.resolveLayer(l, "s"));
+  expect(a).toMatchObject({ style: "h1", size: 70, weight: 800 });
+  expect(b).toMatchObject({ size: 50, weight: 800 });                          // override wins
+  expect(cc.size).toBe(20); expect(cc.weight).toBeUndefined();                 // Custom: untouched
+  expect(c.resolveLayer(TL("z", { style: "callout" }), "s")).toMatchObject({ size: 28, card: "custom", box: { bg: "#ff0000" } });
+  expect(c.resolveLayer(TL("z", { style: "gone", size: 9 }), "s")).toMatchObject({ size: 9 });
+  expect(c.resolveLayer({ id: "i", type: "image", style: "h1" }, "s").size).toBeUndefined();
+  expect(c.renderVals().treeNodes.find((n: any) => n.full === "S").layers[0].size).toBe(70);   // thumbnails are resolved
+  expect(c.layersOf("s")[0].size).toBeUndefined();                                             // stored layers aren't
+});
+
+test("styles save only what differs from the built-ins, and round-trip", async () => {
+  const c = await styledDeck();
+  await c.save(); expect((await onDisk()).styles).toBeUndefined();
+  c.setState({ styles: { h2: { size: 48 } } }); await c.save();
+  expect((await onDisk()).styles).toEqual({ h2: { size: 48 } });
+});
+
+test("a size change that comes from different styles in two frames is detected and tweened", async () => {
+  const c = await styledDeck({}, []);
+  c.setNode("s", { frames: [{ id: "f0", layers: [TL("a", { style: "h1" })] }, { id: "f1", layers: [TL("a", { style: "body" })] }] });
+  c.setState({ transSel: 0, stab: "frames" });
+  expect(JSON.stringify(c.renderVals().transRows)).toContain("size");
+});
+
+test("a linked-in layer uses the host's style of its id, falling back to its own deck's style", async () => {
+  await writeDeck("b", { ROOT: slideNode("ROOT", "", ["x"]), x: slideNode("x", "Bx", [], { frames: [{ id: "f", layers: [TL("p", { style: "h1" }), TL("q", { style: "callout" })] }] }) },
+    { styles: { h1: { size: 10 }, callout: { name: "Callout", size: 33 } } });
+  await writeDeck("talk", { ROOT: slideNode("ROOT", "", ["t"]), t: slideNode("t", "T", [], { include: "b" }) }, { styles: { h1: { size: 90 } } });
+  const { c } = await mount("?deck=talk");
+  const [p, q] = c.layersOf("t.x").map((l: any) => c.resolveLayer(l, "t.x"));
+  expect(p.size).toBe(90); expect(q.size).toBe(33);
+});

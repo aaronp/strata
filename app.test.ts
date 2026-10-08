@@ -1119,3 +1119,23 @@ test("Slide tab: export and insert icon buttons beside the title; Layout / Frame
   expect(frames).toContain("Transition defaults"); expect(frames).toContain("{{ isTransView }}");
   expect(html).not.toContain("sec.insert.toggle");
 });
+
+test("row step: 100% stacks rows edge to edge and fills the canvas; below 100% overlaps; old margin decks keep their layout", async () => {
+  const tree = { ROOT: slideNode("ROOT", "", ["a"]), a: slideNode("a", "A", ["a1"]), a1: slideNode("a1", "A1", ["a2"]), a2: slideNode("a2", "A2") };
+  await writeDeck("talk", tree, { rowGap: 0 });
+  let { c } = await mount("?deck=talk");
+  let L = c.layout(c.derive());
+  expect(L.h).toBeCloseTo(100 / 3); expect(L.rect.a.y).toBeCloseTo(0); expect(L.rect.a1.y - L.rect.a.y).toBeCloseTo(L.h); expect(L.rect.a2.y + L.h).toBeCloseTo(100);
+  let v = c.renderVals(); expect(v.rowStepLabel).toBe("100% of a slide");
+  v.onRowStep({ target: { value: "0.5" } }); expect(c.state.rowGap).toBeCloseTo(-0.5);
+  L = c.layout(c.derive());
+  expect(L.h).toBeCloseTo(50); expect(L.rect.a1.y - L.rect.a.y).toBeCloseTo(25); expect(L.rect.a2.y + L.h).toBeCloseTo(100);
+  await writeDeck("old", tree, { margin: 3 });
+  ({ c } = await mount("?deck=old"));
+  L = c.layout(c.derive());
+  expect(c.state.rowGap).toBeNull();
+  expect(L.h).toBeCloseTo((100 - 3 * 4) / 3); expect(L.rect.a.y).toBeCloseTo(3); expect(L.rect.a1.y).toBeCloseTo(3 + L.h + 3);
+  expect(c.renderVals().rowStepLabel).toBe("110% of a slide");
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  expect(html).toContain('value="{{ rowStep }}" onChange="{{ onRowStep }}"');
+});

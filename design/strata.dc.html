@@ -734,8 +734,8 @@ input,textarea,button{font:inherit;color:inherit}
               </div>
             </div>
             <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
-              <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>Row margin (between levels)</span><span style="font-family:'JetBrains Mono',monospace">{{ marginLabel }}</span></span>
-              <input type="range" min="0" max="12" step="0.25" value="{{ margin }}" onChange="{{ onMargin }}" style="accent-color:#1d1b17;width:100%;min-width:0">
+              <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>Row step (top edge to top edge)</span><span style="font-family:'JetBrains Mono',monospace">{{ rowStepLabel }}</span></span>
+              <input type="range" min="0.1" max="3" step="0.05" value="{{ rowStep }}" onChange="{{ onRowStep }}" title="100%: the next row starts at this one's bottom edge, so slides and background move together; less or more adds parallax" style="accent-color:#1d1b17;width:100%;min-width:0">
             </label>
             <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
               <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>Column step (left edge to left edge)</span><span style="font-family:'JetBrains Mono',monospace">{{ gapLabel }}</span></span>
@@ -846,7 +846,7 @@ const DECK_BASE = DECK ? '../decks/' + DECK + '/' : '';
 const STATIC = !!window.STRATA_STATIC;
 const UIKEY = 'strata-ui';
 const AUTOSAVE_MS = 800;
-const DECK_FIELDS = ['title', 'source', 'card', 'nodes', 'bg', 'customBg', 'customAspect', 'bgScale', 'bgRepeat', 'bgY', 'opacity', 'base', 'offset', 'margin', 'gap', 'tone', 'speed', 'tdef', 'titlePage', 'titleView', 'spacing', 'images'];
+const DECK_FIELDS = ['title', 'source', 'card', 'nodes', 'bg', 'customBg', 'customAspect', 'bgScale', 'bgRepeat', 'bgY', 'opacity', 'base', 'offset', 'margin', 'gap', 'tone', 'speed', 'tdef', 'titlePage', 'titleView', 'spacing', 'rowGap', 'images'];
 const deckUrl = (slug, v) => typeof v === 'string' && v && !/^(data:|blob:|https?:|\/)/.test(v) ? '../decks/' + slug + '/' + v : v;
 const absUrl = v => DECK ? deckUrl(DECK, v) : v;
 const relUrl = v => typeof v === 'string' && DECK_BASE && v.startsWith(DECK_BASE) ? v.slice(DECK_BASE.length) : v;
@@ -950,7 +950,7 @@ class Component extends DCLogic {
   state = {
     nodes: seed(), cur: 'a', prev: null, phase: 'idle', dx: 0, dy: 0, type: 'swipe', mode: STATIC ? 'present' : 'build', view: 'slide', rtab: 'slide',
     query: '', bg: 'balloons', customBg: null, customAspect: 1, opacity: 1, base: '#0b1220', offset: 0,
-    tAll: { ease: false, dur: false, delay: false }, tdef: {}, dAll: { ease: false, dur: false, delay: false }, secOpen: { layout: true, frames: true, layers: true, tdef: false }, collapsed: {}, margin: 3, gap: 0.12, tone: 'light', speed: 900, lastChild: {}, navW: 280, rightW: 340, images: {}, layerSel: null, editing: null, guides: {},
+    tAll: { ease: false, dur: false, delay: false }, tdef: {}, dAll: { ease: false, dur: false, delay: false }, secOpen: { layout: true, frames: true, layers: true, tdef: false }, collapsed: {}, margin: 3, rowGap: 0, gap: 0.12, tone: 'light', speed: 900, lastChild: {}, navW: 280, rightW: 340, images: {}, layerSel: null, editing: null, guides: {},
   };
   treeRef = React.createRef(); titleRef = React.createRef(); searchRef = React.createRef(); stageRef = React.createRef(); editRef = React.createRef(); imgInputRef = React.createRef();
 
@@ -961,7 +961,7 @@ class Component extends DCLogic {
     } else try {
       const s = JSON.parse(localStorage.getItem(KEY) || localStorage.getItem('strata-v6') || 'null');
       try { const im = JSON.parse(localStorage.getItem(IKEY) || 'null'); if (im) this.setState({ images: im }); } catch (e) {}
-      if (s && s.nodes && s.nodes.ROOT) this.setState({ ...s, cur: s.nodes[s.cur] ? s.cur : s.nodes.ROOT.children[0], prev: null, phase: 'idle', customBg: localStorage.getItem(BGKEY) || null });
+      if (s && s.nodes && s.nodes.ROOT) this.setState({ ...s, rowGap: 'rowGap' in s ? s.rowGap : null, cur: s.nodes[s.cur] ? s.cur : s.nodes.ROOT.children[0], prev: null, phase: 'idle', customBg: localStorage.getItem(BGKEY) || null });
       if (s && s.nodes && s.nodes.ROOT) this.graft(s.nodes).then(g => { this._lastNodes = g.nodes; this.allowGraft(g.nodes); this.setState(st => ({ nodes: g.nodes, images: { ...ownImages(st.images), ...g.images } })); });
     } catch (e) {}
     if (STATIC) this.setState({ mode: 'present' });
@@ -1137,6 +1137,7 @@ class Component extends DCLogic {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       const d = await r.json(); if (!d.nodes || !d.nodes.ROOT) throw new Error('not a deck');
       const pick = Object.fromEntries(DECK_FIELDS.filter(k => k in d).map(k => [k, d[k]]));
+      if (!('rowGap' in d)) pick.rowGap = null;   // saved before row step: keep its margin layout until the slider moves
       const g = await this.graft(d.nodes);
       this._lastNodes = g.nodes;                               // don't record the load (or its grafts) as an undo step
       this.setState({ ...pick, nodes: g.nodes, images: { ...mapImgs(d.images, absUrl), ...g.images }, customBg: d.customBg ? absUrl(d.customBg) : null,
@@ -1184,7 +1185,7 @@ class Component extends DCLogic {
     this.histTrack();
     const S = this.state;
     if (!DECK) {
-      const d = JSON.stringify({ nodes: stripGrafts(S.nodes), cur: S.cur, mode: S.mode, view: S.view, rtab: S.rtab, bg: S.bg, customAspect: S.customAspect, bgScale: S.bgScale, bgRepeat: S.bgRepeat, bgY: S.bgY, opacity: S.opacity, base: S.base, offset: S.offset, margin: S.margin, gap: S.gap, tone: S.tone, speed: S.speed, navW: S.navW, rightW: S.rightW, tdef: S.tdef, titlePage: S.titlePage, titleView: S.titleView, spacing: S.spacing, secOpen: S.secOpen, stab: S.stab, collapsed: S.collapsed, treeZoom: S.treeZoom, treeFocus: S.treeFocus });
+      const d = JSON.stringify({ nodes: stripGrafts(S.nodes), cur: S.cur, mode: S.mode, view: S.view, rtab: S.rtab, bg: S.bg, customAspect: S.customAspect, bgScale: S.bgScale, bgRepeat: S.bgRepeat, bgY: S.bgY, opacity: S.opacity, base: S.base, offset: S.offset, margin: S.margin, gap: S.gap, tone: S.tone, speed: S.speed, navW: S.navW, rightW: S.rightW, tdef: S.tdef, titlePage: S.titlePage, titleView: S.titleView, spacing: S.spacing, rowGap: S.rowGap, secOpen: S.secOpen, stab: S.stab, collapsed: S.collapsed, treeZoom: S.treeZoom, treeFocus: S.treeFocus });
       if (d !== this._d) { this._d = d; try { localStorage.setItem(KEY, d); } catch (e) {} }
       if (S.images !== this._im) { this._im = S.images; try { localStorage.setItem(IKEY, JSON.stringify(S.images)); } catch (e) {} }
       if (S.customBg !== this._bg) { this._bg = S.customBg; try { if (S.customBg) localStorage.setItem(BGKEY, S.customBg); } catch (e) {} }
@@ -1241,11 +1242,13 @@ class Component extends DCLogic {
   }
   // Slide height fills the canvas height: margin above, between and below every level.
   layout(D) {
-    const N = this.state.nodes; const m = this.state.margin; const L = D.levels;
-    const h = Math.max(1, (H - m * (L + 1)) / L), w = h * VA, slot = w * (1 + this.state.gap);
+    const N = this.state.nodes; const L = D.levels, rg = this.state.rowGap; let h, top, step;
+    if (rg == null) { const m = this.state.margin; h = Math.max(1, (H - m * (L + 1)) / L); top = m; step = h + m; }   // older decks: a margin (% of height) above, between and below rows
+    else { const pad = Math.max(0, rg); h = H / (2 * pad + (L - 1) * (1 + rg) + 1); top = pad * h; step = (1 + rg) * h; }   // row step: top edge to top edge; < 1 overlaps (parallax)
+    const w = h * VA, slot = w * (1 + this.state.gap);
     const rect = {};
     const place = (id, x0) => {
-      const kids = N[id].children; const y = m + D.depth[id] * (h + m);
+      const kids = N[id].children; const y = top + D.depth[id] * step;
       rect[id] = { x: x0, y, w, h };
       if (!kids.length) return x0 + slot;
       let cx = x0; kids.forEach(k => { cx = place(k, cx); }); return Math.max(cx, x0 + slot);
@@ -1254,11 +1257,11 @@ class Component extends DCLogic {
     const x0 = w * Math.max(0, this.state.gap); let cx = x0;
     if (this.state.spacing === 'fit') N.ROOT.children.forEach(k => { cx = place(k, cx); });
     else {   // Even steps (default): x = parent's x + index × step, so every sibling move is one step and every level move one row, whatever the tree's shape
-      const put = (id, x) => { rect[id] = { x, y: m + D.depth[id] * (h + m), w, h }; N[id].children.forEach((k, i) => put(k, x + i * slot)); };
+      const put = (id, x) => { rect[id] = { x, y: top + D.depth[id] * step, w, h }; N[id].children.forEach((k, i) => put(k, x + i * slot)); };
       N.ROOT.children.forEach((k, i) => put(k, x0 + i * slot));
       cx = Math.max(x0, ...Object.values(rect).map(r => r.x + r.w)) + x0;
     }
-    return { rect, w, h, CW: Math.max(cx, ...Object.values(rect).map(r => r.x + r.w)) };
+    return { rect, w, h, rowStep: step / h, CW: Math.max(cx, ...Object.values(rect).map(r => r.x + r.w)) };
   }
   // Title page framing. Zoom 1 fits the content width (L.CW, not the slack-padded CW) to the slide; x/y is the focus point (0–1).
   // Camera plane = CW/L.w stage-widths × H/L.h stage-heights; per axis: smaller than the stage → centred, else focus centred and clamped.
@@ -2105,7 +2108,7 @@ class Component extends DCLogic {
       tabSlide: S.rtab === 'slide', tabLayout: S.rtab === 'layout', tabCanvas: S.rtab === 'canvas',
       titleRef: this.titleRef, onTitle: e => this.setNode(cur, { title: e.target.value }), onBody: e => this.setNode(cur, { body: e.target.value }),
       toneBtns: [['light', 'Light'], ['dark', 'Dark']].map(([id, l]) => ({ label: l, ...tab(S.tone === id), onClick: () => this.setState({ tone: id }) })),
-      margin: S.margin, marginLabel: S.margin.toFixed(2) + '% of height', onMargin: e => this.setState({ margin: +e.target.value }),
+      rowStep: L.rowStep, rowStepLabel: Math.round(L.rowStep * 100) + '% of a slide', onRowStep: e => this.setState({ rowGap: +e.target.value - 1 }),   // stored as rowGap = step − 1
       spacingBtns: [['even', 'Even steps'], ['fit', 'Fit subtrees']].map(([v, label]) => ({ label, ...tab((S.spacing === 'fit' ? 'fit' : 'even') === v), onClick: () => this.setState({ spacing: v }) })),
       gapStep: 1 + S.gap, gapLabel: Math.round((1 + S.gap) * 100) + '% of a slide', onGap: e => this.setState({ gap: +e.target.value - 1 }),   // stored as gap = step − 1, so existing decks keep their spacing
       levelInfo: `${D.levels} level${D.levels === 1 ? '' : 's'} deep, so each slide is ${(L.h).toFixed(1)}% of the canvas height.`,

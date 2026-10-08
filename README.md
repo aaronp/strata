@@ -48,6 +48,7 @@ type Deck = {
   opacity: number;        // background opacity 0–1
   base: string;           // colour behind the background
   offset: number;         // horizontal background offset (background loops infinitely)
+  rowGap?: number;        // row step − 1: top edge to top edge is h·(1+rowGap); 0 = rows abut, < 0 overlaps (parallax). Absent = older decks, which use margin
   margin: number;         // vertical margin between levels (% of canvas height)
   gap: number;            // column step − 1: left edge to left edge is w·(1+gap); 0 = slides abut (background moves in sync), < 0 overlaps (parallax)
   tdef: Partial<Record<Action, Timing>>;   // deck-wide transition defaults
@@ -83,7 +84,7 @@ A layer keeps the **same `id`** across frames; that's how it's matched for tween
 - With frames: → / Space step to the next frame first and only change slide after the last frame. ← does the same in reverse and lands on the **last** frame of the previous slide. ↑ / ↓ always land on frame 1.
 
 ### Layout and parallax (`layout()` in the source)
-- Canvas height = 100 units. `L` = number of levels (max depth + 1). Slide height `h = (100 − margin·(L+1)) / L`, width `w = h·16/9`. Each level's row starts `margin` below the row above it.
+- Canvas height = 100 units. `L` = number of levels (max depth + 1). With row step `r = 1 + rowGap` and padding `p = max(0, rowGap)`: slide height `h = 100 / (2p + (L−1)·r + 1)`, width `w = h·16/9`, and level `d`'s row starts at `p·h + d·r·h`. (Decks saved before row step keep `h = (100 − margin·(L+1)) / L`, rows `margin` apart.)
 - Horizontal placement (Layout → Spacing): **Even steps** (default) puts each slide at its parent's x + index × step, so every move between neighbours shifts the camera one step and every level move one row, whatever the tree's shape (branches may overlap on the canvas). **Fit subtrees** packs instead: a slide's children start at its x and run right, each leaf takes one step, and a parent spans at least its children's width.
 - The camera centres on the current slide's rectangle. The background is drawn at canvas height, looped horizontally, and shifted by `offset`.
 - Transitions between slides are swipes (fade for jumps from search or breadcrumbs); the background pans with the camera.

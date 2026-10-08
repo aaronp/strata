@@ -1387,3 +1387,12 @@ test("Readability offers None / Whole slide", async () => {
   const c = await styledDeck();
   expect(c.renderVals().cardModes.map((m: any) => m.label)).toEqual(["None", "Whole slide"]);
 });
+
+test("London, Under the sea and Space are Canvas backdrops next to the others", async () => {
+  const { c } = await mount("?deck=fresh");
+  expect(c.renderVals().bgTiles.map((b: any) => b.label)).toEqual(["Balloons", "London", "Under the sea", "Space", "Sky", "Ocean", "None"]);
+  for (const [id, src, aspect] of [["london", "backdrops/london.png", 1], ["sea", "backdrops/under-the-sea.png", 0.4], ["space", "backdrops/space.png", 0.4]] as const) {
+    c.setState({ bg: id }); expect(c.bgInfo()).toEqual({ src, aspect });
+    expect(await Bun.file(join(import.meta.dir, "design", src)).exists()).toBe(true);
+  }
+});

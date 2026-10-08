@@ -408,25 +408,16 @@ test("a deck can't be copied into itself, and a missing deck changes nothing", a
   expect(c.state.note).toContain("nope");
 });
 
-test("old live includes are converted to real copies when a deck is opened, then saved", async () => {
+test("a saved include opens as a live link (no longer converted to copies)", async () => {
   await deckBWithImage(); await deckTalk({ include: "b" });
   const { c } = await mount("?deck=talk");
-  const [x] = c.state.nodes.t.children.map((k: string) => c.state.nodes[k]);
-  expect(x.title).toBe("Bx");
-  expect(c.state.nodes.t.include).toBeUndefined();
-  expect(c.isDirty()).toBe(true);
-  await c.save();
-  const d = await onDisk();
-  expect(d.nodes.t.include).toBeUndefined();
-  expect(d.nodes.t.children).toEqual([x.id]);
-  c.moveNode(x.id, "t", "after");                              // copies move like any slide
-  expect(c.state.nodes.ROOT.children).toEqual(["t", x.id]);
+  expect(c.state.nodes.t.include).toBe("b"); expect(c.state.nodes.t.children).toEqual(["t.x"]); expect(c.isDirty()).toBe(false);
 });
 
-test("Slide tab offers 'Copy deck here' and no longer has include/read-only UI", async () => {
+test("Slide tab offers 'Copy deck here'; the old include dropdown is gone", async () => {
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
   expect(html).toContain('onChange="{{ onCopyDeck }}"');
-  for (const gone of ["incFrom", "incShow", "guardGrafts", "stripGrafts"]) expect(html).not.toContain(gone);
+  for (const gone of ["incFrom", "incShow"]) expect(html).not.toContain(gone);
 });
 
 // ---- delete dialog ----
@@ -940,4 +931,56 @@ test("Slide tab: Export markdown fetches the current slide's branch as markdown 
   expect(c.renderVals().exportShow).toBe(true);
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
   expect(html).toContain('onClick="{{ onExportMd }}"');
+});
+
+// ---- linked decks ----
+const linkTalk = async () => {
+  await deckBWithImage();
+  await writeDeck("talk", { ROOT: slideNode("ROOT", "", ["t", "w2"]), t: slideNode("t", "Intro", [], { include: "b" }), w2: slideNode("w2", "Again", [], { include: "b" }) });
+  return (await mount("?deck=talk")).c;
+};
+
+test("a linked node's deck is grafted under it: namespaced ids, prefixed links and images, same deck twice", async () => {
+  const c = await linkTalk(); const N = c.state.nodes;
+  expect(N.t.children).toEqual(["t.x"]);
+  expect(N["t.x"]).toMatchObject({ _from: "b", children: ["t.y"] });
+  expect(N["t.y"]._from).toBe("b");
+  const ls = N["t.x"].frames[0].layers;
+  expect(ls[0].link).toEqual({ type: "slide", id: "t.y" }); expect(ls[1].imgKey).toBe("t.im1");
+  expect(c.state.images["t.im1"]).toBe("../decks/b/img/a.png");
+  expect(N.w2.children).toEqual(["w2.x"]);                                       // same deck again, its own namespace
+  c.nav("t.y", "jump"); expect(c.state.cur).toBe("t.y");                         // a host link to a grafted id just navigates
+  expect(c.isDirty()).toBe(false); await Bun.sleep(150); c.componentDidUpdate(); expect(c._past.length).toBe(0);
+});
+
+test("chains graft through, and a missing deck or a loop becomes one error slide", async () => {
+  await writeDeck("c3", { ROOT: slideNode("ROOT", "", ["z"]), z: slideNode("z", "Z") });
+  await writeDeck("b", { ROOT: slideNode("ROOT", "", ["x", "fut", "lp"]), x: slideNode("x", "Bx"), fut: slideNode("fut", "Fut", [], { include: "c3" }), lp: slideNode("lp", "Loop", [], { include: "talk" }) });
+  await writeDeck("talk", { ROOT: slideNode("ROOT", "", ["t", "m"]), t: slideNode("t", "Intro", [], { include: "b" }), m: slideNode("m", "Missing", [], { include: "nope" }) });
+  const { c } = await mount("?deck=talk"); const N = c.state.nodes;
+  expect(N["t.fut"].children).toEqual(["t.fut.z"]); expect(N["t.fut.z"].title).toBe("Z");
+  expect(N["t.lp"].children).toEqual(["t.lp.!error"]); expect(N["t.lp.!error"].body).toContain("loop");
+  expect(N.m.children).toEqual(["m.!error"]); expect(N["m.!error"].title).toBe("Can't link nope");
+  expect(N.ROOT.children).toEqual(["t", "m"]);
+});
+
+test("saving writes only the link: no grafted slides, linked node children empty, no grafted images", async () => {
+  const c = await linkTalk();
+  c.setNode("t", { title: "Intro 2" }); await c.save();
+  const d = await onDisk();
+  expect(Object.keys(d.nodes).sort()).toEqual(["ROOT", "t", "w2"]);
+  expect(d.nodes.t).toMatchObject({ include: "b", children: [], title: "Intro 2" });
+  expect(Object.keys(d.images || {})).toEqual([]);
+  expect(c.state.nodes["t.x"]).toBeTruthy(); expect(c.state.images["t.im1"]).toBeTruthy();   // still grafted in the editor
+});
+
+test("copying a deck keeps its linked nodes live, with their slug (or -2 if taken)", async () => {
+  await deckBWithImage();
+  await writeDeck("lib", { ROOT: slideNode("ROOT", "", ["t", "s"]), t: slideNode("t", "Lib link", [], { include: "b" }), s: slideNode("s", "S") });
+  await deckTalk();
+  const { c } = await mount("?deck=talk");
+  await c.copyDeckHere("t", "lib");
+  const [lk, s] = c.state.nodes.t.children;
+  expect(lk).toBe("t-2"); expect(c.state.nodes[lk]).toMatchObject({ include: "b", children: ["t-2.x"] });
+  expect(s).not.toBe("s");                                                        // ordinary slides still get fresh ids
 });

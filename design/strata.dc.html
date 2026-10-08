@@ -854,6 +854,14 @@ const groupBox = ls => { const x = Math.min(...ls.map(l => l.x)), y = Math.min(.
 const scaleLayers = (ls, from, to) => ls.map(l => ({ ...l, x: rd(to.x + (l.x - from.x) * to.w / from.w), y: rd(to.y + (l.y - from.y) * to.h / from.h), w: rd(l.w * to.w / from.w), h: rd(l.h * to.h / from.h) }));
 const layoutKeeps = l => !!l.link || (l.type !== 'text' && l.type !== 'image');
 const mapImgs = (im, f) => Object.fromEntries(Object.entries(im || {}).map(([k, v]) => [k, f(v)]));
+// Linked decks: a node with include: B gets B's slides grafted under it in memory, ids "<linked node id>.<B's id>", marked _from: B; saves strip them.
+const prefixLayer = (l, p) => ({ ...l, ...(l.link && l.link.type === 'slide' ? { link: { ...l.link, id: p + l.link.id } } : {}), ...(l.imgKey ? { imgKey: p + l.imgKey } : {}) });
+const prefixNode = (n, k, p, from) => ({ ...n, id: p + k, _from: from, children: (n.children || []).map(c => p + c),
+  ...(n.frames ? { frames: n.frames.map(f => ({ ...f, layers: f.layers.map(l => prefixLayer(l, p)) })) } : {}),
+  ...(n.layers ? { layers: n.layers.map(l => prefixLayer(l, p)) } : {}) });
+const stripGrafts = N => { const o = {}; for (const k in N) { const v = N[k]; if (v._from) continue; o[k] = v.include ? { ...v, children: [] } : v; } return o; };
+const ownImages = im => Object.fromEntries(Object.entries(im || {}).filter(([k]) => !k.includes('.')));
+const graftImages = im => Object.fromEntries(Object.entries(im || {}).filter(([k]) => k.includes('.')));
 // Inline an image URL as a data URL (copied slides must not point into another deck's folder).
 const toDataUrl = async u => {
   if (typeof u !== 'string' || !u || /^data:/.test(u)) return u;
@@ -951,6 +959,7 @@ class Component extends DCLogic {
       const s = JSON.parse(localStorage.getItem(KEY) || localStorage.getItem('strata-v6') || 'null');
       try { const im = JSON.parse(localStorage.getItem(IKEY) || 'null'); if (im) this.setState({ images: im }); } catch (e) {}
       if (s && s.nodes && s.nodes.ROOT) this.setState({ ...s, cur: s.nodes[s.cur] ? s.cur : s.nodes.ROOT.children[0], prev: null, phase: 'idle', customBg: localStorage.getItem(BGKEY) || null });
+      if (s && s.nodes && s.nodes.ROOT) this.graft(s.nodes).then(g => { this._lastNodes = g.nodes; this._graftEdit = true; this.setState(st => ({ nodes: g.nodes, images: { ...ownImages(st.images), ...g.images } })); });
     } catch (e) {}
     if (STATIC) this.setState({ mode: 'present' });
     this._past = []; this._future = []; setTimeout(() => { this._lastNodes = this.state.nodes; this._histReady = true; }, 120);
@@ -1016,39 +1025,63 @@ class Component extends DCLogic {
     if (!r.ok) throw new Error(r.status === 404 ? 'no deck called "' + slug + '"' : 'HTTP ' + r.status);
     const d = await r.json(); if (!d.nodes || !d.nodes.ROOT) throw new Error('not a deck'); return d;
   }
-  // Copy another deck's slides as ordinary slides: fresh ids, slide links remapped, images inlined. Old nested includes are copied too.
+  // Rebuild every graft from the decks' saved files. Loops (the chain includes B) and missing decks become one error slide.
+  async graft(nodes) {
+    const out = stripGrafts(nodes), images = {};
+    const walk = async (id, chain) => {
+      const n = out[id];
+      if (n.include) {
+        const B = n.include, p = id + '.';
+        try {
+          if (chain.includes(B)) throw new Error('link loop ' + chain.concat(B).join(' → '));
+          const d = await this.fetchDeck(B);
+          for (const k in d.nodes) if (k !== 'ROOT') out[p + k] = prefixNode(d.nodes[k], k, p, B);
+          for (const k in d.images || {}) images[p + k] = deckUrl(B, d.images[k]);
+          out[id] = { ...n, children: d.nodes.ROOT.children.map(c => p + c) };
+          for (const k of out[id].children) await walk(k, chain.concat(B));
+        } catch (e) { out[p + '!error'] = { id: p + '!error', title: "Can't link " + B, body: e.message, children: [], _from: B }; out[id] = { ...n, children: [p + '!error'] }; }
+        return;
+      }
+      for (const c of n.children) await walk(c, chain);
+    };
+    await walk('ROOT', DECK ? [DECK] : []);
+    return { nodes: out, images };
+  }
+  freeId(base, taken = []) { const N = this.state.nodes; let s = base, i = 2; while (N[s] || taken.includes(s)) s = base + '-' + i++; return s; }
+  graftMsg(id) { return 'read-only'; }
+  // Copy another deck's slides as ordinary slides: fresh ids, slide links remapped, images inlined. Linked nodes stay live links.
   async copyDeck(slug, chain = []) {
     if (chain.includes(slug)) throw new Error('copy loop ' + [...chain, slug].join(' → '));
     const d = await this.fetchDeck(slug);
     const map = {}, imap = {}, images = {};
-    for (const k in d.nodes) if (k !== 'ROOT') map[k] = 's' + uid();
+    for (const k in d.nodes) if (k !== 'ROOT') map[k] = d.nodes[k].include ? this.freeId(k, Object.values(map)) : 's' + uid();   // linked nodes keep their readable slug
     for (const k in d.images || {}) { imap[k] = 'im' + uid(); images[imap[k]] = await toDataUrl(deckUrl(slug, d.images[k])); }
     const relayer = l => ({ ...l, ...(l.link && l.link.type === 'slide' && map[l.link.id] ? { link: { ...l.link, id: map[l.link.id] } } : {}), ...(l.imgKey && imap[l.imgKey] ? { imgKey: imap[l.imgKey] } : {}) });
     const nodes = {};
     for (const k in map) { const n = d.nodes[k]; nodes[map[k]] = { ...n, id: map[k], children: (n.children || []).map(c => map[c]),
       ...(n.frames ? { frames: n.frames.map(f => ({ ...f, layers: f.layers.map(relayer) })) } : {}), ...(n.layers ? { layers: n.layers.map(relayer) } : {}) }; }
-    for (const k of Object.keys(nodes)) if (nodes[k].include) {
-      const { include, ...n } = nodes[k]; const sub = await this.copyDeck(include, [...chain, slug]);
-      Object.assign(nodes, sub.nodes); Object.assign(images, sub.images); nodes[k] = { ...n, children: [...n.children, ...sub.tops] };
-    }
     return { nodes, images, tops: d.nodes.ROOT.children.map(c => map[c]) };
   }
   // mode 'child': copies go under slide tid; 'replace': they take tid's place and tid (with its subtree) is removed.
   async copyDeckHere(tid, slug, mode = 'child') {
     if (tid === 'ROOT') mode = 'child';
+    if (this.state.nodes[tid]._from || this.state.nodes[tid].include) { this.flash(this.graftMsg(tid)); return; }
     try {
       const c = await this.copyDeck(slug, DECK ? [DECK] : []);
       if (!c.tops.length) { this.flash('"' + slug + '" has no slides to copy'); return; }
+      const S = this.state; let nodes, extra;
       if (mode === 'replace') {
         const pid = this.derive().parent[tid];
-        this.setState(s => {
-          const nodes = { ...s.nodes, ...c.nodes }; const kill = x => { nodes[x].children.forEach(kill); delete nodes[x]; }; kill(tid);
-          const ks = s.nodes[pid].children, i = ks.indexOf(tid);
-          nodes[pid] = { ...s.nodes[pid], children: [...ks.slice(0, i), ...c.tops, ...ks.slice(i + 1)] };
-          return { nodes, images: { ...s.images, ...c.images }, cur: c.tops[0], prev: null, phase: 'idle', fi: 0, layerSel: null, transSel: null };
-        });
-      } else this.setState(s => ({ nodes: { ...s.nodes, ...c.nodes, [tid]: { ...s.nodes[tid], children: [...s.nodes[tid].children, ...c.tops] } },
-        images: { ...s.images, ...c.images }, collapsed: { ...(s.collapsed || {}), [tid]: false } }));
+        nodes = { ...S.nodes, ...c.nodes }; const kill = x => { nodes[x].children.forEach(kill); delete nodes[x]; }; kill(tid);
+        const ks = S.nodes[pid].children, i = ks.indexOf(tid);
+        nodes[pid] = { ...S.nodes[pid], children: [...ks.slice(0, i), ...c.tops, ...ks.slice(i + 1)] };
+        extra = { cur: c.tops[0], prev: null, phase: 'idle', fi: 0, layerSel: null, transSel: null };
+      } else {
+        nodes = { ...S.nodes, ...c.nodes, [tid]: { ...S.nodes[tid], children: [...S.nodes[tid].children, ...c.tops] } };
+        extra = { collapsed: { ...(S.collapsed || {}), [tid]: false } };
+      }
+      const g = await this.graft(nodes); this._graftEdit = true;
+      this.setState(s => ({ nodes: g.nodes, images: { ...ownImages(s.images), ...c.images, ...g.images }, ...extra }));
       this.flash('Copied ' + Object.keys(c.nodes).length + ' slides from "' + slug + '"');
     } catch (e) { this.flash('Couldn\'t copy "' + slug + '": ' + e.message); }
   }
@@ -1066,29 +1099,23 @@ class Component extends DCLogic {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       const d = await r.json(); if (!d.nodes || !d.nodes.ROOT) throw new Error('not a deck');
       const pick = Object.fromEntries(DECK_FIELDS.filter(k => k in d).map(k => [k, d[k]]));
-      let nodes = d.nodes, images = mapImgs(d.images, absUrl), migrated = false;
-      for (const id of Object.keys(nodes)) if (nodes[id].include) {   // old live include → real copies, once; autosave then writes them
-        const { include, ...n } = nodes[id]; let kids = [];
-        try { const c = await this.copyDeck(include, [DECK]); nodes = { ...nodes, ...c.nodes }; images = { ...images, ...c.images }; kids = c.tops; }
-        catch (e) { this.flash('Dropped include of "' + include + '": ' + e.message, 6000); }
-        nodes = { ...nodes, [id]: { ...n, children: [...n.children, ...kids] } }; migrated = true;
-      }
-      this._lastNodes = nodes;                                 // don't record the load as an undo step
-      this.setState({ ...pick, nodes, images, customBg: d.customBg ? absUrl(d.customBg) : null,
-        cur: d.titlePage ? 'ROOT' : d.nodes.ROOT.children[0], prev: null, phase: 'idle' }, () => { this._loaded = true; if (migrated) this._savedRefs = null; else this.markSaved(); });
+      const g = await this.graft(d.nodes);
+      this._lastNodes = g.nodes;                               // don't record the load (or its grafts) as an undo step
+      this.setState({ ...pick, nodes: g.nodes, images: { ...mapImgs(d.images, absUrl), ...g.images }, customBg: d.customBg ? absUrl(d.customBg) : null,
+        cur: d.titlePage ? 'ROOT' : d.nodes.ROOT.children[0], prev: null, phase: 'idle' }, () => { this._loaded = true; this.markSaved(); });
     } catch (e) { this.setState({ saveMsg: 'Could not load deck "' + DECK + '": ' + e.message }); }
   }
   async save() {
     if (!DECK || STATIC || this.state.saving || !this._loaded) return;   // never overwrite a deck we failed (or haven't finished) loading
     const S = this.state; const body = Object.fromEntries(DECK_FIELDS.map(k => [k, S[k]]));
-    body.images = mapImgs(S.images, relUrl); body.customBg = S.customBg ? relUrl(S.customBg) : null;
+    body.nodes = stripGrafts(S.nodes); body.images = mapImgs(ownImages(S.images), relUrl); body.customBg = S.customBg ? relUrl(S.customBg) : null;
     this.setState({ saving: true, saveMsg: null });
     try {
       const r = await fetch('/api/decks/' + DECK, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
       if (!r.ok) throw new Error('HTTP ' + r.status + ' ' + (await r.text()));
       const d = await r.json();
       // Only adopt the server's image paths if nothing changed while saving; otherwise stay dirty and let the next save catch up.
-      if (DECK_FIELDS.every(k => this.state[k] === S[k])) this.setState({ saving: false, images: mapImgs(d.images, absUrl), customBg: d.customBg ? absUrl(d.customBg) : null }, () => this.markSaved());
+      if (DECK_FIELDS.every(k => this.state[k] === S[k])) this.setState({ saving: false, images: { ...graftImages(S.images), ...mapImgs(d.images, absUrl) }, customBg: d.customBg ? absUrl(d.customBg) : null }, () => this.markSaved());
       else this.setState({ saving: false });
     } catch (e) { this.setState({ saving: false, saveMsg: 'Save failed: ' + e.message }); }
   }
@@ -1118,7 +1145,7 @@ class Component extends DCLogic {
     this.histTrack();
     const S = this.state;
     if (!DECK) {
-      const d = JSON.stringify({ nodes: S.nodes, cur: S.cur, mode: S.mode, view: S.view, rtab: S.rtab, bg: S.bg, customAspect: S.customAspect, bgScale: S.bgScale, bgRepeat: S.bgRepeat, bgY: S.bgY, opacity: S.opacity, base: S.base, offset: S.offset, margin: S.margin, gap: S.gap, tone: S.tone, speed: S.speed, navW: S.navW, rightW: S.rightW, tdef: S.tdef, titlePage: S.titlePage, titleView: S.titleView, secOpen: S.secOpen, collapsed: S.collapsed, treeZoom: S.treeZoom, treeFocus: S.treeFocus });
+      const d = JSON.stringify({ nodes: stripGrafts(S.nodes), cur: S.cur, mode: S.mode, view: S.view, rtab: S.rtab, bg: S.bg, customAspect: S.customAspect, bgScale: S.bgScale, bgRepeat: S.bgRepeat, bgY: S.bgY, opacity: S.opacity, base: S.base, offset: S.offset, margin: S.margin, gap: S.gap, tone: S.tone, speed: S.speed, navW: S.navW, rightW: S.rightW, tdef: S.tdef, titlePage: S.titlePage, titleView: S.titleView, secOpen: S.secOpen, collapsed: S.collapsed, treeZoom: S.treeZoom, treeFocus: S.treeFocus });
       if (d !== this._d) { this._d = d; try { localStorage.setItem(KEY, d); } catch (e) {} }
       if (S.images !== this._im) { this._im = S.images; try { localStorage.setItem(IKEY, JSON.stringify(S.images)); } catch (e) {} }
       if (S.customBg !== this._bg) { this._bg = S.customBg; try { if (S.customBg) localStorage.setItem(BGKEY, S.customBg); } catch (e) {} }

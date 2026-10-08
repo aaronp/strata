@@ -83,7 +83,6 @@ class Component extends DCLogic {
       const b = l.card === 'custom' && l.box;
       if (b) return { shadow: 'none', cardBg: rgba(b.bg, b.bgOpacity ?? 0.45), cardBlur: b.blur ? 'blur(' + b.blur + 'px)' : 'none',
         cardBorder: b.border ? cq(b.border) + ' solid ' + (b.borderColor || '#ffffff') : 'none', cardRadius: cq(b.radius ?? 12), cardPad: cq(b.pad ?? 12) };
-      if (l.card === 'on' || (l.card !== 'off' && card.mode === 'text')) return { shadow: 'none', cardBg: cardFill, cardBlur, cardBorder: 'none', cardPad: '.35em .6em', cardRadius: '.45em' };
       return { shadow: l.color ? 'none' : shadow, cardBg: 'transparent', cardBlur: 'none', cardBorder: 'none', cardPad: '0', cardRadius: '0' };
     };
     const items = (p.layers || []).map((l, i) => {

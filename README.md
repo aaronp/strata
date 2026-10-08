@@ -48,8 +48,7 @@ type Deck = {
   opacity: number;        // background opacity 0–1
   base: string;           // colour behind the background
   offset: number;         // horizontal background offset (background loops infinitely)
-  rowGap?: number;        // row step − 1: top edge to top edge is h·(1+rowGap); 0 = rows abut, < 0 overlaps (parallax). Absent = older decks, which use margin
-  margin: number;         // vertical margin between levels (% of canvas height)
+  rowGap?: number;        // row step − 1: top edge to top edge is h·(1+rowGap); 0 = rows abut, < 0 overlaps (parallax)
   gap: number;            // column step − 1: left edge to left edge is w·(1+gap); 0 = slides abut (background moves in sync), < 0 overlaps (parallax)
   tdef: Partial<Record<Action, Timing>>;   // deck-wide transition defaults
   images: Record<string, string>;          // imgKey -> dataURL (stored separately in the prototype)
@@ -84,7 +83,7 @@ A layer keeps the **same `id`** across frames; that's how it's matched for tween
 - With frames: → / Space step to the next frame first and only change slide after the last frame. ← does the same in reverse and lands on the **last** frame of the previous slide. ↑ / ↓ always land on frame 1.
 
 ### Layout and parallax (`layout()` in the source)
-- Canvas height = 100 units. `L` = number of levels (max depth + 1). With row step `r = 1 + rowGap` and padding `p = max(0, rowGap)`: slide height `h = 100 / (2p + (L−1)·r + 1)`, width `w = h·16/9`, and level `d`'s row starts at `p·h + d·r·h`. (Decks saved before row step keep `h = (100 − margin·(L+1)) / L`, rows `margin` apart.)
+- Canvas height = 100 units. `L` = number of levels (max depth + 1). With row step `r = 1 + rowGap` and padding `p = max(0, rowGap)`: slide height `h = 100 / (2p + (L−1)·r + 1)`, width `w = h·16/9`, and level `d`'s row starts at `p·h + d·r·h`.
 - Horizontal placement (Layout → Spacing): **Even steps** (default) puts each slide at its parent's x + index × step, so every move between neighbours shifts the camera one step and every level move one row, whatever the tree's shape (branches may overlap on the canvas). **Fit subtrees** packs instead: a slide's children start at its x and run right, each leaf takes one step, and a parent spans at least its children's width.
 - The camera centres on the current slide's rectangle. The background is drawn at canvas height, looped horizontally, and shifted by `offset`.
 - Transitions between slides are swipes (fade for jumps from search or breadcrumbs); the background pans with the camera.
@@ -147,7 +146,7 @@ A layer keeps the **same `id`** across frames; that's how it's matched for tween
 7. Links, layout presets, wireframe view, frame preview and progress dots.
 
 ### Text styles
-Text layers can use deck-wide named styles: built-in **H1, H2, H3, Body**, plus your own (Canvas tab → Text styles: rename, see how many layers use each, **+ New style from selected layer**, delete). A style covers font, size, weight, colour, alignment, line height, letter spacing, bullets, paragraph gap and the **Container** (On/Off plus its box: background, border, opacity, blur, corners, padding). The Container header says where it comes from (*From H1*, or *This layer •* when overridden). For a card behind all text, turn the container on in the styles you use; Canvas → Readability now only offers None or a Whole-slide backdrop (decks saved with the old "Behind text" mode are converted on open, looking the same). On a text layer, pick its **Style** (or Custom), then **Edits apply to: This layer | <Style> style**: *This layer* makes an override (marked •, ↺ to reset, **Clear overrides** for all); *<Style> style* edits the style for every layer using it. Saved as `deck.styles` (only what differs from the built-ins); markdown import makes titles H1 and bodies Body. Style edits aren't on undo (like other Canvas settings). Slides linked in from another deck use this deck's style of the same name, else their own.
+Text layers can use deck-wide named styles: built-in **H1, H2, H3, Body**, plus your own (Canvas tab → Text styles: rename, see how many layers use each, **+ New style from selected layer**, delete). A style covers font, size, weight, colour, alignment, line height, letter spacing, bullets, paragraph gap and the **Container** (On/Off plus its box: background, border, opacity, blur, corners, padding). The Container header says where it comes from (*From H1*, or *This layer •* when overridden). For a card behind all text, turn the container on in the styles you use; Canvas → Readability now only offers None or a Whole-slide backdrop. On a text layer, pick its **Style** (or Custom), then **Edits apply to: This layer | <Style> style**: *This layer* makes an override (marked •, ↺ to reset, **Clear overrides** for all); *<Style> style* edits the style for every layer using it. Saved as `deck.styles` (only what differs from the built-ins); markdown import makes titles H1 and bodies Body. Style edits aren't on undo (like other Canvas settings). Slides linked in from another deck use this deck's style of the same name, else their own.
 
 ### Inline formatting
 Inside a text layer, `**bold**`, `*italic*` and `[words]{style=h2 size=72 color=#d9432b font=serif weight=600}` format part of the text (escape with `\*`, `\[`, `\{`; anything malformed shows as typed). While editing a text layer, a formatting bar (**B**, *I*, Style, Size, Colour, Clear; ⌘B/⌘I) wraps the selection for you. Markdown import and export keep the markup.

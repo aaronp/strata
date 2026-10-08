@@ -161,19 +161,6 @@ test("fresh import: md-title is an H1 layer and md-body a Body layer, keeping on
   expect(b.style).toBe("body"); expect(b.bullets).toBe("disc"); expect(typeof b.size).toBe("number"); expect(b.weight).toBeUndefined(); expect(b.lh).toBeUndefined();
 });
 
-test("re-import adopts H1/Body on older unstyled md layers, dropping unedited settings and keeping edited ones", () => {
-  const old = { nodes: { ROOT: { id: "ROOT", children: ["a"] }, a: { id: "a", title: "A", body: "", children: [], frames: [{ id: "f1", layers: [
-    { id: "md-title", type: "text", text: "A", font: "grot", size: 72, weight: 800, color: null, align: "left", valign: "bottom", lh: 1.05, bullets: "none", gap: 0.15, x: 6, y: 6, w: 88, h: 14 },
-    { id: "md-body", type: "text", text: "Old.", font: "grot", size: 40, weight: 400, color: null, align: "left", valign: "top", lh: 1.35, bullets: "none", gap: 0.35, x: 6, y: 24, w: 88, h: 60 },
-  ] }] } } };
-  const d = imp(old, "# A\nslug: a\n\nNew body.\n");
-  const L = d.nodes.a.frames[0].layers, t = L.find((l: any) => l.id === "md-title"), b = L.find((l: any) => l.id === "md-body");
-  expect(t).toMatchObject({ style: "h1", size: 72 }); expect(t.weight).toBeUndefined(); expect(t.lh).toBeUndefined();   // 72 was edited, so it stays
-  expect(b).toMatchObject({ style: "body", text: "New body.", size: 40 }); expect(b.weight).toBeUndefined();
-  const again = imp({ nodes: d.nodes }, "# A\nslug: a\n\nNew body.\n");
-  expect(again.nodes.a.frames[0].layers.find((l: any) => l.id === "md-title")).toMatchObject({ style: "h1", size: 72 });
-});
-
 test("re-import respects styled md layers: a removed override stays removed, and a layer set to Custom stays Custom", () => {
   const d = imp(null, "# A\nslug: a\n\nBody.\n");
   const L = d.nodes.a.frames[0].layers;

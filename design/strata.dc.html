@@ -886,7 +886,7 @@ const DECK_BASE = DECK ? '../decks/' + DECK + '/' : '';
 const STATIC = !!window.STRATA_STATIC;
 const UIKEY = 'strata-ui';
 const AUTOSAVE_MS = 800;
-const DECK_FIELDS = ['title', 'source', 'card', 'nodes', 'bg', 'customBg', 'customAspect', 'bgScale', 'bgRepeat', 'bgY', 'opacity', 'base', 'offset', 'margin', 'gap', 'tone', 'speed', 'tdef', 'titlePage', 'titleView', 'spacing', 'rowGap', 'styles', 'images'];
+const DECK_FIELDS = ['title', 'source', 'card', 'nodes', 'bg', 'customBg', 'customAspect', 'bgScale', 'bgRepeat', 'bgY', 'opacity', 'base', 'offset', 'gap', 'tone', 'speed', 'tdef', 'titlePage', 'titleView', 'spacing', 'rowGap', 'styles', 'images'];
 // Named text styles: built-ins live here; deck.styles holds only their differences and added styles. A styled layer's own STYLE_KEYS are overrides.
 const STYLE_KEYS = ['font', 'size', 'weight', 'color', 'align', 'valign', 'lh', 'ls', 'bullets', 'gap', 'card', 'box'];
 const STYLE_BASE = { font: 'grot', color: null, ls: 0, align: 'left', bullets: 'none', gap: 0.15 };
@@ -897,14 +897,6 @@ const BUILTIN_STYLES = {
   body: { name: 'Body', ...STYLE_BASE, size: 32, weight: 400, valign: 'top', lh: 1.35, gap: 0.35 },
 };
 const mergeStyles = own => { const out = {}; for (const k in BUILTIN_STYLES) out[k] = { ...BUILTIN_STYLES[k], ...((own || {})[k] || {}) }; for (const k in own || {}) if (!out[k]) out[k] = own[k]; return out; };
-// Decks saved with the old deck-wide "Behind text" card: every style and every unstyled text layer without its own container gets card 'on'
-// (drawn with the deck card's colours, so the look is unchanged), and the deck mode becomes 'none'.
-const migrateTextCard = d => { if (!d.card || d.card.mode !== 'text') return d;
-  const all = mergeStyles(d.styles), styles = { ...(d.styles || {}) };
-  for (const k in all) if (!all[k].deleted && all[k].card === undefined) styles[k] = { ...(styles[k] || {}), card: 'on' };
-  const nodes = {}; for (const k in d.nodes) { const n = d.nodes[k];
-    nodes[k] = !n.frames ? n : { ...n, frames: n.frames.map(f => ({ ...f, layers: f.layers.map(l => l.type === 'text' && !l.style && l.card === undefined ? { ...l, card: 'on' } : l) })) }; }
-  return { ...d, nodes, styles, card: { ...d.card, mode: 'none' } }; };
 // ---- Inline markup: **bold**, *italic*, [words]{style=h2 size=72 color=#hex font=serif weight=600}, \ escapes. Per line; malformed markup is literal.
 const ESC = '*[]{}\\';
 const runKeys = ['b', 'i', 'size', 'color', 'font', 'weight', 'ls'];
@@ -1094,7 +1086,7 @@ class Component extends DCLogic {
   state = {
     nodes: seed(), cur: 'a', prev: null, phase: 'idle', dx: 0, dy: 0, type: 'swipe', mode: STATIC ? 'present' : 'build', view: 'slide', rtab: 'slide',
     query: '', bg: 'balloons', customBg: null, customAspect: 1, opacity: 1, base: '#0b1220', offset: 0,
-    tAll: { ease: false, dur: false, delay: false }, tdef: {}, dAll: { ease: false, dur: false, delay: false }, secOpen: { layout: true, frames: true, layers: true, tdef: false }, collapsed: {}, margin: 3, rowGap: 0, gap: 0.12, tone: 'light', speed: 900, lastChild: {}, navW: 280, rightW: 340, images: {}, layerSel: null, editing: null, guides: {},
+    tAll: { ease: false, dur: false, delay: false }, tdef: {}, dAll: { ease: false, dur: false, delay: false }, secOpen: { layout: true, frames: true, layers: true, tdef: false }, collapsed: {}, rowGap: 0, gap: 0.12, tone: 'light', speed: 900, lastChild: {}, navW: 280, rightW: 340, images: {}, layerSel: null, editing: null, guides: {},
   };
   treeRef = React.createRef(); titleRef = React.createRef(); searchRef = React.createRef(); stageRef = React.createRef(); editRef = React.createRef(); imgInputRef = React.createRef();
 
@@ -1105,7 +1097,7 @@ class Component extends DCLogic {
     } else try {
       const s = JSON.parse(localStorage.getItem(KEY) || localStorage.getItem('strata-v6') || 'null');
       try { const im = JSON.parse(localStorage.getItem(IKEY) || 'null'); if (im) this.setState({ images: im }); } catch (e) {}
-      if (s && s.nodes && s.nodes.ROOT) this.setState({ ...s, rowGap: 'rowGap' in s ? s.rowGap : null, cur: s.nodes[s.cur] ? s.cur : s.nodes.ROOT.children[0], prev: null, phase: 'idle', customBg: localStorage.getItem(BGKEY) || null });
+      if (s && s.nodes && s.nodes.ROOT) this.setState({ ...s, cur: s.nodes[s.cur] ? s.cur : s.nodes.ROOT.children[0], prev: null, phase: 'idle', customBg: localStorage.getItem(BGKEY) || null });
       if (s && s.nodes && s.nodes.ROOT) this.graft(s.nodes).then(g => { this._lastNodes = g.nodes; this.allowGraft(g.nodes); this.setState(st => ({ nodes: g.nodes, images: { ...ownImages(st.images), ...g.images } })); });
     } catch (e) {}
     if (STATIC) this.setState({ mode: 'present' });
@@ -1285,10 +1277,8 @@ class Component extends DCLogic {
         this.setState({ nodes, cur: id, prev: null, phase: 'idle' }, () => this.save()); return;
       }
       if (!r.ok) throw new Error('HTTP ' + r.status);
-      const d0 = await r.json(); if (!d0.nodes || !d0.nodes.ROOT) throw new Error('not a deck');
-      const d = migrateTextCard(d0);
+      const d = await r.json(); if (!d.nodes || !d.nodes.ROOT) throw new Error('not a deck');
       const pick = Object.fromEntries(DECK_FIELDS.filter(k => k in d).map(k => [k, d[k]]));
-      if (!('rowGap' in d)) pick.rowGap = null;   // saved before row step: keep its margin layout until the slider moves
       const g = await this.graft(d.nodes);
       this._lastNodes = g.nodes;                               // don't record the load (or its grafts) as an undo step
       this.setState({ ...pick, nodes: g.nodes, images: { ...mapImgs(d.images, absUrl), ...g.images }, customBg: d.customBg ? absUrl(d.customBg) : null,
@@ -1336,7 +1326,7 @@ class Component extends DCLogic {
     this.histTrack();
     const S = this.state;
     if (!DECK) {
-      const d = JSON.stringify({ nodes: stripGrafts(S.nodes), cur: S.cur, mode: S.mode, view: S.view, rtab: S.rtab, bg: S.bg, customAspect: S.customAspect, bgScale: S.bgScale, bgRepeat: S.bgRepeat, bgY: S.bgY, opacity: S.opacity, base: S.base, offset: S.offset, margin: S.margin, gap: S.gap, tone: S.tone, speed: S.speed, navW: S.navW, rightW: S.rightW, tdef: S.tdef, titlePage: S.titlePage, titleView: S.titleView, spacing: S.spacing, rowGap: S.rowGap, styles: S.styles, secOpen: S.secOpen, stab: S.stab, collapsed: S.collapsed, treeZoom: S.treeZoom, treeFocus: S.treeFocus });
+      const d = JSON.stringify({ nodes: stripGrafts(S.nodes), cur: S.cur, mode: S.mode, view: S.view, rtab: S.rtab, bg: S.bg, customAspect: S.customAspect, bgScale: S.bgScale, bgRepeat: S.bgRepeat, bgY: S.bgY, opacity: S.opacity, base: S.base, offset: S.offset, gap: S.gap, tone: S.tone, speed: S.speed, navW: S.navW, rightW: S.rightW, tdef: S.tdef, titlePage: S.titlePage, titleView: S.titleView, spacing: S.spacing, rowGap: S.rowGap, styles: S.styles, secOpen: S.secOpen, stab: S.stab, collapsed: S.collapsed, treeZoom: S.treeZoom, treeFocus: S.treeFocus });
       if (d !== this._d) { this._d = d; try { localStorage.setItem(KEY, d); } catch (e) {} }
       if (S.images !== this._im) { this._im = S.images; try { localStorage.setItem(IKEY, JSON.stringify(S.images)); } catch (e) {} }
       if (S.customBg !== this._bg) { this._bg = S.customBg; try { if (S.customBg) localStorage.setItem(BGKEY, S.customBg); } catch (e) {} }
@@ -1391,7 +1381,7 @@ class Component extends DCLogic {
     const S = this.state; const t = BGS[S.bg] || BGS.balloons;
     return { src: S.bg === 'custom' ? S.customBg : t.src, aspect: S.bg === 'custom' ? S.customAspect : t.aspect };
   }
-  // Slide height fills the canvas height: margin above, between and below every level.
+  // Slide height fills the canvas height: row step (top edge to top edge) between levels, with any gap above and below too.
   // Effective styles (built-ins + deck.styles), memoised on the state object.
   styles() { if (this._stylesOf !== this.state.styles || !this._styles) { this._stylesOf = this.state.styles; this._styles = mergeStyles(this.state.styles); } return this._styles; }
   // A styled text layer over its style: the host's style of that id, else (for a linked-in slide) its own deck's. Display and comparison only.
@@ -1406,9 +1396,8 @@ class Component extends DCLogic {
 
   shown(nodeId, ls) { return (ls || []).map(l => this.resolveLayer(l, nodeId)); }
   layout(D) {
-    const N = this.state.nodes; const L = D.levels, rg = this.state.rowGap; let h, top, step;
-    if (rg == null) { const m = this.state.margin; h = Math.max(1, (H - m * (L + 1)) / L); top = m; step = h + m; }   // older decks: a margin (% of height) above, between and below rows
-    else { const pad = Math.max(0, rg); h = H / (2 * pad + (L - 1) * (1 + rg) + 1); top = pad * h; step = (1 + rg) * h; }   // row step: top edge to top edge; < 1 overlaps (parallax)
+    const N = this.state.nodes; const L = D.levels, rg = this.state.rowGap || 0; let h, top, step;
+    { const pad = Math.max(0, rg); h = H / (2 * pad + (L - 1) * (1 + rg) + 1); top = pad * h; step = (1 + rg) * h; }   // row step: top edge to top edge; < 1 overlaps (parallax)
     const w = h * VA, slot = w * (1 + this.state.gap);
     const rect = {};
     const place = (id, x0) => {
@@ -2114,7 +2103,7 @@ class Component extends DCLogic {
     const bx = ly && ly.type === 'text' ? { bg: cardCfg.color, bgOpacity: cardCfg.opacity, blur: cardCfg.blur, border: 0, borderColor: '#ffffff', radius: 12, pad: 12, ...(lv.box || {}) } : null;
     const upBox = patch => upL({ card: 'custom', box: { ...bx, ...patch } });   // touching any control makes the box custom
     const setBoxMode = m => upL(m === 'custom' && !lv.box ? { card: 'custom', box: bx } : { card: m });
-    const onOff = lv && (lv.card === 'custom' || lv.card === 'on') ? 'On' : 'Off', styleName = styled ? (this.styles()[ly.style].name || ly.style) : '';
+    const onOff = lv && lv.card === 'custom' ? 'On' : 'Off', styleName = styled ? (this.styles()[ly.style].name || ly.style) : '';
     const boxModes = bx ? [['custom', 'On'], ['off', 'Off']].map(([m, label]) => ({ label, ...tab((onOff === 'On' ? 'custom' : 'off') === m), onClick: () => setBoxMode(m) })) : [];
     const boxTitle = toStyle ? styleName + ' container' : 'Container';
     const boxModeLabel = bx ? (toStyle || !styled ? onOff : (over('card') || over('box') ? `This layer · ${onOff} •` : `From ${styleName} · ${onOff}`)) : '';   // where the container comes from

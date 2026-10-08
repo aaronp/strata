@@ -145,8 +145,8 @@ test("a new deck starts with one blank slide named after its slug", async () => 
 
 test("the deck's readability card is saved", async () => {
   const { c } = await mount("?deck=talk");
-  c.setState({ card: { mode: "text", color: "#ffffff", opacity: 0.6, blur: 10 } }); await c.save();
-  expect((await onDisk()).card).toEqual({ mode: "text", color: "#ffffff", opacity: 0.6, blur: 10 });
+  c.setState({ card: { mode: "slide", color: "#ffffff", opacity: 0.6, blur: 10 } }); await c.save();
+  expect((await onDisk()).card).toEqual({ mode: "slide", color: "#ffffff", opacity: 0.6, blur: 10 });
 });
 
 test("every Layers render gets the deck card, and the card controls exist", async () => {
@@ -1120,7 +1120,7 @@ test("Slide tab: export and insert icon buttons beside the title; Layout / Frame
   expect(html).not.toContain("sec.insert.toggle");
 });
 
-test("row step: 100% stacks rows edge to edge and fills the canvas; below 100% overlaps; old margin decks keep their layout", async () => {
+test("row step: 100% stacks rows edge to edge and fills the canvas; below 100% overlaps", async () => {
   const tree = { ROOT: slideNode("ROOT", "", ["a"]), a: slideNode("a", "A", ["a1"]), a1: slideNode("a1", "A1", ["a2"]), a2: slideNode("a2", "A2") };
   await writeDeck("talk", tree, { rowGap: 0 });
   let { c } = await mount("?deck=talk");
@@ -1130,12 +1130,6 @@ test("row step: 100% stacks rows edge to edge and fills the canvas; below 100% o
   v.onRowStep({ target: { value: "0.5" } }); expect(c.state.rowGap).toBeCloseTo(-0.5);
   L = c.layout(c.derive());
   expect(L.h).toBeCloseTo(50); expect(L.rect.a1.y - L.rect.a.y).toBeCloseTo(25); expect(L.rect.a2.y + L.h).toBeCloseTo(100);
-  await writeDeck("old", tree, { margin: 3 });
-  ({ c } = await mount("?deck=old"));
-  L = c.layout(c.derive());
-  expect(c.state.rowGap).toBeNull();
-  expect(L.h).toBeCloseTo((100 - 3 * 4) / 3); expect(L.rect.a.y).toBeCloseTo(3); expect(L.rect.a1.y).toBeCloseTo(3 + L.h + 3);
-  expect(c.renderVals().rowStepLabel).toBe("110% of a slide");
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
   expect(html).toContain('value="{{ rowStep }}" onChange="{{ onRowStep }}"');
 });
@@ -1377,10 +1371,10 @@ test("formatting bar: Plain is choosable, focus in the bar counts as typing, lea
 
 // ---- container: On / Off, sourced from the style ----
 test("container is On/Off: every old setting maps onto it, and the header says where it comes from", async () => {
-  const c = await styledDeck({}, [TL("a", { card: "custom", box: { bg: "#ff0000" } }), TL("b", { card: "off" }), TL("c"), TL("d", { card: "on" }), TL("e", { style: "h1" }), TL("f", { style: "h1", card: "custom", box: {} })]);
+  const c = await styledDeck({}, [TL("a", { card: "custom", box: { bg: "#ff0000" } }), TL("b", { card: "off" }), TL("c"), TL("e", { style: "h1" }), TL("f", { style: "h1", card: "custom", box: {} })]);
   const v = (id: string) => { c.setState({ layerSel: id, styleTarget: "layer" }); return c.renderVals(); };
   expect(v("a").boxModes.map((m: any) => m.label)).toEqual(["On", "Off"]);
-  for (const [id, on] of [["a", "On"], ["b", "Off"], ["c", "Off"], ["d", "On"]]) expect(v(id).boxModeLabel).toBe(on);
+  for (const [id, on] of [["a", "On"], ["b", "Off"], ["c", "Off"]]) expect(v(id).boxModeLabel).toBe(on);
   expect(v("e").boxModeLabel).toBe("From H1 · Off"); expect(v("e").boxTitle).toBe("Container");
   expect(v("f").boxModeLabel).toBe("This layer · On •");
   c.setState({ layerSel: "e", styleTarget: "style" }); expect(c.renderVals().boxTitle).toBe("H1 container");
@@ -1389,13 +1383,7 @@ test("container is On/Off: every old setting maps onto it, and the header says w
   expect(html).toContain("{{ boxTitle }}");
 });
 
-test("Readability offers None / Whole slide; a deck saved with 'Behind text' loads with the same look, as style and layer containers", async () => {
-  const c = await styledDeck({ card: { mode: "text", color: "#112233", opacity: 0.6, blur: 4 }, styles: { callout: { name: "Callout", size: 20 } } },
-    [TL("a"), TL("b", { style: "h1" }), TL("c", { card: "off" })]);
+test("Readability offers None / Whole slide", async () => {
+  const c = await styledDeck();
   expect(c.renderVals().cardModes.map((m: any) => m.label)).toEqual(["None", "Whole slide"]);
-  expect(c.state.card.mode).toBe("none");
-  for (const id of ["h1", "h2", "h3", "body", "callout"]) expect(c.styles()[id].card).toBe("on");
-  const [a, b, cc] = c.layersOf("s");
-  expect(a.card).toBe("on"); expect(b.card).toBeUndefined(); expect(c.resolveLayer(b, "s").card).toBe("on"); expect(cc.card).toBe("off");
-  expect(c.state.card).toMatchObject({ color: "#112233", opacity: 0.6, blur: 4 });     // 'on' still draws with the deck's card colours
 });

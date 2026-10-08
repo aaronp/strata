@@ -149,8 +149,8 @@ input,textarea,button{font:inherit;color:inherit}
                   <dc-import name="Layers" card="{{ deckCard }}" layers="{{ prevLayers }}" images="{{ images }}" ink="{{ ink }}" shadow="{{ inkShadow }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
                 </div>
               </sc-if>
-              <div data-stage="main" style="position:absolute;inset:0;transform:{{ planeB.t }};opacity:{{ planeB.o }};transition:{{ planeTr }}">
-                <dc-import name="Layers" card="{{ deckCard }}" live="{{ cur }}" layers="{{ stageLayers }}" images="{{ images }}" ink="{{ ink }}" shadow="{{ inkShadow }}" editing-id="{{ editingId }}" show-empty="{{ editable }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
+              <div data-stage="main" onClick="{{ onStageLinkClick }}" style="position:absolute;inset:0;transform:{{ planeB.t }};opacity:{{ planeB.o }};transition:{{ planeTr }}">
+                <dc-import name="Layers" card="{{ deckCard }}" live="{{ cur }}" links="{{ isPresent }}" layers="{{ stageLayers }}" images="{{ images }}" ink="{{ ink }}" shadow="{{ inkShadow }}" editing-id="{{ editingId }}" show-empty="{{ editable }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
               </div>
               <sc-if value="{{ hasGhost }}">
                 <div style="position:absolute;inset:0;opacity:.5;pointer-events:none;z-index:4">
@@ -212,6 +212,8 @@ input,textarea,button{font:inherit;color:inherit}
                         <button onPointerDown="{{ fmtDown }}" onMouseDown="{{ fmtDown }}" onClick="{{ onFmtItalic }}" title="Italic (⌘I)" style="width:26px;height:26px;padding:0;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer;font-style:italic;font-family:serif">I</button>
                         <select value="" onChange="{{ onFmtStyle }}" title="Style for the selection" style="height:26px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;font-size:12px"><sc-for list="{{ fmtStyleOpts }}" as="o" hint-placeholder-count="5"><option value="{{ o.v }}" disabled="{{ o.off }}">{{ o.l }}</option></sc-for></select>
                         <select value="" onChange="{{ onFmtSize }}" title="Size for the selection" style="height:26px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;font-size:12px"><sc-for list="{{ fmtSizeOpts }}" as="o" hint-placeholder-count="5"><option value="{{ o.v }}" disabled="{{ o.off }}">{{ o.l }}</option></sc-for></select>
+                        <select value="" onChange="{{ onFmtLink }}" title="Link the selection to a slide or a web page" style="height:26px;max-width:110px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;font-size:12px"><sc-for list="{{ fmtLinkOpts }}" as="o" hint-placeholder-count="5"><option value="{{ o.v }}" disabled="{{ o.off }}">{{ o.l }}</option></sc-for></select>
+                        <sc-if value="{{ fmtUrl }}"><input value="{{ fmtUrlVal }}" onChange="{{ onFmtUrlVal }}" placeholder="https://…" style="width:150px;height:26px;padding:0 6px;border:1px solid #e0d9cb;border-radius:6px;font-size:12px"><button onPointerDown="{{ fmtDown }}" onMouseDown="{{ fmtDown }}" onClick="{{ onFmtUrlApply }}" style="height:26px;padding:0 7px;border:0;border-radius:6px;background:#1d1b17;color:#fbf9f4;cursor:pointer;font-size:12px">Link</button></sc-if>
                         <input type="color" onChange="{{ onFmtColor }}" title="Colour for the selection" style="width:28px;height:26px;padding:0;border:1px solid #e0d9cb;border-radius:6px;background:#fff">
                         <button onPointerDown="{{ fmtDown }}" onMouseDown="{{ fmtDown }}" onClick="{{ onFmtClear }}" title="Clear formatting (the selection, or all if nothing is selected)" style="height:26px;padding:0 7px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer;font-size:12px">⌫ Clear</button>
                       </div>
@@ -902,7 +904,7 @@ const BUILTIN_STYLES = {
 const mergeStyles = own => { const out = {}; for (const k in BUILTIN_STYLES) out[k] = { ...BUILTIN_STYLES[k], ...((own || {})[k] || {}) }; for (const k in own || {}) if (!out[k]) out[k] = own[k]; return out; };
 // ---- Inline markup: **bold**, *italic*, [words]{style=h2 size=72 color=#hex font=serif weight=600}, \ escapes. Per line; malformed markup is literal.
 const ESC = '*[]{}\\';
-const runKeys = ['b', 'i', 'size', 'color', 'font', 'weight', 'ls'];
+const runKeys = ['b', 'i', 'size', 'color', 'font', 'weight', 'ls', 'link', 'href'];
 const unesc = (s, j) => (s[j] === '\\' && j + 1 < s.length && ESC.includes(s[j + 1]));
 const matchBracket = (s, j) => { let d = 0; for (let k = j; k < s.length; k++) { if (unesc(s, k)) { k++; continue; } if (s[k] === '[') d++; else if (s[k] === ']' && --d === 0) return k; } return -1; };
 const closeBrace = (s, j) => { for (let k = j; k < s.length; k++) { if (unesc(s, k)) { k++; continue; } if (s[k] === '}') return k; } return -1; };
@@ -918,6 +920,8 @@ const spanFmt = (fmt, a, lookupStyle) => {
   if (/^[1-9]00$/.test(a.weight || '')) f.weight = +a.weight;
   if (/^(#[0-9a-f]{3,8}|[a-z]+)$/i.test(a.color || '')) f.color = a.color;
   if (a.font && FONT_CSS[a.font]) f.font = a.font;
+  if (/^[A-Za-z0-9._!-]+$/.test(a.link || '')) f.link = a.link;            // a slide id (linked-in ids are dotted)
+  if (/^(https?:\/\/|mailto:)\S+$/i.test(a.href || '')) f.href = a.href;  // web links only
   return f;
 };
 function parseRich(line, lookupStyle) {
@@ -1393,7 +1397,8 @@ class Component extends DCLogic {
     const n = this.state.nodes[nodeId], look = sid => this.styles()[sid] || (n && n._from && ((this._graftStyles || {})[n._from] || {})[sid]) || null;
     const st = l.style ? look(l.style) : null, r = { ...l };
     if (st) for (const k of STYLE_KEYS) if (r[k] === undefined && st[k] !== undefined) r[k] = st[k];
-    r._lines = String(r.text ?? '').split('\n').map(line => parseRich(line, look));   // display-only runs; never saved
+    const N = this.state.nodes;   // display-only runs; never saved. A link to a missing slide is marked broken.
+    r._lines = String(r.text ?? '').split('\n').map(line => parseRich(line, look).map(run => run.link && !N[run.link] ? { ...run, broken: true } : run));
     return r;
   }
 
@@ -1697,6 +1702,11 @@ class Component extends DCLogic {
     if (r.refused) { this.flash('Select whole formatted words: this would cut through existing formatting'); return; }
     this.updLayer(id, l.id, { text: r.text }); this._sel = { start: r.start, end: r.end };
     setTimeout(() => { const t2 = this.editRef.current; if (t2 && t2.focus) { t2.focus(); t2.setSelectionRange && t2.setSelectionRange(r.start, r.end); } }, 0);
+  }
+  // An inline link: a slide (if it exists) or a web page in a new tab.
+  followInline(ds) {
+    if (ds.link) { if (this.state.nodes[ds.link]) this.nav(ds.link, 'jump'); }
+    else if (ds.href && typeof window !== 'undefined' && window.open) window.open(ds.href, '_blank', 'noopener');
   }
   focusInBar() { const a = typeof document !== 'undefined' && document.activeElement; return !!(a && a.closest && a.closest('[data-role="fmtbar"]')); }
 
@@ -2230,7 +2240,9 @@ class Component extends DCLogic {
       showLinkSpots: isPresent && !active,
       linkSpots: isPresent ? curLayers.filter(l => l.link && !l.hidden && ((l.link.type === 'url' && l.link.url) || (l.link.type === 'slide' && N[l.link.id]))).map(l => ({ l: l.x, t: l.y, w: l.w, h: l.h, rot: l.rot || 0,
         title: l.link.type === 'url' ? 'Open ' + l.link.url : 'Go to ' + pathName(l.link.id),
-        onClick: () => { if (l.link.type === 'url') { let u = l.link.url.trim(); if (!/^[a-z]+:/i.test(u)) u = 'https://' + u; window.open(u, '_blank', 'noopener'); } else this.nav(l.link.id, 'jump'); } })) : [],
+        onClick: e => { const hit = e && typeof document !== 'undefined' && document.elementsFromPoint ? document.elementsFromPoint(e.clientX, e.clientY).find(x => x.dataset && (x.dataset.link || x.dataset.href)) : null;
+          if (hit) { this.followInline(hit.dataset); return; }   // an inline link under the pointer wins over the layer's own link
+          if (l.link.type === 'url') { let u = l.link.url.trim(); if (!/^[a-z]+:/i.test(u)) u = 'https://' + u; window.open(u, '_blank', 'noopener'); } else this.nav(l.link.id, 'jump'); } })) : [],
     };
     const results = isPresent && q ? D.order.filter(id => match[id]).slice(0, 10).map(id => ({ title: name(id), path: pathOf(id).slice(0, -1).map(name).join(' › ') || 'Top level', onClick: () => { this.setState({ query: '' }); this.nav(id, 'jump'); } })) : [];
 
@@ -2259,7 +2271,13 @@ class Component extends DCLogic {
       fmtDown: e => e.preventDefault(), onFmtBold: () => this.formatSel({ bold: true }), onFmtItalic: () => this.formatSel({ italic: true }),
       onFmtStyle: e => { const v = e.target.value; if (v) this.formatSel({ attrs: { style: v === '-' ? null : v } }); }, onFmtSize: e => { const v = e.target.value; if (v) this.formatSel({ attrs: { size: v === '-' ? null : v } }); },
       onFmtBlur: () => setTimeout(() => { const a = typeof document !== 'undefined' && document.activeElement; if (!this.focusInBar() && a !== this.editRef.current) this.setState({ editing: null }); }, 0),   // leaving the bar (not back to the editor) ends editing
-      onFmtColor: e => this.formatSel({ attrs: { color: e.target.value } }), onFmtClear: () => this.formatSel({ clear: true }),
+      onFmtColor: e => this.formatSel({ attrs: { color: e.target.value } }),
+      fmtLinkOpts: [{ v: '', l: 'Link', off: true }, { v: '-', l: 'No link', off: false }].concat((S.titlePage ? ['ROOT'] : []).concat(D.order).map(id => ({ v: id, l: '\u00a0'.repeat(id === 'ROOT' ? 0 : D.depth[id] * 2) + name(id), off: false })), [{ v: '@url', l: 'Web address…', off: false }]),
+      onFmtLink: e => { const v = e.target.value; if (!v) return; if (v === '@url') this.setState({ fmtUrl: true, fmtUrlVal: '' }); else this.formatSel({ attrs: v === '-' ? { link: null, href: null } : { link: v, href: null } }); },
+      fmtUrl: !!S.fmtUrl, fmtUrlVal: S.fmtUrlVal || '', onFmtUrlVal: e => this.setState({ fmtUrlVal: e.target.value }),
+      onFmtUrlApply: () => { const u = (S.fmtUrlVal || '').trim(); if (u) this.formatSel({ attrs: { href: /^(https?:|mailto:)/i.test(u) ? u : 'https://' + u, link: null } }); this.setState({ fmtUrl: false }); },
+      onStageLinkClick: e => { if (!isPresent) return; const el = e.target && e.target.closest && e.target.closest('[data-link],[data-href]');
+        if (el && (el.dataset.link || el.dataset.href)) { e.stopPropagation(); this.followInline(el.dataset); } }, onFmtClear: () => this.formatSel({ clear: true }),
       exportShow: !STATIC, onExportMd: () => this.downloadMarkdown(cur),
       isTitlePage: cur === 'ROOT', titlePage: !!S.titlePage, onTitlePage: e => this.setTitlePage(!!e.target.checked),
       tvZoom: tvw.zoom, tvZoomMax: Math.max(8, Math.ceil(this.titleCover(L))), tvZoomLabel: tvw.zoom.toFixed(2) + '×', onTvZoom: e => setTv({ zoom: +e.target.value }),

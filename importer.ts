@@ -72,7 +72,7 @@ export async function importMarkdown(root: string, slug: string, md: string, sou
   if (!SLUG.test(slug)) parsed.errors.unshift({ line: 0, msg: `bad deck slug "${slug}" (use a-z, 0-9 and -)` });
   if (parsed.errors.length) return { ...parsed, slug, deck: null };
   const checkInto = async (ss: Section[]): Promise<void> => { for (const s of ss) {
-    for (const l of s.links) if (l.into) { const p = await linkProblem(root, l.into, l.path!);
+    for (const l of [...s.links, ...s.inline]) if (l.into) { const p = await linkProblem(root, l.into, l.path!);
       if (p) parsed.warnings.push({ line: l.line, msg: p === "missing" ? `link target "${l.ref}" not found in deck ${l.into}` : `${p} (linked from "${l.via}")` }); }
     await checkInto(s.children); } };
   await checkInto(parsed.sections);

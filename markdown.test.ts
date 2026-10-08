@@ -58,11 +58,11 @@ test("a body that is one list renders with bullets", () => {
   expect(a.text).toBe("one\ntwo");
 });
 
-test("inline links keep their text and also add a chip or source; link-only paragraphs become sources", () => {
+test("mid-sentence links stay inline (slide links resolved to ids); link-only paragraphs become sources", () => {
   const g = parseMarkdown(MD).sections[0].children[0].children[0];
-  expect(g.text).toBe("Deep. See the doc and Kid A.");
-  expect(g.links.map(l => l.target)).toEqual(["kid-a"]);
-  expect(g.sources).toEqual([{ text: "the doc", url: "https://ex.com/doc" }, { text: "Source: X", url: "https://x.com" }, { text: "Y", url: "https://y.com" }]);
+  expect(g.text).toBe("Deep. See [the doc]{href=https://ex.com/doc} and [Kid A]{link=kid-a}.");
+  expect(g.links).toEqual([]); expect(g.inline.map(l => l.target)).toEqual(["kid-a"]);
+  expect(g.sources).toEqual([{ text: "Source: X", url: "https://x.com" }, { text: "Y", url: "https://y.com" }]);
 });
 
 test("CRLF input parses identically", () => {
@@ -222,4 +222,18 @@ test("export doesn't repeat a title whose layer text has markup", () => {
   const md = toMarkdown(nodes, "s", { deck: "d", date: "x" });
   expect(md).not.toContain("The **big** idea\n\nBody");
   expect(parseMarkdown(md).sections[0].text).toBe("Body.");
+});
+
+test("inline links: mid-sentence chips and URLs stay inline; chip-only lines stay chips; {link=} is checked; export round-trips", () => {
+  const r = parseMarkdown("# Top\nslug: top\n\nSee [link:kid][the kid] and [docs](https://d.x) now.\n\n- [link:kid][Go]\n\nAlso [this]{link=top.kid}.\n\n## Kid\nslug: kid\n");
+  expect(r.errors).toEqual([]);
+  const top = r.sections[0];
+  expect(top.text).toContain("See [the kid]{link=kid} and [docs]{href=https://d.x} now.");
+  expect(top.text).toContain("Also [this]{link=kid}.");
+  expect(top.links.map((l: any) => l.label)).toEqual(["Go"]); expect(top.sources).toEqual([]);
+  expect(parseMarkdown("# A\nslug: a\n\nBad [x]{link=nope}.\n").errors).toEqual([{ line: 4, msg: 'link target "nope" not found' }]);
+  const nodes: any = { ROOT: node("ROOT", "", ["s", "o"], null), s: node("s", "S", ["k"], [T("b", "To [k]{link=k} and [o]{link=o color=red}.", 30)]), k: node("k", "K", [], null), o: node("o", "O", [], null) };
+  const md = toMarkdown(nodes, "s", { deck: "d", date: "x" });
+  expect(md).toContain("To [k]{link=k} and [o]{color=red}.");                                // out-of-branch link dropped, formatting kept
+  expect(parseMarkdown(md).errors).toEqual([]);
 });

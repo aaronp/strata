@@ -1396,3 +1396,25 @@ test("London, Under the sea and Space are Canvas backdrops next to the others", 
     expect(await Bun.file(join(import.meta.dir, "design", src)).exists()).toBe(true);
   }
 });
+
+// ---- inline links ----
+test("inline links: parsed into runs, broken targets flagged, followed in present mode, and set from the bar", async () => {
+  const { parseRich } = await rich();
+  expect(parseRich("see [the costs]{link=costs} or [r]{href=https://e.x/r?a=b}")).toEqual([{ text: "see " }, { text: "the costs", link: "costs" }, { text: " or " }, { text: "r", href: "https://e.x/r?a=b" }]);
+  expect(parseRich("[x]{href=javascript:alert(1)}")).toEqual([{ text: "x" }]);              // only http(s)/mailto
+  await writeDeck("talk", { ROOT: slideNode("ROOT", "", ["s", "costs"]), s: slideNode("s", "S", [], { frames: [{ id: "f", layers: [TL("a", { text: "go [here]{link=costs} or [there]{link=gone}" })] }] }), costs: slideNode("costs", "Costs") });
+  const { c } = await mount("?deck=talk");
+  const runs = c.resolveLayer(c.layersOf("s")[0], "s")._lines[0];
+  expect(runs[1]).toMatchObject({ text: "here", link: "costs" }); expect(runs[1].broken).toBeUndefined();
+  expect(runs[3]).toMatchObject({ text: "there", link: "gone", broken: true });
+  c.followInline({ link: "costs" }); expect(c.state.cur).toBe("costs");
+  c.setState({ cur: "s", editing: "a", layerSel: "a" }); const v = c.renderVals();
+  expect(v.fmtLinkOpts.map((o: any) => o.v).slice(0, 3)).toEqual(["", "-", "s"]); expect(v.fmtLinkOpts.at(-1).v).toBe("@url");
+  v.onEditSel({ target: { selectionStart: 0, selectionEnd: 2 } }); v.onFmtLink({ target: { value: "costs" } });
+  expect(c.layersOf("s")[0].text.startsWith("[go]{link=costs}")).toBe(true);
+  c.renderVals().onFmtLink({ target: { value: "@url" } }); expect(c.state.fmtUrl).toBe(true);
+  c.setState({ fmtUrlVal: "https://a.b" }); c.renderVals().onFmtUrlApply();
+  expect(c.layersOf("s")[0].text.startsWith("[go]{href=https://a.b}")).toBe(true);
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  for (const h of ["{{ fmtLinkOpts }}", "{{ onFmtUrlApply }}", 'onClick="{{ onStageLinkClick }}"', 'links="{{ isPresent }}"']) expect(html).toContain(h);
+});

@@ -16,7 +16,7 @@
           <sc-for list="{{ e.lines }}" as="ln" hint-placeholder-count="1">
             <div style="display:flex;gap:.45em;align-items:baseline;justify-content:{{ e.hjust }}">
               <sc-if value="{{ ln.hasMark }}"><span style="flex:none;min-width:{{ e.markW }};opacity:.85">{{ ln.mark }}</span></sc-if>
-              <span style="white-space:pre-wrap;text-wrap:pretty;min-width:0"><sc-for list="{{ ln.runs }}" as="r" hint-placeholder-count="1"><span style="font-weight:{{ r.fw }};font-style:{{ r.fst }};font-size:{{ r.fsz }};color:{{ r.col }};font-family:{{ r.fam }};letter-spacing:{{ r.lsp }}">{{ r.text }}</span></sc-for></span>
+              <span style="white-space:pre-wrap;text-wrap:pretty;min-width:0"><sc-for list="{{ ln.runs }}" as="r" hint-placeholder-count="1"><span data-link="{{ r.lnk }}" data-href="{{ r.href }}" style="font-weight:{{ r.fw }};font-style:{{ r.fst }};font-size:{{ r.fsz }};color:{{ r.col }};font-family:{{ r.fam }};letter-spacing:{{ r.lsp }};text-decoration:{{ r.deco }};pointer-events:{{ r.pe }};cursor:{{ r.cur }}">{{ r.text }}</span></sc-for></span>
             </div>
           </sc-for>
         </div>
@@ -90,7 +90,9 @@ class Component extends DCLogic {
         isText: l.type === 'text', isShape: l.type === 'shape', isIcon: l.type === 'icon', isImage: l.type === 'image' };
       if (l.type === 'text') {
         const b = l.bullets || 'none'; const raw = String(l.text ?? '').split('\n');
-        const run = r => ({ text: r.text, fw: r.weight || (r.b ? 'bolder' : ''), fst: r.i ? 'italic' : '', fsz: r.size ? r.size / 16 + 'cqw' : '', col: r.color || '', fam: r.font ? (FONTS[r.font] || '') : '', lsp: r.ls ? r.ls + 'em' : '' });
+        const run = r => ({ text: r.text, fw: r.weight || (r.b ? 'bolder' : ''), fst: r.i ? 'italic' : '', fsz: r.size ? r.size / 16 + 'cqw' : '', col: r.color || '', fam: r.font ? (FONTS[r.font] || '') : '', lsp: r.ls ? r.ls + 'em' : '',
+          lnk: r.broken ? '' : (r.link || ''), href: r.broken ? '' : (r.href || ''), deco: r.broken ? 'underline dashed' : (r.link || r.href ? 'underline' : ''),
+          pe: p.links && !r.broken && (r.link || r.href) ? 'auto' : '', cur: p.links && !r.broken && (r.link || r.href) ? 'pointer' : '' });   // links click only when live (present)
         const lines = raw.map((t, i) => ({ text: t === '' ? '\u00a0' : t, runs: ((l._lines && l._lines[i]) || [{ text: t === '' ? '\u00a0' : t }]).map(run),
           hasMark: b !== 'none' && t !== '', mark: b === 'number' ? (raw.slice(0, i + 1).filter(x => x !== '').length) + '.' : MARKS[b] || '' }));
         const align = l.align || 'left';

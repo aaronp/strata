@@ -8,6 +8,7 @@ export type Section = {
   text: string;          // display text for the md-body layer
   bulletsOnly: boolean;  // body is entirely list items → render with bullets
   links: Chip[]; sources: Source[]; children: Section[];
+  inline: Chip[];        // {link=…} refs inside the text (mid-sentence chips become these); resolved and rewritten to slide ids
   include?: string;      // a linked slide: its children are this deck's slides
 };
 
@@ -30,7 +31,7 @@ const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").repla
 type Line = { text: string; line: number };
 
 function parseBody(lines: Line[]) {
-  const links: Chip[] = [], sources: Source[] = [], out: { text: string; item: boolean; block: number }[] = [];
+  const links: Chip[] = [], inline: Chip[] = [], sources: Source[] = [], out: { text: string; item: boolean; block: number }[] = [];
   const blocks: Line[][] = []; let cur: Line[] = [];
   for (const l of lines) { if (l.text.trim()) cur.push(l); else if (cur.length) { blocks.push(cur); cur = []; } }
   if (cur.length) blocks.push(cur);
@@ -41,8 +42,9 @@ function parseBody(lines: Line[]) {
     const exts = [...t.matchAll(EXT)];
     if (exts.length && !t.replace(EXT, "").replace(/[·|,;\s]/g, "")) { exts.forEach(m => sources.push({ text: m[1], url: m[2] })); return; }
     const text = t
-      .replace(CHIP, (_, ref, label) => { links.push({ ref: ref.trim(), label: label.trim(), line }); return label.trim(); })
-      .replace(EXT, (_, txt, url) => { sources.push({ text: txt, url }); return txt; });   // inline markup (**, *, [..]{..}) is kept for the app to render
+      .replace(CHIP, (_, ref, label) => `[${label.trim()}]{link=${ref.trim()}}`)   // a chip mid-sentence is an inline link
+      .replace(EXT, (_, txt, url) => `[${txt}]{href=${url}}`);                       // so is a web link; inline markup is kept for the app to render
+    for (const m of text.matchAll(/\]\{([^}]*)\}/g)) for (const tok of m[1].split(/\s+/)) { const k = /^link=(\S+)$/.exec(tok); if (k) inline.push({ ref: k[1], label: "", line }); }
     out.push({ text, item, block });
   };
   blocks.forEach((blk, bi) => {
@@ -51,7 +53,7 @@ function parseBody(lines: Line[]) {
   });
   const bulletsOnly = out.length > 0 && out.every(o => o.item);
   const text = out.map((o, i) => (i && out[i - 1].block !== o.block ? "\n" : "") + (o.item && !bulletsOnly ? "• " : "") + o.text).join("\n");
-  return { body: lines.map(l => l.text).join("\n").trim(), text, bulletsOnly, links, sources };
+  return { body: lines.map(l => l.text).join("\n").trim(), text, bulletsOnly, links, inline, sources };
 }
 
 export function parseMarkdown(md: string): { sections: Section[]; errors: Issue[]; warnings: Issue[] } {
@@ -116,6 +118,8 @@ export function parseMarkdown(md: string): { sections: Section[]; errors: Issue[
   };
   const check = (ss: Section[]) => ss.forEach(s => {
     s.links.forEach(l => { const r = resolve(l.ref); if (r) Object.assign(l, r); else errors.push({ line: l.line, msg: `link target "${l.ref}" not found` }); });
+    s.inline.forEach(l => { const r = resolve(l.ref); if (!r) { errors.push({ line: l.line, msg: `link target "${l.ref}" not found` }); return; } Object.assign(l, r);
+      if (l.target !== l.ref) s.text = s.text.split(`link=${l.ref}`).join(`link=${l.target}`); });   // dotted paths → slide ids
     check(s.children);
   });
   check(top);
@@ -145,9 +149,12 @@ export function toMarkdown(nodes: Record<string, any>, id: string, meta: { deck:
         const lk = l.link;
         if (lk?.type === "slide") { const label = one(l.text).replace(/\s*→$/, ""); blocks.push(inBranch.has(lk.id) ? `- [link:${lk.id}][${label}]` : safe(label)); return; }
         if (lk?.type === "url") { blocks.push(`[${one(l.text).replace(/\s*↗$/, "")}](${lk.url})`); return; }
+        const dropOut = (t: string) => t.replace(/\[([^\]]*)\]\{([^}]*)\}/g, (_m: string, txt: string, attrs: string) => {   // links leaving the branch become plain
+          const kept = attrs.split(/\s+/).filter(tok => { const k = /^link=(\S+)$/.exec(tok); return !k || inBranch.has(k[1]); }).join(" ").trim();
+          return kept ? `[${txt}]{${kept}}` : txt; });
         let items: string[] = [];
         const flush = () => { if (items.length) blocks.push(items.join("\n")); items = []; };
-        String(l.text).split("\n").map(s => s.trim()).filter(Boolean).forEach(s => {
+        dropOut(String(l.text)).split("\n").map(s => s.trim()).filter(Boolean).forEach(s => {
           const dot = /^[•*-]\s+(.*)$/.exec(s);
           if (l.bullets && l.bullets !== "none") items.push("- " + s);
           else if (dot) items.push("- " + dot[1]);

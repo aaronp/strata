@@ -1243,7 +1243,7 @@ test("Styles section: counts, rename keeps the id, new style from a layer, delet
 test("Style mode shows and edits the style's container, never copying this layer's own container into it", async () => {
   const c = await styledDeck({}, [TL("a", { style: "h1", card: "custom", box: { bg: "#ff0000", radius: 40 } }), TL("b", { style: "h1" })]);
   c.setState({ layerSel: "a", styleTarget: "style" }); const v = c.renderVals();
-  expect(v.boxModeLabel.startsWith("Deck default")).toBe(true);
+  expect(v.boxModeLabel).toBe("Off");                                         // the style's container, not the layer's Custom one
   v.boxFields.find((f: any) => f.label === "Padding").onChange({ target: { value: "20" } });
   expect(c.state.styles.h1.box.bg).not.toBe("#ff0000"); expect(c.state.styles.h1.box.radius).toBe(12);
 });
@@ -1373,4 +1373,29 @@ test("formatting bar: Plain is choosable, focus in the bar counts as typing, lea
   c.focusInBar = () => false; c.renderVals().onFmtBlur(); await Bun.sleep(5); expect(c.state.editing).toBeNull();
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
   expect(html).toContain('onMouseDown="{{ fmtDown }}"'); expect(html).toContain('onBlur="{{ onFmtBlur }}"');
+});
+
+// ---- container: On / Off, sourced from the style ----
+test("container is On/Off: every old setting maps onto it, and the header says where it comes from", async () => {
+  const c = await styledDeck({}, [TL("a", { card: "custom", box: { bg: "#ff0000" } }), TL("b", { card: "off" }), TL("c"), TL("d", { card: "on" }), TL("e", { style: "h1" }), TL("f", { style: "h1", card: "custom", box: {} })]);
+  const v = (id: string) => { c.setState({ layerSel: id, styleTarget: "layer" }); return c.renderVals(); };
+  expect(v("a").boxModes.map((m: any) => m.label)).toEqual(["On", "Off"]);
+  for (const [id, on] of [["a", "On"], ["b", "Off"], ["c", "Off"], ["d", "On"]]) expect(v(id).boxModeLabel).toBe(on);
+  expect(v("e").boxModeLabel).toBe("From H1 · Off"); expect(v("e").boxTitle).toBe("Container");
+  expect(v("f").boxModeLabel).toBe("This layer · On •");
+  c.setState({ layerSel: "e", styleTarget: "style" }); expect(c.renderVals().boxTitle).toBe("H1 container");
+  v("c").boxModes[0].onClick(); expect(c.layersOf("s")[2].card).toBe("custom");
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  expect(html).toContain("{{ boxTitle }}");
+});
+
+test("Readability offers None / Whole slide; a deck saved with 'Behind text' loads with the same look, as style and layer containers", async () => {
+  const c = await styledDeck({ card: { mode: "text", color: "#112233", opacity: 0.6, blur: 4 }, styles: { callout: { name: "Callout", size: 20 } } },
+    [TL("a"), TL("b", { style: "h1" }), TL("c", { card: "off" })]);
+  expect(c.renderVals().cardModes.map((m: any) => m.label)).toEqual(["None", "Whole slide"]);
+  expect(c.state.card.mode).toBe("none");
+  for (const id of ["h1", "h2", "h3", "body", "callout"]) expect(c.styles()[id].card).toBe("on");
+  const [a, b, cc] = c.layersOf("s");
+  expect(a.card).toBe("on"); expect(b.card).toBeUndefined(); expect(c.resolveLayer(b, "s").card).toBe("on"); expect(cc.card).toBe("off");
+  expect(c.state.card).toMatchObject({ color: "#112233", opacity: 0.6, blur: 4 });     // 'on' still draws with the deck's card colours
 });

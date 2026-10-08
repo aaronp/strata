@@ -577,7 +577,7 @@ input,textarea,button{font:inherit;color:inherit}
                   <div style="display:flex;flex-direction:column;border:1px solid #e0d9cb;border-radius:8px;background:#fff">
                     <div onClick="{{ sec.box.toggle }}" style="display:flex;align-items:center;gap:8px;padding:8px 10px;cursor:pointer;user-select:none">
                       <span style="width:12px;flex:none;font-size:10px;color:#6b6458">{{ sec.box.caret }}</span>
-                      <span style="flex:1;font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#1d1b17">Container</span>
+                      <span style="flex:1;font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#1d1b17">{{ boxTitle }}</span>
                       <span style="font-size:11.5px;color:#6b6458">{{ boxModeLabel }}</span>
                       <sc-if value="{{ boxOver }}"><button onClick="{{ onBoxReset }}" title="Remove this layer's container override" style="padding:0 4px;border:0;background:none;cursor:pointer;color:#6b6458">↺</button></sc-if>
                     </div>
@@ -897,6 +897,14 @@ const BUILTIN_STYLES = {
   body: { name: 'Body', ...STYLE_BASE, size: 32, weight: 400, valign: 'top', lh: 1.35, gap: 0.35 },
 };
 const mergeStyles = own => { const out = {}; for (const k in BUILTIN_STYLES) out[k] = { ...BUILTIN_STYLES[k], ...((own || {})[k] || {}) }; for (const k in own || {}) if (!out[k]) out[k] = own[k]; return out; };
+// Decks saved with the old deck-wide "Behind text" card: every style and every unstyled text layer without its own container gets card 'on'
+// (drawn with the deck card's colours, so the look is unchanged), and the deck mode becomes 'none'.
+const migrateTextCard = d => { if (!d.card || d.card.mode !== 'text') return d;
+  const all = mergeStyles(d.styles), styles = { ...(d.styles || {}) };
+  for (const k in all) if (!all[k].deleted && all[k].card === undefined) styles[k] = { ...(styles[k] || {}), card: 'on' };
+  const nodes = {}; for (const k in d.nodes) { const n = d.nodes[k];
+    nodes[k] = !n.frames ? n : { ...n, frames: n.frames.map(f => ({ ...f, layers: f.layers.map(l => l.type === 'text' && !l.style && l.card === undefined ? { ...l, card: 'on' } : l) })) }; }
+  return { ...d, nodes, styles, card: { ...d.card, mode: 'none' } }; };
 // ---- Inline markup: **bold**, *italic*, [words]{style=h2 size=72 color=#hex font=serif weight=600}, \ escapes. Per line; malformed markup is literal.
 const ESC = '*[]{}\\';
 const runKeys = ['b', 'i', 'size', 'color', 'font', 'weight', 'ls'];
@@ -1277,7 +1285,8 @@ class Component extends DCLogic {
         this.setState({ nodes, cur: id, prev: null, phase: 'idle' }, () => this.save()); return;
       }
       if (!r.ok) throw new Error('HTTP ' + r.status);
-      const d = await r.json(); if (!d.nodes || !d.nodes.ROOT) throw new Error('not a deck');
+      const d0 = await r.json(); if (!d0.nodes || !d0.nodes.ROOT) throw new Error('not a deck');
+      const d = migrateTextCard(d0);
       const pick = Object.fromEntries(DECK_FIELDS.filter(k => k in d).map(k => [k, d[k]]));
       if (!('rowGap' in d)) pick.rowGap = null;   // saved before row step: keep its margin layout until the slider moves
       const g = await this.graft(d.nodes);
@@ -2105,8 +2114,10 @@ class Component extends DCLogic {
     const bx = ly && ly.type === 'text' ? { bg: cardCfg.color, bgOpacity: cardCfg.opacity, blur: cardCfg.blur, border: 0, borderColor: '#ffffff', radius: 12, pad: 12, ...(lv.box || {}) } : null;
     const upBox = patch => upL({ card: 'custom', box: { ...bx, ...patch } });   // touching any control makes the box custom
     const setBoxMode = m => upL(m === 'custom' && !lv.box ? { card: 'custom', box: bx } : { card: m });
-    const boxModes = bx ? [['', 'Deck default'], ['custom', 'Custom'], ['off', 'Off']].map(([m, label]) => ({ label, ...tab((lv.card === 'on' ? '' : lv.card || '') === m), onClick: () => setBoxMode(m) })) : [];
-    const boxModeLabel = bx ? ({ on: 'Deck style', custom: 'Custom', off: 'Off' }[lv.card] || 'Deck default') + (over('card') || over('box') ? ' •' : '') : '';
+    const onOff = lv && (lv.card === 'custom' || lv.card === 'on') ? 'On' : 'Off', styleName = styled ? (this.styles()[ly.style].name || ly.style) : '';
+    const boxModes = bx ? [['custom', 'On'], ['off', 'Off']].map(([m, label]) => ({ label, ...tab((onOff === 'On' ? 'custom' : 'off') === m), onClick: () => setBoxMode(m) })) : [];
+    const boxTitle = toStyle ? styleName + ' container' : 'Container';
+    const boxModeLabel = bx ? (toStyle || !styled ? onOff : (over('card') || over('box') ? `This layer · ${onOff} •` : `From ${styleName} · ${onOff}`)) : '';   // where the container comes from
     const boxColors = bx ? [['Background', 'bg'], ['Border', 'borderColor']].map(([label, k]) => ({ label, value: bx[k], onChange: e => upBox({ [k]: e.target.value }) })) : [];
     const boxFields = bx ? [['Opacity', 'bgOpacity', 0, 1, 0.05, v => Math.round(v * 100) + '%'], ['Blur', 'blur', 0, 24, 1, v => v + ' px'], ['Border', 'border', 0, 8, 0.5, v => v + ' px'],
       ['Corners', 'radius', 0, 48, 1, v => v + ' px'], ['Padding', 'pad', 0, 48, 1, v => v + ' px']]
@@ -2264,7 +2275,7 @@ class Component extends DCLogic {
       tvX: tvw.x, tvXLabel: Math.round(tvw.x * 100) + '%', onTvX: e => setTv({ x: +e.target.value }),
       tvY: tvw.y, tvYLabel: Math.round(tvw.y * 100) + '%', onTvY: e => setTv({ y: +e.target.value }),
       tvHint: tvFree.length ? 'The whole canvas fits this way, so ' + tvFree.join(' and ') + ' has no effect.' : '',
-      ...layerVals, ...linkVals, textFields, boxModes, boxModeLabel, boxColors, boxFields, ...frameVals,
+      ...layerVals, ...linkVals, textFields, boxModes, boxModeLabel, boxTitle, boxColors, boxFields, ...frameVals,
       sec: Object.fromEntries(['layout', 'frames', 'layers', 'tdef', 'box', 'insert'].map(k => { const open = !!(S.secOpen || {})[k]; return [k, { open, caret: open ? '▾' : '▸', toggle: () => this.setState(st => ({ secOpen: { ...st.secOpen, [k]: !open } })) }]; })),
       defAll: Object.fromEntries(['ease', 'dur', 'delay'].map(key => { const on = !!S.dAll[key]; const fb = { ease: 'both', dur: 600, delay: 0 }[key];
         return [key, { label: on ? '✓ All' : 'All', bg: on ? '#1d1b17' : '#fff', color: on ? '#fbf9f4' : '#1d1b17', border: on ? '#1d1b17' : '#cfc6b4',
@@ -2281,7 +2292,7 @@ class Component extends DCLogic {
       layoutBtns: SLIDE_LAYOUTS.map(L => ({ label: L.label, layers: L.make(this.layoutContent(cur)).map((l, i) => ({ ...l, id: 'p' + i })), onClick: () => this.applyLayout(L.id) })),
       deckTitle: S.title || (S.titlePage && N.ROOT.title) || name(N.ROOT.children[0]), editTitle: !!DECK && !STATIC && !isPresent, showTitle: !(DECK && !STATIC && !isPresent),
       titleVal: S.title || '', onTitle: e => this.setState({ title: e.target.value }), keyHint: S.saveMsg || S.note || (isPresent ? '← → ↑ ↓  ·  Space next  ·  / search' + (STATIC ? '' : '  ·  Esc') : ''),
-      cardModes: [['none', 'None'], ['text', 'Behind text'], ['slide', 'Whole slide']].map(([m, label]) => ({ label, ...tab(cardCfg.mode === m), onClick: () => setCard({ mode: m }) })),
+      cardModes: [['none', 'None'], ['slide', 'Whole slide']].map(([m, label]) => ({ label, ...tab(cardCfg.mode === m), onClick: () => setCard({ mode: m }) })),
       cardOn: cardCfg.mode !== 'none', cardColor: cardCfg.color, onCardColor: e => setCard({ color: e.target.value }),
       cardOp: cardCfg.opacity, cardOpLabel: Math.round(cardCfg.opacity * 100) + '%', onCardOp: e => setCard({ opacity: +e.target.value }),
       cardBlur: cardCfg.blur, cardBlurLabel: cardCfg.blur + ' px', onCardBlur: e => setCard({ blur: +e.target.value }), deckCard: S.card || null,

@@ -1,6 +1,6 @@
 import { test, expect } from "bun:test";
 import { parseMarkdown } from "./markdown";
-import { importInto, layersFor, importFile } from "./importer";
+import { importInto, layersFor, importFile, importMarkdown } from "./importer";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -123,4 +123,25 @@ test("re-import keeps the title page: ROOT's title and frames, and the deck flag
   const d = imp(deck, "# A\nslug: a\n");
   expect(d.titlePage).toBe(true); expect(d.titleView.zoom).toBe(2);
   expect(d.nodes.ROOT.title).toBe("Big"); expect(d.nodes.ROOT.frames[0].id).toBe("fr");
+});
+
+const deckFile = (root: string, slug: string, nodes: object) => Bun.write(join(root, `decks/${slug}/deck.json`), JSON.stringify({ nodes }));
+
+test("import writes include onto the linked node; a re-import without the line keeps a link made in the builder", () => {
+  const d = imp(null, "# W\nslug: w\ninclude: dw\n\nWhy.\n");
+  expect(d.nodes.w).toMatchObject({ include: "dw", children: [] });
+  expect(imp(d, "# W\nslug: w\n\nWhy.\n").nodes.w.include).toBe("dw");
+  expect(imp(d, "# W\nslug: w\ninclude: other\n").nodes.w.include).toBe("other");
+});
+
+test("links into a linked deck are checked on import: warnings, never errors; chains are followed", async () => {
+  const root = await mkdtemp(join(tmpdir(), "strata-inc-"));
+  await deckFile(root, "dw", { ROOT: { id: "ROOT", children: ["costs", "fut"] }, costs: { id: "costs", title: "Costs", children: [] }, fut: { id: "fut", title: "F", include: "df", children: [] } });
+  await deckFile(root, "df", { ROOT: { id: "ROOT", children: ["y"] }, y: { id: "y", title: "Y", children: [] } });
+  const md = (ref: string, deck = "dw") => `# Top\nslug: top\n\n[link:${ref}][Go]\n\n## W\nslug: w\ninclude: ${deck}\n`;
+  for (const ok of ["w.costs", "w.fut.y"]) { const r = await importMarkdown(root, "t", md(ok)); expect(r.errors).toEqual([]); expect(r.warnings).toEqual([]); }
+  expect((await importMarkdown(root, "t", md("w.nope"))).warnings).toEqual([{ line: 4, msg: 'link target "w.nope" not found in deck dw' }]);
+  const gone = await importMarkdown(root, "t2", md("w.costs", "missing"));
+  expect(gone.deck).toBeTruthy();
+  expect(gone.warnings).toEqual([{ line: 4, msg: 'deck "missing" not found (linked from "w")' }]);
 });

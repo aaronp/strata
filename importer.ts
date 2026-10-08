@@ -42,8 +42,8 @@ export function importInto(deck: any | null, sections: Section[]): any {
   const add = (s: Section) => {
     const prev = old[s.slug], gen = layersFor(s);
     const frames = prev?.frames ?? (prev?.layers ? [{ id: "f0-" + s.slug, layers: prev.layers }] : null);
-    const { layers: _legacy, ...rest } = prev ?? {};
-    nodes[s.slug] = { ...rest, id: s.slug, title: s.title, body: s.body, children: s.children.map(c => c.slug),
+    const { layers: _legacy, ...rest } = prev ?? {};   // a link made in the builder (include) survives a re-import without an include: line
+    nodes[s.slug] = { ...rest, id: s.slug, title: s.title, body: s.body, children: s.children.map(c => c.slug), ...(s.include ? { include: s.include } : {}),
       frames: frames ? frames.map((f: any) => ({ ...f, layers: mergeLayers(f.layers, gen) })) : [{ id: "f1", layers: gen }] };
     s.children.forEach(add);
   };
@@ -51,11 +51,30 @@ export function importInto(deck: any | null, sections: Section[]): any {
   return { ...(deck ?? { images: {}, customBg: null }), nodes, title: deck?.title || sections[0]?.title || "" };
 }
 
+// Where a link into a linked deck fails: null = found, "missing" = no such slide, else the problem (a missing deck). Follows chained links.
+async function linkProblem(root: string, deck: string, path: string[], seen: string[] = []): Promise<string | null> {
+  const f = Bun.file(join(root, "decks", deck, "deck.json"));
+  if (!(await f.exists())) return `deck "${deck}" not found`;
+  const N = (await f.json()).nodes; let list: string[] = N.ROOT.children;
+  for (let n = 0; n < path.length; n++) {
+    const node = list.includes(path[n]) ? N[path[n]] : null;
+    if (!node) return "missing";
+    if (node.include && n < path.length - 1) return seen.includes(node.include) ? "missing" : linkProblem(root, node.include, path.slice(n + 1), [...seen, deck]);
+    list = node.children ?? [];
+  }
+  return null;
+}
+
 // Shared by the CLI and POST /api/import: parse, merge into any existing deck, save. Writes nothing on errors.
 export async function importMarkdown(root: string, slug: string, md: string, source?: string) {
   const parsed = parseMarkdown(md);
   if (!SLUG.test(slug)) parsed.errors.unshift({ line: 0, msg: `bad deck slug "${slug}" (use a-z, 0-9 and -)` });
   if (parsed.errors.length) return { ...parsed, slug, deck: null };
+  const checkInto = async (ss: Section[]): Promise<void> => { for (const s of ss) {
+    for (const l of s.links) if (l.into) { const p = await linkProblem(root, l.into, l.path!);
+      if (p) parsed.warnings.push({ line: l.line, msg: p === "missing" ? `link target "${l.ref}" not found in deck ${l.into}` : `${p} (linked from "${l.via}")` }); }
+    await checkInto(s.children); } };
+  await checkInto(parsed.sections);
   const path = join(root, "decks", slug, "deck.json");
   const existing = (await Bun.file(path).exists()) ? await Bun.file(path).json() : null;
   const merged = importInto(existing, parsed.sections);

@@ -750,8 +750,8 @@ input,textarea,button{font:inherit;color:inherit}
               <input type="range" min="0" max="12" step="0.25" value="{{ margin }}" onChange="{{ onMargin }}" style="accent-color:#1d1b17;width:100%;min-width:0">
             </label>
             <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
-              <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>Column gap (between neighbours)</span><span style="font-family:'JetBrains Mono',monospace">{{ gapLabel }}</span></span>
-              <input type="range" min="0" max="1" step="0.02" value="{{ gap }}" onChange="{{ onGap }}" style="accent-color:#1d1b17;width:100%;min-width:0">
+              <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>Column step (left edge to left edge)</span><span style="font-family:'JetBrains Mono',monospace">{{ gapLabel }}</span></span>
+              <input type="range" min="0.1" max="3" step="0.05" value="{{ gapStep }}" onChange="{{ onGap }}" title="100%: the next slide starts at this one's right edge, so slides and background move together; less or more adds parallax" style="accent-color:#1d1b17;width:100%;min-width:0">
             </label>
             <div style="display:flex;flex-direction:column;gap:6px;padding:10px 12px;border-radius:9px;background:#f2eee5;font-size:12px;line-height:1.45">
               <span>{{ levelInfo }}</span>
@@ -1262,8 +1262,9 @@ class Component extends DCLogic {
       if (!kids.length) return x0 + slot;
       let cx = x0; kids.forEach(k => { cx = place(k, cx); }); return Math.max(cx, x0 + slot);
     };
-    let cx = w * this.state.gap; N.ROOT.children.forEach(k => { cx = place(k, cx); });
-    return { rect, w, h, CW: cx };
+    // gap < 0 overlaps neighbours (column step under 100%): start at 0 and let the canvas reach the furthest right edge
+    let cx = w * Math.max(0, this.state.gap); N.ROOT.children.forEach(k => { cx = place(k, cx); });
+    return { rect, w, h, CW: Math.max(cx, ...Object.values(rect).map(r => r.x + r.w)) };
   }
   // Title page framing. Zoom 1 fits the content width (L.CW, not the slack-padded CW) to the slide; x/y is the focus point (0–1).
   // Camera plane = CW/L.w stage-widths × H/L.h stage-heights; per axis: smaller than the stage → centred, else focus centred and clamped.
@@ -2107,7 +2108,7 @@ class Component extends DCLogic {
       titleRef: this.titleRef, onTitle: e => this.setNode(cur, { title: e.target.value }), onBody: e => this.setNode(cur, { body: e.target.value }),
       toneBtns: [['light', 'Light'], ['dark', 'Dark']].map(([id, l]) => ({ label: l, ...tab(S.tone === id), onClick: () => this.setState({ tone: id }) })),
       margin: S.margin, marginLabel: S.margin.toFixed(2) + '% of height', onMargin: e => this.setState({ margin: +e.target.value }),
-      gap: S.gap, gapLabel: Math.round(S.gap * 100) + '% of a slide', onGap: e => this.setState({ gap: +e.target.value }),
+      gapStep: 1 + S.gap, gapLabel: Math.round((1 + S.gap) * 100) + '% of a slide', onGap: e => this.setState({ gap: +e.target.value - 1 }),   // stored as gap = step − 1, so existing decks keep their spacing
       levelInfo: `${D.levels} level${D.levels === 1 ? '' : 's'} deep, so each slide is ${(L.h).toFixed(1)}% of the canvas height.`,
       sizeInfo: B.src ? `One copy of the image is ${(tileW / L.w).toFixed(2)} slides wide; the tree spans ${(L.CW / L.w).toFixed(1)} slides.` : `The tree spans ${(L.CW / L.w).toFixed(1)} slides.`,
       speed: S.speed, speedLabel: S.speed + 'ms', onSpeed: e => this.setState({ speed: +e.target.value }),

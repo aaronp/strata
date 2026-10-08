@@ -1076,3 +1076,15 @@ test("countryside balloons is a Canvas backdrop and the default for new decks", 
   expect(c.bgInfo()).toEqual({ src: "backdrops/countryside-balloons.png", aspect: 1.5 });
   expect(await Bun.file(join(import.meta.dir, "design/backdrops/countryside-balloons.png")).exists()).toBe(true);
 });
+
+test("column step: 100% abuts slides (camera and background move in sync); below 100% overlaps them and the canvas still covers the last slide", async () => {
+  await writeDeck("talk", { ROOT: slideNode("ROOT", "", ["a", "b", "c"]), a: slideNode("a", "A"), b: slideNode("b", "B"), c: slideNode("c", "C") }, { gap: 0 });
+  const { c } = await mount("?deck=talk");
+  let L = c.layout(c.derive());
+  expect(L.rect.a.x).toBe(0); expect(L.rect.b.x).toBeCloseTo(L.w); expect(L.CW).toBeCloseTo(3 * L.w);
+  let v = c.renderVals(); expect(v.gapLabel).toBe("100% of a slide"); expect(v.gapStep).toBe(1);
+  v.onGap({ target: { value: "0.5" } }); expect(c.state.gap).toBeCloseTo(-0.5);
+  L = c.layout(c.derive());
+  expect(L.rect.a.x).toBe(0); expect(L.rect.b.x).toBeCloseTo(L.w / 2); expect(L.CW).toBeCloseTo(L.rect.c.x + L.w);
+  c.setState({ gap: 0.12 }); expect(c.renderVals().gapLabel).toBe("112% of a slide");   // existing decks keep their spacing
+});

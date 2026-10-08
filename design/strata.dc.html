@@ -1028,26 +1028,27 @@ const runStyle = (r, look) => { const st = (r.style && look && look(r.style)) ||
   return [v('weight') ? 'font-weight:' + v('weight') : r.b ? 'font-weight:bolder' : '', r.i ? 'font-style:italic' : '', v('size') ? 'font-size:' + v('size') / 16 + 'cqw' : '',
     v('color') ? 'color:' + v('color') : '', v('font') && FONT_CSS[v('font')] ? 'font-family:' + FONT_CSS[v('font')] : '', v('ls') ? 'letter-spacing:' + v('ls') + 'em' : '',
     r.link || r.href ? 'text-decoration:underline' : ''].filter(Boolean).join(';'); };
+// Run spans are keyed 'line.run', so a span the browser moves to another line keeps its own settings.
 function buildEditor(root, lines, layer, look) {
   const doc = root.ownerDocument, b = (layer && layer.bullets) || 'none'; let num = 0; root.textContent = '';
   lines.forEach((line, n) => { const div = doc.createElement('div'); div.setAttribute('data-line', String(n));
     if (b !== 'none' && line.length) { num++; const m = doc.createElement('span'); m.setAttribute('contenteditable', 'false'); m.setAttribute('data-mark', ''); m.textContent = (b === 'number' ? num + '.' : MARK_CH[b] || '•') + ' '; div.appendChild(m); }
     if (!line.length) div.appendChild(doc.createElement('br'));
-    line.forEach((r, k) => { const s = doc.createElement('span'); s.setAttribute('data-run', String(k)); const css = runStyle(r, look); if (css) s.setAttribute('style', css); s.textContent = r.text; div.appendChild(s); });
+    line.forEach((r, k) => { const s = doc.createElement('span'); s.setAttribute('data-run', n + '.' + k); const css = runStyle(r, look); if (css) s.setAttribute('style', css); s.textContent = r.text; div.appendChild(s); });
     root.appendChild(div); });
 }
 const textNodes = (node, out = []) => { for (const ch of node.childNodes) { if (ch.nodeType === 3) out.push(ch); else if (ch.nodeType === 1 && !ch.hasAttribute('data-mark')) textNodes(ch, out); } return out; };
 const lineDivs = root => [...root.childNodes].filter(n => n.nodeType === 1 && n.hasAttribute('data-line'));
+// Plain offset of a DOM point: text before it in its line (marks excluded), plus whole lines above. Works for points on elements too.
 function offsetOf(root, node, o) {
-  let total = 0;
-  for (const div of lineDivs(root)) {
-    if (div === node || div.contains(node)) {
-      if (node.nodeType === 3) { let col = 0; for (const t of textNodes(div)) { if (t === node) return total + col + o; col += t.data.length; } return total + col; }
-      let col = 0; const stop = node.childNodes[o]; for (const t of textNodes(div)) { if (stop && (stop === t || stop.contains(t) || (stop.compareDocumentPosition(t) & 2))) break; if (!stop && !node.contains(t)) continue; col += t.data.length; } return total + col;
-    }
-    total += textNodes(div).reduce((n, t) => n + t.data.length, 0) + 1;
-  }
-  return Math.max(0, total - 1);
+  const divs = lineDivs(root), lineLenOf = div => textNodes(div).reduce((n, t) => n + t.data.length, 0);
+  const upto = k => { let t = 0; for (let n = 0; n < k; n++) t += lineLenOf(divs[n]) + 1; return t; };
+  if (node === root) { const k = [...root.childNodes].slice(0, o).filter(n => n.nodeType === 1 && n.hasAttribute('data-line')).length;
+    return k >= divs.length ? Math.max(0, upto(divs.length) - 1) : upto(k); }
+  const n = divs.findIndex(d => d === node || d.contains(node)); if (n < 0) return Math.max(0, upto(divs.length) - 1);
+  const r = root.ownerDocument.createRange(); r.setStart(divs[n], 0); r.setEnd(node, o);
+  const f = r.cloneContents(); if (f.querySelectorAll) f.querySelectorAll('[data-mark]').forEach(m => m.remove());
+  return upto(n) + f.textContent.length;
 }
 function getOffsets(root) { const sel = root.ownerDocument.getSelection(); if (!sel || !sel.rangeCount) return null; const r = sel.getRangeAt(0);
   if (!root.contains(r.startContainer)) return null; return { start: offsetOf(root, r.startContainer, r.startOffset), end: offsetOf(root, r.endContainer, r.endOffset) }; }
@@ -1067,7 +1068,7 @@ function readLines(root, prev) {
       const n = lines.length, line = []; lastAttrs = {};
       for (const ch of node.childNodes) {
         if (ch.nodeType === 1 && (ch.hasAttribute('data-mark') || ch.tagName === 'BR')) continue;
-        if (ch.nodeType === 1 && ch.hasAttribute('data-run')) { const { text: _t, ...attrs } = ((prev[n] || [])[+ch.getAttribute('data-run')]) || { ...lastAttrs, text: '' }; line.push({ ...attrs, text: ch.textContent }); lastAttrs = attrs; }
+        if (ch.nodeType === 1 && ch.hasAttribute('data-run')) { const [pn, pk] = ch.getAttribute('data-run').split('.').map(Number); const { text: _t, ...attrs } = ((prev[pn] || [])[pk]) || { ...lastAttrs, text: '' }; line.push({ ...attrs, text: ch.textContent }); lastAttrs = attrs; }
         else line.push({ ...lastAttrs, text: ch.textContent || '' });
       }
       lines.push(mergeLine(line));
@@ -1083,7 +1084,12 @@ function wysBefore(root, lines, ev) {
   if (t === 'insertFromPaste' || t === 'insertFromDrop') { const txt = String((ev.dataTransfer && ev.dataTransfer.getData('text/plain')) || '').replace(/\r\n?/g, '\n');
     return { lines: insertPlain(cut(), start, txt), start: start + txt.length, end: start + txt.length }; }
   if (t === 'formatBold' || t === 'formatItalic') return { lines: toggleAttr(lines, start, end, t === 'formatBold' ? 'b' : 'i'), start, end };
+  { const [sl] = locate(lines, start), [el] = locate(lines, end);   // typing over a selection that spans lines
+    if ((t === 'insertText' || t === 'insertReplacementText') && sl !== el) { const txt = String(ev.data ?? (ev.dataTransfer && ev.dataTransfer.getData('text/plain')) ?? '');
+      return { lines: insertPlain(deleteRange(lines, start, end), start, txt), start: start + txt.length, end: start + txt.length }; } }
   if (t.startsWith('delete')) { const [sl, sc] = locate(lines, start), [el] = locate(lines, end);
+    if (start === end && t.endsWith('Backward') && sc === 0 && sl > 0) return { lines: deleteRange(lines, start - 1, start), start: start - 1, end: start - 1 };   // any backward delete at a line start joins
+    if (start === end && t.endsWith('Forward') && sc === lineLen(lines[sl]) && sl < lines.length - 1) return { lines: deleteRange(lines, start, start + 1), start, end: start };
     if (sl !== el) return { lines: deleteRange(lines, start, end), start, end: start };
     if (start === end && t === 'deleteContentBackward' && sc === 0 && sl > 0) return { lines: deleteRange(lines, start - 1, start), start: start - 1, end: start - 1 };
     if (start === end && t === 'deleteContentForward' && sc === lineLen(lines[sl]) && sl < lines.length - 1) return { lines: deleteRange(lines, start, start + 1), start, end: start }; }
@@ -1498,10 +1504,11 @@ class Component extends DCLogic {
     const root = this.wysRef.current;
     if (root !== this._wysEl) { this._wysEl = root; this._wysFor = null;
       if (root && root.addEventListener) {
-        root.addEventListener('beforeinput', e => { const r = wysBefore(root, this._wysLines || [[]], e); if (!r) return; e.preventDefault(); this._wysLines = r.lines; this.saveWys(); this._wysSel = { start: r.start, end: r.end }; this.rebuildWys(r.start, r.end); });
-        root.addEventListener('input', () => { if (this._composing) return; this._wysLines = readLines(root, this._wysLines || [[]]); this.saveWys(); });
+        root.addEventListener('beforeinput', e => { if (e.inputType === 'historyUndo' || e.inputType === 'historyRedo') { e.preventDefault(); if (e.inputType === 'historyUndo') this.undo(); else this.redo(); return; }
+          const r = wysBefore(root, this._wysLines || [[]], e); if (!r) return; e.preventDefault(); this._wysLines = r.lines; this.saveWys(); this._wysSel = { start: r.start, end: r.end }; this.rebuildWys(r.start, r.end); });
+        root.addEventListener('input', () => { if (this._composing) return; this._wysLines = readLines(root, this._wysBuilt || this._wysLines || [[]]); this.saveWys(); });
         root.addEventListener('compositionstart', () => { this._composing = true; });
-        root.addEventListener('compositionend', () => { this._composing = false; this._wysLines = readLines(root, this._wysLines || [[]]); this.saveWys(); });
+        root.addEventListener('compositionend', () => { this._composing = false; this._wysLines = readLines(root, this._wysBuilt || this._wysLines || [[]]); this.saveWys(); });
         const track = () => { const o = getOffsets(root); if (o) { this._wysSel = o; const p = this.state.wysSel; if (!p || p.start !== o.start || p.end !== o.end) this.setState({ wysSel: o }); } };
         root.addEventListener('keyup', track); root.addEventListener('mouseup', track); root.addEventListener('pointerup', track);
       } }
@@ -1742,7 +1749,8 @@ class Component extends DCLogic {
   }
   restore(nodes) {
     this._restoring = true; this._burst = false;
-    this.setState(s => ({ nodes, layerSel: null, editing: null, cur: nodes[s.cur] ? s.cur : nodes.ROOT.children[0], prev: null, phase: 'idle' }));
+    const keep = (s, n) => s.editing && n && this.framesOfNode(n).some(f => f.layers.some(l => l.id === s.editing)) ? s.editing : null;   // undo while editing keeps the editor open
+    this.setState(s => ({ nodes, layerSel: null, editing: keep(s, nodes[s.cur]), cur: nodes[s.cur] ? s.cur : nodes.ROOT.children[0], prev: null, phase: 'idle' }));
   }
   undo() { if (!this._past.length) return; this._future.push(this.state.nodes); this.restore(this._past.pop()); }
   redo() { if (!this._future.length) return; this._past.push(this.state.nodes); this.restore(this._future.pop()); }
@@ -1868,12 +1876,14 @@ class Component extends DCLogic {
     if (ds.link) { if (this.state.nodes[ds.link]) this.nav(ds.link, 'jump'); }
     else if (ds.href && typeof window !== 'undefined' && window.open) window.open(ds.href, '_blank', 'noopener');
   }
+  activeEl() { return typeof document !== 'undefined' ? document.activeElement : null; }
   focusInBar() { const a = typeof document !== 'undefined' && document.activeElement; return !!(a && a.closest && a.closest('[data-role="fmtbar"]')); }
   // The rich editor's model → stored text (remembered so typing doesn't trigger a rebuild).
   saveWys() { const id = this.curId(), lid = this.state.editing; if (!lid || !this._wysLines) return; const text = textOf(this._wysLines); this._wysText = text; this.updLayer(id, lid, { text }); }
   rebuildWys(start, end) { const root = this.wysRef.current, id = this.curId(), l = this.layersOf(id).find(x => x.id === this.state.editing); if (!root || !l || !root.ownerDocument) return;
     const n = this.state.nodes[id], look = sid => this.styles()[sid] || (n && n._from && ((this._graftStyles || {})[n._from] || {})[sid]) || null;
-    buildEditor(root, this._wysLines, this.resolveLayer(l, id), look); if (start != null) setOffsets(root, start, end ?? start); }
+    buildEditor(root, this._wysLines, this.resolveLayer(l, id), look); this._wysBuilt = this._wysLines;   // read-backs map spans against these
+    if (start != null) { root.focus && root.focus(); setOffsets(root, start, end ?? start); } }
   // A rich-mode format action on a plain range (op as in applyFormat: bold / italic / attrs / clear).
   formatRange(start, end, op) {
     const id = this.curId(), l = this.layersOf(id).find(x => x.id === this.state.editing); if (!l) return;
@@ -2060,6 +2070,7 @@ class Component extends DCLogic {
     if (k === 'Escape' && S.treeDrag) { this._treeDragCancel = true; this.setState({ treeDrag: null }); return; }
     if (typing) {
       if ((t === this.editRef.current || t.isContentEditable) && (e.metaKey || e.ctrlKey) && /^[bi]$/i.test(k)) { e.preventDefault(); this.formatSel(k.toLowerCase() === 'b' ? { bold: true } : { italic: true }); return; }
+      if ((e.metaKey || e.ctrlKey) && (k === 'z' || k === 'Z' || k === 'y' || k === 'Y') && t.isContentEditable) { e.preventDefault(); if (k === 'y' || k === 'Y' || e.shiftKey) this.redo(); else this.undo(); return; }   // the app's undo, not the browser's
       if ((e.metaKey || e.ctrlKey) && (k === 'k' || k === 'K') && t.isContentEditable) { e.preventDefault(); this.setState({ linkPick: true }); return; }
       if (k === 'Escape' && t.isContentEditable) { this.setState({ editing: null, linkPick: false }); return; }
       if (t.dataset && t.dataset.role === 'filter' && k === 'Enter') { const D = this.derive(); const q = S.query.trim().toLowerCase(); const id = D.order.find(x => (S.nodes[x].title + ' ' + S.nodes[x].body).toLowerCase().includes(q)); if (id) this.nav(id, 'jump'); }
@@ -2449,23 +2460,25 @@ class Component extends DCLogic {
       fmtSizeOpts: [{ v: '', l: 'Size', off: true }, { v: '-', l: 'Default', off: false }].concat([12, 16, 20, 24, 28, 32, 40, 48, 56, 64, 72, 96, 128].map(v => ({ v: String(v), l: v + ' px', off: false }))),
       fmtDown: e => e.preventDefault(), onFmtBold: () => this.formatSel({ bold: true }), onFmtItalic: () => this.formatSel({ italic: true }),
       onFmtStyle: e => { const v = e.target.value; if (v) this.formatSel({ attrs: { style: v === '-' ? null : v } }); }, onFmtSize: e => { const v = e.target.value; if (v) this.formatSel({ attrs: { size: v === '-' ? null : v } }); },
-      onFmtBlur: () => setTimeout(() => { const a = typeof document !== 'undefined' && document.activeElement; if (!this.focusInBar() && a !== this.editRef.current) this.setState({ editing: null }); }, 0),   // leaving the bar (not back to the editor) ends editing
+      onFmtBlur: () => setTimeout(() => { const a = this.activeEl(); if (!this.focusInBar() && !(a && (a === this.editRef.current || a === this.wysRef.current))) this.setState({ editing: null }); }, 0),   // leaving the bar (not back to the editor) ends editing
       onFmtColor: e => this.formatSel({ attrs: { color: e.target.value } }),
       fmtLinkOpts: [{ v: '', l: 'Link', off: true }, { v: '-', l: 'No link', off: false }].concat((S.titlePage ? ['ROOT'] : []).concat(D.order).map(id => ({ v: id, l: '\u00a0'.repeat(id === 'ROOT' ? 0 : D.depth[id] * 2) + name(id), off: false })), [{ v: '@url', l: 'Web address…', off: false }]),
       onFmtLink: e => { const v = e.target.value; if (!v) return; if (v === '@url') this.setState({ fmtUrl: true, fmtUrlVal: '' }); else this.formatSel({ attrs: v === '-' ? { link: null, href: null } : { link: v, href: null } }); },
       fmtUrl: !!S.fmtUrl, fmtUrlVal: S.fmtUrlVal || '', onFmtUrlVal: e => this.setState({ fmtUrlVal: e.target.value }),
-      onFmtUrlApply: () => { const u = (S.fmtUrlVal || '').trim(); if (u) this.formatSel({ attrs: { href: /^(https?:|mailto:)/i.test(u) ? u : 'https://' + u, link: null } }); this.setState({ fmtUrl: false }); },
+      onFmtUrlApply: () => { const u = (S.fmtUrlVal || '').trim(), attrs = { href: /^(https?:|mailto:)/i.test(u) ? u : 'https://' + u, link: null }, tg = this._linkTarget; this._linkTarget = null;
+        if (u) { if (tg && S.editMode !== 'markup') this.formatRange(tg.start, tg.end, { attrs }); else this.formatSel({ attrs }); } this.setState({ fmtUrl: false, fmtUrlVal: '', linkPick: false }); },
       onStageLinkClick: e => { if (!isPresent) return; const el = e.target && e.target.closest && e.target.closest('[data-link],[data-href]');
         if (el && (el.dataset.link || el.dataset.href)) { e.stopPropagation(); this.followInline(el.dataset); } }, onFmtClear: () => this.formatSel({ clear: true }),
       isEditingRich: rich, isEditingMarkup: !!edL && !rich, fmtModeLabel: rich ? '</>' : 'Aa',
-      onFmtMode: () => { this.setState({ editMode: S.editMode === 'markup' ? 'rich' : 'markup', linkPick: false }); this._wysFor = null; },
+      onFmtMode: () => { const toMarkup = S.editMode !== 'markup'; this.setState({ editMode: toMarkup ? 'markup' : 'rich', linkPick: false }); this._wysFor = null;
+        if (toMarkup) setTimeout(() => { const t = this.editRef.current; if (t && t.focus) { t.focus(); const n = String(t.value || '').length; t.setSelectionRange && t.setSelectionRange(n, n); } }, 0); },
       linkPopShow: rich && (!!lk || !!S.linkPick), linkPick: !!S.linkPick,
       linkPopLabel: lk ? (lk.link ? '→ ' + (N[lk.link] ? name(lk.link) : 'missing slide') : '↗ ' + short(lk.href, 32)) : 'Link the selection',
-      linkPopPos: edL ? `left:min(${edL.x}%, calc(100% - 260px));top:calc(${edL.y}% - 76px)` : '',
+      linkPopPos: edL ? `left:min(${edL.x}%, calc(100% - 260px));` + (edL.y >= 18 ? `top:calc(${edL.y}% - 76px)` : `top:calc(${edL.y + Math.max(edL.h, mh[edL.id] || 0)}% + 44px)`) : '',   // above the bar, or below the layer near the top
       onLinkPopChange: () => this.setState({ linkPick: true }),
       onLinkPopRemove: () => { if (lk) this.formatRange(lk.start, lk.end, { attrs: { link: null, href: null } }); },
       onLinkPick: e => { const v = e.target.value; if (!v) return; const r = lk || ws || { start: 0, end: 0 };
-        if (v === '@url') { this.setState({ fmtUrl: true }); return; }
+        if (v === '@url') { this._linkTarget = r; this.setState({ fmtUrl: true, fmtUrlVal: '' }); return; }
         this.formatRange(r.start, r.end, { attrs: v === '-' ? { link: null, href: null } : { link: v, href: null } }); this.setState({ linkPick: false }); },
       exportShow: !STATIC, onExportMd: () => this.downloadMarkdown(cur),
       isTitlePage: cur === 'ROOT', titlePage: !!S.titlePage, onTitlePage: e => this.setTitlePage(!!e.target.checked),

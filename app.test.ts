@@ -10,7 +10,9 @@ const js = (await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text(
 class DCLogic { state: any; setState(u: any, cb?: () => void) { this.state = { ...this.state, ...(typeof u === "function" ? u(this.state) : u) }; cb?.(); } forceUpdate() {} }
 
 let root: string;
-beforeEach(async () => { root = await mkdtemp(join(tmpdir(), "strata-app-")); });
+// Components from earlier tests keep timers (autosave); stop them writing into the next test's deck folder.
+const mounted: any[] = [];
+beforeEach(async () => { for (const m of mounted.splice(0)) { clearTimeout(m._as); m._loaded = false; } root = await mkdtemp(join(tmpdir(), "strata-app-")); });
 
 const until = async (ok: () => boolean, ms = 3000) => { const t0 = Date.now(); while (!ok()) { if (Date.now() - t0 > ms) throw new Error("timed out waiting for the app"); await Bun.sleep(5); } };
 
@@ -24,7 +26,7 @@ async function mount(search: string, opts: { isStatic?: boolean; settle?: boolea
     setTimeout, requestAnimationFrame: () => {},
   };
   const C = new Function("DCLogic", "React", ...Object.keys(g), js + "\nreturn Component;")(DCLogic, { createRef: () => ({ current: null }) }, ...Object.values(g));
-  const c = new C(); c.componentDidMount();
+  const c = new C(); mounted.push(c); c.componentDidMount();
   // Wait for the deck load (and a new deck's first save) to finish rather than sleeping a fixed time.
   if (opts.settle !== false) await until(() => (!!c._loaded || !!c.state.saveMsg || !opts.deckMode) && !c.state.saving);
   return { c, listeners };
@@ -1517,4 +1519,31 @@ test("every text layer in the saved decks survives the rich editor's round trip 
     for (const node of Object.values<any>((await f.json()).nodes)) for (const fr of node.frames || []) for (const l of fr.layers) if (l.type === "text") {
       const t = String(l.text ?? ""); expect(textOf(linesOf(t)).split("\n").map(raw)).toEqual(t.split("\n").map(raw)); n++; } }
   expect(n).toBeGreaterThanOrEqual(0);
+});
+
+test("rich editor: ⌘Z undoes model edits and keeps editing; clicking back from the bar keeps editing; popover web address and position", async () => {
+  await writeDeck("talk", { ROOT: slideNode("ROOT", "", ["s", "costs"]), s: slideNode("s", "S", [], { frames: [{ id: "f", layers: [TL("a", { text: "see [the costs]{link=costs} now", y: 8 })] }] }), costs: slideNode("costs", "Costs") });
+  const { c } = await mount("?deck=talk"); await Bun.sleep(150);
+  const w = new Window(); const root = w.document.createElement("div"); w.document.body.appendChild(root); c.wysRef.current = root;
+  c.setState({ cur: "s", editing: "a", layerSel: "a" }); c.componentDidUpdate(); await Bun.sleep(500);
+  c.constructor.rich.setOffsets(root, 0, 3); c.renderVals().onFmtBold(); c.componentDidUpdate();
+  expect(c.layersOf("s")[0].text).toBe("**see** [the costs]{link=costs} now");
+  c.onKey({ key: "z", metaKey: true, shiftKey: false, target: { isContentEditable: true, tagName: "DIV" }, preventDefault() {} }); c.componentDidUpdate();
+  expect(c.layersOf("s")[0].text).toBe("see [the costs]{link=costs} now"); expect(c.state.editing).toBe("a");
+  expect(c.constructor.rich.textOf(c._wysLines)).toBe("see [the costs]{link=costs} now");            // the editor's model was rebuilt
+  c.activeEl = () => root; c.focusInBar = () => false; c.renderVals().onFmtBlur(); await Bun.sleep(5); expect(c.state.editing).toBe("a");
+  c.setState({ wysSel: { start: 6, end: 6 } }); c._wysSel = { start: 6, end: 6 };
+  expect(c.renderVals().linkPopPos).toContain("+ 44px");                                             // below the layer near the top
+  c.renderVals().onLinkPick({ target: { value: "@url" } }); c.setState({ fmtUrlVal: "x.org" }); c.renderVals().onFmtUrlApply();
+  expect(c.layersOf("s")[0].text).toBe("see [the costs]{href=https://x.org} now");
+});
+
+test("rich editor: typing after a run vanished keeps the other runs' formatting (reads against the built DOM's lines)", async () => {
+  const c = await styledDeck({}, [TL("a", { text: "x**y**z*w*" })]);
+  const w = new Window(); const root = w.document.createElement("div"); w.document.body.appendChild(root); c.wysRef.current = root;
+  c.setState({ editing: "a", layerSel: "a" }); c.componentDidUpdate();
+  root.querySelectorAll("[data-run]")[1].remove(); root.dispatchEvent(new w.Event("input"));
+  expect(c.layersOf("s")[0].text).toBe("xz*w*");
+  const spans = root.querySelectorAll("[data-run]"); spans[spans.length - 1].textContent = "w!"; root.dispatchEvent(new w.Event("input"));
+  expect(c.layersOf("s")[0].text).toBe("xz*w!*");
 });

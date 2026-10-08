@@ -21,6 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
       - run: bun test
       - run: make build DECK=$DECK
       - uses: actions/upload-pages-artifact@v3

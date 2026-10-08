@@ -8,6 +8,7 @@ Requires [bun](https://bun.sh).
 |---|---|
 | `make dev` | Local editor at http://127.0.0.1:3067/ (pick or create a deck, ⌘S saves to `decks/<slug>/`) |
 | `make import MD=notes.md [SLUG=name]` | Build `decks/<slug>/` from a markdown outline; re-run (or `make import DECK=<slug>`) after editing the markdown |
+| `bun install` | Once, to fetch the test dependency (happy-dom) |
 | `make test` | Run server/build tests |
 | `make build [DECK=slug]` | Present-only static site in `dist/` (with `DECK`: just that deck, opened from the site root) |
 | `make preview` | Build, then serve `dist/` locally |

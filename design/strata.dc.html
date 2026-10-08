@@ -1010,6 +1010,73 @@ function linkAt(lines, off) {
     pos = e; }
   return null;
 }
+// ---- WYSIWYG DOM glue: always via root.ownerDocument (never the global document).
+const MARK_CH = { disc: '•', dash: '–', check: '✓', arrow: '→' };
+const runStyle = (r, look) => { const st = (r.style && look && look(r.style)) || {}, v = k => (r[k] !== undefined ? r[k] : st[k]);
+  return [v('weight') ? 'font-weight:' + v('weight') : r.b ? 'font-weight:bolder' : '', r.i ? 'font-style:italic' : '', v('size') ? 'font-size:' + v('size') / 16 + 'cqw' : '',
+    v('color') ? 'color:' + v('color') : '', v('font') && FONT_CSS[v('font')] ? 'font-family:' + FONT_CSS[v('font')] : '', v('ls') ? 'letter-spacing:' + v('ls') + 'em' : '',
+    r.link || r.href ? 'text-decoration:underline' : ''].filter(Boolean).join(';'); };
+function buildEditor(root, lines, layer, look) {
+  const doc = root.ownerDocument, b = (layer && layer.bullets) || 'none'; let num = 0; root.textContent = '';
+  lines.forEach((line, n) => { const div = doc.createElement('div'); div.setAttribute('data-line', String(n));
+    if (b !== 'none' && line.length) { num++; const m = doc.createElement('span'); m.setAttribute('contenteditable', 'false'); m.setAttribute('data-mark', ''); m.textContent = (b === 'number' ? num + '.' : MARK_CH[b] || '•') + ' '; div.appendChild(m); }
+    if (!line.length) div.appendChild(doc.createElement('br'));
+    line.forEach((r, k) => { const s = doc.createElement('span'); s.setAttribute('data-run', String(k)); const css = runStyle(r, look); if (css) s.setAttribute('style', css); s.textContent = r.text; div.appendChild(s); });
+    root.appendChild(div); });
+}
+const textNodes = (node, out = []) => { for (const ch of node.childNodes) { if (ch.nodeType === 3) out.push(ch); else if (ch.nodeType === 1 && !ch.hasAttribute('data-mark')) textNodes(ch, out); } return out; };
+const lineDivs = root => [...root.childNodes].filter(n => n.nodeType === 1 && n.hasAttribute('data-line'));
+function offsetOf(root, node, o) {
+  let total = 0;
+  for (const div of lineDivs(root)) {
+    if (div === node || div.contains(node)) {
+      if (node.nodeType === 3) { let col = 0; for (const t of textNodes(div)) { if (t === node) return total + col + o; col += t.data.length; } return total + col; }
+      let col = 0; const stop = node.childNodes[o]; for (const t of textNodes(div)) { if (stop && (stop === t || stop.contains(t) || (stop.compareDocumentPosition(t) & 2))) break; if (!stop && !node.contains(t)) continue; col += t.data.length; } return total + col;
+    }
+    total += textNodes(div).reduce((n, t) => n + t.data.length, 0) + 1;
+  }
+  return Math.max(0, total - 1);
+}
+function getOffsets(root) { const sel = root.ownerDocument.getSelection(); if (!sel || !sel.rangeCount) return null; const r = sel.getRangeAt(0);
+  if (!root.contains(r.startContainer)) return null; return { start: offsetOf(root, r.startContainer, r.startOffset), end: offsetOf(root, r.endContainer, r.endOffset) }; }
+function pointAt(root, off) {
+  const divs = lineDivs(root);
+  for (let n = 0; n < divs.length; n++) { const ts = textNodes(divs[n]), len = ts.reduce((a, t) => a + t.data.length, 0);
+    if (off <= len || n === divs.length - 1) { for (const t of ts) { if (off <= t.data.length) return [t, off]; off -= t.data.length; } return [divs[n], divs[n].childNodes.length]; }
+    off -= len + 1; }
+  return [root, 0];
+}
+function setOffsets(root, start, end) { const doc = root.ownerDocument, sel = doc.getSelection(), rg = doc.createRange(); const [a, ao] = pointAt(root, start), [b, bo] = pointAt(root, end);
+  rg.setStart(a, ao); rg.setEnd(b, bo); sel.removeAllRanges(); sel.addRange(rg); }
+function readLines(root, prev) {
+  const lines = []; let lastAttrs = {};
+  for (const node of root.childNodes) {
+    if (node.nodeType === 1 && node.hasAttribute('data-line')) {
+      const n = lines.length, line = []; lastAttrs = {};
+      for (const ch of node.childNodes) {
+        if (ch.nodeType === 1 && (ch.hasAttribute('data-mark') || ch.tagName === 'BR')) continue;
+        if (ch.nodeType === 1 && ch.hasAttribute('data-run')) { const { text: _t, ...attrs } = ((prev[n] || [])[+ch.getAttribute('data-run')]) || { ...lastAttrs, text: '' }; line.push({ ...attrs, text: ch.textContent }); lastAttrs = attrs; }
+        else line.push({ ...lastAttrs, text: ch.textContent || '' });
+      }
+      lines.push(mergeLine(line));
+    } else if ((node.textContent || '') !== '') { if (!lines.length) lines.push([]); lines[lines.length - 1] = mergeLine([...lines[lines.length - 1], { ...lastAttrs, text: node.textContent }]); }
+  }
+  return lines.length ? lines : [[]];
+}
+// beforeinput: take over what browsers do badly. Returns the new lines and selection, or null to let the browser handle it.
+function wysBefore(root, lines, ev) {
+  const t = ev.inputType || '', o = getOffsets(root); if (!o) return null; let { start, end } = o; if (start > end) [start, end] = [end, start];
+  const cut = () => (start !== end ? deleteRange(lines, start, end) : lines);
+  if (t === 'insertParagraph' || t === 'insertLineBreak') return { lines: insertBreak(cut(), start), start: start + 1, end: start + 1 };
+  if (t === 'insertFromPaste' || t === 'insertFromDrop') { const txt = String((ev.dataTransfer && ev.dataTransfer.getData('text/plain')) || '').replace(/\r\n?/g, '\n');
+    return { lines: insertPlain(cut(), start, txt), start: start + txt.length, end: start + txt.length }; }
+  if (t === 'formatBold' || t === 'formatItalic') return { lines: toggleAttr(lines, start, end, t === 'formatBold' ? 'b' : 'i'), start, end };
+  if (t.startsWith('delete')) { const [sl, sc] = locate(lines, start), [el] = locate(lines, end);
+    if (sl !== el) return { lines: deleteRange(lines, start, end), start, end: start };
+    if (start === end && t === 'deleteContentBackward' && sc === 0 && sl > 0) return { lines: deleteRange(lines, start - 1, start), start: start - 1, end: start - 1 };
+    if (start === end && t === 'deleteContentForward' && sc === lineLen(lines[sl]) && sl < lines.length - 1) return { lines: deleteRange(lines, start, start + 1), start, end: start }; }
+  return null;
+}
 const plainText = text => String(text ?? '').split('\n').map(l => l === '' ? '' : parseRich(l).map(r => r.text).join('')).join('\n');
 // Format the [start,end) selection; returns the new text and a selection on the same words (inside any markers).
 // The selection is normalised first (ordered, clamped, trimmed; a whole formatted piece means its content). A wrap that would leave stray
@@ -1153,7 +1220,7 @@ function seed() {
 }
 
 class Component extends DCLogic {
-  static rich = { parseRich, plainText, applyFormat, runsToMarkup, linesOf, textOf, toPlain, lineLen, locate, setAttr, toggleAttr, clearRange, insertBreak, insertPlain, deleteRange, linkAt };
+  static rich = { parseRich, plainText, applyFormat, runsToMarkup, linesOf, textOf, toPlain, lineLen, locate, setAttr, toggleAttr, clearRange, insertBreak, insertPlain, deleteRange, linkAt, buildEditor, getOffsets, setOffsets, readLines, wysBefore };
   state = {
     nodes: seed(), cur: 'a', prev: null, phase: 'idle', dx: 0, dy: 0, type: 'swipe', mode: STATIC ? 'present' : 'build', view: 'slide', rtab: 'slide',
     query: '', bg: 'balloons', customBg: null, customAspect: 1, opacity: 1, base: '#0b1220', offset: 0,

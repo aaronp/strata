@@ -1,6 +1,6 @@
 // Parses a markdown outline into a slide tree. Pure: no I/O, no imports.
 export type Issue = { line: number; msg: string };
-export type Chip = { label: string; ref: string; line: number; target?: string };
+export type Chip = { label: string; ref: string; line: number; target?: string; into?: string; path?: string[]; via?: string };
 export type Source = { text: string; url: string };
 export type Section = {
   slug: string; title: string; line: number; depth: number;
@@ -8,11 +8,13 @@ export type Section = {
   text: string;          // display text for the md-body layer
   bulletsOnly: boolean;  // body is entirely list items → render with bullets
   links: Chip[]; sources: Source[]; children: Section[];
+  include?: string;      // a linked slide: its children are this deck's slides
 };
 
 const SLUG_RE = /^[a-z0-9-]+$/;
 const HEADING = /^(#{1,6})\s+(.+?)\s*#*\s*$/;
 const SLUG_LINE = /^slug:\s*(\S*)\s*$/;
+const INC_LINE = /^include:\s*(.*?)\s*$/;
 const ITEM = /^\s*[-*]\s+(.*)$/;
 const CHIP_ONLY = /^\[link:([^\]]+)\]\[([^\]]*)\]$/;
 const CHIP = /\[link:([^\]]+)\]\[([^\]]*)\]/g;
@@ -54,7 +56,7 @@ export function parseMarkdown(md: string): { sections: Section[]; errors: Issue[
   while (i < lines.length && !lines[i].trim()) i++;
   if (lines[i]?.trimStart().startsWith("<!--")) { while (i < lines.length && !lines[i].includes("-->")) i++; i++; }
 
-  type Raw = { level: number; title: string; slug: string; line: number; body: Line[] };
+  type Raw = { level: number; title: string; slug: string; line: number; body: Line[]; include?: string };
   const raws: Raw[] = [];
   for (; i < lines.length; i++) {
     const h = HEADING.exec(lines[i]);
@@ -63,6 +65,12 @@ export function parseMarkdown(md: string): { sections: Section[]; errors: Issue[
       const s = SLUG_LINE.exec(lines[i + 1] ?? "");
       if (s) { i++; r.slug = s[1]; if (!SLUG_RE.test(s[1])) errors.push({ line: i + 1, msg: `invalid slug "${s[1]}" (use a-z, 0-9 and -)` }); }
       else { r.slug = slugify(r.title) || `section-${r.line}`; warnings.push({ line: r.line, msg: `no slug line; using "${r.slug}"` }); }
+      const inc = INC_LINE.exec(lines[i + 1] ?? "");
+      if (inc) {
+        i++; r.include = inc[1];
+        if (!s) errors.push({ line: i + 1, msg: "a linked slide needs a slug line" });
+        else if (!SLUG_RE.test(inc[1])) errors.push({ line: i + 1, msg: `invalid deck slug "${inc[1]}"` });
+      }
       raws.push(r);
     } else if (raws.length) raws[raws.length - 1].body.push({ text: lines[i], line: i + 1 });
     else if (lines[i].trim()) warnings.push({ line: i + 1, msg: "text before the first heading is ignored" });
@@ -80,8 +88,10 @@ export function parseMarkdown(md: string): { sections: Section[]; errors: Issue[
   for (const r of raws) {
     const depth = r.level - min + 1;
     if (depth > stack.length + 1) errors.push({ line: r.line, msg: `heading skips a level (${"#".repeat(r.level)} under ${stack.length ? "#".repeat(stack.length + min - 1) : "start of file"})` });
-    const sec: Section = { slug: r.slug, title: r.title, line: r.line, depth, ...parseBody(r.body), children: [] };
+    const sec: Section = { slug: r.slug, title: r.title, line: r.line, depth, ...parseBody(r.body), children: [], ...(r.include ? { include: r.include } : {}) };
     stack.length = Math.min(stack.length, depth - 1);
+    const parent = stack[stack.length - 1];
+    if (parent?.include) errors.push({ line: r.line, msg: `a linked slide's slides come from ${parent.include}; it can't have its own` });
     (stack.length ? stack[stack.length - 1].children : top).push(sec);
     stack.push(sec);
   }
@@ -89,14 +99,18 @@ export function parseMarkdown(md: string): { sections: Section[]; errors: Issue[
   const bySlug = new Map<string, Section>();
   const index = (ss: Section[]) => ss.forEach(s => { if (!bySlug.has(s.slug)) bySlug.set(s.slug, s); index(s.children); });
   index(top);
-  const resolve = (ref: string) => {
-    if (!ref.includes(".")) return bySlug.get(ref)?.slug;
-    let list = top, hit: Section | undefined;
-    for (const part of ref.split(".")) { hit = list.find(s => s.slug === part); if (!hit) return undefined; list = hit.children; }
-    return hit?.slug;
+  // Dotted refs: the first segment is found anywhere (like a bare ref), the rest walks children; entering a linked section hands the rest to the importer.
+  const resolve = (ref: string): Partial<Chip> | undefined => {
+    const parts = ref.split(".");
+    let hit = bySlug.get(parts[0]);
+    for (let n = 1; hit && n < parts.length; n++) {
+      if (hit.include) return { target: [hit.slug, ...parts.slice(n)].join("."), into: hit.include, path: parts.slice(n), via: hit.slug };
+      const next: Section | undefined = hit.children.find(s => s.slug === parts[n]); hit = next;
+    }
+    return hit && { target: hit.slug };
   };
   const check = (ss: Section[]) => ss.forEach(s => {
-    s.links.forEach(l => { l.target = resolve(l.ref); if (!l.target) errors.push({ line: l.line, msg: `link target "${l.ref}" not found` }); });
+    s.links.forEach(l => { const r = resolve(l.ref); if (r) Object.assign(l, r); else errors.push({ line: l.line, msg: `link target "${l.ref}" not found` }); });
     check(s.children);
   });
   check(top);
@@ -110,7 +124,8 @@ export function parseMarkdown(md: string): { sections: Section[]; errors: Issue[
 export function toMarkdown(nodes: Record<string, any>, id: string, meta: { deck: string; date: string }): string {
   const inBranch = new Set<string>(), walk = (k: string) => { inBranch.add(k); nodes[k].children.forEach(walk); };
   walk(id);
-  const height = (k: string): number => 1 + Math.max(0, ...nodes[k].children.map(height));
+  if (nodes[id]._from) throw new Error(`"${nodes[id].title}" belongs to deck "${nodes[id]._from}": open that deck to export it`);
+  const height = (k: string): number => 1 + (nodes[k].include ? 0 : Math.max(0, ...nodes[k].children.map(height)));
   const levels = id === "ROOT" ? height(id) - 1 : height(id);
   if (levels > 6) throw new Error(`"${nodes[id].title}" is ${levels} levels deep; markdown headings stop at 6 levels`);
   const one = (s: string) => String(s ?? "").replace(/\s+/g, " ").trim();
@@ -140,8 +155,8 @@ export function toMarkdown(nodes: Record<string, any>, id: string, meta: { deck:
   const out = [`<!-- Exported from deck "${meta.deck}", ${id === "ROOT" ? "whole deck" : `slide "${one(nodes[id].title)}" (${id})`}, ${meta.date} -->`];
   const emit = (k: string, depth: number) => {
     const n = nodes[k];
-    out.push(`${"#".repeat(depth)} ${one(n.title) || "Untitled"}\nslug: ${k}`, ...body(n));
-    n.children.forEach((c: string) => emit(c, depth + 1));
+    out.push(`${"#".repeat(depth)} ${one(n.title) || "Untitled"}\nslug: ${k}` + (n.include ? `\ninclude: ${n.include}` : ""), ...body(n));
+    if (!n.include) n.children.forEach((c: string) => emit(c, depth + 1));   // a linked node's children are its deck's
   };
   if (id === "ROOT") nodes.ROOT.children.forEach((c: string) => emit(c, 1)); else emit(id, 1);
   return out.join("\n\n") + "\n";

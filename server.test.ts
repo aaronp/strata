@@ -136,3 +136,11 @@ test("POST /api/export turns a slide's subtree into markdown; bad requests get 4
   expect((await exp(JSON.stringify({ nodes, id: "nope", deck: "talk" }))).status).toBe(400);
   expect((await exp("not json")).status).toBe(400);
 });
+
+test("POST /api/export refuses a grafted slide: it belongs to its own deck", async () => {
+  const nodes = { ROOT: { id: "ROOT", title: "", body: "", children: ["w"] }, w: { id: "w", title: "W", body: "", children: ["w.x"], include: "b" },
+    "w.x": { id: "w.x", title: "X", body: "", children: [], _from: "b" } };
+  const res = await handler(root)(new Request("http://x/api/export", { method: "POST", body: JSON.stringify({ nodes, id: "w.x", deck: "t" }) }));
+  expect(res.status).toBe(400);
+  expect(await res.text()).toContain('belongs to deck "b"');
+});

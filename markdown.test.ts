@@ -156,3 +156,43 @@ test("export refuses a branch deeper than markdown's six heading levels", () => 
   expect(() => toMarkdown(nodes, "n0", { deck: "d", date: "x" })).toThrow(/6 levels/);
   expect(() => toMarkdown(nodes, "n1", { deck: "d", date: "x" })).not.toThrow();
 });
+
+test("include: makes a linked section; dotted links into it are left for the importer", () => {
+  const r = parseMarkdown("# Top\nslug: top\n\n[link:top.wallets.costs][Costs]\n\n## Wallets\nslug: wallets\ninclude: digital-wallets\n\nWhy wallets.\n");
+  expect(r.errors).toEqual([]);
+  expect(r.sections[0].children[0]).toMatchObject({ slug: "wallets", include: "digital-wallets", body: "Why wallets.", children: [] });
+  expect(r.sections[0].links[0]).toMatchObject({ target: "wallets.costs", into: "digital-wallets", path: ["costs"], via: "wallets" });
+  expect(parseMarkdown("# A\nslug: a\n\n[link:costs][C]\n").errors).toEqual([{ line: 4, msg: 'link target "costs" not found' }]);   // bare refs never look inside
+});
+
+test("include: errors: no slug line, bad deck slug, child headings under a linked slide", () => {
+  expect(parseMarkdown("# A\ninclude: b\n").errors).toEqual([{ line: 2, msg: "a linked slide needs a slug line" }]);
+  expect(parseMarkdown("# A\nslug: a\ninclude: Bad Deck\n").errors).toEqual([{ line: 3, msg: 'invalid deck slug "Bad Deck"' }]);
+  expect(parseMarkdown("# A\nslug: a\ninclude: b\n\n## C\nslug: c\n").errors).toEqual([{ line: 5, msg: "a linked slide's slides come from b; it can't have its own" }]);
+});
+
+test("export writes a linked node's include line and stops there; chips into its graft stay chips", () => {
+  const nodes: any = {
+    ROOT: node("ROOT", "", ["top"], null),
+    top: node("top", "Top", ["wallets"], [T("c", "Costs →", 50, { link: { type: "slide", id: "wallets.costs" } })]),
+    wallets: { ...node("wallets", "Wallets", ["wallets.costs"], null, "Why wallets."), include: "digital-wallets" },
+    "wallets.costs": { ...node("wallets.costs", "Costs", [], null), _from: "digital-wallets" },
+  };
+  const md = toMarkdown(nodes, "top", { deck: "d", date: "x" });
+  expect(md).toBe(
+`<!-- Exported from deck "d", slide "Top" (top), x -->
+
+# Top
+slug: top
+
+- [link:wallets.costs][Costs]
+
+## Wallets
+slug: wallets
+include: digital-wallets
+
+Why wallets.
+`);
+  expect(parseMarkdown(md).errors).toEqual([]);
+  expect(() => toMarkdown(nodes, "wallets.costs", { deck: "d", date: "x" })).toThrow('belongs to deck "digital-wallets"');
+});

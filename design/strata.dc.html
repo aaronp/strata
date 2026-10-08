@@ -1135,7 +1135,12 @@ class Component extends DCLogic {
     for (const k in d.nodes) if (k !== 'ROOT') map[k] = d.nodes[k].include ? this.freeId(k, Object.values(map)) : 's' + uid();   // linked nodes keep their readable slug
     for (const k in d.images || {}) { imap[k] = 'im' + uid(); images[imap[k]] = await toDataUrl(deckUrl(slug, d.images[k])); }
     const remap = id => map[id] || (id.includes('.') && map[id.split('.')[0]] ? [map[id.split('.')[0]], ...id.split('.').slice(1)].join('.') : null);   // a renamed linked node renames links into its graft
-    const relayer = l => ({ ...l, ...(l.link && l.link.type === 'slide' && remap(l.link.id) ? { link: { ...l.link, id: remap(l.link.id) } } : {}), ...(l.imgKey && imap[l.imgKey] ? { imgKey: imap[l.imgKey] } : {}) });
+    // A copied styled layer keeps its look: it stays linked only if this deck's style of that id gives the same values, else it becomes Custom.
+    const srcStyles = mergeStyles(d.styles), hostStyles = this.styles();
+    const restyle = l => { const src = l.type === 'text' && l.style && srcStyles[l.style]; if (!src) return l; const host = hostStyles[l.style];
+      if (host && !host.deleted && STYLE_KEYS.every(k => JSON.stringify(src[k]) === JSON.stringify(host[k]))) return l;
+      const o = { ...l, style: '' }; STYLE_KEYS.forEach(k => { if (o[k] === undefined && src[k] !== undefined) o[k] = src[k]; }); return o; };
+    const relayer = l0 => { const l = restyle(l0); return { ...l, ...(l.link && l.link.type === 'slide' && remap(l.link.id) ? { link: { ...l.link, id: remap(l.link.id) } } : {}), ...(l.imgKey && imap[l.imgKey] ? { imgKey: imap[l.imgKey] } : {}) }; };
     const nodes = {};
     for (const k in map) { const n = d.nodes[k]; nodes[map[k]] = { ...n, id: map[k], children: (n.children || []).map(c => map[c]),
       ...(n.frames ? { frames: n.frames.map(f => ({ ...f, layers: f.layers.map(relayer) })) } : {}), ...(n.layers ? { layers: n.layers.map(relayer) } : {}) }; }
@@ -1335,7 +1340,7 @@ class Component extends DCLogic {
   }
   // A slide's branch as markdown (POSTs the live, possibly unsaved nodes; the server shares the importer's format code).
   async exportMarkdown(id) {
-    const r = await fetch('/api/export', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ nodes: this.state.nodes, id, deck: DECK || 'scratch' }) });
+    const r = await fetch('/api/export', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ nodes: Object.fromEntries(Object.entries(this.state.nodes).map(([k, n]) => [k, n.frames ? { ...n, frames: n.frames.map(f => ({ ...f, layers: this.shown(k, f.layers) })) } : n])), id, deck: DECK || 'scratch' }) });
     const t = await r.text(); if (!r.ok) throw new Error(t || 'HTTP ' + r.status); return t;
   }
   async downloadMarkdown(id) {
@@ -1572,7 +1577,7 @@ class Component extends DCLogic {
   // '' = Custom: keep the look by writing the resolved values onto the layer. Otherwise adopt the style fully.
   chooseStyle(id, lid, sid) {
     this.setLayers(id, ls => ls.map(l => { if (l.id !== lid) return l;
-      if (!sid) { const o = { ...this.resolveLayer(l, id) }; delete o.style; return o; }
+      if (!sid) return { ...this.resolveLayer(l, id), style: '' };   // '' = chosen Custom (re-import leaves it alone)
       const o = { ...l, style: sid }; STYLE_KEYS.forEach(k => delete o[k]); return o; }));
   }  // A new named style from a layer's current look; the layer then uses it with no overrides.
   newStyleFrom(id, lid) {
@@ -1587,12 +1592,12 @@ class Component extends DCLogic {
   }
   // Layers using the style keep its look (written onto them) and become Custom; linked-in slides are left alone.
   deleteStyle(sid) {
-    if (BUILTIN_STYLES[sid]) return; const st = this.styles()[sid]; if (!st) return;
+    if (BUILTIN_STYLES[sid]) return; const st = this.styles()[sid]; if (!st || st.deleted) return;
     this.setState(s => { const nodes = {};
       for (const k in s.nodes) { const n = s.nodes[k];
         nodes[k] = n._from || !n.frames ? n : { ...n, frames: n.frames.map(f => ({ ...f, layers: f.layers.map(l => { if (l.style !== sid) return l;
-          const o = { ...l }; delete o.style; STYLE_KEYS.forEach(q => { if (o[q] === undefined && st[q] !== undefined) o[q] = st[q]; }); return o; }) })) }; }
-      const { [sid]: _gone, ...styles } = s.styles || {}; return { nodes, styles }; });
+          const o = { ...l, style: '' }; STYLE_KEYS.forEach(q => { if (o[q] === undefined && st[q] !== undefined) o[q] = st[q]; }); return o; }) })) }; }
+      return { nodes, styles: { ...(s.styles || {}), [sid]: { ...st, deleted: true } } }; });   // tombstone: undone layers still resolve, and the id is never reused
   }
 
   addLayer(type, extra) {
@@ -1903,9 +1908,9 @@ class Component extends DCLogic {
     // layer editing
     const editable = !isPresent && !isWire && !active && !curN._from;
     const curLayers = this.layersOf(cur); const ly = S.layerSel ? curLayers.find(l => l.id === S.layerSel) : null;
-    const styled = !!(ly && ly.type === 'text' && ly.style && this.styles()[ly.style]), toStyle = styled && S.styleTarget === 'style';
+    const styled = !!(ly && ly.type === 'text' && ly.style && this.styles()[ly.style] && !this.styles()[ly.style].deleted), toStyle = styled && S.styleTarget === 'style';
     const lyR = ly ? this.resolveLayer(ly, cur) : null;
-    const lv = toStyle ? { ...lyR, ...this.styles()[ly.style] } : lyR;              // what the controls show: the style's values in Style mode
+    const lv = toStyle ? { ...Object.fromEntries(Object.entries(lyR).filter(([k]) => !STYLE_KEYS.includes(k))), ...this.styles()[ly.style] } : lyR;   // Style mode shows the style's values only, so a layer's overrides never leak into it
     const over = k => styled && ly[k] !== undefined;
     // Style mode sends style settings to the style; everything else (text, geometry, link…) always goes to the layer.
     const upL = patch => { if (!ly) return; if (!toStyle) { this.updLayer(cur, ly.id, patch); return; }
@@ -2125,13 +2130,13 @@ class Component extends DCLogic {
       insertOpen: !!DECK && !STATIC && !!(S.secOpen || {}).insert, insertBg: (S.secOpen || {}).insert ? '#ece6d9' : '#fff',
       onInsertToggle: () => this.setState(st => ({ secOpen: { ...st.secOpen, insert: !(st.secOpen || {}).insert } })),
       fromDeck: curN._from || '', fromHref: '?deck=' + (curN._from || ''), ownSlide: !curN._from, linkedDeck: curN.include || '', linkedHref: '?deck=' + (curN.include || ''),
-      styleOpts: [{ v: '', l: 'Custom' }].concat(Object.entries(this.styles()).map(([id, st]) => ({ v: id, l: st.name || id }))),
+      styleOpts: [{ v: '', l: 'Custom' }].concat(Object.entries(this.styles()).filter(([, st]) => !st.deleted).map(([id, st]) => ({ v: id, l: st.name || id }))),
       lyStyle: styled ? ly.style : '', onLyStyle: e => ly && this.chooseStyle(cur, ly.id, e.target.value), lyStyled: styled,
       styleTargetBtns: styled ? [['layer', 'This layer'], ['style', (this.styles()[ly.style].name || ly.style) + ' style']].map(([v, label]) => ({ label, ...tab((S.styleTarget === 'style' ? 'style' : 'layer') === v), onClick: () => this.setState({ styleTarget: v }) })) : [],
       lyHasOverrides: styled && STYLE_KEYS.some(over), onClearOverrides: () => ly && this.clearKeys(cur, ly.id, STYLE_KEYS),
       colorLabel: 'Colour' + (over('color') ? ' •' : ''), colorOver: over('color'), onColorReset: () => ly && this.clearKeys(cur, ly.id, ['color']),
       boxOver: over('card') || over('box'), onBoxReset: e => { e && e.stopPropagation && e.stopPropagation(); ly && this.clearKeys(cur, ly.id, ['card', 'box']); },
-      styleRows: Object.entries(this.styles()).map(([id, st]) => ({ id, name: st.name || id, count: (styleCount[id] || 0) + ' layer' + (styleCount[id] === 1 ? '' : 's'), canDelete: !BUILTIN_STYLES[id],
+      styleRows: Object.entries(this.styles()).filter(([, st]) => !st.deleted).map(([id, st]) => ({ id, name: st.name || id, count: (styleCount[id] || 0) + ' layer' + (styleCount[id] === 1 ? '' : 's'), canDelete: !BUILTIN_STYLES[id],
         onName: e => this.setStyle(id, { name: e.target.value }), onDelete: () => this.deleteStyle(id) })),
       newStyleOff: !(ly && ly.type === 'text'), onNewStyle: () => ly && this.newStyleFrom(cur, ly.id),
       exportShow: !STATIC, onExportMd: () => this.downloadMarkdown(cur),

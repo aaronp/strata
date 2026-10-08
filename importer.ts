@@ -26,6 +26,7 @@ export function layersFor(s: Section): any[] {
 // Markdown owns the set of md-* layers and their text/link/bullets; everything else is the builder's.
 // Generated style fields a layer doesn't have at all (e.g. a newer importer's chip container) are filled in, never overwritten.
 const CONTENT = ["text", "link", "bullets"];
+const STYLE_KEYS = ["font", "size", "weight", "color", "align", "valign", "lh", "ls", "bullets", "gap", "card", "box"];   // as in the app
 // What the importer generated before styles: an older unstyled md layer still holding these values never had them edited, so they're dropped in favour of the style.
 const OLD_GEN: Record<string, Record<string, unknown>> = {
   "md-title": { font: "grot", size: 64, weight: 800, color: null, align: "left", valign: "bottom", lh: 1.05, bullets: "none", gap: 0.15 },
@@ -35,8 +36,10 @@ function mergeLayers(existing: any[], gen: any[]) {
   const byId = new Map(gen.map(g => [g.id, g]));
   const kept = existing.filter(l => !String(l.id).startsWith("md-") || byId.has(l.id)).map((l: any) => {
     const g = byId.get(l.id); if (!g) return l;
-    if (g.style && !l.style) { l = { ...l, style: g.style }; for (const [k, v] of Object.entries(OLD_GEN[l.id] ?? {})) if (l[k] === v) delete l[k]; }
-    const u = { ...g, ...l }; for (const k of CONTENT) { if (k in g) u[k] = g[k]; else delete u[k]; } return u;
+    if (g.style && !("style" in l)) { l = { ...l, style: g.style }; for (const [k, v] of Object.entries(OLD_GEN[l.id] ?? {})) if (l[k] === v) delete l[k]; }   // style: "" = chosen Custom
+    // A styled layer's missing style setting means "follow the style", so only markdown-owned content is filled in from the generated layer.
+    const base = l.style ? Object.fromEntries(Object.entries(g).filter(([k]) => !STYLE_KEYS.includes(k) || CONTENT.includes(k))) : g;
+    const u = { ...base, ...l }; for (const k of CONTENT) { if (k in g) u[k] = g[k]; else delete u[k]; } return u;
   });
   const have = new Set(kept.map(l => l.id));
   return kept.concat(gen.filter(g => !have.has(g.id)));

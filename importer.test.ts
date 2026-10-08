@@ -173,3 +173,13 @@ test("re-import adopts H1/Body on older unstyled md layers, dropping unedited se
   const again = imp({ nodes: d.nodes }, "# A\nslug: a\n\nNew body.\n");
   expect(again.nodes.a.frames[0].layers.find((l: any) => l.id === "md-title")).toMatchObject({ style: "h1", size: 72 });
 });
+
+test("re-import respects styled md layers: a removed override stays removed, and a layer set to Custom stays Custom", () => {
+  const d = imp(null, "# A\nslug: a\n\nBody.\n");
+  const L = d.nodes.a.frames[0].layers;
+  delete L.find((l: any) => l.id === "md-body").size;                                       // ↺ on Size: follow Body
+  Object.assign(L.find((l: any) => l.id === "md-title"), { style: "", size: 64, weight: 800, valign: "bottom", lh: 1.05, font: "grot" });   // chosen Custom
+  const again = imp(d, "# A\nslug: a\n\nBody.\n").nodes.a.frames[0].layers;
+  expect(again.find((l: any) => l.id === "md-body").size).toBeUndefined();
+  expect(again.find((l: any) => l.id === "md-title")).toMatchObject({ style: "", size: 64, weight: 800 });
+});

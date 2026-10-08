@@ -1192,7 +1192,7 @@ test("choosing a style clears overrides; Custom writes the resolved values back;
   expect(c.layersOf("s")[1]).toMatchObject({ style: "h2" }); expect(c.layersOf("s")[1].size).toBeUndefined();
   c.undo(); c.componentDidUpdate(); expect(c.layersOf("s")[1]).toMatchObject({ style: "h1", size: 50 });
   c.chooseStyle("s", "a", ""); c.componentDidUpdate();
-  const a = c.layersOf("s")[0]; expect(a.style).toBeUndefined(); expect(a).toMatchObject({ size: 64, weight: 800, valign: "bottom" });
+  const a = c.layersOf("s")[0]; expect(a.style).toBeFalsy(); expect(a).toMatchObject({ size: 64, weight: 800, valign: "bottom" });
 });
 
 test("This layer mode writes an override (marked, ↺ resets); Style mode edits the style for every layer using it", async () => {
@@ -1234,8 +1234,44 @@ test("Styles section: counts, rename keeps the id, new style from a layer, delet
   expect(c.layersOf("s")[2]).toMatchObject({ style: "style-1" }); expect(c.layersOf("s")[2].size).toBeUndefined();
   v = c.renderVals(); const row = v.styleRows.find((r: any) => r.id === "style-1");
   expect(row.canDelete).toBe(true); row.onDelete();
-  expect(c.styles()["style-1"]).toBeUndefined(); expect(c.state.styles["style-1"]).toBeUndefined();
-  expect(c.layersOf("s")[2].style).toBeUndefined(); expect(c.layersOf("s")[2].size).toBe(20);
+  expect(c.renderVals().styleRows.map((r: any) => r.id)).not.toContain("style-1"); expect(c.state.styles["style-1"].deleted).toBe(true);   // tombstone
+  expect(c.layersOf("s")[2].style).toBeFalsy(); expect(c.layersOf("s")[2].size).toBe(20);
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
   for (const h of ["{{ styleRows }}", "{{ onNewStyle }}"]) expect(html).toContain(h);
+});
+
+test("Style mode shows and edits the style's container, never copying this layer's own container into it", async () => {
+  const c = await styledDeck({}, [TL("a", { style: "h1", card: "custom", box: { bg: "#ff0000", radius: 40 } }), TL("b", { style: "h1" })]);
+  c.setState({ layerSel: "a", styleTarget: "style" }); const v = c.renderVals();
+  expect(v.boxModeLabel.startsWith("Deck default")).toBe(true);
+  v.boxFields.find((f: any) => f.label === "Padding").onChange({ target: { value: "20" } });
+  expect(c.state.styles.h1.box.bg).not.toBe("#ff0000"); expect(c.state.styles.h1.box.radius).toBe(12);
+});
+
+test("copying a deck keeps its styled layers' look: same-valued styles stay linked, others become Custom", async () => {
+  await writeDeck("b", { ROOT: slideNode("ROOT", "", ["x"]), x: slideNode("x", "Bx", [], { frames: [{ id: "f", layers: [TL("p", { style: "style-1" }), TL("q", { style: "body" }), TL("r", { style: "h1" })] }] }) },
+    { styles: { "style-1": { name: "Style 1", size: 99 }, body: { color: "#00ff00" } } });
+  await deckTalk(); const { c } = await mount("?deck=talk");
+  await c.copyDeckHere("t", "b");
+  const ls = c.layersOf(c.state.nodes.t.children[0]);
+  expect(ls[0].style).toBeFalsy(); expect(ls[0].size).toBe(99);
+  expect(ls[1].style).toBeFalsy(); expect(ls[1].color).toBe("#00ff00");
+  expect(ls[2].style).toBe("h1"); expect(ls[2].size).toBeUndefined();
+});
+
+test("deleting a style keeps a tombstone: undo brings layers back looking right, and the id is never reused", async () => {
+  const c = await styledDeck(); await Bun.sleep(150);
+  c.setState({ layerSel: "c" }); const sid = c.newStyleFrom("s", "c"); c.componentDidUpdate();
+  await Bun.sleep(500);                                                         // a separate undo step (edits within 450ms group)
+  c.deleteStyle(sid); c.componentDidUpdate();
+  expect(c.renderVals().styleRows.map((r: any) => r.id)).not.toContain(sid);
+  expect(c.renderVals().styleOpts.map((o: any) => o.v)).not.toContain(sid);
+  c.undo(); c.componentDidUpdate();
+  expect(c.layersOf("s")[2].style).toBe(sid); expect(c.resolveLayer(c.layersOf("s")[2], "s").size).toBe(20);
+  expect(c.newStyleFrom("s", "a")).not.toBe(sid);
+});
+
+test("markdown export uses resolved layers, so bullets that come from a style still export as a list", async () => {
+  const c = await styledDeck({ styles: { list: { name: "List", bullets: "disc" } } }, [TL("a", { style: "list", text: "one\ntwo" })]);
+  expect(await c.exportMarkdown("s")).toContain("- one\n- two");
 });

@@ -1067,3 +1067,12 @@ test("copying a deck whose linked slide gets renamed (t → t-2) also renames li
   const s = c.state.nodes[c.state.nodes.t.children[1]];
   expect(s.frames[0].layers[0].link.id).toBe("t-2.x");
 });
+
+test("countryside balloons is a Canvas backdrop and the default for new decks", async () => {
+  const { c } = await mount("?deck=fresh");
+  expect(c.state.bg).toBe("balloons");
+  const tile = c.renderVals().bgTiles.find((b: any) => b.label === "Balloons");
+  expect(tile).toBeTruthy();
+  expect(c.bgInfo()).toEqual({ src: "backdrops/countryside-balloons.png", aspect: 1.5 });
+  expect(await Bun.file(join(import.meta.dir, "design/backdrops/countryside-balloons.png")).exists()).toBe(true);
+});

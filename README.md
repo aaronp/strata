@@ -44,7 +44,7 @@ The files in `design/` are **design references built in HTML**: working prototyp
 ```ts
 type Deck = {
   nodes: Record<string, SlideNode>;   // 'ROOT' is a hidden root; its children are the top-level row
-  bg: 'sky' | 'ocean' | 'none' | 'custom'; customBg?: string /*dataURL*/; customAspect: number;
+  bg: 'balloons' | 'sky' | 'ocean' | 'none' | 'custom';   // default 'balloons' customBg?: string /*dataURL*/; customAspect: number;
   opacity: number;        // background opacity 0–1
   base: string;           // colour behind the background
   offset: number;         // horizontal background offset (background loops infinitely)
@@ -129,12 +129,12 @@ A layer keeps the **same `id`** across frames; that's how it's matched for tween
 - Radii: 5–10px on controls, 999px on pills. Panel sections are bordered with a 10px radius.
 
 ## Assets
-- `design/backdrops/sky.svg` and `design/backdrops/ocean.svg` are tall template backgrounds (aspect ≈ 0.4 w/h). Users can also upload their own (SVG preferred).
+- `design/backdrops/countryside-balloons.png` (the default, aspect 1.5 w/h), plus `sky.svg` and `ocean.svg`, which are tall template backgrounds (aspect ≈ 0.4 w/h). Users can also upload their own (SVG preferred).
 
 ## Files
 - `design/strata.dc.html`: the full app (template + logic). This is the source of truth.
 - `design/Layers.dc.html`: renders a layer list onto a 16:9 slide (used by the stage, thumbnails and frame strip).
-- `design/backdrops/*.svg`: template backgrounds.
+- `design/backdrops/*`: template backgrounds.
 
 ## Suggested build order
 1. Data model, store and undo/redo, plus localStorage persistence and JSON import/export.

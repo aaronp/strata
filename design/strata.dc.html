@@ -973,7 +973,7 @@ class Component extends DCLogic {
       const s = JSON.parse(localStorage.getItem(KEY) || localStorage.getItem('strata-v6') || 'null');
       try { const im = JSON.parse(localStorage.getItem(IKEY) || 'null'); if (im) this.setState({ images: im }); } catch (e) {}
       if (s && s.nodes && s.nodes.ROOT) this.setState({ ...s, cur: s.nodes[s.cur] ? s.cur : s.nodes.ROOT.children[0], prev: null, phase: 'idle', customBg: localStorage.getItem(BGKEY) || null });
-      if (s && s.nodes && s.nodes.ROOT) this.graft(s.nodes).then(g => { this._lastNodes = g.nodes; this._graftEdit = true; this.setState(st => ({ nodes: g.nodes, images: { ...ownImages(st.images), ...g.images } })); });
+      if (s && s.nodes && s.nodes.ROOT) this.graft(s.nodes).then(g => { this._lastNodes = g.nodes; this.allowGraft(g.nodes); this.setState(st => ({ nodes: g.nodes, images: { ...ownImages(st.images), ...g.images } })); });
     } catch (e) {}
     if (STATIC) this.setState({ mode: 'present' });
     this._past = []; this._future = []; setTimeout(() => { this._lastNodes = this.state.nodes; this._histReady = true; }, 120);
@@ -1069,10 +1069,11 @@ class Component extends DCLogic {
     let h = id; while (h && N[h] && N[h]._from) h = D.parent[h];
     return 'Slides from "' + n._from + '" can\'t be changed here: open ' + n._from + ', or move/delete "' + ((N[h] && N[h].title) || h) + '"';
   }
-  // Grafted slides are read-only: revert any nodes change that alters one, or a linked node's children. A fresh graft sets _graftEdit.
+  // Grafted slides are read-only: revert any nodes change that alters one, or a linked node's children. A fresh graft is let through by allowGraft.
+  allowGraft(nodes) { this._graftNodes = nodes; }   // tags the one nodes object a fresh graft will commit, so no other update slips past the guard
   guardGrafts() {
     const S = this.state, prev = this._lastNodes;
-    if (this._graftEdit) { this._graftEdit = false; return false; }
+    if (this._graftNodes && S.nodes === this._graftNodes) { this._graftNodes = null; return false; }   // exactly the graft allowGraft named
     if (!prev || S.nodes === prev || this._restoring) return false;
     for (const k in prev) {
       const v = prev[k], cur = S.nodes[k]; if (!cur) continue;   // deleted along with its linked node
@@ -1092,7 +1093,7 @@ class Component extends DCLogic {
     let d; try { d = await this.fetchDeck(B); } catch (e) { this.flash('Couldn\'t link "' + B + '": ' + e.message); return false; }
     const first = d.nodes[d.nodes.ROOT.children[0]];
     const own = { ...N, [slug]: { id: slug, title: d.title || (first && first.title) || B, body: '', children: [], include: B }, [tid]: { ...N[tid], children: [...N[tid].children, slug] } };
-    const g = await this.graft(own); this._graftEdit = true;
+    const g = await this.graft(own); this.allowGraft(g.nodes);
     this.setState(s => ({ nodes: g.nodes, images: { ...ownImages(s.images), ...g.images }, cur: slug, prev: null, phase: 'idle', fi: 0, linkDeck: null, layerSel: null }));
     return true;
   }
@@ -1103,7 +1104,8 @@ class Component extends DCLogic {
     const map = {}, imap = {}, images = {};
     for (const k in d.nodes) if (k !== 'ROOT') map[k] = d.nodes[k].include ? this.freeId(k, Object.values(map)) : 's' + uid();   // linked nodes keep their readable slug
     for (const k in d.images || {}) { imap[k] = 'im' + uid(); images[imap[k]] = await toDataUrl(deckUrl(slug, d.images[k])); }
-    const relayer = l => ({ ...l, ...(l.link && l.link.type === 'slide' && map[l.link.id] ? { link: { ...l.link, id: map[l.link.id] } } : {}), ...(l.imgKey && imap[l.imgKey] ? { imgKey: imap[l.imgKey] } : {}) });
+    const remap = id => map[id] || (id.includes('.') && map[id.split('.')[0]] ? [map[id.split('.')[0]], ...id.split('.').slice(1)].join('.') : null);   // a renamed linked node renames links into its graft
+    const relayer = l => ({ ...l, ...(l.link && l.link.type === 'slide' && remap(l.link.id) ? { link: { ...l.link, id: remap(l.link.id) } } : {}), ...(l.imgKey && imap[l.imgKey] ? { imgKey: imap[l.imgKey] } : {}) });
     const nodes = {};
     for (const k in map) { const n = d.nodes[k]; nodes[map[k]] = { ...n, id: map[k], children: (n.children || []).map(c => map[c]),
       ...(n.frames ? { frames: n.frames.map(f => ({ ...f, layers: f.layers.map(relayer) })) } : {}), ...(n.layers ? { layers: n.layers.map(relayer) } : {}) }; }
@@ -1127,7 +1129,7 @@ class Component extends DCLogic {
         nodes = { ...S.nodes, ...c.nodes, [tid]: { ...S.nodes[tid], children: [...S.nodes[tid].children, ...c.tops] } };
         extra = { collapsed: { ...(S.collapsed || {}), [tid]: false } };
       }
-      const g = await this.graft(nodes); this._graftEdit = true;
+      const g = await this.graft(nodes); this.allowGraft(g.nodes);
       this.setState(s => ({ nodes: g.nodes, images: { ...ownImages(s.images), ...c.images, ...g.images }, ...extra }));
       this.flash('Copied ' + Object.keys(c.nodes).length + ' slides from "' + slug + '"');
     } catch (e) { this.flash('Couldn\'t copy "' + slug + '": ' + e.message); }
@@ -1478,12 +1480,12 @@ class Component extends DCLogic {
   }
   actT(t, act) { const s = (t && t[act]) || {}; const d = (this.state.tdef || {})[act] || {}; return { ease: s.ease ?? (t && t.ease) ?? d.ease ?? 'both', dur: s.dur ?? (t && t.dur) ?? d.dur ?? 600, delay: s.delay ?? (t && t.delay) ?? d.delay ?? 0 }; }
   resetTransKey(key) {
-    this.setState(s => { const nodes = {}; Object.entries(s.nodes).forEach(([k, n]) => { if (!n.ftrans) { nodes[k] = n; return; }
+    this.setState(s => { const nodes = {}; Object.entries(s.nodes).forEach(([k, n]) => { if (!n.ftrans || n._from) { nodes[k] = n; return; }
       const ft = {}; Object.entries(n.ftrans).forEach(([fid, m]) => { const nm = {}; Object.entries(m || {}).forEach(([lid, o]) => { const no = {}; Object.entries(o || {}).forEach(([p, v]) => {
         if (p === key) return; if (v && typeof v === 'object' && DEF_ACTS.includes(p)) { const { [key]: _, ...r } = v; no[p] = r; } else no[p] = v; }); nm[lid] = no; }); ft[fid] = nm; });
       nodes[k] = { ...n, ftrans: ft }; }); return { nodes }; });
   }
-  resetAllTrans() { this.setState(s => { const nodes = {}; Object.entries(s.nodes).forEach(([k, n]) => { if (n.ftrans) { const { ftrans, ...rest } = n; nodes[k] = rest; } else nodes[k] = n; }); return { nodes }; }); }
+  resetAllTrans() { this.setState(s => { const nodes = {}; Object.entries(s.nodes).forEach(([k, n]) => { if (n.ftrans && !n._from) { const { ftrans, ...rest } = n; nodes[k] = rest; } else nodes[k] = n; }); return { nodes }; }); }
   setTransAct(id, a, lid, acts, patch) {
     this.setState(s => { const n = s.nodes[id]; const fr = this.framesOfNode(n); const A = fr[a]; if (!A) return null; const ft = { ...(n.ftrans || {}) }; const m = { ...(ft[A.id] || {}) };
       const cur = { ...(m[lid] || {}) }; acts.forEach(act => { cur[act] = { ...this.actT(m[lid], act), ...patch }; }); m[lid] = cur; ft[A.id] = m; return { nodes: { ...s.nodes, [id]: { ...n, ftrans: ft } } }; });

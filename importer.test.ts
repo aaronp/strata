@@ -145,3 +145,11 @@ test("links into a linked deck are checked on import: warnings, never errors; ch
   expect(gone.deck).toBeTruthy();
   expect(gone.warnings).toEqual([{ line: 4, msg: 'deck "missing" not found (linked from "w")' }]);
 });
+
+test("links into a linked deck use its flat graft ids: w.deep (at any depth) resolves, a tree path w.top.deep doesn't", async () => {
+  const root = await mkdtemp(join(tmpdir(), "strata-inc-"));
+  await deckFile(root, "b", { ROOT: { id: "ROOT", children: ["top"] }, top: { id: "top", title: "Top", children: ["deep"] }, deep: { id: "deep", title: "Deep", children: [] } });
+  const md = (ref: string) => `# H\nslug: h\n\n[link:${ref}][Go]\n\n## W\nslug: w\ninclude: b\n`;
+  expect((await importMarkdown(root, "t", md("w.deep"))).warnings).toEqual([]);
+  expect((await importMarkdown(root, "t", md("w.top.deep"))).warnings).toEqual([{ line: 4, msg: 'link target "w.top.deep" not found in deck b' }]);
+});

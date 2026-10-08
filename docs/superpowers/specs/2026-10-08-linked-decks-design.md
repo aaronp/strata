@@ -119,7 +119,7 @@ The `include:` line goes immediately after the `slug:` line. The body that follo
 
 ### Importer
 - `importInto` writes `include` onto the node.
-- `importMarkdown` checks every link with `into`. It reads `decks/<deck>/deck.json`, walks the remaining path through `children`, and follows nested `include`s. Each unresolved link is a **warning**, not an error ("link target "wallets.costs" not found in deck digital-wallets", or "deck digital-wallets not found"). Imports never fail because of a link into a linked deck.
+- `importMarkdown` checks every link with `into`. It reads `decks/<deck>/deck.json` and looks the next segment up as a node id anywhere in that deck (graft ids are flat), following a chained `include` for each further segment. Each unresolved link is a **warning**, not an error ("link target "wallets.costs" not found in deck digital-wallets", or "deck digital-wallets not found"). Imports never fail because of a link into a linked deck.
 
 ### Export (`toMarkdown`)
 - A node with `include` writes its `include:` line after `slug:`, then its own body. Its children (the graft) are not emitted.

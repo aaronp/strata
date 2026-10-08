@@ -51,18 +51,16 @@ export function importInto(deck: any | null, sections: Section[]): any {
   return { ...(deck ?? { images: {}, customBg: null }), nodes, title: deck?.title || sections[0]?.title || "" };
 }
 
-// Where a link into a linked deck fails: null = found, "missing" = no such slide, else the problem (a missing deck). Follows chained links.
+// Where a link into a linked deck fails: null = found, "missing" = no such slide, else the problem (a missing deck).
+// Graft ids are flat (<linked node>.<any slide of its deck>), so each segment is a node id in the current deck; a further segment needs a chained link.
 async function linkProblem(root: string, deck: string, path: string[], seen: string[] = []): Promise<string | null> {
   const f = Bun.file(join(root, "decks", deck, "deck.json"));
   if (!(await f.exists())) return `deck "${deck}" not found`;
-  const N = (await f.json()).nodes; let list: string[] = N.ROOT.children;
-  for (let n = 0; n < path.length; n++) {
-    const node = list.includes(path[n]) ? N[path[n]] : null;
-    if (!node) return "missing";
-    if (node.include && n < path.length - 1) return seen.includes(node.include) ? "missing" : linkProblem(root, node.include, path.slice(n + 1), [...seen, deck]);
-    list = node.children ?? [];
-  }
-  return null;
+  const N = (await f.json()).nodes, node = path[0] !== "ROOT" ? N[path[0]] : null;
+  if (!node) return "missing";
+  if (path.length === 1) return null;
+  if (!node.include || seen.includes(node.include)) return "missing";
+  return linkProblem(root, node.include, path.slice(1), [...seen, deck]);
 }
 
 // Shared by the CLI and POST /api/import: parse, merge into any existing deck, save. Writes nothing on errors.

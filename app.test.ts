@@ -1035,3 +1035,35 @@ test("grafted slides are read-only: tree edits refused with a message, the guard
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
   for (const h of ["{{ fromDeck }}", "{{ ownSlide }}", "{{ linkedDeck }}", "{{ n.ring }}", "{{ n.canAdd }}"]) expect(html).toContain(h);
 });
+
+test("deck-wide transition resets skip grafted slides instead of being reverted by the read-only guard", async () => {
+  await deckBWithImage();
+  const B = await Bun.file(join(root, "decks/b/deck.json")).json();
+  B.nodes.x.ftrans = { f1: { l1: { move: { ease: "in", dur: 100, delay: 0 } } } };
+  await Bun.write(join(root, "decks/b/deck.json"), JSON.stringify(B));
+  await writeDeck("talk", { ROOT: slideNode("ROOT", "", ["t", "h"]), t: slideNode("t", "Intro", [], { include: "b" }), h: slideNode("h", "Host", [], { ftrans: { f0: { l: { move: { ease: "in", dur: 5, delay: 0 } } } } }) });
+  const { c } = await mount("?deck=talk"); await Bun.sleep(150);
+  c.resetTransKey("ease"); c.componentDidUpdate();
+  expect(c.state.nodes.h.ftrans.f0.l.move.ease).toBeUndefined();                // the host's own reset applied
+  c.resetAllTrans(); c.componentDidUpdate();
+  expect(c.state.nodes.h.ftrans).toBeUndefined(); expect(c.state.nodes["t.x"].ftrans).toBeTruthy();
+});
+
+test("a pending graft only lets its own commit past the guard, not an unrelated edit that lands first", async () => {
+  const c = await linkTalk(); await Bun.sleep(150);
+  const g = await c.graft(c.state.nodes); c.allowGraft(g.nodes);                // a graft about to land
+  c.setNode("t.x", { title: "hacked" }); c.componentDidUpdate();                // another edit commits first
+  expect(c.state.nodes["t.x"].title).toBe("Bx");
+  c.setState({ nodes: g.nodes }); c.componentDidUpdate(); expect(c.state.nodes).toBe(g.nodes);   // the graft itself still lands
+});
+
+test("copying a deck whose linked slide gets renamed (t → t-2) also renames links into its graft", async () => {
+  await deckBWithImage();
+  await writeDeck("lib", { ROOT: slideNode("ROOT", "", ["t", "s"]), t: slideNode("t", "Lib link", [], { include: "b" }),
+    s: slideNode("s", "S", [], { frames: [{ id: "f", layers: [{ id: "k", type: "text", text: "Go", x: 0, y: 0, w: 10, h: 10, link: { type: "slide", id: "t.x" } }] }] }) });
+  await deckTalk();
+  const { c } = await mount("?deck=talk");
+  await c.copyDeckHere("t", "lib");
+  const s = c.state.nodes[c.state.nodes.t.children[1]];
+  expect(s.frames[0].layers[0].link.id).toBe("t-2.x");
+});

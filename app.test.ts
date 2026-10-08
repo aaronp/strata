@@ -1275,3 +1275,42 @@ test("markdown export uses resolved layers, so bullets that come from a style st
   const c = await styledDeck({ styles: { list: { name: "List", bullets: "disc" } } }, [TL("a", { style: "list", text: "one\ntwo" })]);
   expect(await c.exportMarkdown("s")).toContain("- one\n- two");
 });
+
+// ---- inline formatting ----
+const rich = async () => (await mount("")).c.constructor.rich;
+
+test("parseRich: bold, italic, spans with attributes and styles, nesting, escapes, literal on malformed, merged runs", async () => {
+  const { parseRich } = await rich();
+  const st = (id: string) => (id === "h2" ? { size: 44, weight: 700, color: "#111111", font: "grot", ls: 0, align: "center", lh: 2 } : null);
+  expect(parseRich("plain")).toEqual([{ text: "plain" }]);
+  expect(parseRich("a **b** *c* ***d***")).toEqual([{ text: "a " }, { text: "b", b: true }, { text: " " }, { text: "c", i: true }, { text: " " }, { text: "d", b: true, i: true }]);
+  expect(parseRich("[x]{size=72 color=#d9432b font=serif weight=600}")).toEqual([{ text: "x", size: 72, color: "#d9432b", font: "serif", weight: 600 }]);
+  expect(parseRich("[x]{style=h2 size=50}", st)).toEqual([{ text: "x", size: 50, weight: 700, color: "#111111", font: "grot", ls: 0 }]);   // character settings only; explicit wins
+  expect(parseRich("[a [b]{size=9} c]{size=20}")).toEqual([{ text: "a ", size: 20 }, { text: "b", size: 9 }, { text: " c", size: 20 }]);
+  expect(parseRich("**[x]{color=red}**")).toEqual([{ text: "x", b: true, color: "red" }]);
+  expect(parseRich("[x]{bogus=1 size=abc weight=950 style=nope}", st)).toEqual([{ text: "x" }]);
+  for (const lit of ["5 * 3", "**open", "[draft]", "[x](http://a.b)", "[x]{size=3", "a * b * c"]) expect(parseRich(lit).map((r: any) => r.text).join("")).toBe(lit);
+  expect(parseRich("\\*not\\* \\[x\\]")).toEqual([{ text: "*not* [x]" }]);
+  expect(parseRich("")).toEqual([{ text: " " }]);
+});
+
+test("plainText strips markup line by line", async () => {
+  const { plainText } = await rich();
+  expect(plainText("a **b** [c]{size=9}\n\n*d* \\*e")).toBe("a b c\n\nd *e");
+});
+
+test("applyFormat: toggles bold, wraps lines, updates or unwraps spans, clears, and keeps the selection on the same words", async () => {
+  const { applyFormat } = await rich();
+  let r = applyFormat("say hello now", 4, 9, { bold: true });
+  expect(r).toEqual({ text: "say **hello** now", start: 6, end: 11 });
+  expect(applyFormat(r.text, r.start, r.end, { bold: true })).toEqual({ text: "say hello now", start: 4, end: 9 });
+  expect(applyFormat("ab\n\ncd", 0, 6, { italic: true }).text).toBe("*ab*\n\n*cd*");
+  r = applyFormat("big word", 0, 3, { attrs: { size: 72 } });
+  expect(r).toEqual({ text: "[big]{size=72} word", start: 1, end: 4 });
+  r = applyFormat(r.text, r.start, r.end, { attrs: { color: "#ff0000" } });
+  expect(r.text).toBe("[big]{size=72 color=#ff0000} word");
+  r = applyFormat(r.text, r.start, r.end, { attrs: { size: null, color: null } });
+  expect(r).toEqual({ text: "big word", start: 0, end: 3 });
+  expect(applyFormat("a **b** [c]{size=9}", 0, 0, { clear: true }).text).toBe("a b c");
+  expect(applyFormat("a **b** c", 2, 7, { clear: true })).toEqual({ text: "a b c", start: 2, end: 3 });
+});

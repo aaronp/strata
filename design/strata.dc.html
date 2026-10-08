@@ -887,6 +887,71 @@ const BUILTIN_STYLES = {
   body: { name: 'Body', ...STYLE_BASE, size: 32, weight: 400, valign: 'top', lh: 1.35, gap: 0.35 },
 };
 const mergeStyles = own => { const out = {}; for (const k in BUILTIN_STYLES) out[k] = { ...BUILTIN_STYLES[k], ...((own || {})[k] || {}) }; for (const k in own || {}) if (!out[k]) out[k] = own[k]; return out; };
+// ---- Inline markup: **bold**, *italic*, [words]{style=h2 size=72 color=#hex font=serif weight=600}, \ escapes. Per line; malformed markup is literal.
+const ESC = '*[]{}\\';
+const runKeys = ['b', 'i', 'size', 'color', 'font', 'weight', 'ls'];
+const unesc = (s, j) => (s[j] === '\\' && j + 1 < s.length && ESC.includes(s[j + 1]));
+const matchBracket = (s, j) => { let d = 0; for (let k = j; k < s.length; k++) { if (unesc(s, k)) { k++; continue; } if (s[k] === '[') d++; else if (s[k] === ']' && --d === 0) return k; } return -1; };
+const closeBrace = (s, j) => { for (let k = j; k < s.length; k++) { if (unesc(s, k)) { k++; continue; } if (s[k] === '}') return k; } return -1; };
+const spanEnd = (s, j) => { const rb = matchBracket(s, j); if (rb < 0 || s[rb + 1] !== '{') return -1; const cb = closeBrace(s, rb + 2); return cb < 0 ? -1 : cb + 1; };
+// Next closing run of exactly n stars at or after j (skipping escapes, whole spans, and longer star runs); a closer can't follow whitespace.
+const findStars = (s, j, n) => { for (let k = j; k < s.length; k++) { if (unesc(s, k)) { k++; continue; } if (s[k] === '[') { const e = spanEnd(s, k); if (e > 0) { k = e - 1; continue; } }
+  if (s[k] === '*') { let m = 0; while (s[k + m] === '*') m++; if (m === n && !/\s/.test(s[k - 1])) return k; k += m - 1; } } return -1; };
+const attrsOf = str => { const a = {}; String(str).trim().split(/\s+/).forEach(p => { const m = /^(\w+)=(\S+)$/.exec(p); if (m) a[m[1]] = m[2]; }); return a; };
+const spanFmt = (fmt, a, lookupStyle) => {
+  const f = { ...fmt }, st = a.style && lookupStyle ? lookupStyle(a.style) : null;
+  if (st) ['font', 'size', 'weight', 'color', 'ls'].forEach(k => { if (st[k] !== undefined && st[k] !== null) f[k] = st[k]; });
+  if (+a.size > 0) f.size = +a.size;
+  if (/^[1-9]00$/.test(a.weight || '')) f.weight = +a.weight;
+  if (/^(#[0-9a-f]{3,8}|[a-z]+)$/i.test(a.color || '')) f.color = a.color;
+  if (a.font && FONT_CSS[a.font]) f.font = a.font;
+  return f;
+};
+function parseRich(line, lookupStyle) {
+  const out = [];
+  const push = (text, fmt) => { if (!text) return; const last = out[out.length - 1];
+    if (last && runKeys.every(k => last[k] === fmt[k])) last.text += text; else { const r = { text }; runKeys.forEach(k => { if (fmt[k] !== undefined) r[k] = fmt[k]; }); out.push(r); } };
+  const walk = (s, fmt) => {
+    let i = 0, buf = ''; const flush = () => { push(buf, fmt); buf = ''; };
+    while (i < s.length) {
+      if (unesc(s, i)) { buf += s[i + 1]; i += 2; continue; }
+      if (s[i] === '*') { let n = 0; while (s[i + n] === '*') n++; n = Math.min(n, 3);
+        const c = findStars(s, i + n, n);
+        if (c > i + n && !/\s/.test(s[i + n])) { flush();   // an opener can't precede whitespace, so "5 * 3" stays literal
+          walk(s.slice(i + n, c), { ...fmt, ...(n !== 1 ? { b: true } : {}), ...(n !== 2 ? { i: true } : {}) }); i = c + n; continue; }
+        buf += s.slice(i, i + n); i += n; continue; }
+      if (s[i] === '[') { const rb = matchBracket(s, i), e = spanEnd(s, i);
+        if (e > 0) { flush(); walk(s.slice(i + 1, rb), spanFmt(fmt, attrsOf(s.slice(rb + 2, e - 1)), lookupStyle)); i = e; continue; } }
+      buf += s[i]; i++;
+    }
+    flush();
+  };
+  walk(String(line), {});
+  return out.length ? out : [{ text: ' ' }];
+}
+const plainText = text => String(text ?? '').split('\n').map(l => l === '' ? '' : parseRich(l).map(r => r.text).join('')).join('\n');
+// Format the [start,end) selection; returns the new text and a selection on the same words (inside any markers).
+function applyFormat(text, start, end, op) {
+  text = String(text ?? '');
+  if (op.clear) { if (start === end) { const t = plainText(text); return { text: t, start: 0, end: t.length }; }
+    const p = plainText(text.slice(start, end)); return { text: text.slice(0, start) + p + text.slice(end), start, end: start + p.length }; }
+  const wrapLines = (open, close) => { const pieces = text.slice(start, end).split('\n'); const w = pieces.map(p => p ? open + p + close : p).join('\n');
+    const first = pieces[0] ? open.length : 0, last = pieces[pieces.length - 1] ? close.length : 0;
+    return { text: text.slice(0, start) + w + text.slice(end), start: start + first, end: start + w.length - last }; };
+  if (op.bold || op.italic) { const d = op.bold ? '**' : '*';
+    if (text.slice(start - d.length, start) === d && text.slice(end, end + d.length) === d && text[start - d.length - 1] !== '*' && text[end + d.length] !== '*')
+      return { text: text.slice(0, start - d.length) + text.slice(start, end) + text.slice(end + d.length), start: start - d.length, end: end - d.length };
+    return wrapLines(d, d); }
+  if (op.attrs) {
+    const fmtA = a => Object.entries(a).filter(([, v]) => v !== null && v !== undefined && v !== '').map(([k, v]) => k + '=' + v).join(' ');
+    if (text[start - 1] === '[' && text.slice(end, end + 2) === ']{') { const cb = closeBrace(text, end + 2);
+      if (cb > 0) { const a = { ...attrsOf(text.slice(end + 2, cb)), ...op.attrs }; const s2 = fmtA(a), inner = text.slice(start, end);
+        if (!s2) return { text: text.slice(0, start - 1) + inner + text.slice(cb + 1), start: start - 1, end: end - 1 };
+        return { text: text.slice(0, start - 1) + '[' + inner + ']{' + s2 + '}' + text.slice(cb + 1), start, end }; } }
+    const s2 = fmtA(op.attrs); if (!s2) return { text, start, end };
+    return wrapLines('[', ']{' + s2 + '}'); }
+  return { text, start, end };
+}
 const deckUrl = (slug, v) => typeof v === 'string' && v && !/^(data:|blob:|https?:|\/)/.test(v) ? '../decks/' + slug + '/' + v : v;
 const absUrl = v => DECK ? deckUrl(DECK, v) : v;
 const relUrl = v => typeof v === 'string' && DECK_BASE && v.startsWith(DECK_BASE) ? v.slice(DECK_BASE.length) : v;
@@ -987,6 +1052,7 @@ function seed() {
 }
 
 class Component extends DCLogic {
+  static rich = { parseRich, plainText, applyFormat };
   state = {
     nodes: seed(), cur: 'a', prev: null, phase: 'idle', dx: 0, dy: 0, type: 'swipe', mode: STATIC ? 'present' : 'build', view: 'slide', rtab: 'slide',
     query: '', bg: 'balloons', customBg: null, customAspect: 1, opacity: 1, base: '#0b1220', offset: 0,

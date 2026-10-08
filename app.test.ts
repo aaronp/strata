@@ -1088,3 +1088,18 @@ test("column step: 100% abuts slides (camera and background move in sync); below
   expect(L.rect.a.x).toBe(0); expect(L.rect.b.x).toBeCloseTo(L.w / 2); expect(L.CW).toBeCloseTo(L.rect.c.x + L.w);
   c.setState({ gap: 0.12 }); expect(c.renderVals().gapLabel).toBe("112% of a slide");   // existing decks keep their spacing
 });
+
+test("Even steps (default): every sibling move is one step, whatever the subtree; Fit subtrees keeps the old packing", async () => {
+  await writeDeck("talk", { ROOT: slideNode("ROOT", "", ["a", "b"]), a: slideNode("a", "A", ["a1", "a2", "a3"]), a1: slideNode("a1", "A1"), a2: slideNode("a2", "A2"), a3: slideNode("a3", "A3"),
+    b: slideNode("b", "B", ["b1"]), b1: slideNode("b1", "B1") }, { gap: 0 });
+  const { c } = await mount("?deck=talk");
+  let L = c.layout(c.derive()); const step = L.w;
+  expect(L.rect.b.x - L.rect.a.x).toBeCloseTo(step);                     // not 3 steps past a's children
+  expect(L.rect.a3.x - L.rect.a.x).toBeCloseTo(2 * step); expect(L.rect.b1.x).toBeCloseTo(L.rect.b.x);
+  expect(L.CW).toBeCloseTo(3 * step);                                      // the widest row (a1..a3)
+  let v = c.renderVals(); expect(v.spacingBtns.map((b: any) => b.label)).toEqual(["Even steps", "Fit subtrees"]);
+  v.spacingBtns[1].onClick(); expect(c.state.spacing).toBe("fit");
+  L = c.layout(c.derive()); expect(L.rect.b.x - L.rect.a.x).toBeCloseTo(3 * step);
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  expect(html).toContain("{{ spacingBtns }}");
+});

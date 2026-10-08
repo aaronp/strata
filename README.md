@@ -84,7 +84,7 @@ A layer keeps the **same `id`** across frames; that's how it's matched for tween
 
 ### Layout and parallax (`layout()` in the source)
 - Canvas height = 100 units. `L` = number of levels (max depth + 1). Slide height `h = (100 − margin·(L+1)) / L`, width `w = h·16/9`. Each level's row starts `margin` below the row above it.
-- Horizontal placement: a slide's children start at the **parent's x** and run right (never back to the left). Each leaf takes one slot `w·(1+gap)`, and a parent spans at least its children's width.
+- Horizontal placement (Layout → Spacing): **Even steps** (default) puts each slide at its parent's x + index × step, so every move between neighbours shifts the camera one step and every level move one row, whatever the tree's shape (branches may overlap on the canvas). **Fit subtrees** packs instead: a slide's children start at its x and run right, each leaf takes one step, and a parent spans at least its children's width.
 - The camera centres on the current slide's rectangle. The background is drawn at canvas height, looped horizontally, and shifted by `offset`.
 - Transitions between slides are swipes (fade for jumps from search or breadcrumbs); the background pans with the camera.
 

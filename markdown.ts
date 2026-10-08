@@ -19,6 +19,12 @@ const ITEM = /^\s*[-*]\s+(.*)$/;
 const CHIP_ONLY = /^\[link:([^\]]+)\]\[([^\]]*)\]$/;
 const CHIP = /\[link:([^\]]+)\]\[([^\]]*)\]/g;
 const EXT = /\[([^\]]+)\]\(([^)\s]+)\)/g;
+// Inline markup → plain text (a regex mirror of the app's parser for titles and slugs): spans keep their words, ** and * markers go, escapes become literal.
+export function plainText(t: string): string {
+  let s = String(t ?? ""), prev;
+  do { prev = s; s = s.replace(/\[([^\[\]]*)\]\{[^}]*\}/g, "$1"); } while (s !== prev);   // innermost spans first
+  return s.replace(/\*\*\*(?=\S)(.+?)\*\*\*/g, "$1").replace(/\*\*(?=\S)(.+?)\*\*/g, "$1").replace(/(^|[^*])\*(?=\S)([^*]+?)\*/g, "$1$2").replace(/\\([*[\]{}\\])/g, "$1");
+}
 const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 
 type Line = { text: string; line: number };
@@ -36,8 +42,7 @@ function parseBody(lines: Line[]) {
     if (exts.length && !t.replace(EXT, "").replace(/[·|,;\s]/g, "")) { exts.forEach(m => sources.push({ text: m[1], url: m[2] })); return; }
     const text = t
       .replace(CHIP, (_, ref, label) => { links.push({ ref: ref.trim(), label: label.trim(), line }); return label.trim(); })
-      .replace(EXT, (_, txt, url) => { sources.push({ text: txt, url }); return txt; })
-      .replace(/\*\*/g, "");
+      .replace(EXT, (_, txt, url) => { sources.push({ text: txt, url }); return txt; });   // inline markup (**, *, [..]{..}) is kept for the app to render
     out.push({ text, item, block });
   };
   blocks.forEach((blk, bi) => {
@@ -61,10 +66,10 @@ export function parseMarkdown(md: string): { sections: Section[]; errors: Issue[
   for (; i < lines.length; i++) {
     const h = HEADING.exec(lines[i]);
     if (h) {
-      const r: Raw = { level: h[1].length, title: h[2].replace(/\*\*/g, ""), slug: "", line: i + 1, body: [] };
+      const r: Raw = { level: h[1].length, title: h[2], slug: "", line: i + 1, body: [] };
       const s = SLUG_LINE.exec(lines[i + 1] ?? "");
       if (s) { i++; r.slug = s[1]; if (!SLUG_RE.test(s[1])) errors.push({ line: i + 1, msg: `invalid slug "${s[1]}" (use a-z, 0-9 and -)` }); }
-      else { r.slug = slugify(r.title) || `section-${r.line}`; warnings.push({ line: r.line, msg: `no slug line; using "${r.slug}"` }); }
+      else { r.slug = slugify(plainText(r.title)) || `section-${r.line}`; warnings.push({ line: r.line, msg: `no slug line; using "${r.slug}"` }); }
       const inc = INC_LINE.exec(lines[i + 1] ?? "");
       if (inc) {
         i++; r.include = inc[1];

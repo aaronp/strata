@@ -1,5 +1,5 @@
 import { basename, join, relative, resolve } from "node:path";
-import { parseMarkdown, type Section } from "./markdown";
+import { parseMarkdown, plainText, type Section } from "./markdown";
 import { saveDeck, SLUG } from "./server";
 
 const text = (id: string, geo: object, txt: string, extra: object = {}) => ({
@@ -52,7 +52,7 @@ export function importInto(deck: any | null, sections: Section[]): any {
     const prev = old[s.slug], gen = layersFor(s);
     const frames = prev?.frames ?? (prev?.layers ? [{ id: "f0-" + s.slug, layers: prev.layers }] : null);
     const { layers: _legacy, ...rest } = prev ?? {};   // a link made in the builder (include) survives a re-import without an include: line
-    nodes[s.slug] = { ...rest, id: s.slug, title: s.title, body: s.body, children: s.children.map(c => c.slug), ...(s.include ? { include: s.include } : {}),
+    nodes[s.slug] = { ...rest, id: s.slug, title: plainText(s.title), body: s.body, children: s.children.map(c => c.slug), ...(s.include ? { include: s.include } : {}),
       frames: frames ? frames.map((f: any) => ({ ...f, layers: mergeLayers(f.layers, gen) })) : [{ id: "f1", layers: gen }] };
     s.children.forEach(add);
   };

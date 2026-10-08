@@ -183,3 +183,9 @@ test("re-import respects styled md layers: a removed override stays removed, and
   expect(again.find((l: any) => l.id === "md-body").size).toBeUndefined();
   expect(again.find((l: any) => l.id === "md-title")).toMatchObject({ style: "", size: 64, weight: 800 });
 });
+
+test("import: md-title keeps the heading's markup, the node title is plain", () => {
+  const d = imp(null, "# The **big** idea\nslug: big\n");
+  expect(d.nodes.big.title).toBe("The big idea");
+  expect(d.nodes.big.frames[0].layers.find((l: any) => l.id === "md-title").text).toBe("The **big** idea");
+});

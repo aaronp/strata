@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { parseMarkdown } from "./markdown";
+import { parseMarkdown, plainText } from "./markdown";
 
 const MD = `<!--
 metadata, ignored
@@ -40,9 +40,9 @@ test("headings become a tree with slugs, in file order", () => {
   expect(sections[0].children[0].children.map(s => [s.slug, s.depth])).toEqual([["grand", 3]]);
 });
 
-test("a section's body excludes child sections; bold markers are dropped", () => {
+test("a section's body excludes child sections; bold markers are kept for the app to render", () => {
   const top = parseMarkdown(MD).sections[0];
-  expect(top.text).toBe("Intro bold text.");
+  expect(top.text).toBe("Intro **bold** text.");
   expect(top.body).toContain("[link:kid-a][Go A]");
   expect(top.body).not.toContain("Kid A");
 });
@@ -195,4 +195,24 @@ Why wallets.
 `);
   expect(parseMarkdown(md).errors).toEqual([]);
   expect(() => toMarkdown(nodes, "wallets.costs", { deck: "d", date: "x" })).toThrow('belongs to deck "digital-wallets"');
+});
+
+test("markup survives parsing: bold, italic and spans in bodies and headings; slugs come from the plain title", () => {
+  const r = parseMarkdown("# The **big** [idea]{size=80}\n\nSay **this** and *that* [loud]{color=#d9432b}.\n");
+  expect(r.sections[0].title).toBe("The **big** [idea]{size=80}");
+  expect(r.sections[0].slug).toBe("the-big-idea");
+  expect(r.sections[0].text).toBe("Say **this** and *that* [loud]{color=#d9432b}.");
+});
+
+test("plainText (markdown.ts) matches the app's cases", () => {
+  expect(plainText("a **b** [c]{size=9}\n\n*d* \\*e")).toBe("a b c\n\nd *e");
+  expect(plainText("[a [b]{size=9} c]{size=20}")).toBe("a b c");
+  expect(plainText("5 * 3 and [draft]")).toBe("5 * 3 and [draft]");
+});
+
+test("export keeps body markup, so it re-imports formatted", () => {
+  const nodes: any = { ROOT: node("ROOT", "", ["s"], null), s: node("s", "S", [], [T("b", "Say **this** [now]{size=72}", 30)]) };
+  const md = toMarkdown(nodes, "s", { deck: "d", date: "x" });
+  expect(md).toContain("Say **this** [now]{size=72}");
+  expect(parseMarkdown(md).sections[0].text).toBe("Say **this** [now]{size=72}");
 });

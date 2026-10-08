@@ -534,15 +534,33 @@ input,textarea,button{font:inherit;color:inherit}
                 </div>
                 <sc-if value="{{ lyIsText }}">
                   <textarea value="{{ ly.text }}" onChange="{{ onLyText }}" rows="4" placeholder="One line per bullet" style="padding:8px 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;resize:vertical;line-height:1.4;outline:none"></textarea>
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <span style="width:44px;font-size:12px;color:#6b6458">Style</span>
+                    <select value="{{ lyStyle }}" onChange="{{ onLyStyle }}" style="flex:1;min-width:0;height:28px;padding:0 4px;border:1px solid #e0d9cb;border-radius:6px;background:#fff">
+                      <sc-for list="{{ styleOpts }}" as="o" hint-placeholder-count="5"><option value="{{ o.v }}">{{ o.l }}</option></sc-for>
+                    </select>
+                  </div>
+                  <sc-if value="{{ lyStyled }}">
+                    <div style="display:flex;align-items:center;gap:6px">
+                      <span style="font-size:12px;color:#6b6458;flex:none">Edits apply to</span>
+                      <div style="flex:1;display:flex;gap:2px;padding:3px;border-radius:9px;background:#ece6d9">
+                        <sc-for list="{{ styleTargetBtns }}" as="sb" hint-placeholder-count="2">
+                          <button onClick="{{ sb.onClick }}" style="flex:1;padding:4px 6px;border:0;border-radius:7px;cursor:pointer;background:{{ sb.bg }};color:{{ sb.color }};box-shadow:{{ sb.shadow }};font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ sb.label }}</button>
+                        </sc-for>
+                      </div>
+                    </div>
+                    <sc-if value="{{ lyHasOverrides }}"><button onClick="{{ onClearOverrides }}" title="Remove this layer's own settings so it follows the style" style="align-self:flex-start;padding:3px 8px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer;font-size:11.5px">Clear overrides</button></sc-if>
+                  </sc-if>
                   <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px 10px">
                     <sc-for list="{{ textFields }}" as="tf" hint-placeholder-count="8">
-                      <label style="display:grid;grid-template-columns:44px minmax(0,1fr);align-items:center;gap:6px;min-width:0">
+                      <label style="display:grid;grid-template-columns:44px minmax(0,1fr) auto;align-items:center;gap:6px;min-width:0">
                         <span style="font-size:12px;color:#6b6458;white-space:nowrap">{{ tf.label }}</span>
                         <select value="{{ tf.value }}" onChange="{{ tf.onChange }}" style="width:100%;min-width:0;height:28px;padding:0 4px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;outline:none;font-size:12px;cursor:pointer">
                           <sc-for list="{{ tf.opts }}" as="o" hint-placeholder-count="3">
                             <option value="{{ o.v }}">{{ o.l }}</option>
                           </sc-for>
                         </select>
+                        <sc-if value="{{ tf.over }}"><button onClick="{{ tf.onReset }}" title="Remove this layer's override (use the style)" style="padding:0 4px;border:0;background:none;cursor:pointer;color:#6b6458">↺</button></sc-if>
                       </label>
                     </sc-for>
                   </div>
@@ -551,6 +569,7 @@ input,textarea,button{font:inherit;color:inherit}
                       <span style="width:12px;flex:none;font-size:10px;color:#6b6458">{{ sec.box.caret }}</span>
                       <span style="flex:1;font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#1d1b17">Container</span>
                       <span style="font-size:11.5px;color:#6b6458">{{ boxModeLabel }}</span>
+                      <sc-if value="{{ boxOver }}"><button onClick="{{ onBoxReset }}" title="Remove this layer's container override" style="padding:0 4px;border:0;background:none;cursor:pointer;color:#6b6458">↺</button></sc-if>
                     </div>
                     <sc-if value="{{ sec.box.open }}">
                       <div style="display:flex;flex-direction:column;gap:8px;padding:0 10px 10px">
@@ -573,7 +592,7 @@ input,textarea,button{font:inherit;color:inherit}
                       </div>
                     </sc-if>
                   </div>
-                  <span style="font-size:12px;color:#6b6458">Colour</span>
+                  <span style="font-size:12px;color:#6b6458">{{ colorLabel }} <sc-if value="{{ colorOver }}"><button onClick="{{ onColorReset }}" title="Remove this layer's colour override" style="padding:0 4px;border:0;background:none;cursor:pointer;color:#6b6458">↺</button></sc-if></span>
                   <div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center">
                 <sc-for list="{{ swatches }}" as="sw" hint-placeholder-count="10">
                   <button onClick="{{ sw.onClick }}" title="{{ sw.title }}" style="width:22px;height:22px;padding:0;border-radius:6px;cursor:pointer;background:{{ sw.bg }};border:{{ sw.border }};font-size:9px;font-weight:700;color:#6b6458">{{ sw.label }}</button>
@@ -1537,9 +1556,17 @@ class Component extends DCLogic {
   }
   goFrame(k) { const cur = this.fiFor(this.curId()); if (k === cur) return; if (Math.abs(k - cur) === 1) this.stepFrame(k - cur); else this.setState({ fi: k, tween: null }); }
   updLayer(id, lid, patch) { this.setLayers(id, ls => ls.map(l => l.id === lid ? { ...l, ...patch } : l)); }
+  setStyle(id, patch) { this.setState(s => ({ styles: { ...(s.styles || {}), [id]: { ...((s.styles || {})[id] || {}), ...patch } } })); }
+  clearKeys(id, lid, keys) { this.setLayers(id, ls => ls.map(l => { if (l.id !== lid) return l; const o = { ...l }; keys.forEach(k => delete o[k]); return o; })); }
+  // '' = Custom: keep the look by writing the resolved values onto the layer. Otherwise adopt the style fully.
+  chooseStyle(id, lid, sid) {
+    this.setLayers(id, ls => ls.map(l => { if (l.id !== lid) return l;
+      if (!sid) { const o = { ...this.resolveLayer(l, id) }; delete o.style; return o; }
+      const o = { ...l, style: sid }; STYLE_KEYS.forEach(k => delete o[k]); return o; }));
+  }
   addLayer(type, extra) {
     const id = this.curId(); const lid = 'l' + uid();
-    const D0 = { text: { x: 20, y: 40, w: 60, h: 14, text: 'New text', font: 'grot', size: 56, weight: 600, color: null, align: 'left', valign: 'top', lh: 1.2, bullets: 'none', gap: 0.15 },
+    const D0 = { text: { x: 20, y: 40, w: 60, h: 14, text: 'New text', style: 'body' },
       image: { x: 30, y: 20, w: 40, h: 60, radius: 16, fit: 'cover', imgKey: null },
       shape: { x: 40, y: 35, w: 20, h: 30, shape: 'rect', fill: '#d9432b', radius: 24 },
       icon: { x: 45, y: 41, w: 10, h: 17.78, icon: 'star', fill: null, sw: 1.8 },
@@ -1845,7 +1872,14 @@ class Component extends DCLogic {
     // layer editing
     const editable = !isPresent && !isWire && !active && !curN._from;
     const curLayers = this.layersOf(cur); const ly = S.layerSel ? curLayers.find(l => l.id === S.layerSel) : null;
-    const upL = patch => ly && this.updLayer(cur, ly.id, patch);
+    const styled = !!(ly && ly.type === 'text' && ly.style && this.styles()[ly.style]), toStyle = styled && S.styleTarget === 'style';
+    const lyR = ly ? this.resolveLayer(ly, cur) : null;
+    const lv = toStyle ? { ...lyR, ...this.styles()[ly.style] } : lyR;              // what the controls show: the style's values in Style mode
+    const over = k => styled && ly[k] !== undefined;
+    // Style mode sends style settings to the style; everything else (text, geometry, link…) always goes to the layer.
+    const upL = patch => { if (!ly) return; if (!toStyle) { this.updLayer(cur, ly.id, patch); return; }
+      const sp = {}, lp = {}; for (const k in patch) (STYLE_KEYS.includes(k) ? sp : lp)[k] = patch[k];
+      if (Object.keys(sp).length) this.setStyle(ly.style, sp); if (Object.keys(lp).length) this.updLayer(cur, ly.id, lp); };
     const lname = l => l.type === 'text' ? short(String(l.text || '').split('\n')[0] || 'Text', 24) : l.type === 'image' ? 'Image' : l.type === 'shape' ? ({ rect: 'Rectangle', ellipse: 'Ellipse', triangle: 'Triangle' }[l.shape] || 'Shape') : l.type === 'component' ? '⧉ ' + (l.name || 'Component') : 'Icon · ' + (l.icon || '');
     const selIds = this.selIds(), multi = selIds.length > 1, hits = S.marqueeHits || [], mh = this._mh || {};
     const overlays = curLayers.map((l, i) => ({ l: l.x, t: l.y, w: l.w, h: Math.max(l.h, mh[l.id] || 0), rot: l.rot || 0, z: i + 1, pe: S.interact === l.id && S.layerSel === l.id ? 'none' : 'auto', selected: selIds.includes(l.id), single: !multi && l.id === S.layerSel, hidden: !!l.hidden,
@@ -1862,7 +1896,7 @@ class Component extends DCLogic {
       onUp: e => { e.stopPropagation(); this.zLayer(l.id, 1); }, onDown: e => { e.stopPropagation(); this.zLayer(l.id, -1); } }));
     const tabOn = (on, extra) => ({ bg: on ? '#fbf9f4' : 'transparent', shadow: on ? '0 1px 3px rgba(0,0,0,.12)' : 'none', weight: 600, font: 'inherit', ...(extra || {}) });
     const colorKey = ly && ly.type === 'text' ? 'color' : 'fill';
-    const curColor = ly ? ly[colorKey] : null;
+    const curColor = lv ? lv[colorKey] : null;
     const layerVals = {
       editable, curLayers, prevLayers: active ? this.shown(S.prev, this.layersOf(S.prev, S.prevFi || 0)) : [], images: S.images, editingId: S.editing || '', stageRef: this.stageRef, editRef: this.editRef, imgInputRef: this.imgInputRef,
       onImgFile: e => this.onImgFile(e), overlays, guideV: !!S.guides.v, guideH: !!S.guides.h, isEditingText: !!edL, ed,
@@ -1886,7 +1920,7 @@ class Component extends DCLogic {
       grpHandles: [['nw', 0, 0, 'nwse'], ['n', 50, 0, 'ns'], ['ne', 100, 0, 'nesw'], ['e', 100, 50, 'ew'], ['se', 100, 100, 'nwse'], ['s', 50, 100, 'ns'], ['sw', 0, 100, 'nesw'], ['w', 0, 50, 'ew']]
         .map(([m, x, y, c]) => ({ l: x + '%', t: y + '%', cursor: c + '-resize', onDown: ev => this.startGroupResize(ev, m) })),
       hasMarquee: !!S.marquee, mq: S.marquee ? { l: S.marquee.x, t: S.marquee.y, w: S.marquee.w, h: S.marquee.h } : { l: 0, t: 0, w: 0, h: 0 },
-      ly: ly ? { ...ly, size: ly.size || 40, lh: ly.lh || 1.2 } : {}, lyLabel: ly ? lname(ly) : '',
+      ly: lv ? { ...lv, size: lv.size || 40, lh: lv.lh || 1.2 } : {}, lyLabel: ly ? lname(ly) : '',
       lyIsText: !!ly && ly.type === 'text', lyIsImage: !!ly && ly.type === 'image',
       pasteImage: () => ly && this.pasteFromClipboard(cur, ly.id), pasteTitle: S.clipMsg || (S.clipImg ? 'Paste the image on your clipboard' : 'Paste image from clipboard (or Ctrl/⌘+V)'),
       pasteBg: S.clipImg ? '#1d1b17' : '#fff', pasteColor: S.clipImg ? '#fbf9f4' : '#1d1b17', pasteBorder: S.clipImg ? '#1d1b17' : '#e0d9cb',
@@ -1917,28 +1951,28 @@ class Component extends DCLogic {
       lyOp: ly ? (ly.opacity ?? 1) : 1, opLabel: ly ? Math.round((ly.opacity ?? 1) * 100) + '%' : '', onLyOp: e => upL({ opacity: +e.target.value }),
     };
     const withCur = (list, v) => (v === undefined || list.includes(v) ? list : [...list, v].sort((a, b) => a - b));
-    const field = (label, key, opts, fallback, parse) => ({ label, value: String(ly ? (ly[key] ?? fallback) : fallback), opts: opts.map(([v, l]) => ({ v: String(v), l })), onChange: e => upL({ [key]: parse ? parse(e.target.value) : e.target.value }) });
+    const field = (label, key, opts, fallback, parse) => ({ label: label + (over(key) ? ' •' : ''), value: String(lv ? (lv[key] ?? fallback) : fallback), opts: opts.map(([v, l]) => ({ v: String(v), l })), onChange: e => upL({ [key]: parse ? parse(e.target.value) : e.target.value }), over: over(key), onReset: () => this.clearKeys(cur, ly.id, [key]) });
     const CARD0 = { mode: 'none', color: '#0b1220', opacity: 0.45, blur: 8 }; const cardCfg = { ...CARD0, ...(S.card || {}) };
     const setCard = patch => this.setState(s => ({ card: { ...CARD0, ...(s.card || {}), ...patch } }));
     // Text box: deck default / on (deck style) / custom / off. Custom starts from the deck's style.
-    const bx = ly && ly.type === 'text' ? { bg: cardCfg.color, bgOpacity: cardCfg.opacity, blur: cardCfg.blur, border: 0, borderColor: '#ffffff', radius: 12, pad: 12, ...(ly.box || {}) } : null;
+    const bx = ly && ly.type === 'text' ? { bg: cardCfg.color, bgOpacity: cardCfg.opacity, blur: cardCfg.blur, border: 0, borderColor: '#ffffff', radius: 12, pad: 12, ...(lv.box || {}) } : null;
     const upBox = patch => upL({ card: 'custom', box: { ...bx, ...patch } });   // touching any control makes the box custom
-    const setBoxMode = m => upL(m === 'custom' && !ly.box ? { card: 'custom', box: bx } : { card: m });
-    const boxModes = bx ? [['', 'Deck default'], ['custom', 'Custom'], ['off', 'Off']].map(([m, label]) => ({ label, ...tab((ly.card === 'on' ? '' : ly.card || '') === m), onClick: () => setBoxMode(m) })) : [];
-    const boxModeLabel = bx ? ({ on: 'Deck style', custom: 'Custom', off: 'Off' }[ly.card] || 'Deck default') : '';
+    const setBoxMode = m => upL(m === 'custom' && !lv.box ? { card: 'custom', box: bx } : { card: m });
+    const boxModes = bx ? [['', 'Deck default'], ['custom', 'Custom'], ['off', 'Off']].map(([m, label]) => ({ label, ...tab((lv.card === 'on' ? '' : lv.card || '') === m), onClick: () => setBoxMode(m) })) : [];
+    const boxModeLabel = bx ? ({ on: 'Deck style', custom: 'Custom', off: 'Off' }[lv.card] || 'Deck default') + (over('card') || over('box') ? ' •' : '') : '';
     const boxColors = bx ? [['Background', 'bg'], ['Border', 'borderColor']].map(([label, k]) => ({ label, value: bx[k], onChange: e => upBox({ [k]: e.target.value }) })) : [];
     const boxFields = bx ? [['Opacity', 'bgOpacity', 0, 1, 0.05, v => Math.round(v * 100) + '%'], ['Blur', 'blur', 0, 24, 1, v => v + ' px'], ['Border', 'border', 0, 8, 0.5, v => v + ' px'],
       ['Corners', 'radius', 0, 48, 1, v => v + ' px'], ['Padding', 'pad', 0, 48, 1, v => v + ' px']]
       .map(([label, k, min, max, step, fmt]) => ({ label, min, max, step, value: bx[k], valLabel: fmt(bx[k]), onChange: e => upBox({ [k]: +e.target.value }) })) : [];
     const textFields = ly && ly.type === 'text' ? [
       field('Font', 'font', FONT_LIST.map(f => [f[0], f[1]]), 'grot'),
-      field('Size', 'size', withCur([12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 48, 56, 64, 72, 80, 96, 110, 128, 144, 160, 192, 240], ly.size || 40).map(v => [v, v + ' px']), 40, Number),
+      field('Size', 'size', withCur([12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 48, 56, 64, 72, 80, 96, 110, 128, 144, 160, 192, 240], lv.size || 40).map(v => [v, v + ' px']), 40, Number),
       field('Weight', 'weight', [[400, 'Regular'], [500, 'Medium'], [600, 'Semibold'], [700, 'Bold'], [800, 'Extra bold']], 400, Number),
       field('Align', 'align', [['left', 'Left'], ['center', 'Centre'], ['right', 'Right']], 'left'),
       field('V-align', 'valign', [['top', 'Top'], ['middle', 'Middle'], ['bottom', 'Bottom']], 'top'),
       field('Bullets', 'bullets', [['none', 'None'], ['disc', '•  Dot'], ['dash', '–  Dash'], ['number', '1.  Numbers'], ['check', '✓  Check'], ['arrow', '→  Arrow']], 'none'),
-      field('Line ht', 'lh', withCur([0.9, 1, 1.1, 1.2, 1.25, 1.3, 1.35, 1.4, 1.5, 1.75, 2], ly.lh || 1.2).map(v => [v, v.toFixed(2)]), 1.2, Number),
-      field('Gap', 'gap', withCur([0, 0.1, 0.15, 0.25, 0.4, 0.45, 0.6, 0.8, 1], ly.gap ?? 0.15).map(v => [v, v + ' em']), 0.15, Number),
+      field('Line ht', 'lh', withCur([0.9, 1, 1.1, 1.2, 1.25, 1.3, 1.35, 1.4, 1.5, 1.75, 2], lv.lh || 1.2).map(v => [v, v.toFixed(2)]), 1.2, Number),
+      field('Gap', 'gap', withCur([0, 0.1, 0.15, 0.25, 0.4, 0.45, 0.6, 0.8, 1], lv.gap ?? 0.15).map(v => [v, v + ' em']), 0.15, Number),
     ] : [];
     // frames
     const framesCur = this.framesOf(cur); const fiCur = this.fiFor(cur); const nCur = N[cur];
@@ -2059,6 +2093,12 @@ class Component extends DCLogic {
       insertOpen: !!DECK && !STATIC && !!(S.secOpen || {}).insert, insertBg: (S.secOpen || {}).insert ? '#ece6d9' : '#fff',
       onInsertToggle: () => this.setState(st => ({ secOpen: { ...st.secOpen, insert: !(st.secOpen || {}).insert } })),
       fromDeck: curN._from || '', fromHref: '?deck=' + (curN._from || ''), ownSlide: !curN._from, linkedDeck: curN.include || '', linkedHref: '?deck=' + (curN.include || ''),
+      styleOpts: [{ v: '', l: 'Custom' }].concat(Object.entries(this.styles()).map(([id, st]) => ({ v: id, l: st.name || id }))),
+      lyStyle: styled ? ly.style : '', onLyStyle: e => ly && this.chooseStyle(cur, ly.id, e.target.value), lyStyled: styled,
+      styleTargetBtns: styled ? [['layer', 'This layer'], ['style', (this.styles()[ly.style].name || ly.style) + ' style']].map(([v, label]) => ({ label, ...tab((S.styleTarget === 'style' ? 'style' : 'layer') === v), onClick: () => this.setState({ styleTarget: v }) })) : [],
+      lyHasOverrides: styled && STYLE_KEYS.some(over), onClearOverrides: () => ly && this.clearKeys(cur, ly.id, STYLE_KEYS),
+      colorLabel: 'Colour' + (over('color') ? ' •' : ''), colorOver: over('color'), onColorReset: () => ly && this.clearKeys(cur, ly.id, ['color']),
+      boxOver: over('card') || over('box'), onBoxReset: e => { e && e.stopPropagation && e.stopPropagation(); ly && this.clearKeys(cur, ly.id, ['card', 'box']); },
       exportShow: !STATIC, onExportMd: () => this.downloadMarkdown(cur),
       isTitlePage: cur === 'ROOT', titlePage: !!S.titlePage, onTitlePage: e => this.setTitlePage(!!e.target.checked),
       tvZoom: tvw.zoom, tvZoomMax: Math.max(8, Math.ceil(this.titleCover(L))), tvZoomLabel: tvw.zoom.toFixed(2) + '×', onTvZoom: e => setTv({ zoom: +e.target.value }),

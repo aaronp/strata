@@ -1185,3 +1185,39 @@ test("a linked-in layer uses the host's style of its id, falling back to its own
   const [p, q] = c.layersOf("t.x").map((l: any) => c.resolveLayer(l, "t.x"));
   expect(p.size).toBe(90); expect(q.size).toBe(33);
 });
+
+test("choosing a style clears overrides; Custom writes the resolved values back; each is one undo step", async () => {
+  const c = await styledDeck(); await Bun.sleep(150);
+  c.chooseStyle("s", "b", "h2"); c.componentDidUpdate();
+  expect(c.layersOf("s")[1]).toMatchObject({ style: "h2" }); expect(c.layersOf("s")[1].size).toBeUndefined();
+  c.undo(); c.componentDidUpdate(); expect(c.layersOf("s")[1]).toMatchObject({ style: "h1", size: 50 });
+  c.chooseStyle("s", "a", ""); c.componentDidUpdate();
+  const a = c.layersOf("s")[0]; expect(a.style).toBeUndefined(); expect(a).toMatchObject({ size: 64, weight: 800, valign: "bottom" });
+});
+
+test("This layer mode writes an override (marked, ↺ resets); Style mode edits the style for every layer using it", async () => {
+  const c = await styledDeck();
+  c.setState({ layerSel: "a" }); let v = c.renderVals();
+  expect(v.lyStyle).toBe("h1"); expect(v.lyStyled).toBe(true); expect(v.styleOpts.map((o: any) => o.l)).toEqual(["Custom", "H1", "H2", "H3", "Body"]);
+  const size = () => c.renderVals().textFields.find((f: any) => f.label.startsWith("Size"));   // an overridden label reads "Size •"
+  size().onChange({ target: { value: "72" } });
+  expect(c.layersOf("s")[0].size).toBe(72); expect(size().over).toBe(true); expect(c.renderVals().lyHasOverrides).toBe(true);
+  size().onReset(); expect(c.layersOf("s")[0].size).toBeUndefined(); expect(size().over).toBe(false);
+  c.renderVals().styleTargetBtns[1].onClick(); expect(c.state.styleTarget).toBe("style");
+  size().onChange({ target: { value: "80" } });
+  expect(c.state.styles).toEqual({ h1: { size: 80 } }); expect(c.layersOf("s")[0].size).toBeUndefined();
+  expect(c.resolveLayer(c.layersOf("s")[0], "s").size).toBe(80);
+  expect(c.resolveLayer(c.layersOf("s")[1], "s").size).toBe(50);              // b overrides size, so it keeps its own
+  c.renderVals().textFields.find((f: any) => f.label.startsWith("Weight")).onChange({ target: { value: "600" } });
+  expect(c.resolveLayer(c.layersOf("s")[1], "s").weight).toBe(600);           // b follows the style for weight
+  c.setState({ styleTarget: "layer", layerSel: "b" }); c.renderVals().onClearOverrides();
+  expect(c.layersOf("s")[1].size).toBeUndefined();
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  for (const h of ["{{ styleOpts }}", "{{ styleTargetBtns }}", "{{ tf.onReset }}", "{{ onClearOverrides }}"]) expect(html).toContain(h);
+});
+
+test("+ Text creates a Body layer", async () => {
+  const c = await styledDeck(); c.setState({ cur: "s" });
+  c.addLayer("text"); const l = c.layersOf("s").at(-1);
+  expect(l.style).toBe("body"); expect(l.size).toBeUndefined(); expect(c.resolveLayer(l, "s").size).toBe(32);
+});

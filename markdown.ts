@@ -139,7 +139,7 @@ export function toMarkdown(nodes: Record<string, any>, id: string, meta: { deck:
     const layers = n.frames?.[0]?.layers ?? n.layers;
     if (!layers) return n.body ? [n.body.trim()] : [];                     // never edited: the app shows the notes as its default body
     const blocks: string[] = [];
-    [...layers].filter(l => l.type === "text" && !l.hidden && one(l.text) && one(l.text) !== one(n.title))
+    [...layers].filter(l => l.type === "text" && !l.hidden && one(l.text) && one(plainText(l.text)) !== one(n.title))
       .sort((a, b) => a.y - b.y || a.x - b.x)
       .forEach(l => {
         const lk = l.link;

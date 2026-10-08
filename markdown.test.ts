@@ -216,3 +216,10 @@ test("export keeps body markup, so it re-imports formatted", () => {
   expect(md).toContain("Say **this** [now]{size=72}");
   expect(parseMarkdown(md).sections[0].text).toBe("Say **this** [now]{size=72}");
 });
+
+test("export doesn't repeat a title whose layer text has markup", () => {
+  const nodes: any = { ROOT: node("ROOT", "", ["s"], null), s: node("s", "The big idea", [], [T("t", "The **big** idea", 5), T("b", "Body.", 30)]) };
+  const md = toMarkdown(nodes, "s", { deck: "d", date: "x" });
+  expect(md).not.toContain("The **big** idea\n\nBody");
+  expect(parseMarkdown(md).sections[0].text).toBe("Body.");
+});

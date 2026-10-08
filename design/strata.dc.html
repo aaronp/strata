@@ -207,13 +207,13 @@ input,textarea,button{font:inherit;color:inherit}
                   <sc-if value="{{ isEditingText }}">
                     <textarea ref="{{ editRef }}" value="{{ ed.text }}" onChange="{{ onEditText }}" onBlur="{{ stopEditing }}" onSelect="{{ onEditSel }}" onKeyUp="{{ onEditSel }}" onPointerUp="{{ onEditSel }}" onPointerDown="{{ stopProp }}" style="position:absolute;left:{{ ed.l }}%;top:{{ ed.t }}%;width:{{ ed.w }}%;height:{{ ed.h }}%;padding:0;margin:0;border:0;outline:2px solid #1f6fb8;outline-offset:1px;background:rgba(10,14,28,.25);resize:none;overflow:hidden;font-family:{{ ed.font }};font-size:{{ ed.fs }}cqw;font-weight:{{ ed.weight }};color:{{ ed.color }};text-align:{{ ed.align }};line-height:{{ ed.lh }};z-index:999"></textarea>
                     <sc-if value="{{ fmtShow }}">
-                      <div data-role="fmtbar" onPointerDown="{{ stopProp }}" style="position:absolute;{{ fmtPos }};z-index:30;display:flex;align-items:center;gap:4px;padding:4px;border-radius:9px;background:#fbf9f4;box-shadow:0 4px 14px rgba(0,0,0,.25)">
-                        <button onPointerDown="{{ fmtDown }}" onClick="{{ onFmtBold }}" title="Bold (⌘B)" style="width:26px;height:26px;padding:0;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer;font-weight:800">B</button>
-                        <button onPointerDown="{{ fmtDown }}" onClick="{{ onFmtItalic }}" title="Italic (⌘I)" style="width:26px;height:26px;padding:0;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer;font-style:italic;font-family:serif">I</button>
-                        <select value="" onChange="{{ onFmtStyle }}" title="Style for the selection" style="height:26px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;font-size:12px"><sc-for list="{{ fmtStyleOpts }}" as="o" hint-placeholder-count="5"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select>
-                        <select value="" onChange="{{ onFmtSize }}" title="Size for the selection" style="height:26px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;font-size:12px"><sc-for list="{{ fmtSizeOpts }}" as="o" hint-placeholder-count="5"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select>
+                      <div data-role="fmtbar" onPointerDown="{{ stopProp }}" onBlur="{{ onFmtBlur }}" style="position:absolute;{{ fmtPos }};z-index:30;display:flex;align-items:center;gap:4px;padding:4px;border-radius:9px;background:#fbf9f4;box-shadow:0 4px 14px rgba(0,0,0,.25)">
+                        <button onPointerDown="{{ fmtDown }}" onMouseDown="{{ fmtDown }}" onClick="{{ onFmtBold }}" title="Bold (⌘B)" style="width:26px;height:26px;padding:0;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer;font-weight:800">B</button>
+                        <button onPointerDown="{{ fmtDown }}" onMouseDown="{{ fmtDown }}" onClick="{{ onFmtItalic }}" title="Italic (⌘I)" style="width:26px;height:26px;padding:0;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer;font-style:italic;font-family:serif">I</button>
+                        <select value="" onChange="{{ onFmtStyle }}" title="Style for the selection" style="height:26px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;font-size:12px"><sc-for list="{{ fmtStyleOpts }}" as="o" hint-placeholder-count="5"><option value="{{ o.v }}" disabled="{{ o.off }}">{{ o.l }}</option></sc-for></select>
+                        <select value="" onChange="{{ onFmtSize }}" title="Size for the selection" style="height:26px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;font-size:12px"><sc-for list="{{ fmtSizeOpts }}" as="o" hint-placeholder-count="5"><option value="{{ o.v }}" disabled="{{ o.off }}">{{ o.l }}</option></sc-for></select>
                         <input type="color" onChange="{{ onFmtColor }}" title="Colour for the selection" style="width:28px;height:26px;padding:0;border:1px solid #e0d9cb;border-radius:6px;background:#fff">
-                        <button onPointerDown="{{ fmtDown }}" onClick="{{ onFmtClear }}" title="Clear formatting (the selection, or all if nothing is selected)" style="height:26px;padding:0 7px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer;font-size:12px">⌫ Clear</button>
+                        <button onPointerDown="{{ fmtDown }}" onMouseDown="{{ fmtDown }}" onClick="{{ onFmtClear }}" title="Clear formatting (the selection, or all if nothing is selected)" style="height:26px;padding:0 7px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer;font-size:12px">⌫ Clear</button>
                       </div>
                     </sc-if>
                   </sc-if>
@@ -941,17 +941,37 @@ function parseRich(line, lookupStyle) {
 }
 const plainText = text => String(text ?? '').split('\n').map(l => l === '' ? '' : parseRich(l).map(r => r.text).join('')).join('\n');
 // Format the [start,end) selection; returns the new text and a selection on the same words (inside any markers).
+// The selection is normalised first (ordered, clamped, trimmed; a whole formatted piece means its content). A wrap that would leave stray
+// markers (e.g. cutting through existing formatting) is refused: the text comes back unchanged with refused: true.
 function applyFormat(text, start, end, op) {
   text = String(text ?? '');
-  if (op.clear) { if (start === end) { const t = plainText(text); return { text: t, start: 0, end: t.length }; }
-    const p = plainText(text.slice(start, end)); return { text: text.slice(0, start) + p + text.slice(end), start, end: start + p.length }; }
+  if (start > end) [start, end] = [end, start];
+  start = Math.max(0, Math.min(start, text.length)); end = Math.max(start, Math.min(end, text.length));
+  const empty = start === end;
+  while (start < end && /\s/.test(text[start])) start++; while (end > start && /\s/.test(text[end - 1])) end--;
+  for (;;) {
+    if (text[start] === '*') { let n = 0; while (text[start + n] === '*' && n < 3) n++; if (end - start > 2 * n && findStars(text, start + n, n) === end - n) { start += n; end -= n; continue; } }
+    if (text[start] === '[' && spanEnd(text, start) === end) { end = matchBracket(text, start); start += 1; continue; }
+    break;
+  }
+  const starsBefore = () => { let m = 0; while (text[start - 1 - m] === '*') m++; return m; }, starsAfter = () => { let m = 0; while (text[end + m] === '*') m++; return m; };
+  if (op.clear) {
+    if (empty) { const t = plainText(text); return { text: t, start: 0, end: t.length }; }
+    for (;;) {   // grow over markers that sit just outside the selection, so clearing an exactly-selected word clears it
+      const k = Math.min(starsBefore(), starsAfter(), 3); if (k > 0) { start -= k; end += k; continue; }
+      if (text[start - 1] === '[' && text.slice(end, end + 2) === ']{') { const cb = closeBrace(text, end + 2); if (cb > 0) { start -= 1; end = cb + 1; continue; } }
+      break;
+    }
+    const p = plainText(text.slice(start, end)); return { text: text.slice(0, start) + p + text.slice(end), start, end: start + p.length };
+  }
+  const safe = r => plainText(r.text) === plainText(text) ? r : { text, start, end, refused: true };
   const wrapLines = (open, close) => { const pieces = text.slice(start, end).split('\n'); const w = pieces.map(p => p ? open + p + close : p).join('\n');
     const first = pieces[0] ? open.length : 0, last = pieces[pieces.length - 1] ? close.length : 0;
-    return { text: text.slice(0, start) + w + text.slice(end), start: start + first, end: start + w.length - last }; };
-  if (op.bold || op.italic) { const d = op.bold ? '**' : '*';
-    if (text.slice(start - d.length, start) === d && text.slice(end, end + d.length) === d && text[start - d.length - 1] !== '*' && text[end + d.length] !== '*')
-      return { text: text.slice(0, start - d.length) + text.slice(start, end) + text.slice(end + d.length), start: start - d.length, end: end - d.length };
-    return wrapLines(d, d); }
+    return safe({ text: text.slice(0, start) + w + text.slice(end), start: start + first, end: start + w.length - last }); };
+  if (op.bold || op.italic) { const d = op.bold ? 2 : 1, m1 = starsBefore(), m2 = starsAfter();
+    if (m1 === m2 && m1 >= d && (m1 === d || m1 === 3))   // toggle off, including bold or italic inside ***…***
+      return { text: text.slice(0, start - d) + text.slice(start, end) + text.slice(end + d), start: start - d, end: end - d };
+    return wrapLines('*'.repeat(d), '*'.repeat(d)); }
   if (op.attrs) {
     const fmtA = a => Object.entries(a).filter(([, v]) => v !== null && v !== undefined && v !== '').map(([k, v]) => k + '=' + v).join(' ');
     if (text[start - 1] === '[' && text.slice(end, end + 2) === ']{') { const cb = closeBrace(text, end + 2);
@@ -1673,6 +1693,7 @@ class Component extends DCLogic {
     const t = this.editRef.current, live = t && typeof document !== 'undefined' && document.activeElement === t;
     const sel = live ? { start: t.selectionStart, end: t.selectionEnd } : (this._sel || { start: 0, end: 0 });
     const r = applyFormat(l.text, sel.start, sel.end, op);
+    if (r.refused) { this.flash('Select whole formatted words: this would cut through existing formatting'); return; }
     this.updLayer(id, l.id, { text: r.text }); this._sel = { start: r.start, end: r.end };
     setTimeout(() => { const t2 = this.editRef.current; if (t2 && t2.focus) { t2.focus(); t2.setSelectionRange && t2.setSelectionRange(r.start, r.end); } }, 0);
   }
@@ -1848,7 +1869,7 @@ class Component extends DCLogic {
     this.nav(id, dd > 0 ? 'down' : dd < 0 ? 'up' : (delta > 0 ? 'right' : 'left'));
   }
   onKey(e) {
-    const t = e.target; const typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA'); const k = e.key; const S = this.state;
+    const t = e.target; const typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || !!(t.closest && t.closest('[data-role="fmtbar"]'))); const k = e.key; const S = this.state;
     if ((e.metaKey || e.ctrlKey) && (k === 's' || k === 'S')) { e.preventDefault(); this.save(); return; }
     if (S.confirmDel) { if (k === 'Escape') { e.preventDefault(); this.confirmDelete('cancel'); } return; }
     if (k === 'Escape' && S.treeDrag) { this._treeDragCancel = true; this.setState({ treeDrag: null }); return; }
@@ -2229,11 +2250,12 @@ class Component extends DCLogic {
       styleRows: Object.entries(this.styles()).filter(([, st]) => !st.deleted).map(([id, st]) => ({ id, name: st.name || id, count: (styleCount[id] || 0) + ' layer' + (styleCount[id] === 1 ? '' : 's'), canDelete: !BUILTIN_STYLES[id],
         onName: e => this.setStyle(id, { name: e.target.value }), onDelete: () => this.deleteStyle(id) })),
       newStyleOff: !(ly && ly.type === 'text'), onNewStyle: () => ly && this.newStyleFrom(cur, ly.id),
-      fmtShow: !!edL && editable, fmtPos: edL ? (edL.y < 12 ? `left:${edL.x}%;top:calc(${edL.y + Math.max(edL.h, mh[edL.id] || 0)}% + 6px)` : `left:${edL.x}%;top:calc(${edL.y}% - 40px)`) : '',
-      fmtStyleOpts: [{ v: '', l: 'Plain' }].concat(Object.entries(this.styles()).filter(([, st]) => !st.deleted).map(([id, st]) => ({ v: id, l: st.name || id }))),
-      fmtSizeOpts: [{ v: '', l: 'Size' }].concat([12, 16, 20, 24, 28, 32, 40, 48, 56, 64, 72, 96, 128].map(v => ({ v: String(v), l: v + ' px' }))),
+      fmtShow: !!edL && editable, fmtPos: edL ? `left:min(${edL.x}%, calc(100% - 330px));` + (edL.y >= 12 ? `top:calc(${edL.y}% - 40px)` : (b => b < 86 ? `top:calc(${b}% + 6px)` : `top:calc(${edL.y}% + 4px)`)(edL.y + Math.max(edL.h, mh[edL.id] || 0))) : '',   // above; else below; else inside its top edge; clamped to the slide
+      fmtStyleOpts: [{ v: '', l: 'Style', off: true }, { v: '-', l: 'Plain', off: false }].concat(Object.entries(this.styles()).filter(([, st]) => !st.deleted).map(([id, st]) => ({ v: id, l: st.name || id, off: false }))),
+      fmtSizeOpts: [{ v: '', l: 'Size', off: true }, { v: '-', l: 'Default', off: false }].concat([12, 16, 20, 24, 28, 32, 40, 48, 56, 64, 72, 96, 128].map(v => ({ v: String(v), l: v + ' px', off: false }))),
       fmtDown: e => e.preventDefault(), onFmtBold: () => this.formatSel({ bold: true }), onFmtItalic: () => this.formatSel({ italic: true }),
-      onFmtStyle: e => this.formatSel({ attrs: { style: e.target.value || null } }), onFmtSize: e => this.formatSel({ attrs: { size: e.target.value || null } }),
+      onFmtStyle: e => { const v = e.target.value; if (v) this.formatSel({ attrs: { style: v === '-' ? null : v } }); }, onFmtSize: e => { const v = e.target.value; if (v) this.formatSel({ attrs: { size: v === '-' ? null : v } }); },
+      onFmtBlur: () => setTimeout(() => { const a = typeof document !== 'undefined' && document.activeElement; if (!this.focusInBar() && a !== this.editRef.current) this.setState({ editing: null }); }, 0),   // leaving the bar (not back to the editor) ends editing
       onFmtColor: e => this.formatSel({ attrs: { color: e.target.value } }), onFmtClear: () => this.formatSel({ clear: true }),
       exportShow: !STATIC, onExportMd: () => this.downloadMarkdown(cur),
       isTitlePage: cur === 'ROOT', titlePage: !!S.titlePage, onTitlePage: e => this.setTitlePage(!!e.target.checked),

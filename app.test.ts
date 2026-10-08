@@ -1329,7 +1329,7 @@ test("formatting bar: shown only while editing; formats the remembered selection
   const c = await styledDeck({}, [TL("a", { text: "say hello now" })]);
   expect(c.renderVals().fmtShow).toBe(false);
   c.setState({ editing: "a", layerSel: "a" }); let v = c.renderVals();
-  expect(v.fmtShow).toBe(true); expect(v.fmtStyleOpts.map((o: any) => o.l)).toEqual(["Plain", "H1", "H2", "H3", "Body"]);
+  expect(v.fmtShow).toBe(true); expect(v.fmtStyleOpts.map((o: any) => o.l)).toEqual(["Style", "Plain", "H1", "H2", "H3", "Body"]);
   v.onEditSel({ target: { selectionStart: 4, selectionEnd: 9 } });
   v.onFmtBold();
   expect(c.layersOf("s")[0].text).toBe("say **hello** now");
@@ -1343,4 +1343,34 @@ test("formatting bar: shown only while editing; formats the remembered selection
   c.focusInBar = () => false; c.renderVals().stopEditing(); await Bun.sleep(5); expect(c.state.editing).toBeNull();
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
   for (const h of ['data-role="fmtbar"', "{{ onFmtBold }}", "{{ onEditSel }}"]) expect(html).toContain(h);
+});
+
+test("applyFormat normalises the selection: trims spaces, includes or toggles markers, and never leaves literal stars", async () => {
+  const { applyFormat, plainText } = await rich();
+  expect(applyFormat("***both***", 3, 7, { bold: true }).text).toBe("*both*");          // bold off inside bold-italic
+  expect(applyFormat("***both***", 3, 7, { italic: true }).text).toBe("**both**");
+  expect(applyFormat("**hello**", 0, 9, { bold: true }).text).toBe("hello");            // selection includes the markers
+  expect(applyFormat("[big]{size=9} x", 0, 13, { attrs: { size: 72 } }).text).toBe("[big]{size=72} x");
+  expect(applyFormat("say hello now", 4, 10, { bold: true }).text).toBe("say **hello** now");   // trailing space trimmed
+  const bad = applyFormat("a **bold** c", 0, 6, { bold: true });                       // cuts through existing markup
+  expect(bad.text).toBe("a **bold** c"); expect(bad.refused).toBe(true);
+  expect(plainText(applyFormat("x *y* z", 0, 7, { bold: true }).text)).toBe("x y z");
+  expect(applyFormat("[b]{size=9} c", 1, 2, { clear: true }).text).toBe("b c");        // clear grows over adjoining markers
+  expect(applyFormat("**ab** c", 2, 4, { clear: true }).text).toBe("ab c");
+  expect(applyFormat("say hello now", 9, 4, { bold: true }).text).toBe("say **hello** now");   // reversed range
+});
+
+test("formatting bar: Plain is choosable, focus in the bar counts as typing, leaving the bar ends editing, the bar stays on the slide", async () => {
+  const c = await styledDeck({}, [TL("a", { text: "[x]{style=h2} y", x: 80, y: 80, h: 18 })]);
+  c.setState({ editing: "a", layerSel: "a" }); let v = c.renderVals();
+  expect(v.fmtStyleOpts[0]).toMatchObject({ v: "", off: true }); expect(v.fmtStyleOpts[1]).toMatchObject({ v: "-", l: "Plain" });
+  v.onEditSel({ target: { selectionStart: 1, selectionEnd: 2 } }); v.onFmtStyle({ target: { value: "-" } });
+  expect(c.layersOf("s")[0].text).toBe("x y");
+  expect(v.fmtPos).toContain("min("); expect(v.fmtPos).not.toContain("+ 6px");          // clamped, and not pushed below the slide
+  const before = c.layersOf("s").length;
+  c.onKey({ key: "Backspace", target: { tagName: "SELECT" }, preventDefault() {} });
+  expect(c.layersOf("s").length).toBe(before);                                         // a focused bar select doesn't delete the layer
+  c.focusInBar = () => false; c.renderVals().onFmtBlur(); await Bun.sleep(5); expect(c.state.editing).toBeNull();
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  expect(html).toContain('onMouseDown="{{ fmtDown }}"'); expect(html).toContain('onBlur="{{ onFmtBlur }}"');
 });

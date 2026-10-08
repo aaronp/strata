@@ -10,9 +10,9 @@ const CHIP_BOX = { bg: "#ffffff", bgOpacity: 0.75, blur: 0, border: 0, borderCol
 export const bodySize = (t: string) => Math.max(22, Math.min(40, Math.round(40 - (t.length - 120) / 20)));
 
 export function layersFor(s: Section): any[] {
-  const L: any[] = [text("md-title", { x: 6, y: 6, w: 88, h: 14 }, s.title, { size: 64, weight: 800, valign: "bottom", lh: 1.05 })];
-  if (s.text) L.push(text("md-body", { x: 6, y: 24, w: s.links.length ? 56 : 88, h: 60 }, s.text,
-    { size: bodySize(s.text), lh: 1.35, bullets: s.bulletsOnly ? "disc" : "none", gap: 0.35 }));
+  const L: any[] = [{ id: "md-title", type: "text", style: "h1", text: s.title, x: 6, y: 6, w: 88, h: 14, rot: 0, opacity: 1 }];
+  if (s.text) L.push({ id: "md-body", type: "text", style: "body", text: s.text, x: 6, y: 24, w: s.links.length ? 56 : 88, h: 60, rot: 0, opacity: 1,
+    size: bodySize(s.text), bullets: s.bulletsOnly ? "disc" : "none" });   // content-driven overrides of Body
   const step = Math.min(11, 62 / Math.max(1, s.links.length));
   s.links.forEach((k, n) => {
     L.push(text(`md-link-${n}`, { x: 66, y: 24 + n * step, w: 28, h: Math.min(9, step - 1.5) }, k.label + " →",
@@ -26,10 +26,16 @@ export function layersFor(s: Section): any[] {
 // Markdown owns the set of md-* layers and their text/link/bullets; everything else is the builder's.
 // Generated style fields a layer doesn't have at all (e.g. a newer importer's chip container) are filled in, never overwritten.
 const CONTENT = ["text", "link", "bullets"];
+// What the importer generated before styles: an older unstyled md layer still holding these values never had them edited, so they're dropped in favour of the style.
+const OLD_GEN: Record<string, Record<string, unknown>> = {
+  "md-title": { font: "grot", size: 64, weight: 800, color: null, align: "left", valign: "bottom", lh: 1.05, bullets: "none", gap: 0.15 },
+  "md-body": { font: "grot", weight: 400, color: null, align: "left", valign: "top", lh: 1.35, gap: 0.35 },
+};
 function mergeLayers(existing: any[], gen: any[]) {
   const byId = new Map(gen.map(g => [g.id, g]));
-  const kept = existing.filter(l => !String(l.id).startsWith("md-") || byId.has(l.id)).map(l => {
+  const kept = existing.filter(l => !String(l.id).startsWith("md-") || byId.has(l.id)).map((l: any) => {
     const g = byId.get(l.id); if (!g) return l;
+    if (g.style && !l.style) { l = { ...l, style: g.style }; for (const [k, v] of Object.entries(OLD_GEN[l.id] ?? {})) if (l[k] === v) delete l[k]; }
     const u = { ...g, ...l }; for (const k of CONTENT) { if (k in g) u[k] = g[k]; else delete u[k]; } return u;
   });
   const have = new Set(kept.map(l => l.id));

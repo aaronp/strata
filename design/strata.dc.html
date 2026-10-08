@@ -904,7 +904,7 @@ const BUILTIN_STYLES = {
 const mergeStyles = own => { const out = {}; for (const k in BUILTIN_STYLES) out[k] = { ...BUILTIN_STYLES[k], ...((own || {})[k] || {}) }; for (const k in own || {}) if (!out[k]) out[k] = own[k]; return out; };
 // ---- Inline markup: **bold**, *italic*, [words]{style=h2 size=72 color=#hex font=serif weight=600}, \ escapes. Per line; malformed markup is literal.
 const ESC = '*[]{}\\';
-const runKeys = ['b', 'i', 'size', 'color', 'font', 'weight', 'ls', 'link', 'href'];
+const runKeys = ['b', 'i', 'style', 'size', 'color', 'font', 'weight', 'ls', 'link', 'href'];
 const unesc = (s, j) => (s[j] === '\\' && j + 1 < s.length && ESC.includes(s[j + 1]));
 const matchBracket = (s, j) => { let d = 0; for (let k = j; k < s.length; k++) { if (unesc(s, k)) { k++; continue; } if (s[k] === '[') d++; else if (s[k] === ']' && --d === 0) return k; } return -1; };
 const closeBrace = (s, j) => { for (let k = j; k < s.length; k++) { if (unesc(s, k)) { k++; continue; } if (s[k] === '}') return k; } return -1; };
@@ -912,10 +912,13 @@ const spanEnd = (s, j) => { const rb = matchBracket(s, j); if (rb < 0 || s[rb + 
 // Next closing run of exactly n stars at or after j (skipping escapes, whole spans, and longer star runs); a closer can't follow whitespace.
 const findStars = (s, j, n) => { for (let k = j; k < s.length; k++) { if (unesc(s, k)) { k++; continue; } if (s[k] === '[') { const e = spanEnd(s, k); if (e > 0) { k = e - 1; continue; } }
   if (s[k] === '*') { let m = 0; while (s[k + m] === '*') m++; if (m === n && !/\s/.test(s[k - 1])) return k; k += m - 1; } } return -1; };
-const attrsOf = str => { const a = {}; String(str).trim().split(/\s+/).forEach(p => { const m = /^(\w+)=(\S+)$/.exec(p); if (m) a[m[1]] = m[2]; }); return a; };
-const spanFmt = (fmt, a, lookupStyle) => {
-  const f = { ...fmt }, st = a.style && lookupStyle ? lookupStyle(a.style) : null;
-  if (st) ['font', 'size', 'weight', 'color', 'ls'].forEach(k => { if (st[k] !== undefined && st[k] !== null) f[k] = st[k]; });
+const attrsOf = str => { const a = {}; String(str).trim().split(/\s+/).forEach(p => { const m = /^(\w+)=(\S+)$/.exec(p); if (m) a[m[1]] = m[2]; else if (p === 'b' || p === 'i') a[p] = true; }); return a; };   // bare b / i are flags
+// raw: keep what the markup states (the style id, not its values) for the editor; otherwise resolve the style for display.
+const spanFmt = (fmt, a, lookupStyle, raw) => {
+  const f = { ...fmt };
+  if (raw) { if (/^[A-Za-z0-9_-]+$/.test(a.style || '')) { f.style = a.style; ['font', 'size', 'weight', 'color', 'ls'].forEach(k => delete f[k]); } }   // innermost wins
+  else { const st = a.style && lookupStyle ? lookupStyle(a.style) : null; if (st) ['font', 'size', 'weight', 'color', 'ls'].forEach(k => { if (st[k] !== undefined && st[k] !== null) f[k] = st[k]; }); }
+  if (a.b === true) f.b = true; if (a.i === true) f.i = true;
   if (+a.size > 0) f.size = +a.size;
   if (/^[1-9]00$/.test(a.weight || '')) f.weight = +a.weight;
   if (/^(#[0-9a-f]{3,8}|[a-z]+)$/i.test(a.color || '')) f.color = a.color;
@@ -924,7 +927,8 @@ const spanFmt = (fmt, a, lookupStyle) => {
   if (/^(https?:\/\/|mailto:)\S+$/i.test(a.href || '')) f.href = a.href;  // web links only
   return f;
 };
-function parseRich(line, lookupStyle) {
+function parseRich(line, lookupStyle, opts) {
+  const raw = !!(opts && opts.raw);
   const out = [];
   const push = (text, fmt) => { if (!text) return; const last = out[out.length - 1];
     if (last && runKeys.every(k => last[k] === fmt[k])) last.text += text; else { const r = { text }; runKeys.forEach(k => { if (fmt[k] !== undefined) r[k] = fmt[k]; }); out.push(r); } };
@@ -938,14 +942,37 @@ function parseRich(line, lookupStyle) {
           walk(s.slice(i + n, c), { ...fmt, ...(n !== 1 ? { b: true } : {}), ...(n !== 2 ? { i: true } : {}) }); i = c + n; continue; }
         buf += s.slice(i, i + n); i += n; continue; }
       if (s[i] === '[') { const rb = matchBracket(s, i), e = spanEnd(s, i);
-        if (e > 0) { flush(); walk(s.slice(i + 1, rb), spanFmt(fmt, attrsOf(s.slice(rb + 2, e - 1)), lookupStyle)); i = e; continue; } }
+        if (e > 0) { flush(); walk(s.slice(i + 1, rb), spanFmt(fmt, attrsOf(s.slice(rb + 2, e - 1)), lookupStyle, raw)); i = e; continue; } }
       buf += s[i]; i++;
     }
     flush();
   };
   walk(String(line), {});
-  return out.length ? out : [{ text: ' ' }];
+  return out.length ? out : (raw ? [] : [{ text: ' ' }]);
 }
+const RAW_KEYS = ['b', 'i', 'style', 'size', 'color', 'font', 'weight', 'link', 'href'];
+const ATTR_ORDER = ['style', 'size', 'color', 'font', 'weight', 'link', 'href'];
+const escRich = t => String(t).replace(/[\\*[\]{}]/g, c => '\\' + c);
+const sameRun = (a, b) => RAW_KEYS.every(k => a[k] === b[k]);
+const mergeLine = line => { const out = []; for (const r of line) { if (!r.text) continue; const p = out[out.length - 1]; if (p && sameRun(p, r)) out[out.length - 1] = { ...p, text: p.text + r.text }; else out.push({ ...r }); } return out; };
+// One line of source runs → markup. Emphasis markers never touch a neighbour's markers (that run uses span flags instead).
+function runsToMarkup(runs) {
+  let out = '', prevMarked = false;
+  for (const r0 of mergeLine(runs)) {
+    const r = r0.text.trim() ? r0 : { ...r0, b: undefined, i: undefined };
+    const attrs = ATTR_ORDER.filter(k => r[k] !== undefined && r[k] !== null && r[k] !== '').map(k => k + '=' + r[k]);
+    const emph = r.b || r.i;
+    if (!attrs.length && emph && !prevMarked) {
+      const m = /^(\s*)([\s\S]*?)(\s*)$/.exec(r.text), d = r.b && r.i ? '***' : r.b ? '**' : '*';
+      out += m[1] + d + escRich(m[2]) + d + m[3]; prevMarked = !m[3]; continue; }
+    if (!attrs.length && !emph) { out += escRich(r.text); prevMarked = false; continue; }
+    const flags = [r.b ? 'b' : '', r.i ? 'i' : ''].filter(Boolean);
+    out += '[' + escRich(r.text) + ']{' + flags.concat(attrs).join(' ') + '}'; prevMarked = false;
+  }
+  return out;
+}
+const linesOf = text => String(text ?? '').split('\n').map(l => parseRich(l, null, { raw: true }));
+const textOf = lines => lines.map(runsToMarkup).join('\n');
 const plainText = text => String(text ?? '').split('\n').map(l => l === '' ? '' : parseRich(l).map(r => r.text).join('')).join('\n');
 // Format the [start,end) selection; returns the new text and a selection on the same words (inside any markers).
 // The selection is normalised first (ordered, clamped, trimmed; a whole formatted piece means its content). A wrap that would leave stray
@@ -1089,7 +1116,7 @@ function seed() {
 }
 
 class Component extends DCLogic {
-  static rich = { parseRich, plainText, applyFormat };
+  static rich = { parseRich, plainText, applyFormat, runsToMarkup, linesOf, textOf };
   state = {
     nodes: seed(), cur: 'a', prev: null, phase: 'idle', dx: 0, dy: 0, type: 'swipe', mode: STATIC ? 'present' : 'build', view: 'slide', rtab: 'slide',
     query: '', bg: 'balloons', customBg: null, customAspect: 1, opacity: 1, base: '#0b1220', offset: 0,

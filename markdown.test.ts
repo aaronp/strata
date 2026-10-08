@@ -208,6 +208,7 @@ test("plainText (markdown.ts) matches the app's cases", () => {
   expect(plainText("a **b** [c]{size=9}\n\n*d* \\*e")).toBe("a b c\n\nd *e");
   expect(plainText("[a [b]{size=9} c]{size=20}")).toBe("a b c");
   expect(plainText("5 * 3 and [draft]")).toBe("5 * 3 and [draft]");
+  expect(plainText("[t]{b i}")).toBe("t");
 });
 
 test("export keeps body markup, so it re-imports formatted", () => {

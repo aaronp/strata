@@ -1418,3 +1418,41 @@ test("inline links: parsed into runs, broken targets flagged, followed in presen
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
   for (const h of ["{{ fmtLinkOpts }}", "{{ onFmtUrlApply }}", 'onClick="{{ onStageLinkClick }}"', 'links="{{ isPresent }}"']) expect(html).toContain(h);
 });
+
+// ---- WYSIWYG: model ----
+test("raw parsing keeps the style id and what the markup states; span flags b/i work everywhere", async () => {
+  const { parseRich } = await rich();
+  const st = (id: string) => (id === "h2" ? { size: 44, weight: 700 } : null);
+  expect(parseRich("[x]{style=h2 size=50}", st, { raw: true })).toEqual([{ text: "x", style: "h2", size: 50 }]);
+  expect(parseRich("[a [b]{style=h2} c]{size=20 color=red}", null, { raw: true })).toEqual([{ text: "a ", size: 20, color: "red" }, { text: "b", style: "h2" }, { text: " c", size: 20, color: "red" }]);
+  expect(parseRich("[go]{link=k} [w]{href=https://x}", null, { raw: true })).toEqual([{ text: "go", link: "k" }, { text: " " }, { text: "w", href: "https://x" }]);
+  expect(parseRich("[t]{b i size=9}", null, { raw: true })).toEqual([{ text: "t", b: true, i: true, size: 9 }]);
+  expect(parseRich("[t]{b}")).toEqual([{ text: "t", b: true }]);                 // display parsing accepts flags too
+  expect(parseRich("", null, { raw: true })).toEqual([]);
+  expect(parseRich("x [y]{style=h2}", st)).toEqual([{ text: "x " }, { text: "y", size: 44, weight: 700 }]);   // display parsing unchanged
+});
+test("runsToMarkup: escapes, attribute order, emphasis inside spans, spaces outside markers, no touching markers, merging", async () => {
+  const { runsToMarkup } = await rich();
+  expect(runsToMarkup([{ text: "a*b [c] {d} \\e" }])).toBe("a\\*b \\[c\\] \\{d\\} \\\\e");
+  expect(runsToMarkup([{ text: "x", href: "https://h", size: 9, style: "h2", color: "red", link: "k" }])).toBe("[x]{style=h2 size=9 color=red link=k href=https://h}");
+  expect(runsToMarkup([{ text: " bold ", b: true }])).toBe(" **bold** ");
+  expect(runsToMarkup([{ text: "x", b: true, i: true }])).toBe("***x***");
+  expect(runsToMarkup([{ text: "x", b: true, size: 9 }])).toBe("[x]{b size=9}");
+  expect(runsToMarkup([{ text: "a", b: true }, { text: "b", b: true, i: true }])).toBe("**a**[b]{b i}");
+  expect(runsToMarkup([{ text: "a", b: true }, { text: "b", b: true }, { text: "" }])).toBe("**ab**");
+  expect(runsToMarkup([{ text: "   ", b: true }])).toBe("   ");
+});
+test("round trip: markup → raw runs → markup → raw runs is stable (table + 500 random run lists)", async () => {
+  const { parseRich, runsToMarkup } = await rich();
+  const raw = (s: string) => parseRich(s, null, { raw: true });
+  for (const s of ["plain", "a **b** *c* ***d***", "[x]{style=h2 size=50}", "[a [b]{style=h2} c]{size=20}", "**[x]{color=red}** y", "\\*lit\\* [go]{link=k}", "5 * 3 [draft]", "[t]{b i size=9}"])
+    expect(raw(runsToMarkup(raw(s)))).toEqual(raw(s));
+  let seed = 7; const rnd = (n: number) => (seed = (seed * 1103515245 + 12345) % 2147483648) % n;
+  const words = ["a", "b c", " x ", "*", "[", "}", "go", "  ", "é"];
+  for (let t = 0; t < 500; t++) {
+    const runs = Array.from({ length: 1 + rnd(5) }, () => { const r: any = { text: words[rnd(words.length)] };
+      if (rnd(2)) r.b = true; if (rnd(3) === 0) r.i = true; if (rnd(4) === 0) r.size = 10 + rnd(50); if (rnd(5) === 0) r.link = "s" + rnd(3); if (rnd(6) === 0) r.style = "h2"; return r; });
+    const once = raw(runsToMarkup(runs)); expect(raw(runsToMarkup(once))).toEqual(once);
+    expect(once.map((r: any) => r.text).join("")).toBe(runs.map((r: any) => r.text).join(""));   // the text itself survives
+  }
+});

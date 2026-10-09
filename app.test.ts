@@ -1607,3 +1607,16 @@ test("effective layout: the slide's own if it still matches, else the deck defau
   expect(c.isCustom("a")).toBe(false); c.setNode("a", { frames: [{ id: "f", layers: [] }, { id: "g", layers: [] }] }); expect(c.isCustom("a")).toBe(true);
   expect(c.layouts()["cols-2"]).toMatchObject({ id: "cols-2", name: "Two columns" });
 });
+
+test("a hand edit to a counted element's box marks the slide custom (same undo step); layout commits, undo, text edits and adding layers don't", async () => {
+  const c = await layDeck({ a: [LTX("t", "h1", 6, 6), LTX("b", "body", 6, 24)] }); await Bun.sleep(150);
+  c.updLayer("a", "b", { text: "new words" }); c.componentDidUpdate(); expect(c.state.nodes.a.custom).toBeUndefined();
+  await Bun.sleep(500);
+  c.addLayer("text"); c.componentDidUpdate(); expect(c.state.nodes.a.custom).toBeUndefined();
+  await Bun.sleep(500);
+  c.updLayer("a", "b", { x: 40 }); c.componentDidUpdate(); c.componentDidUpdate();
+  expect(c.state.nodes.a.custom).toBe(true);
+  c.undo(); c.componentDidUpdate(); expect(c.state.nodes.a.custom).toBeUndefined(); expect(c.layersOf("a")[1].x).toBe(6);   // one undo step
+  const nodes = { ...c.state.nodes, a: { ...c.state.nodes.a, frames: [{ id: "f", layers: c.layersOf("a").map((l: any) => l.id === "t" ? { ...l, y: 50 } : l) }] } };
+  c.allowLayout(nodes); c.setState({ nodes }); c.componentDidUpdate(); expect(c.state.nodes.a.custom).toBeUndefined();
+});

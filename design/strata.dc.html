@@ -1385,6 +1385,20 @@ class Component extends DCLogic {
     return 'Slides from "' + n._from + '" can\'t be changed here: open ' + n._from + ', or move/delete "' + ((N[h] && N[h].title) || h) + '"';
   }
   // Grafted slides are read-only: revert any nodes change that alters one, or a linked node's children. A fresh graft is let through by allowGraft.
+  allowLayout(nodes) { this._layoutNodes = nodes; }   // tags the one nodes object a layout action commits, so it doesn't count as a hand edit
+  // A hand edit to a counted element's box (x/y/w/h/rot of a kept layer) marks the slide custom. Layout commits, undo/redo and loads don't.
+  markCustom() {
+    const S = this.state, prev = this._lastNodes;
+    if (!prev || S.nodes === prev || this._restoring) return;
+    if (this._layoutNodes && S.nodes === this._layoutNodes) { this._layoutNodes = null; return; }
+    const geo = l => [l.x, l.y, l.w, l.h, l.rot || 0].join(), hits = [];
+    for (const k in S.nodes) { const n = S.nodes[k], p = prev[k];
+      if (!p || n === p || n._from || n.custom) continue;
+      const fn = this.framesOfNode(n), fp = this.framesOfNode(p); if (fn.length !== 1 || fp.length !== 1) continue;
+      const before = new Map(fp[0].layers.map(l => [l.id, l]));
+      if (fn[0].layers.some(l => counted(l) && before.has(l.id) && geo(before.get(l.id)) !== geo(l))) hits.push(k); }
+    if (hits.length) this.setState(s => { const nodes = { ...s.nodes }; hits.forEach(k => { nodes[k] = { ...nodes[k], custom: true }; }); return { nodes }; });
+  }
   allowGraft(nodes) { this._graftNodes = nodes; }   // tags the one nodes object a fresh graft will commit, so no other update slips past the guard
   guardGrafts() {
     const S = this.state, prev = this._lastNodes;
@@ -1512,6 +1526,7 @@ class Component extends DCLogic {
   componentWillUnmount() { window.removeEventListener('message', this.onMsg); clearTimeout(this._as); clearTimeout(this._nt); window.removeEventListener('beforeunload', this.onUnload); window.removeEventListener('paste', this.onPaste); window.removeEventListener('focus', this.onFocusWin); window.removeEventListener('keydown', this.onKey); window.removeEventListener('resize', this.onResize); clearTimeout(this.t); }
   componentDidUpdate() {
     if (this.guardGrafts()) return;
+    this.markCustom();
     this.histTrack();
     const S = this.state;
     if (!DECK) {

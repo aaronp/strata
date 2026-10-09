@@ -802,7 +802,7 @@ test("titlePage and titleView are saved and reloaded", async () => {
 });
 
 test("title camera: Fit shows the whole content width letterboxed; Cover fills the height; pan clamps to the content", async () => {
-  const c = await titleDeck();
+  const c = await titleDeck(); c.setState({ gap: 0.12, rowGap: 0 });   // wide spacing: content wider than 16:9
   const L = c.layout(c.derive()), CW = L.CW + L.w;
   let t = c.titleCam(L, CW);
   expect(t.s).toBeCloseTo(L.w / L.CW); expect(t.tx).toBeCloseTo(0);
@@ -1116,7 +1116,7 @@ test("styles resolve in order: renderer default < style < layer override; deck.s
   const c = await styledDeck({ styles: { h1: { size: 70 }, callout: { name: "Callout", size: 28, card: "custom", box: { bg: "#ff0000" } } } });
   const S = c.styles();
   expect(Object.keys(S)).toEqual(["h1", "h2", "h3", "body", "bullets", "callout"]);
-  expect(S.h1).toMatchObject({ name: "H1", size: 70, weight: 800, valign: "bottom", lh: 1.05 });
+  expect(S.h1).toMatchObject({ name: "H1", size: 70, weight: 800, valign: "middle", lh: 1.05 });
   const [a, b, cc] = c.layersOf("s").map((l: any) => c.resolveLayer(l, "s"));
   expect(a).toMatchObject({ style: "h1", size: 70, weight: 800 });
   expect(b).toMatchObject({ size: 50, weight: 800 });                          // override wins
@@ -1157,7 +1157,7 @@ test("choosing a style clears overrides; Custom writes the resolved values back;
   expect(c.layersOf("s")[1]).toMatchObject({ style: "h2" }); expect(c.layersOf("s")[1].size).toBeUndefined();
   c.undo(); c.componentDidUpdate(); expect(c.layersOf("s")[1]).toMatchObject({ style: "h1", size: 50 });
   c.chooseStyle("s", "a", ""); c.componentDidUpdate();
-  const a = c.layersOf("s")[0]; expect(a.style).toBeFalsy(); expect(a).toMatchObject({ size: 64, weight: 800, valign: "bottom" });
+  const a = c.layersOf("s")[0]; expect(a.style).toBeFalsy(); expect(a).toMatchObject({ size: 64, weight: 800, valign: "middle" });
 });
 
 test("This layer mode writes an override (marked, ↺ resets); Style mode edits the style for every layer using it", async () => {
@@ -1719,4 +1719,11 @@ test("tree: + before adds a sibling to the left (button and Shift+Enter), e.g. a
   c.setState({ cur: "a2" }); c.onKey({ key: "Enter", shiftKey: true, target: {}, preventDefault() {} });
   expect(c.state.nodes.a.children.slice(0, 1)).toEqual(["a1"]); expect(c.state.nodes.a.children[2]).toBe("a2"); expect(c.state.cur).toBe(c.state.nodes.a.children[1]);
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text(); expect(html).toContain("{{ n.onBefore }}");
+});
+
+test("defaults: 30% row and column steps; H1 centred vertically; Body has a container on", async () => {
+  const c = await treeDeck(); const v = c.renderVals();
+  expect(v.rowStepLabel).toBe("30% of a slide"); expect(v.gapLabel).toBe("30% of a slide");
+  const S = c.styles(); expect(S.h1.valign).toBe("middle");
+  expect(S.body).toMatchObject({ card: "custom", box: { bg: "#0b1220", bgOpacity: 0.6, blur: 3, border: 0, radius: 12, pad: 12 } });
 });

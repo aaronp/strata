@@ -111,6 +111,8 @@ A layer keeps the **same `id`** across frames; that's how it's matched for tween
   - **Frames section (collapsible):** a left-to-right strip of frame thumbnails with a → between each pair.
     - Buttons: ▶ Preview / ■ Stop (steps through the frames with → / Space; Esc stops), ⧉ Duplicate, Delete. Header checkbox: Progress.
     - If you duplicate frame A while an A→B transition has settings, a warning appears and those settings are dropped.
+    - **Add as sequence** (shown when two or more layers are selected): choose Fade in, Slide up, Slide from left or Cascade. The current frame becomes the start, with the selected layers hidden. A new frame then reveals each layer in turn, top to bottom, with an ease-out. Cascade starts each layer at the previous one's position. Frames that were already after it are kept. It's one undo step.
+    - To reveal a list item by item, select its text layer and use **Split lines into layers** (Layers tab) first. It makes one layer per line, stacked in the original box, in every frame, and selects them all.
   - **Transition view (opens from a →):**
     - Side-by-side lists of the layers in A and B, with an → between each pair; an empty cell means the layer appears or disappears, and clicking it copies the layer across.
     - Clicking a side selects that layer in that frame for editing. The other frame shows on the stage as a non-interactive 50%-opacity ghost.

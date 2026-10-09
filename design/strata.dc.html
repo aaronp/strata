@@ -511,6 +511,12 @@ input,textarea,button{font:inherit;color:inherit}
                 <button onClick="{{ dupFrame }}" style="flex:1;padding:6px;border:1px solid #e0d9cb;border-radius:7px;background:#fff;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis" style-hover="background:#f5f1e8">⧉ Duplicate</button>
                 <button onClick="{{ delFrame }}" style="padding:6px 10px;border:1px solid #e0d9cb;border-radius:7px;background:#fff;cursor:pointer;font-size:12px;white-space:nowrap;color:#a8301d;opacity:{{ delFrameOp }};flex:none" style-hover="background:#f5f1e8">Delete</button>
               </div>
+              <sc-if value="{{ seqOn }}">
+                <div style="display:flex;gap:6px;align-items:center">
+                  <select value="{{ seqKind }}" onChange="{{ onSeqKind }}" title="How each selected layer appears" style="flex:1;min-width:0;height:28px;padding:0 4px;border:1px solid #e0d9cb;border-radius:6px;background:#fff"><sc-for list="{{ seqKinds }}" as="o" hint-placeholder-count="4"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select>
+                  <button onClick="{{ onAddSequence }}" title="Hide the selected layers in this frame, then add a frame revealing each in turn (top to bottom)" style="flex:none;padding:6px 10px;border:1px solid #e0d9cb;border-radius:7px;background:#fff;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap" style-hover="background:#f5f1e8">Add as sequence</button>
+                </div>
+              </sc-if>
               <sc-if value="{{ confirmDupOpen }}">
                 <div style="display:flex;flex-direction:column;gap:8px;padding:10px 12px;border-radius:9px;background:#fbf3df;border:1px solid #eedfb6">
                   <span style="font-size:12px;line-height:1.45">{{ confirmDupText }}</span>
@@ -638,6 +644,7 @@ input,textarea,button{font:inherit;color:inherit}
                       <sc-for list="{{ styleOpts }}" as="o" hint-placeholder-count="5"><option value="{{ o.v }}">{{ o.l }}</option></sc-for>
                     </select>
                   </div>
+                  <sc-if value="{{ canSplit }}"><button onClick="{{ onSplitLines }}" title="One layer per line, e.g. to reveal a list item by item with Add as sequence (Frames)" style="align-self:flex-start;padding:3px 8px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer;font-size:11.5px">Split lines into layers</button></sc-if>
                   <sc-if value="{{ lyStyled }}">
                     <div style="display:flex;align-items:center;gap:6px">
                       <span style="font-size:12px;color:#6b6458;flex:none">Edits apply to</span>
@@ -1976,6 +1983,30 @@ class Component extends DCLogic {
     const nft = { ...ft }; if (i < fr.length - 1) delete nft[A.id];
     this.setFrames(id, nf, nft, { fi: i + 1, confirmDup: null, transSel: null, layerSel: null });
   }
+  // Add as sequence: frame F (the current one) becomes the start with the selected layers hidden at their start spots; one new frame
+  // per layer (reading order) reveals it, easing out. kind: fade | up | left | cascade (start at the previous layer's spot).
+  addSequence(kind) {
+    const id = this.curId(), n = this.state.nodes[id], fr = this.framesOfNode(n), i = this.fiFor(id), F = fr[i], ids = this.selIds();
+    if (n._from) { this.flash(this.graftMsg(id)); return; }
+    const items = F.layers.filter(l => ids.includes(l.id)).sort((a, b) => a.y - b.y || a.x - b.x); if (items.length < 2) return;
+    const start = items.map((l, k) => kind === 'up' ? { x: l.x, y: rd(l.y + 6) } : kind === 'left' ? { x: rd(l.x - 6), y: l.y } : kind === 'cascade' && k ? { x: items[k - 1].x, y: items[k - 1].y } : { x: l.x, y: l.y });
+    const frameAt = shown => ({ layers: F.layers.map(l => { const k = items.indexOf(l); return k < 0 || k < shown ? l : { ...l, ...start[k], opacity: 0 }; }) });
+    const added = items.map((_, k) => ({ id: 'f' + uid(), ...frameAt(k + 1) }));
+    const nf = fr.slice(); nf.splice(i, 1, { ...F, ...frameAt(0) }, ...added);
+    const td = this.state.tdef || {}, ft = { ...(n.ftrans || {}) };
+    if (ft[F.id] && i < fr.length - 1) { ft[added[added.length - 1].id] = ft[F.id]; delete ft[F.id]; }   // F → next keeps its settings as last new → next
+    [F, ...added.slice(0, -1)].forEach((A, k) => { ft[A.id] = { ...(ft[A.id] || {}), [items[k].id]: { move: { ease: 'out', dur: (td.move || {}).dur ?? 500 }, fade: { ease: 'out', dur: (td.fade || {}).dur ?? 500 } } }; });
+    this.setFrames(id, nf, ft, { transSel: null });
+  }
+  // Split lines into layers: a multi-line text layer becomes one layer per non-empty line, stacked in its box, in every frame (same ids across frames).
+  splitLines(lid) {
+    const id = this.curId(), n = this.state.nodes[id]; if (n._from) { this.flash(this.graftMsg(id)); return; }
+    const src = this.layersOf(id).find(l => l.id === lid), lines = src ? String(src.text || '').split('\n').filter(t => t.trim()) : [];
+    if (lines.length < 2) return; const nids = lines.map((_, k) => k ? 'l' + uid() : lid);
+    this.setFrames(id, this.framesOfNode(n).map(f => ({ ...f, layers: f.layers.flatMap(l => { if (l.id !== lid) return [l];
+      const ls = String(l.text || '').split('\n').filter(t => t.trim()), h = rd(l.h / ls.length);
+      return ls.map((t, k) => ({ ...l, id: nids[k] || 'l' + uid(), text: t, y: rd(l.y + k * l.h / ls.length), h })); }) })), null, { layerSel: nids[nids.length - 1], layerSet: nids, editing: null });
+  }
   delFrame(i) {
     const id = this.curId(); const n = this.state.nodes[id]; const fr = this.framesOfNode(n); if (fr.length < 2) return;
     const nft = { ...(n.ftrans || {}) }; delete nft[fr[i].id]; if (i > 0) delete nft[fr[i - 1].id];
@@ -2596,6 +2627,8 @@ class Component extends DCLogic {
         labelColor: k === fiCur ? '#1d1b17' : '#6b6458', weight: k === fiCur ? 700 : 500, onClick: () => this.setState({ fi: k, transSel: null, tween: null, layerSel: null, view: 'slide' }),
         hasArrow: k > 0, arrowTitle: `Edit transition F${k} → F${k + 1}`, arrowBg: tv === k - 1 ? '#1f6fb8' : '#fff', arrowColor: tv === k - 1 ? '#fff' : '#1f6fb8', arrowBorder: tv === k - 1 ? '0' : '1.5px solid #9db8d3',
         onArrow: () => this.setState({ transSel: k - 1, fi: k - 1, layerSel: null, tween: null, view: 'slide', stab: 'frames' }) })),
+      seqOn: this.selIds().length > 1, seqKind: S.seqKind || 'fade', onSeqKind: e => this.setState({ seqKind: e.target.value }), onAddSequence: () => this.addSequence(S.seqKind || 'fade'),
+      seqKinds: [['fade', 'Fade in'], ['up', 'Slide up'], ['left', 'Slide from left'], ['cascade', 'Cascade']].map(([v, l]) => ({ v, l })),
       dupFrame: () => this.dupFrame(fiCur), delFrame: () => this.delFrame(fiCur), delFrameOp: framesCur.length > 1 ? 1 : 0.4,
       confirmDupOpen: S.confirmDup != null, confirmDupText: S.confirmDup != null ? `Frame ${S.confirmDup + 1} has transition settings into frame ${S.confirmDup + 2}. The copy goes between them, so those settings will be lost.` : '',
       cancelDup: () => this.setState({ confirmDup: null }), forceDup: () => this.dupFrame(S.confirmDup, true),
@@ -2665,6 +2698,7 @@ class Component extends DCLogic {
       styleOpts: [{ v: '', l: 'Custom' }].concat(Object.entries(this.styles()).filter(([, st]) => !st.deleted).map(([id, st]) => ({ v: id, l: st.name || id }))),
       lyStyle: styled ? ly.style : '', onLyStyle: e => ly && this.chooseStyle(cur, ly.id, e.target.value), lyStyled: styled,
       styleTargetBtns: styled ? [['layer', 'This layer'], ['style', (this.styles()[ly.style].name || ly.style) + ' style']].map(([v, label]) => ({ label, ...tab((S.styleTarget === 'style' ? 'style' : 'layer') === v), onClick: () => this.setState({ styleTarget: v }) })) : [],
+      canSplit: !!ly && ly.type === 'text' && String(ly.text || '').split('\n').filter(t => t.trim()).length > 1, onSplitLines: () => ly && this.splitLines(ly.id),
       lyHasOverrides: styled && STYLE_KEYS.some(over), onClearOverrides: () => ly && this.clearKeys(cur, ly.id, STYLE_KEYS),
       colorLabel: 'Colour' + (over('color') ? ' •' : ''), colorOver: over('color'), onColorReset: () => ly && this.clearKeys(cur, ly.id, ['color']),
       boxOver: over('card') || over('box'), onBoxReset: e => { e && e.stopPropagation && e.stopPropagation(); ly && this.clearKeys(cur, ly.id, ['card', 'box']); },

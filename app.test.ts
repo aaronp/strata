@@ -1727,3 +1727,44 @@ test("defaults: 30% row and column steps; H1 centred vertically; Body has a cont
   const S = c.styles(); expect(S.h1.valign).toBe("middle");
   expect(S.body).toMatchObject({ card: "custom", box: { bg: "#0b1220", bgOpacity: 0.6, blur: 3, border: 0, radius: 12, pad: 12 } });
 });
+
+// ---- sequences ----
+test("add as sequence: start frame hides the items, one frame per item in reading order, each reveal eases out; later frames kept", async () => {
+  const fl = { f0: { x: { move: { ease: "both" } } } };
+  await writeDeck("talk", { ROOT: slideNode("ROOT", "", ["s"]), s: slideNode("s", "S", [], { ftrans: fl, frames: [
+    { id: "f0", layers: [TL("x", { y: 60, opacity: 0.8 }), TL("y1", { y: 10 }), TL("z", { y: 35, x: 20 }), TL("w")] }, { id: "fz", layers: [TL("w", { x: 40 })] }] }) });
+  const c = (await mount("?deck=talk")).c; c.setState({ cur: "s", fi: 0 }); await Bun.sleep(150);   // history starts recording after load
+  expect(c.renderVals().seqOn).toBe(false);
+  c.setSelection(["x", "y1", "z"]); let v = c.renderVals(); expect(v.seqOn).toBe(true);
+  expect(v.seqKinds.map((k: any) => k.l)).toEqual(["Fade in", "Slide up", "Slide from left", "Cascade"]);
+  v.onSeqKind({ target: { value: "cascade" } }); c.renderVals().onAddSequence(); c.componentDidUpdate();
+  const n = c.state.nodes.s, F = n.frames, L = (f: number, id: string) => F[f].layers.find((l: any) => l.id === id);
+  expect(F.length).toBe(5); expect(F[0].id).toBe("f0"); expect(F[4].id).toBe("fz");
+  // start frame: all three hidden; cascade starts each item at the previous one's spot (the first in place)
+  expect([L(0, "y1").opacity, L(0, "z").opacity, L(0, "x").opacity]).toEqual([0, 0, 0]);
+  expect([L(0, "y1").y, L(0, "z").y, L(0, "z").x, L(0, "x").y]).toEqual([10, 10, 5, 35]);
+  expect(L(0, "w").opacity).toBeUndefined();
+  // frame k reveals item k (reading order y1, z, x) at its final place and opacity
+  expect([L(1, "y1").opacity ?? 1, L(1, "z").opacity]).toEqual([1, 0]);
+  expect([L(2, "z").opacity ?? 1, L(2, "z").y, L(2, "z").x, L(2, "x").opacity, L(2, "x").y]).toEqual([1, 35, 20, 0, 35]);
+  expect([L(3, "x").opacity, L(3, "x").y]).toEqual([0.8, 60]);
+  expect(n.ftrans[F[1].id].z).toMatchObject({ move: { ease: "out" }, fade: { ease: "out" } });
+  expect(n.ftrans[F[0].id].y1.fade.ease).toBe("out");
+  expect(n.ftrans[F[3].id]).toEqual(fl.f0);   // the old f0 → fz settings now sit on the last new frame → fz
+  c.undo(); c.componentDidUpdate(); expect(c.state.nodes.s.frames.length).toBe(2);
+  // slide up: start 6% below, in place horizontally
+  c.setSelection(["x", "y1"]); c.renderVals().onSeqKind({ target: { value: "up" } }); c.renderVals().onAddSequence();
+  const G = c.state.nodes.s.frames; expect(G.length).toBe(4); expect(G[0].layers.find((l: any) => l.id === "y1")).toMatchObject({ y: 16, x: 5, opacity: 0 });
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text(); for (const h of ["{{ onAddSequence }}", "{{ seqKinds }}", "{{ onSplitLines }}"]) expect(html).toContain(h);
+});
+
+test("split lines into layers: one layer per non-empty line, stacked in the box, in every frame; the first keeps the id", async () => {
+  const c = await styledDeck({}, [TL("a", { text: "One\n\nTwo\nThree", y: 10, h: 30, style: "bullets" }), TL("b")]);
+  c.setState({ cur: "s" }); c.setSelection(["a"]);
+  expect(c.renderVals().canSplit).toBe(true); c.renderVals().onSplitLines();
+  const ls = c.layersOf("s"); expect(ls.map((l: any) => l.text)).toEqual(["One", "Two", "Three", "b"]);
+  expect(ls[0].id).toBe("a"); expect(ls.slice(0, 3).map((l: any) => [l.y, l.h])).toEqual([[10, 10], [20, 10], [30, 10]]);
+  expect(ls.slice(0, 3).every((l: any) => l.style === "bullets")).toBe(true);
+  expect(c.selIds()).toEqual(ls.slice(0, 3).map((l: any) => l.id));   // ready for Add as sequence
+  c.setSelection(["b"]); expect(c.renderVals().canSplit).toBe(false);
+});

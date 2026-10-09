@@ -907,7 +907,7 @@ const DECK_BASE = DECK ? '../decks/' + DECK + '/' : '';
 const STATIC = !!window.STRATA_STATIC;
 const UIKEY = 'strata-ui';
 const AUTOSAVE_MS = 800;
-const DECK_FIELDS = ['title', 'source', 'card', 'nodes', 'bg', 'customBg', 'customAspect', 'bgScale', 'bgRepeat', 'bgY', 'opacity', 'base', 'offset', 'gap', 'tone', 'speed', 'tdef', 'titlePage', 'titleView', 'spacing', 'rowGap', 'styles', 'images'];
+const DECK_FIELDS = ['title', 'source', 'card', 'nodes', 'bg', 'customBg', 'customAspect', 'bgScale', 'bgRepeat', 'bgY', 'opacity', 'base', 'offset', 'gap', 'tone', 'speed', 'tdef', 'titlePage', 'titleView', 'spacing', 'rowGap', 'styles', 'layouts', 'layoutDefaults', 'images'];
 // Named text styles: built-ins live here; deck.styles holds only their differences and added styles. A styled layer's own STYLE_KEYS are overrides.
 const STYLE_KEYS = ['font', 'size', 'weight', 'color', 'align', 'valign', 'lh', 'ls', 'bullets', 'gap', 'card', 'box'];
 const STYLE_BASE = { font: 'grot', color: null, ls: 0, align: 'left', bullets: 'none', gap: 0.15 };
@@ -919,6 +919,33 @@ const BUILTIN_STYLES = {
   bullets: { name: 'Bullets', ...STYLE_BASE, size: 28, weight: 500, valign: 'top', lh: 1.3, gap: 0.45, bullets: 'disc' },
 };
 const mergeStyles = own => { const out = {}; for (const k in BUILTIN_STYLES) out[k] = { ...BUILTIN_STYLES[k], ...((own || {})[k] || {}) }; for (const k in own || {}) if (!out[k]) out[k] = own[k]; return out; };
+// ---- Layouts: arrangements matched to a slide's signature (its counted content, by style); slots are boxes in % of the slide.
+const B = (x, y, w, h) => ({ x, y, w, h, rot: 0 });
+const HEAD = [B(6, 6, 88, 14)];
+const BUILTIN_LAYOUTS = {
+  title: { name: 'Title', match: { h1: 1 }, slots: { h1: [B(8, 38, 84, 22)] } },
+  stacked: { name: 'Title + text', match: { h1: 1, body: 1 }, slots: { h1: HEAD, body: [B(6, 24, 88, 66)] } },
+  'text-links': { name: 'Text + links', match: { h1: 1, body: 1, bullets: 1 }, slots: { h1: HEAD, body: [B(6, 24, 56, 66)], bullets: [B(66, 24, 28, 60)] } },
+  links: { name: 'Title + links', match: { h1: 1, bullets: 1 }, slots: { h1: HEAD, bullets: [B(6, 24, 60, 66)] } },
+  'cols-2': { name: 'Two columns', match: { h1: 1, body: 2 }, slots: { h1: HEAD, body: [B(6, 24, 42, 66), B(52, 24, 42, 66)] } },
+  'stack-2': { name: 'Two stacked', match: { h1: 1, body: 2 }, slots: { h1: HEAD, body: [B(6, 24, 88, 31), B(6, 59, 88, 31)] } },
+  'cols-3': { name: 'Three columns', match: { h1: 1, body: 3 }, slots: { h1: HEAD, body: [B(6, 24, 27.3, 66), B(36.3, 24, 27.3, 66), B(66.6, 24, 27.3, 66)] } },
+  'grid-4': { name: 'Grid of four', match: { h1: 1, body: 4 }, slots: { h1: HEAD, body: [B(6, 24, 42, 31), B(52, 24, 42, 31), B(6, 59, 42, 31), B(52, 59, 42, 31)] } },
+  'image-right': { name: 'Image right', match: { h1: 1, body: 1, image: 1 }, slots: { h1: HEAD, body: [B(6, 24, 42, 66)], image: [B(52, 24, 42, 66)] } },
+  'image-full': { name: 'Full image', match: { h1: 1, image: 1 }, slots: { image: [B(0, 0, 100, 100)], h1: [B(6, 72, 88, 18)] } },
+  'body-1': { name: 'Text', match: { body: 1 }, slots: { body: [B(8, 10, 84, 80)] } },
+  'body-2': { name: 'Two texts', match: { body: 2 }, slots: { body: [B(6, 10, 42, 80), B(52, 10, 42, 80)] } },
+  'body-3': { name: 'Three texts', match: { body: 3 }, slots: { body: [B(6, 10, 27.3, 80), B(36.3, 10, 27.3, 80), B(66.6, 10, 27.3, 80)] } },
+};
+const counted = l => !l.hidden && ((l.type === 'text' && !l.link) || l.type === 'image');
+const keyOf = (l, S) => (l.type === 'image' ? 'image' : l.style && S && S[l.style] && !S[l.style].deleted ? l.style : 'text');
+const sigOf = (layers, S) => { const m = {}; for (const l of layers || []) if (counted(l)) { const k = keyOf(l, S); m[k] = (m[k] || 0) + 1; } return m; };
+const sigKey = m => Object.keys(m || {}).filter(k => m[k] > 0).sort().map(k => k + ':' + m[k]).join(',');
+const groupsOf = (layers, S) => { const g = {}; for (const l of layers || []) if (counted(l)) (g[keyOf(l, S)] = g[keyOf(l, S)] || []).push(l); for (const k in g) g[k].sort((a, b) => a.y - b.y || a.x - b.x); return g; };
+const fillSlots = (layers, layout, S) => { const out = {}, g = groupsOf(layers, S);
+  for (const k in g) g[k].forEach((l, i) => { const b = ((layout.slots || {})[k] || [])[i]; if (b) out[l.id] = { x: b.x, y: b.y, w: b.w, h: b.h, rot: b.rot || 0 }; }); return out; };
+// A slide's counted boxes, by key, in reading order (what Save as layout / Update layout record).
+const slotsOf = (layers, S) => { const out = {}, g = groupsOf(layers, S); for (const k in g) out[k] = g[k].map(l => ({ x: l.x, y: l.y, w: l.w, h: l.h, rot: l.rot || 0 })); return out; };
 // ---- Inline markup: **bold**, *italic*, [words]{style=h2 size=72 color=#hex font=serif weight=600}, \ escapes. Per line; malformed markup is literal.
 const ESC = '*[]{}\\';
 const runKeys = ['b', 'i', 'style', 'size', 'color', 'font', 'weight', 'ls', 'link', 'href'];
@@ -1243,6 +1270,7 @@ function seed() {
 }
 
 class Component extends DCLogic {
+  static lay = { BUILTIN_LAYOUTS, sigOf, sigKey, fillSlots, slotsOf };
   static rich = { parseRich, plainText, applyFormat, runsToMarkup, linesOf, textOf, toPlain, lineLen, locate, setAttr, toggleAttr, clearRange, insertBreak, insertPlain, deleteRange, linkAt, buildEditor, getOffsets, setOffsets, readLines, wysBefore };
   state = {
     nodes: seed(), cur: 'a', prev: null, phase: 'idle', dx: 0, dy: 0, type: 'swipe', mode: STATIC ? 'present' : 'build', view: 'slide', rtab: 'slide',
@@ -1487,7 +1515,7 @@ class Component extends DCLogic {
     this.histTrack();
     const S = this.state;
     if (!DECK) {
-      const d = JSON.stringify({ nodes: stripGrafts(S.nodes), cur: S.cur, mode: S.mode, view: S.view, rtab: S.rtab, bg: S.bg, customAspect: S.customAspect, bgScale: S.bgScale, bgRepeat: S.bgRepeat, bgY: S.bgY, opacity: S.opacity, base: S.base, offset: S.offset, gap: S.gap, tone: S.tone, speed: S.speed, navW: S.navW, rightW: S.rightW, tdef: S.tdef, titlePage: S.titlePage, titleView: S.titleView, spacing: S.spacing, rowGap: S.rowGap, styles: S.styles, secOpen: S.secOpen, stab: S.stab, collapsed: S.collapsed, treeZoom: S.treeZoom, treeFocus: S.treeFocus });
+      const d = JSON.stringify({ nodes: stripGrafts(S.nodes), cur: S.cur, mode: S.mode, view: S.view, rtab: S.rtab, bg: S.bg, customAspect: S.customAspect, bgScale: S.bgScale, bgRepeat: S.bgRepeat, bgY: S.bgY, opacity: S.opacity, base: S.base, offset: S.offset, gap: S.gap, tone: S.tone, speed: S.speed, navW: S.navW, rightW: S.rightW, tdef: S.tdef, titlePage: S.titlePage, titleView: S.titleView, spacing: S.spacing, rowGap: S.rowGap, styles: S.styles, layouts: S.layouts, layoutDefaults: S.layoutDefaults, secOpen: S.secOpen, stab: S.stab, collapsed: S.collapsed, treeZoom: S.treeZoom, treeFocus: S.treeFocus });
       if (d !== this._d) { this._d = d; try { localStorage.setItem(KEY, d); } catch (e) {} }
       if (S.images !== this._im) { this._im = S.images; try { localStorage.setItem(IKEY, JSON.stringify(S.images)); } catch (e) {} }
       if (S.customBg !== this._bg) { this._bg = S.customBg; try { if (S.customBg) localStorage.setItem(BGKEY, S.customBg); } catch (e) {} }
@@ -1562,6 +1590,20 @@ class Component extends DCLogic {
   // Slide height fills the canvas height: row step (top edge to top edge) between levels, with any gap above and below too.
   // Effective styles (built-ins + deck.styles), memoised on the state object.
   styles() { if (this._stylesOf !== this.state.styles || !this._styles) { this._stylesOf = this.state.styles; this._styles = mergeStyles(this.state.styles); } return this._styles; }
+  // Effective layouts: built-ins, then the deck's (a same id replaces the built-in); memoised on the state object.
+  layouts() { if (this._layoutsOf !== this.state.layouts || !this._layouts) { this._layoutsOf = this.state.layouts; const o = {};
+      for (const k in BUILTIN_LAYOUTS) o[k] = { id: k, ...BUILTIN_LAYOUTS[k] }; for (const k in this.state.layouts || {}) o[k] = { id: k, ...this.state.layouts[k] }; this._layouts = o; }
+    return this._layouts; }
+  slideSig(id) { const fr = this.framesOf(id); return sigKey(sigOf(fr[0] ? fr[0].layers : [], this.styles())); }
+  // The slide's own layout if it still matches, else the deck default for its signature, else the first match, else none.
+  effectiveLayout(id) {
+    const n = this.state.nodes[id]; if (!n) return null; const sig = this.slideSig(id); if (!sig) return null;
+    const L = this.layouts(), fits = x => x && sigKey(x.match) === sig;
+    if (fits(L[n.layout])) return L[n.layout];
+    const d = L[(this.state.layoutDefaults || {})[sig]]; if (fits(d)) return d;
+    return Object.values(L).find(fits) || null;
+  }
+  isCustom(id) { const n = this.state.nodes[id]; return !!(n && (n.custom || this.framesOf(id).length > 1)); }
   // A styled text layer over its style: the host's style of that id, else (for a linked-in slide) its own deck's. Display and comparison only.
   resolveLayer(l, nodeId) {
     if (!l || l.type !== 'text') return l;

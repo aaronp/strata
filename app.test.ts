@@ -1572,3 +1572,38 @@ test("Size, Line height and Gap are number inputs; typed values override (or edi
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
   expect(html).toContain('type="number" step="{{ tf.step }}" min="{{ tf.min }}"');
 });
+
+// ---- layouts ----
+const lay = async () => (await mount("")).c.constructor.lay;
+const LTX = (id: string, style: string | undefined, x: number, y: number, extra: object = {}) => ({ id, type: "text", text: id, x, y, w: 10, h: 10, ...(style ? { style } : {}), ...extra });
+const layDeck = async (slides: Record<string, any[]>, extra: object = {}) => {
+  const ids = Object.keys(slides);
+  await writeDeck("talk", { ROOT: slideNode("ROOT", "", ids), ...Object.fromEntries(ids.map(k => [k, slideNode(k, k.toUpperCase(), [], { frames: [{ id: "f", layers: slides[k] }] })])) }, extra);
+  return (await mount("?deck=talk")).c;
+};
+
+test("signatures count content by style; layouts match exactly; slots fill by key then reading order", async () => {
+  const { BUILTIN_LAYOUTS, sigOf, sigKey, fillSlots } = await lay();
+  const S = { h1: {}, body: {}, gone: { deleted: true } };
+  const layers = [LTX("t", "h1", 0, 0), LTX("b2", "body", 50, 50), LTX("b1", "body", 0, 50), LTX("c", undefined, 0, 0), LTX("g", "gone", 0, 0),
+    { id: "i", type: "image", x: 0, y: 0, w: 1, h: 1 }, LTX("src", undefined, 0, 90, { link: { type: "url", url: "x" } }), LTX("hid", "body", 0, 0, { hidden: true }), { id: "s", type: "shape", x: 0, y: 0, w: 1, h: 1 }];
+  expect(sigOf(layers, S)).toEqual({ h1: 1, body: 2, text: 2, image: 1 });
+  expect(sigKey({ h1: 1, body: 2 })).toBe("body:2,h1:1"); expect(sigKey({})).toBe("");
+  const boxes = fillSlots(layers.slice(0, 3), BUILTIN_LAYOUTS["cols-2"], S);
+  expect(boxes).toEqual({ t: { x: 6, y: 6, w: 88, h: 14, rot: 0 }, b1: { x: 6, y: 24, w: 42, h: 66, rot: 0 }, b2: { x: 52, y: 24, w: 42, h: 66, rot: 0 } });
+  for (const L of Object.values<any>(BUILTIN_LAYOUTS)) {
+    for (const k in L.match) expect(L.slots[k].length).toBe(L.match[k]);
+    for (const k in L.slots) for (const b of L.slots[k]) { expect(b.x >= 0 && b.y >= 0 && b.x + b.w <= 100.01 && b.y + b.h <= 100.01).toBe(true); }
+  }
+});
+
+test("effective layout: the slide's own if it still matches, else the deck default, else the first match; multi-frame counts as custom", async () => {
+  const c = await layDeck({ a: [LTX("t", "h1", 0, 0), LTX("b1", "body", 0, 0), LTX("b2", "body", 0, 0)], z: [LTX("q", undefined, 0, 0)] }, { layoutDefaults: { "body:2,h1:1": "stack-2" } });
+  expect(c.effectiveLayout("a").id).toBe("stack-2");
+  c.setNode("a", { layout: "cols-2" }); expect(c.effectiveLayout("a").id).toBe("cols-2");
+  c.setNode("a", { layout: "title" }); expect(c.effectiveLayout("a").id).toBe("stack-2");     // no longer matches → default
+  c.setState({ layoutDefaults: {} }); expect(c.effectiveLayout("a").id).toBe("cols-2");         // first match
+  expect(c.effectiveLayout("z")).toBeNull();
+  expect(c.isCustom("a")).toBe(false); c.setNode("a", { frames: [{ id: "f", layers: [] }, { id: "g", layers: [] }] }); expect(c.isCustom("a")).toBe(true);
+  expect(c.layouts()["cols-2"]).toMatchObject({ id: "cols-2", name: "Two columns" });
+});

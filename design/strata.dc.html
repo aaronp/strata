@@ -129,6 +129,7 @@ input,textarea,button{font:inherit;color:inherit}
                   <div style="flex:1;min-width:0;font-size:10.5px;line-height:1.1;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:{{ n.weight }}">{{ n.title }}</div>
                 </div>
                 <sc-if value="{{ n.selected }}">
+                  <sc-if value="{{ n.canPeer }}"><button onClick="{{ n.onBefore }}" title="Add slide before (⇧Enter)" style="position:absolute;left:-24px;top:12px;width:20px;height:20px;padding:0;border:0;border-radius:50%;background:#1d1b17;color:#fbf9f4;cursor:pointer;font-size:13px;line-height:20px">+</button></sc-if>
                   <sc-if value="{{ n.canPeer }}"><button onClick="{{ n.onPeer }}" title="Add slide after (Enter)" style="position:absolute;left:80px;top:12px;width:20px;height:20px;padding:0;border:0;border-radius:50%;background:#1d1b17;color:#fbf9f4;cursor:pointer;font-size:13px;line-height:20px">+</button></sc-if>
                   <sc-if value="{{ n.canAdd }}"><button onClick="{{ n.onChild }}" title="Add slide below (Tab)" style="position:absolute;left:28px;top:62px;width:20px;height:20px;padding:0;border:0;border-radius:50%;background:#1d1b17;color:#fbf9f4;cursor:pointer;font-size:13px;line-height:20px">+</button></sc-if>
                   <sc-if value="{{ n.canPeer }}"><button onClick="{{ n.onDelete }}" title="Delete slide and everything below it" style="position:absolute;right:-7px;top:-7px;width:17px;height:17px;padding:0;border:0;border-radius:50%;background:#fff;color:#a8301d;box-shadow:0 1px 3px rgba(0,0,0,.25);cursor:pointer;font-size:9px;line-height:17px;opacity:{{ n.delOpacity }}">✕</button></sc-if>
@@ -1856,7 +1857,7 @@ class Component extends DCLogic {
     this.setState({ nodes: { ...S.nodes, [id]: { id, title: 'New slide', body: '', children: [] }, [pid]: { ...p, children: kids } }, cur: id, prev: null, phase: 'idle', query: '', rtab: 'slide', fi: 0, transSel: null });
     this.focusTitle();
   }
-  addPeer(id) { if (id === 'ROOT') return; if (this.state.nodes[id]._from) { this.flash(this.graftMsg(id)); return; } const D = this.derive(); const pid = D.parent[id]; this.insert(pid, this.state.nodes[pid].children.indexOf(id) + 1); }
+  addPeer(id, before) { if (id === 'ROOT') return; if (this.state.nodes[id]._from) { this.flash(this.graftMsg(id)); return; } const D = this.derive(); const pid = D.parent[id]; this.insert(pid, this.state.nodes[pid].children.indexOf(id) + (before ? 0 : 1)); }
   addChild(id) { this.insert(id, this.state.nodes[id].children.length); }
   // Deleting a slide with children asks first: delete them too, or move them up into its place.
   remove(id) {
@@ -2299,7 +2300,7 @@ class Component extends DCLogic {
       else if (k === 'Escape' && (S.presentView === 'tree' || S.presentView === 'radial')) this.setState({ presentView: 'slides' });
       else if (k === 'Escape' && !STATIC) this.setState({ mode: 'build' });
     } else {
-      if (k === 'Enter') { e.preventDefault(); this.addPeer(S.cur); }
+      if (k === 'Enter') { e.preventDefault(); this.addPeer(S.cur, e.shiftKey); }
       else if (k === 'Tab') { e.preventDefault(); if (e.shiftKey) this.outdent(S.cur); else this.addChild(S.cur); }
       else if (k === 'Backspace' || k === 'Delete') { e.preventDefault(); this.remove(S.cur); }
     }
@@ -2345,7 +2346,7 @@ class Component extends DCLogic {
       onDragStart: ev => { if (id !== 'ROOT') this.startTreeDrag(ev, id); }, dragOp: td && td.id === id ? 0.35 : 1, full: name(id), cam: camOf(id), layers: this.shown(id, this.layersOf(id)), selected: id === cur, outline: id === cur ? '2px solid #d9432b' : 'none',
       weight: id === cur ? 700 : 500, opacity: q && !match[id] ? 0.35 : 1, delOpacity: D.order.length > 1 ? 1 : 0.4,
       onClick: () => { if (this._suppressClick) { this._suppressClick = false; return; } this.nav(id, 'jump'); }, onRename: () => { this.nav(id, 'jump'); this.setState({ rtab: 'slide' }); this.focusTitle(); },
-      onPeer: e => { e.stopPropagation(); this.addPeer(id); }, onChild: e => { e.stopPropagation(); this.addChild(id); }, onDelete: e => { e.stopPropagation(); this.remove(id); } }));
+      onPeer: e => { e.stopPropagation(); this.addPeer(id); }, onBefore: e => { e.stopPropagation(); this.addPeer(id, true); }, onChild: e => { e.stopPropagation(); this.addChild(id); }, onDelete: e => { e.stopPropagation(); this.remove(id); } }));
     const treeEdges = TV.vis.filter(id => tp[D.parent[id]]).map(id => { const a = tp[D.parent[id]], b = tp[id]; const x1 = a.x + TW / 2, y1 = a.y + 60, x2 = b.x + TW / 2, y2 = b.y - 2; return { d: `M${x1} ${y1}V${y1 + 12}H${x2}V${y2}` }; });
     // The top-row connector joins only the top-level slides the tree lays out (Focus hides the rest).
     const tops = TV.kids('ROOT'); const topEdge = !r0 && tops.length > 1 ? [{ d: `M${tp[tops[0]].x + TW / 2} ${TPY - 8}H${tp[tops[tops.length - 1]].x + TW / 2}` }].concat(tops.map(t => ({ d: `M${tp[t].x + TW / 2} ${TPY - 8}V${TPY - 2}` }))) : [];

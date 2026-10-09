@@ -1711,3 +1711,12 @@ test("present View menu: layout (Slides / Tree / Radial), breadcrumbs, max size;
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
   for (const h of ["{{ onViewMenu }}", "{{ viewItems }}", "{{ mapCards }}", "{{ mapEdges }}", "{{ onMapZoomIn }}", '<sc-if value="{{ crumbsOn }}">']) expect(html).toContain(h);
 });
+
+test("tree: + before adds a sibling to the left (button and Shift+Enter), e.g. a new first slide", async () => {
+  const c = await treeDeck(); c.setState({ cur: "a" });
+  c.renderVals().treeNodes.find((n: any) => n.full === "A").onBefore({ stopPropagation() {} });
+  expect(c.state.nodes.ROOT.children.length).toBe(3); expect(c.state.nodes.ROOT.children.slice(1)).toEqual(["a", "b"]); expect(c.state.cur).toBe(c.state.nodes.ROOT.children[0]);
+  c.setState({ cur: "a2" }); c.onKey({ key: "Enter", shiftKey: true, target: {}, preventDefault() {} });
+  expect(c.state.nodes.a.children.slice(0, 1)).toEqual(["a1"]); expect(c.state.nodes.a.children[2]).toBe("a2"); expect(c.state.cur).toBe(c.state.nodes.a.children[1]);
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text(); expect(html).toContain("{{ n.onBefore }}");
+});

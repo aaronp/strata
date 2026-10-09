@@ -890,6 +890,7 @@ const BGS = {
   london: { label: 'London', src: 'backdrops/london.png', aspect: 1 },
   sea: { label: 'Under the sea', src: 'backdrops/under-the-sea.png', aspect: 0.4 },
   space: { label: 'Space', src: 'backdrops/space.png', aspect: 0.4 },
+  forest: { label: 'Forest', src: 'backdrops/forest.png', aspect: 0.4 },
   sky: { label: 'Sky', src: 'backdrops/sky.svg', aspect: 0.4 },
   ocean: { label: 'Ocean', src: 'backdrops/ocean.svg', aspect: 0.4 },
   none: { label: 'None', src: null, aspect: 1 },
@@ -2559,7 +2560,7 @@ class Component extends DCLogic {
       levelInfo: `${D.levels} level${D.levels === 1 ? '' : 's'} deep, so each slide is ${(L.h).toFixed(1)}% of the canvas height.`,
       sizeInfo: B.src ? `One copy of the image is ${(tileW / L.w).toFixed(2)} slides wide; the tree spans ${(L.CW / L.w).toFixed(1)} slides.` : `The tree spans ${(L.CW / L.w).toFixed(1)} slides.`,
       speed: S.speed, speedLabel: S.speed + 'ms', onSpeed: e => this.setState({ speed: +e.target.value }),
-      bgTiles: ['balloons', 'london', 'sea', 'space', 'sky', 'ocean', 'none'].concat(S.customBg ? ['custom'] : []).map(id => { const src = id === 'custom' ? S.customBg : BGS[id].src;
+      bgTiles: ['balloons', 'london', 'sea', 'space', 'forest', 'sky', 'ocean', 'none'].concat(S.customBg ? ['custom'] : []).map(id => { const src = id === 'custom' ? S.customBg : BGS[id].src;
         return { label: BGS[id].label, border: S.bg === id ? '2px solid #1d1b17' : '1px solid #e0d9cb', thumb: src ? `#e9e3d6 url("${src}") center 20% / cover` : '#efeae0', onClick: () => this.setState({ bg: id }) }; }),
       hasBgImage: !!B.src, bgScale: S.bgScale || 1, bgScaleLabel: Math.round((S.bgScale || 1) * 100) + '%', onBgScale: e => this.setState({ bgScale: +e.target.value }),
       bgY: S.bgY || 0, bgYLabel: Math.round((S.bgY || 0) * 100) + '%', onBgY: e => this.setState({ bgY: +e.target.value }),

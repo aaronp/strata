@@ -1702,6 +1702,9 @@ test("present View menu: layout (Slides / Tree / Radial), breadcrumbs, max size;
   const ctr = (m: any) => [m.x + v.mapCardW / 2 - v.mapW / 2, m.y + v.mapCardH / 2 - v.mapH / 2], r = (m: any) => Math.hypot(...ctr(m));
   expect(r(at("A"))).toBeCloseTo(r(at("B"))); expect(r(at("A1"))).toBeCloseTo(r(at("A2"))); expect(r(at("A1x"))).toBeGreaterThan(r(at("A1")));
   expect(r(at("A1"))).toBeGreaterThan(r(at("A")));
+  c.setState({ mapZoom: 0.05 }); c.renderVals().onMapZoomOut(); expect(c.state.mapZoom).toBeLessThan(0.05);
+  c.setState({ mapZoom: null, viewMenu: true }); expect(c.renderVals().hdrStyle).toContain("transform:none");   // a transform would trap the menu's fixed outside-click overlay inside the header
+  c.setState({ viewMenu: false }); v = c.renderVals();
   const z0 = v.mapZoom; v.onMapZoomIn(); expect(c.renderVals().mapZoom).toBeGreaterThan(z0); c.renderVals().onMapFit(); expect(c.state.mapZoom).toBeNull();
   at("B").onClick(); expect(c.state.cur).toBe("b"); expect(c.renderVals().showMap).toBe(false);
   c.setState({ presentView: "tree" }); c.onKey({ key: "Escape", target: {}, preventDefault() {} }); expect(c.renderVals().showMap).toBe(false);

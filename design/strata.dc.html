@@ -2702,7 +2702,7 @@ class Component extends DCLogic {
       onLaySave: () => this.saveAsLayout(cur), layCanUpdate: !!effL && !animated, layUpdateLabel: effL ? 'Update “' + effL.name + '” from this slide' : '', onLayUpdate: () => this.updateLayoutFrom(cur),
       layAll: Object.values(LAY).map(L => ({ ...tileOf(L), layers: [] })), layAllOpen: !!S.layAllOpen, onLayAllToggle: () => this.setState({ layAllOpen: !S.layAllOpen }),
       mapCards, mapEdges, mapW, mapH, mapCardW: MAP_W, mapCardH: MAP_H, mapZoom: mapZ, mapWz: Math.ceil(mapW * mapZ), mapHz: Math.ceil(mapH * mapZ),
-      onMapZoomIn: () => this.setState({ mapZoom: Math.min(3, mapZ * 1.25) }), onMapZoomOut: () => this.setState({ mapZoom: Math.max(0.1, mapZ / 1.25) }), onMapFit: () => this.setState({ mapZoom: null }),
+      onMapZoomIn: () => this.setState({ mapZoom: Math.min(3, mapZ * 1.25) }), onMapZoomOut: () => this.setState({ mapZoom: Math.max(0.02, mapZ / 1.25) }), onMapFit: () => this.setState({ mapZoom: null }),
       viewMenuOpen: !!S.viewMenu, onViewMenu: () => this.setState({ viewMenu: !S.viewMenu }), onViewMenuClose: () => this.setState(closeMenu),
       viewItems: [['slides', 'Slides'], ['tree', 'Tree'], ['radial', 'Radial']].map(([v, label]) => ({ label, on: pv === v, mark: pv === v ? '●' : '', sep: 'none', onClick: () => this.setState({ presentView: v, mapZoom: null, ...closeMenu }) }))
         .concat([{ label: 'Breadcrumbs', on: S.showCrumbs !== false, mark: S.showCrumbs !== false ? '✓' : '', sep: '1px solid #e0d9cb', onClick: () => this.setState({ showCrumbs: S.showCrumbs === false }) },
@@ -2712,7 +2712,7 @@ class Component extends DCLogic {
       stagePad: isPresent && S.presentFit === 'max' ? '0' : '136px 66px 60px', stageRadius: isPresent && S.presentFit === 'max' ? '0' : '12px',
       stageW: isPresent && S.presentFit === 'max' ? 'min(100cqw, 100cqh * 16 / 9)' : 'min(100cqw - 132px, (100cqh - 196px) * 16 / 9)',
       hdrShown: !isPresent || !!S.hdrShow || !!S.searchFocus || !!S.query || !!S.viewMenu,
-      hdrStyle: isPresent ? 'position:absolute;left:0;right:0;top:0;z-index:50;transition:transform .2s ease;transform:translateY(' + (S.hdrShow || S.searchFocus || S.query || S.viewMenu ? '0' : '-100%') + ')' : '',
+      hdrStyle: isPresent ? 'position:absolute;left:0;right:0;top:0;z-index:50;transition:transform .2s ease;transform:' + (S.hdrShow || S.searchFocus || S.query || S.viewMenu ? 'none' : 'translateY(-100%)') : '',
       onHdrEnter: () => { clearTimeout(this._hdrT); if (!S.hdrShow) this.setState({ hdrShow: true }); },
       onHdrLeave: () => { clearTimeout(this._hdrT); this._hdrT = setTimeout(() => this.setState({ hdrShow: false }), 300); },
       onSearchFocus: () => this.setState({ searchFocus: true }), onSearchBlur: () => this.setState({ searchFocus: false }),

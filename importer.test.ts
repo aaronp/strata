@@ -15,8 +15,8 @@ test("fresh import builds nodes, notes and md-* layers with links", () => {
   expect(d.nodes.a).toMatchObject({ id: "a", title: "A", children: ["b"] });
   expect(d.nodes.a.body).toContain("Hello there.");
   expect(d.nodes.a.frames.map((f: any) => f.id)).toEqual(["f1"]);
-  expect(d.nodes.a.frames[0].layers.map((l: any) => l.id)).toEqual(["md-title", "md-body", "md-link-0", "md-src-0"]);
-  expect(layer(d, "a", "md-link-0")).toMatchObject({ text: "To B →", link: { type: "slide", id: "b" }, card: "custom", box: { bg: "#ffffff", bgOpacity: 0.75 } });
+  expect(d.nodes.a.frames[0].layers.map((l: any) => l.id)).toEqual(["md-title", "md-body", "md-links", "md-src-0"]);
+  expect(layer(d, "a", "md-links")).toMatchObject({ text: "[To B]{link=b}", style: "bullets", bullets: "disc", card: "custom", box: { bg: "#ffffff", bgOpacity: 0.75 } });
   expect(layer(d, "a", "md-src-0")).toMatchObject({ text: "Src ↗", link: { type: "url", url: "https://s.com" } });
   expect(d.title).toBe("A");
 });
@@ -69,9 +69,9 @@ test("importing the example produces 55 linked slides across 5 levels and record
   expect(ids.length).toBe(55);
   expect(d.nodes.ROOT.children).toEqual(["current"]);
   expect(d.nodes["ai-authority"]).toBeDefined();             // level 5
-  const links = ids.flatMap(k => d.nodes[k].frames[0].layers).filter((l: any) => l.link?.type === "slide");
-  expect(links.length).toBeGreaterThan(50);
-  expect(links.every((l: any) => d.nodes[l.link.id])).toBe(true);
+  const targets = ids.flatMap(k => d.nodes[k].frames[0].layers).flatMap((l: any) => [...String(l.text ?? "").matchAll(/\{[^}]*\blink=([^\s}]+)/g)].map(m => m[1]));
+  expect(targets.length).toBeGreaterThan(50);                    // inline slide links in the chip lists and bodies
+  expect(targets.every((t: string) => d.nodes[t])).toBe(true);
   expect(d.source).toMatch(/examples\/current-situation\.md$/);
   expect(d.title).toBe("Current Situation");
 });
@@ -98,23 +98,11 @@ test("re-importing keeps layout edits made in deck.json", async () => {
   expect((await Bun.file(p).json()).nodes.a.frames[0].layers[1]).toMatchObject({ x: 42, text: "New body." });
 });
 
-test("re-importing an older deck drops chip rectangles and gives chips their container, keeping layout", () => {
+test("re-import keeps the link list's builder layout and container edits, and refreshes its links", () => {
   const d = imp(null, md());
-  const f = d.nodes.a.frames[0];
-  const { card: _c, box: _b, ...oldChip } = { ...layer(d, "a", "md-link-0"), x: 67, w: 26 };
-  const old = { ...d, nodes: { ...d.nodes, a: { ...d.nodes.a, frames: [{ ...f, layers: [...f.layers.filter((l: any) => l.id !== "md-link-0"),
-    { id: "md-linkbg-0", type: "shape", x: 66, y: 24, w: 28, h: 9 }, oldChip] }] } } };
-  const d2 = imp(old, md());
-  expect(d2.nodes.a.frames[0].layers.map((l: any) => l.id)).not.toContain("md-linkbg-0");
-  expect(layer(d2, "a", "md-link-0")).toMatchObject({ x: 67, w: 26, card: "custom", box: { bg: "#ffffff" } });
-});
-
-test("re-import never overwrites a container the builder changed", () => {
-  const d = imp(null, md());
-  const chip = layer(d, "a", "md-link-0");
   const edited = { ...d, nodes: { ...d.nodes, a: { ...d.nodes.a, frames: [{ ...d.nodes.a.frames[0], layers: d.nodes.a.frames[0].layers.map((l: any) =>
-    l.id === "md-link-0" ? { ...chip, card: "off", box: { ...chip.box, bg: "#1f6fb8" } } : l) }] } } };
-  expect(layer(imp(edited, md()), "a", "md-link-0")).toMatchObject({ card: "off", box: { bg: "#1f6fb8" } });
+    l.id === "md-links" ? { ...l, x: 60, w: 34, card: "off", box: { ...l.box, bg: "#1f6fb8" } } : l) }] } } };
+  expect(layer(imp(edited, md()), "a", "md-links")).toMatchObject({ x: 60, w: 34, card: "off", box: { bg: "#1f6fb8" }, text: "[To B]{link=b}" });
 });
 
 test("re-import keeps the title page: ROOT's title and frames, and the deck flags", () => {
@@ -175,4 +163,15 @@ test("import: md-title keeps the heading's markup, the node title is plain", () 
   const d = imp(null, "# The **big** idea\nslug: big\n");
   expect(d.nodes.big.title).toBe("The big idea");
   expect(d.nodes.big.frames[0].layers.find((l: any) => l.id === "md-title").text).toBe("The **big** idea");
+});
+
+test("a slide's chips become one bulleted text layer of inline links (style Bullets), replacing old per-chip layers", () => {
+  const md = "# Top\nslug: top\n\nIntro.\n\n- [link:a][Go to A]\n- [link:b][B*star*]\n\n## A\nslug: a\n\n## B\nslug: b\n";
+  const d = imp(null, md), L = d.nodes.top.frames[0].layers;
+  expect(L.filter((l: any) => String(l.id).startsWith("md-link-"))).toEqual([]);
+  const ls = L.find((l: any) => l.id === "md-links");
+  expect(ls).toMatchObject({ type: "text", style: "bullets", text: "[Go to A]{link=a}\n[B\\*star\\*]{link=b}", card: "custom" });
+  expect(d.nodes.a.frames[0].layers.find((l: any) => l.id === "md-links")).toBeUndefined();     // no chips, no list
+  const old = { nodes: { ...d.nodes, top: { ...d.nodes.top, frames: [{ id: "f1", layers: [...L.filter((l: any) => l.id !== "md-links"), { id: "md-link-0", type: "text", text: "Go →" }] }] } } };
+  expect(imp(old, md).nodes.top.frames[0].layers.map((l: any) => l.id)).not.toContain("md-link-0");
 });

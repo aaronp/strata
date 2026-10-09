@@ -913,6 +913,7 @@ const BUILTIN_STYLES = {
   h2: { name: 'H2', ...STYLE_BASE, size: 44, weight: 700, valign: 'top', lh: 1.1 },
   h3: { name: 'H3', ...STYLE_BASE, size: 32, weight: 600, valign: 'top', lh: 1.2 },
   body: { name: 'Body', ...STYLE_BASE, size: 32, weight: 400, valign: 'top', lh: 1.35, gap: 0.35 },
+  bullets: { name: 'Bullets', ...STYLE_BASE, size: 28, weight: 500, valign: 'top', lh: 1.3, gap: 0.45, bullets: 'disc' },
 };
 const mergeStyles = own => { const out = {}; for (const k in BUILTIN_STYLES) out[k] = { ...BUILTIN_STYLES[k], ...((own || {})[k] || {}) }; for (const k in own || {}) if (!out[k]) out[k] = own[k]; return out; };
 // ---- Inline markup: **bold**, *italic*, [words]{style=h2 size=72 color=#hex font=serif weight=600}, \ escapes. Per line; malformed markup is literal.

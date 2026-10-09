@@ -37,8 +37,9 @@ function parseBody(lines: Line[]) {
   if (cur.length) blocks.push(cur);
   const entry = (raw: string, line: number, item: boolean, block: number) => {
     const t = raw.trim();
-    const only = CHIP_ONLY.exec(t);
+    const only = CHIP_ONLY.exec(t), spanOnly = item ? /^\[((?:\\.|[^\]\\])*)\]\{link=([^}\s]+)\}$/.exec(t) : null;   // a list item that is only an inline slide link is a chip too
     if (only) { links.push({ ref: only[1].trim(), label: only[2].trim(), line }); return; }
+    if (spanOnly) { links.push({ ref: spanOnly[2], label: spanOnly[1].replace(/\\([*[\]{}\\])/g, "$1"), line }); return; }
     const exts = [...t.matchAll(EXT)];
     if (exts.length && !t.replace(EXT, "").replace(/[·|,;\s]/g, "")) { exts.forEach(m => sources.push({ text: m[1], url: m[2] })); return; }
     const text = t

@@ -238,3 +238,10 @@ test("inline links: mid-sentence chips and URLs stay inline; chip-only lines sta
   expect(md).toContain("To [k]{link=k} and [o]{color=red}.");                                // out-of-branch link dropped, formatting kept
   expect(parseMarkdown(md).errors).toEqual([]);
 });
+
+test("a list item that is only an inline slide link counts as a chip, so exported link lists re-import as lists", () => {
+  const r = parseMarkdown("# Top\nslug: top\n\n- [Go to A]{link=a}\n- [B\\*x]{link=a}\n\n## A\nslug: a\n");
+  expect(r.errors).toEqual([]);
+  expect(r.sections[0].links.map((l: any) => [l.label, l.target])).toEqual([["Go to A", "a"], ["B*x", "a"]]);
+  expect(r.sections[0].text).toBe("");
+});

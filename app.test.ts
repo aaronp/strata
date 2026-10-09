@@ -1147,7 +1147,7 @@ const styledDeck = async (extra: object = {}, layers: any[] = [TL("a", { style: 
 test("styles resolve in order: renderer default < style < layer override; deck.styles edits built-ins; unknown style = Custom", async () => {
   const c = await styledDeck({ styles: { h1: { size: 70 }, callout: { name: "Callout", size: 28, card: "custom", box: { bg: "#ff0000" } } } });
   const S = c.styles();
-  expect(Object.keys(S)).toEqual(["h1", "h2", "h3", "body", "callout"]);
+  expect(Object.keys(S)).toEqual(["h1", "h2", "h3", "body", "bullets", "callout"]);
   expect(S.h1).toMatchObject({ name: "H1", size: 70, weight: 800, valign: "bottom", lh: 1.05 });
   const [a, b, cc] = c.layersOf("s").map((l: any) => c.resolveLayer(l, "s"));
   expect(a).toMatchObject({ style: "h1", size: 70, weight: 800 });
@@ -1195,7 +1195,7 @@ test("choosing a style clears overrides; Custom writes the resolved values back;
 test("This layer mode writes an override (marked, ↺ resets); Style mode edits the style for every layer using it", async () => {
   const c = await styledDeck();
   c.setState({ layerSel: "a" }); let v = c.renderVals();
-  expect(v.lyStyle).toBe("h1"); expect(v.lyStyled).toBe(true); expect(v.styleOpts.map((o: any) => o.l)).toEqual(["Custom", "H1", "H2", "H3", "Body"]);
+  expect(v.lyStyle).toBe("h1"); expect(v.lyStyled).toBe(true); expect(v.styleOpts.map((o: any) => o.l)).toEqual(["Custom", "H1", "H2", "H3", "Body", "Bullets"]);
   const size = () => c.renderVals().textFields.find((f: any) => f.label.startsWith("Size"));   // an overridden label reads "Size •"
   size().onChange({ target: { value: "72" } });
   expect(c.layersOf("s")[0].size).toBe(72); expect(size().over).toBe(true); expect(c.renderVals().lyHasOverrides).toBe(true);
@@ -1222,7 +1222,7 @@ test("+ Text creates a Body layer", async () => {
 test("Styles section: counts, rename keeps the id, new style from a layer, delete keeps the look and goes Custom", async () => {
   const c = await styledDeck();
   let v = c.renderVals();
-  expect(v.styleRows.map((r: any) => [r.id, r.name, r.count, r.canDelete])).toEqual([["h1", "H1", "2 layers", false], ["h2", "H2", "0 layers", false], ["h3", "H3", "0 layers", false], ["body", "Body", "0 layers", false]]);
+  expect(v.styleRows.map((r: any) => [r.id, r.name, r.count, r.canDelete])).toEqual([["h1", "H1", "2 layers", false], ["h2", "H2", "0 layers", false], ["h3", "H3", "0 layers", false], ["body", "Body", "0 layers", false], ["bullets", "Bullets", "0 layers", false]]);
   v.styleRows[0].onName({ target: { value: "Heading" } }); expect(c.styles().h1.name).toBe("Heading");
   expect(c.renderVals().newStyleOff).toBe(true);
   c.setState({ layerSel: "c" }); v = c.renderVals(); expect(v.newStyleOff).toBe(false);
@@ -1326,7 +1326,7 @@ test("formatting bar: shown only while editing; formats the remembered selection
   const c = await styledDeck({}, [TL("a", { text: "say hello now" })]);
   expect(c.renderVals().fmtShow).toBe(false);
   c.setState({ editing: "a", layerSel: "a", editMode: "markup" }); let v = c.renderVals();
-  expect(v.fmtShow).toBe(true); expect(v.fmtStyleOpts.map((o: any) => o.l)).toEqual(["Style", "Plain", "H1", "H2", "H3", "Body"]);
+  expect(v.fmtShow).toBe(true); expect(v.fmtStyleOpts.map((o: any) => o.l)).toEqual(["Style", "Plain", "H1", "H2", "H3", "Body", "Bullets"]);
   v.onEditSel({ target: { selectionStart: 4, selectionEnd: 9 } });
   v.onFmtBold();
   expect(c.layersOf("s")[0].text).toBe("say **hello** now");
@@ -1553,4 +1553,9 @@ test("tree Focus mode on a deep slide renders (top-row connector only joins top-
   c.setState({ treeFocus: true, cur: "b" }); expect(() => c.renderVals()).not.toThrow();
   c.nav("a1x", "jump"); expect(() => c.renderVals()).not.toThrow();                 // e.g. a link jumping deeper
   const v = c.renderVals(); expect(v.treeNodes.map((n: any) => n.full)).toContain("A1x");
+});
+
+test("Bullets is a built-in style: dot bullets with roomy lines", async () => {
+  const c = await styledDeck();
+  expect(c.styles().bullets).toMatchObject({ name: "Bullets", bullets: "disc", font: "grot" });
 });

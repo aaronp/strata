@@ -13,11 +13,10 @@ export function layersFor(s: Section): any[] {
   const L: any[] = [{ id: "md-title", type: "text", style: "h1", text: s.title, x: 6, y: 6, w: 88, h: 14, rot: 0, opacity: 1 }];
   if (s.text) L.push({ id: "md-body", type: "text", style: "body", text: s.text, x: 6, y: 24, w: s.links.length ? 56 : 88, h: 60, rot: 0, opacity: 1,
     size: bodySize(s.text), bullets: s.bulletsOnly ? "disc" : "none" });   // content-driven overrides of Body
-  const step = Math.min(11, 62 / Math.max(1, s.links.length));
-  s.links.forEach((k, n) => {
-    L.push(text(`md-link-${n}`, { x: 66, y: 24 + n * step, w: 28, h: Math.min(9, step - 1.5) }, k.label + " →",
-      { size: 22, weight: 600, color: "#15171c", valign: "middle", lh: 1.1, link: { type: "slide", id: k.target }, card: "custom", box: CHIP_BOX }));
-  });
+  // The slide's chips: one bulleted list of inline links, in a single card (style Bullets).
+  const esc = (t: string) => t.replace(/[\\*[\]{}]/g, c => "\\" + c);
+  if (s.links.length) L.push({ id: "md-links", type: "text", style: "bullets", text: s.links.map(k => `[${esc(k.label)}]{link=${k.target}}`).join("\n"),
+    x: 66, y: 24, w: 28, h: Math.min(62, 4 + s.links.length * 8), rot: 0, opacity: 1, bullets: "disc", size: 22, weight: 600, color: "#15171c", card: "custom", box: CHIP_BOX });   // bullets explicit, like md-body, so export writes "- " items
   s.sources.forEach((r, n) => L.push(text(`md-src-${n}`, { x: 6 + (n % 3) * 30, y: 89 - Math.floor(n / 3) * 6, w: 28, h: 5 }, r.text + " ↗",
     { font: "mono", size: 16, valign: "middle", lh: 1.2, link: { type: "url", url: r.url } })));
   return L;

@@ -712,7 +712,7 @@ test("a repeated error doesn't re-render; Interact only applies while the compon
   expect(c.renderVals().overlays[0].pe).toBe("auto");
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
   expect(html).toContain('<sc-if value="{{ compDirty }}">');
-  expect((html.match(/cards="true"/g) || []).length).toBe(3);   // tree, layout previews, frame strip
+  expect((html.match(/cards="true"/g) || []).length).toBe(4);   // tree, layout previews, frame strip, present tree view
 });
 
 test("regression: every tree node carries its selection, drag, thumbnail framing and layers", async () => {
@@ -1679,4 +1679,23 @@ test("present: Max/Fit sizing (button and F), Jump to lives in the header, heade
   const header = html.slice(html.indexOf("<header"), html.indexOf("</header>"));
   expect(header).toContain('ref="{{ searchRef }}"'); expect(header).toContain('onMouseEnter="{{ onHdrEnter }}"'); expect(header).toContain("{{ onFitToggle }}");
   expect(html).toContain("padding:{{ stagePad }}");
+});
+
+test("present: breadcrumbs toggle (button and B); Tree view shows every slide with content, jumps on click, Esc/T return", async () => {
+  const c = await treeDeck(); c.setState({ mode: "present", cur: "a1" });
+  let v = c.renderVals(); expect(v.crumbsOn).toBe(true);
+  v.onCrumbsToggle(); expect(c.renderVals().crumbsOn).toBe(false);
+  c.onKey({ key: "b", target: {}, preventDefault() {} }); expect(c.renderVals().crumbsOn).toBe(true);
+  expect(c.renderVals().showWire).toBe(false);
+  c.onKey({ key: "t", target: {}, preventDefault() {} }); v = c.renderVals();
+  expect(v.presentTree).toBe(true); expect(v.showWire).toBe(true); expect(v.showStage).toBe(false);
+  expect(v.wireRects.map((r: any) => r.full)).toEqual(["A", "A1", "A1x", "A2", "B"]);
+  expect(v.wireRects.every((r: any) => r.thumb && Array.isArray(r.layers) && r.layers.length > 0)).toBe(true);
+  expect(v.wireRects.find((r: any) => r.full === "A1").border).toContain("#d9432b");      // current slide outlined
+  v.wireRects.find((r: any) => r.full === "B").onClick(); expect(c.state.cur).toBe("b"); expect(c.renderVals().presentTree).toBe(false);
+  v.viewSwitch[1].onClick(); expect(c.renderVals().presentTree).toBe(true);
+  c.onKey({ key: "Escape", target: {}, preventDefault() {} }); expect(c.renderVals().presentTree).toBe(false); expect(c.state.mode).toBe("present");
+  c.setState({ mode: "build", view: "wire" }); v = c.renderVals(); expect(v.wireRects[0].thumb).toBe(false);      // builder wireframe unchanged
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  for (const h of ['<sc-if value="{{ crumbsOn }}">', "{{ wr.layers }}", "{{ onCrumbsToggle }}", "{{ viewSwitch }}"]) expect(html).toContain(h);
 });

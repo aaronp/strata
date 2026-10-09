@@ -92,6 +92,8 @@ A layer keeps the **same `id`** across frames; that's how it's matched for tween
 ### Present view
 - **Fit / Max** (header button or **F**): Max makes the slide fill the whole area; crumbs and arrows float over it. Remembered in the browser.
 - The header hides itself while presenting; move the mouse to the top edge to show it. **Jump to** (**/**) lives in the header.
+- **Crumbs** (or **B**) shows or hides the top-left breadcrumbs.
+- **Slides | Tree** (or **T**): Tree zooms out to the whole canvas with every slide drawn in place; click one to jump there (Esc or T returns).
 
 ### Breadcrumbs (present view, top-left)
 - A wizard-style row for the current level: earlier siblings shown as completed, the current one highlighted, later ones at reduced opacity.

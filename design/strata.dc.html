@@ -70,6 +70,10 @@ input,textarea,button{font:inherit;color:inherit}
       </div>
     </sc-if>
     <sc-if value="{{ isPresent }}">
+      <div style="display:flex;gap:2px;padding:3px;border-radius:9px;background:#ece6d9;flex:none">
+        <sc-for list="{{ viewSwitch }}" as="vs" hint-placeholder-count="2"><button onClick="{{ vs.onClick }}" title="Slides, or the whole tree (T)" style="padding:4px 10px;border:0;border-radius:7px;cursor:pointer;background:{{ vs.bg }};box-shadow:{{ vs.shadow }};font-size:12.5px;white-space:nowrap">{{ vs.label }}</button></sc-for>
+      </div>
+      <button onClick="{{ onCrumbsToggle }}" title="Show or hide the breadcrumbs (B)" style="height:30px;padding:0 10px;border:1px solid #e0d9cb;border-radius:8px;background:{{ crumbsBg }};cursor:pointer;font-size:12.5px;white-space:nowrap;flex:none">Crumbs</button>
       <button onClick="{{ onFitToggle }}" title="Slide size: Fit or Max (F)" style="height:30px;padding:0 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer;font-size:12.5px;white-space:nowrap;flex:none">{{ fitLabel }}</button>
     </sc-if>
     <div style="display:flex;gap:2px;padding:3px;border-radius:10px;background:#ece6d9;flex:none">
@@ -265,6 +269,7 @@ input,textarea,button{font:inherit;color:inherit}
             </div>
           </div>
 
+          <sc-if value="{{ crumbsOn }}">
           <nav style="position:absolute;left:14px;top:12px;right:{{ navRight }};height:{{ crumbH }}px;overflow:hidden;z-index:4;pointer-events:none;transition:height 350ms ease">
             <div style="position:absolute;left:0;top:0;transform:translate({{ crumbTx }}px, {{ crumbTy }}px);transition:transform 450ms cubic-bezier(.65,0,.25,1)">
               <sc-for list="{{ crumbRows }}" as="row" hint-placeholder-count="1">
@@ -290,6 +295,7 @@ input,textarea,button{font:inherit;color:inherit}
               </sc-if>
             </div>
           </nav>
+          </sc-if>
           <sc-if value="{{ hasLeft }}">
             <button onClick="{{ goLeft }}" title="{{ leftTitle }}" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);width:44px;height:44px;border:0;border-radius:50%;background:rgba(251,249,244,.9);cursor:pointer;font-size:17px" style-hover="background:#fff">←</button>
           </sc-if>
@@ -318,7 +324,8 @@ input,textarea,button{font:inherit;color:inherit}
                 </sc-for>
               </svg>
               <sc-for list="{{ wireRects }}" as="wr" hint-placeholder-count="0">
-                <div onClick="{{ wr.onClick }}" onDoubleClick="{{ wr.onOpen }}" title="{{ wr.full }}" style="position:absolute;left:{{ wr.l }}%;top:{{ wr.t }}%;width:{{ wr.w }}%;height:{{ wr.h }}%;border:{{ wr.border }};background:{{ wr.fill }};border-radius:3px;cursor:pointer;overflow:hidden">
+                <div onClick="{{ wr.onClick }}" onDoubleClick="{{ wr.onOpen }}" title="{{ wr.full }}" data-cur="{{ wr.cur }}" style="position:absolute;left:{{ wr.l }}%;top:{{ wr.t }}%;width:{{ wr.w }}%;height:{{ wr.h }}%;border:{{ wr.border }};background:{{ wr.fill }};border-radius:3px;cursor:pointer;overflow:hidden">
+                  <sc-if value="{{ wr.thumb }}"><dc-import name="Layers" card="{{ deckCard }}" cards="true" layers="{{ wr.layers }}" images="{{ images }}" ink="{{ ink }}" shadow="{{ inkShadow }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import></sc-if>
                   <div style="position:absolute;left:5px;top:4px;right:5px;font-size:11px;font-weight:600;line-height:1.1;color:#fbf9f4;text-shadow:0 1px 3px rgba(0,0,0,.7);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ wr.title }}</div>
                 </div>
               </sc-for>
@@ -1561,12 +1568,12 @@ class Component extends DCLogic {
     this.histTrack();
     const S = this.state;
     if (!DECK) {
-      const d = JSON.stringify({ nodes: stripGrafts(S.nodes), cur: S.cur, mode: S.mode, view: S.view, rtab: S.rtab, bg: S.bg, customAspect: S.customAspect, bgScale: S.bgScale, bgRepeat: S.bgRepeat, bgY: S.bgY, opacity: S.opacity, base: S.base, offset: S.offset, gap: S.gap, tone: S.tone, speed: S.speed, navW: S.navW, rightW: S.rightW, tdef: S.tdef, titlePage: S.titlePage, titleView: S.titleView, spacing: S.spacing, rowGap: S.rowGap, styles: S.styles, layouts: S.layouts, layoutDefaults: S.layoutDefaults, presentFit: S.presentFit, secOpen: S.secOpen, stab: S.stab, collapsed: S.collapsed, treeZoom: S.treeZoom, treeFocus: S.treeFocus });
+      const d = JSON.stringify({ nodes: stripGrafts(S.nodes), cur: S.cur, mode: S.mode, view: S.view, rtab: S.rtab, bg: S.bg, customAspect: S.customAspect, bgScale: S.bgScale, bgRepeat: S.bgRepeat, bgY: S.bgY, opacity: S.opacity, base: S.base, offset: S.offset, gap: S.gap, tone: S.tone, speed: S.speed, navW: S.navW, rightW: S.rightW, tdef: S.tdef, titlePage: S.titlePage, titleView: S.titleView, spacing: S.spacing, rowGap: S.rowGap, styles: S.styles, layouts: S.layouts, layoutDefaults: S.layoutDefaults, presentFit: S.presentFit, showCrumbs: S.showCrumbs, secOpen: S.secOpen, stab: S.stab, collapsed: S.collapsed, treeZoom: S.treeZoom, treeFocus: S.treeFocus });
       if (d !== this._d) { this._d = d; try { localStorage.setItem(KEY, d); } catch (e) {} }
       if (S.images !== this._im) { this._im = S.images; try { localStorage.setItem(IKEY, JSON.stringify(S.images)); } catch (e) {} }
       if (S.customBg !== this._bg) { this._bg = S.customBg; try { if (S.customBg) localStorage.setItem(BGKEY, S.customBg); } catch (e) {} }
     } else if (!STATIC) {
-      const u = JSON.stringify({ navW: S.navW, rightW: S.rightW, secOpen: S.secOpen, stab: S.stab, presentFit: S.presentFit, view: S.view, rtab: S.rtab, collapsed: S.collapsed, treeZoom: S.treeZoom, treeFocus: S.treeFocus });
+      const u = JSON.stringify({ navW: S.navW, rightW: S.rightW, secOpen: S.secOpen, stab: S.stab, presentFit: S.presentFit, showCrumbs: S.showCrumbs, view: S.view, rtab: S.rtab, collapsed: S.collapsed, treeZoom: S.treeZoom, treeFocus: S.treeFocus });
       if (u !== this._u) { this._u = u; try { localStorage.setItem(UIKEY, u); } catch (e) {} }
     }
     if (S.cur !== this._lastCur) { this._lastCur = S.cur; this.scrollTree(); }
@@ -1596,6 +1603,10 @@ class Component extends DCLogic {
       if (this._wysFor !== S.editing) { this._wysFor = S.editing; this._wysLines = linesOf(text); this._wysText = text; this.rebuildWys(); root.focus && root.focus(); const end = toPlain(this._wysLines).length; setOffsets(root, end, end); }
       else if (l && text !== this._wysText) { this._wysLines = linesOf(text); this._wysText = text; const o = this._wysSel || { start: 0, end: 0 }; this.rebuildWys(o.start, o.end); }   // undo/redo or an outside change
     } else if (!S.editing) { this._wysFor = null; this._wysLines = null; }
+    // Present tree view: open scrolled to the current slide.
+    const inTree = S.mode === 'present' && S.presentView === 'tree';
+    if (inTree && !this._treeShown && typeof document !== 'undefined') { const el = document.querySelector('[data-cur="true"]'); if (el && el.scrollIntoView) el.scrollIntoView({ inline: 'center', block: 'nearest' }); }
+    this._treeShown = inTree;
     const te = this.treeRef.current;
     if (te !== this._wheelEl) {
       if (this._wheelEl) this._wheelEl.removeEventListener('wheel', this.onTreeWheel);
@@ -2230,6 +2241,9 @@ class Component extends DCLogic {
     else if (S.mode === 'present') {
       if (k === '/') { e.preventDefault(); this.searchRef.current && this.searchRef.current.focus(); }
       else if (k === 'f' || k === 'F') this.setState(s => ({ presentFit: s.presentFit === 'max' ? 'fit' : 'max' }));
+      else if (k === 'b' || k === 'B') this.setState(s => ({ showCrumbs: s.showCrumbs === false }));
+      else if (k === 't' || k === 'T') this.setState(s => ({ presentView: s.presentView === 'tree' ? 'slides' : 'tree' }));
+      else if (k === 'Escape' && S.presentView === 'tree') this.setState({ presentView: 'slides' });
       else if (k === 'Escape' && !STATIC) this.setState({ mode: 'build' });
     } else {
       if (k === 'Enter') { e.preventDefault(); this.addPeer(S.cur); }
@@ -2247,7 +2261,7 @@ class Component extends DCLogic {
 
   renderVals() {
     const S = this.state; const N = S.nodes; const D = this.derive(); const B = this.bgInfo(); const L = this.layout(D);
-    const cur = this.curId(); const curN = N[cur]; const isPresent = S.mode === 'present'; const isWire = !isPresent && S.view === 'wire';
+    const cur = this.curId(); const curN = N[cur]; const isPresent = S.mode === 'present'; const isWire = !isPresent && S.view === 'wire', presentTree = isPresent && S.presentView === 'tree';   // present: the whole tree, slides drawn with their content
     const q = S.query.trim().toLowerCase(); const name = id => N[id].title || (id === 'ROOT' ? 'Title page' : 'Untitled');
     const pathOf = id => { const p = []; let x = id; while (x && x !== 'ROOT') { p.unshift(x); x = D.parent[x]; } return p; };
     const tab = on => ({ bg: on ? '#fbf9f4' : 'transparent', color: on ? '#1d1b17' : '#6b6458', shadow: on ? '0 1px 3px rgba(0,0,0,.12)' : 'none' });
@@ -2324,7 +2338,8 @@ class Component extends DCLogic {
     const pct = r => ({ l: f3(r.x / CW * 100), t: f3(r.y / H * 100), w: f3(r.w / CW * 100), h: f3(r.h / H * 100) });
     const wireRects = D.order.map(id => { const on = id === cur, row = D.parent[id] === D.parent[cur];
       return { ...pct(L.rect[id]), title: name(id), full: name(id), border: on ? '2px solid #d9432b' : row ? '1.5px solid #e0a019' : '1px solid rgba(251,249,244,.7)', fill: on ? 'rgba(217,67,43,.2)' : 'rgba(251,249,244,.06)',
-        onClick: () => this.nav(id, 'jump'), onOpen: () => this.setState({ view: 'slide' }) }; });
+        thumb: presentTree, layers: presentTree ? this.shown(id, this.layersOf(id)) : [], cur: on,
+        onClick: () => { this.nav(id, 'jump'); if (presentTree) this.setState({ presentView: 'slides' }); }, onOpen: () => this.setState({ view: 'slide' }) }; });
     const wireLinesSafe = [];
     D.order.filter(id => D.parent[id] !== 'ROOT').forEach(id => { const a = L.rect[D.parent[id]], b = L.rect[id];
       const xa = (a.x + a.w * 0.1) / CW * 100, ya = (a.y + a.h) / H * 100, xb = (b.x + b.w * 0.1) / CW * 100, yb = b.y / H * 100, my = (ya + yb) / 2;
@@ -2620,6 +2635,8 @@ class Component extends DCLogic {
       layTiles: animated || !sigK ? [] : Object.values(LAY).filter(L => sigKey(L.match) === sigK).map(tileOf), layNoTiles: !animated && !!sigK && !firstFit,
       onLaySave: () => this.saveAsLayout(cur), layCanUpdate: !!effL && !animated, layUpdateLabel: effL ? 'Update “' + effL.name + '” from this slide' : '', onLayUpdate: () => this.updateLayoutFrom(cur),
       layAll: Object.values(LAY).map(L => ({ ...tileOf(L), layers: [] })), layAllOpen: !!S.layAllOpen, onLayAllToggle: () => this.setState({ layAllOpen: !S.layAllOpen }),
+      crumbsOn: S.showCrumbs !== false, crumbsBg: S.showCrumbs !== false ? '#ece6d9' : '#fff', onCrumbsToggle: () => this.setState({ showCrumbs: S.showCrumbs === false }),
+      viewSwitch: [['slides', 'Slides'], ['tree', 'Tree']].map(([v, label]) => ({ label, ...tab((S.presentView === 'tree' ? 'tree' : 'slides') === v), onClick: () => this.setState({ presentView: v }) })),
       isMax: isPresent && S.presentFit === 'max', fitLabel: S.presentFit === 'max' ? '⤡ Fit' : '⤢ Max', onFitToggle: () => this.setState({ presentFit: S.presentFit === 'max' ? 'fit' : 'max' }),
       stagePad: isPresent && S.presentFit === 'max' ? '0' : '136px 66px 60px', stageRadius: isPresent && S.presentFit === 'max' ? '0' : '12px',
       stageW: isPresent && S.presentFit === 'max' ? 'min(100cqw, 100cqh * 16 / 9)' : 'min(100cqw - 132px, (100cqh - 196px) * 16 / 9)',
@@ -2679,7 +2696,7 @@ class Component extends DCLogic {
       treeRef: this.treeRef, treeW: TPX * 2 + Math.max(1, leaf) * COLW + 20, treeH: TPY + (D.levels + r0) * ROWH + 20, treeNodes, treeEdges: topEdge.concat(treeEdges),
       viewTabs: [{ label: 'Slide', ...tab(S.view === 'slide'), onClick: () => this.setState({ view: 'slide' }) }, { label: 'Wireframe', ...tab(S.view === 'wire'), onClick: () => this.setState({ view: 'wire' }) }],
       viewHint: isWire ? 'Every slide on the looping canvas. Click to select, double-click to open.' : 'What viewers see. Arrow keys move around the tree.',
-      stageAreaBg: isPresent ? '#05070c' : '#e6e0d3', showStage: !isWire, showWire: isWire,
+      stageAreaBg: isPresent ? '#05070c' : '#e6e0d3', showStage: !isWire && !presentTree, showWire: isWire || presentTree, presentTree,
       base: S.base, bgCss: B.src ? `url("${B.src}") center / 100% 100% no-repeat` : 'none', opacity: S.opacity, tiles, cam,
       curCam: camOf(cur), camTransition: `transform ${S.speed}ms ${ease}`,
       hasPrev: !!active, planeA, planeB, planeTr: active && S.phase === 'run' ? `transform ${S.speed}ms ${ease}, opacity ${S.speed}ms ease` : 'none',

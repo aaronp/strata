@@ -1301,7 +1301,7 @@ const toDataUrl = async u => {
   for (let i = 0; i < a.length; i += 0x8000) bin += String.fromCharCode.apply(null, a.subarray(i, i + 0x8000));
   return 'data:' + (b.type || 'application/octet-stream') + ';base64,' + btoa(bin);
 };
-const TW = 76, COLW = 96, ROWH = 92, TPX = 16, TPY = 18;
+const TW = 76, COLW = 96, ROWH = 92, TPX = 28, TPY = 18;   // TPX leaves room for the + before button (24px left of a card)
 const FONT_LIST = [['grot', 'Grotesk', "'Bricolage Grotesque',sans-serif"], ['serif', 'Serif', "'DM Serif Display',serif"], ['news', 'Book', "'Newsreader',serif"], ['mono', 'Mono', "'JetBrains Mono',monospace"], ['hand', 'Hand', "'Caveat',cursive"]];
 const FONT_CSS = Object.fromEntries(FONT_LIST.map(f => [f[0], f[2]]));
 const ICONS = {

@@ -16,7 +16,7 @@ test("fresh import builds nodes, notes and md-* layers with links", () => {
   expect(d.nodes.a.body).toContain("Hello there.");
   expect(d.nodes.a.frames.map((f: any) => f.id)).toEqual(["f1"]);
   expect(d.nodes.a.frames[0].layers.map((l: any) => l.id)).toEqual(["md-title", "md-body", "md-links", "md-src-0"]);
-  expect(layer(d, "a", "md-links")).toMatchObject({ text: "[To B]{link=b}", style: "bullets", bullets: "disc", card: "custom", box: { bg: "#ffffff", bgOpacity: 0.75 } });
+  expect(layer(d, "a", "md-links")).toMatchObject({ text: "[To B]{link=b}", style: "bullets", card: "custom", box: { bg: "#ffffff", bgOpacity: 0.75 } });
   expect(layer(d, "a", "md-src-0")).toMatchObject({ text: "Src ↗", link: { type: "url", url: "https://s.com" } });
   expect(d.title).toBe("A");
 });
@@ -174,4 +174,11 @@ test("a slide's chips become one bulleted text layer of inline links (style Bull
   expect(d.nodes.a.frames[0].layers.find((l: any) => l.id === "md-links")).toBeUndefined();     // no chips, no list
   const old = { nodes: { ...d.nodes, top: { ...d.nodes.top, frames: [{ id: "f1", layers: [...L.filter((l: any) => l.id !== "md-links"), { id: "md-link-0", type: "text", text: "Go →" }] }] } } };
   expect(imp(old, md).nodes.top.frames[0].layers.map((l: any) => l.id)).not.toContain("md-link-0");
+});
+
+test("imported layers take bullets from their style unless the content itself is a list (so style edits show)", () => {
+  const d = imp(null, "# A\nslug: a\n\nProse.\n\n- [link:b][Go]\n\n## B\nslug: b\n\n- one\n- two\n");
+  expect(layer(d, "a", "md-links").bullets).toBeUndefined();          // follows the Bullets style
+  expect(layer(d, "a", "md-body").bullets).toBeUndefined();           // prose follows Body
+  expect(layer(d, "b", "md-body").bullets).toBe("disc");              // a list body is a list by content
 });

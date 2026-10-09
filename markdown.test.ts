@@ -245,3 +245,8 @@ test("a list item that is only an inline slide link counts as a chip, so exporte
   expect(r.sections[0].links.map((l: any) => [l.label, l.target])).toEqual([["Go to A", "a"], ["B*x", "a"]]);
   expect(r.sections[0].text).toBe("");
 });
+
+test("a paragraph that is only an inline slide link counts as a chip too", () => {
+  const r = parseMarkdown("# Top\nslug: top\n\n[Go to A]{link=a}\n\n[B]{link=a}\n\n## A\nslug: a\n");
+  expect(r.sections[0].links.map((l: any) => l.label)).toEqual(["Go to A", "B"]); expect(r.sections[0].text).toBe("");
+});

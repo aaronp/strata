@@ -579,11 +579,14 @@ input,textarea,button{font:inherit;color:inherit}
                     <sc-for list="{{ textFields }}" as="tf" hint-placeholder-count="8">
                       <label style="display:grid;grid-template-columns:44px minmax(0,1fr) auto;align-items:center;gap:6px;min-width:0">
                         <span style="font-size:12px;color:#6b6458;white-space:nowrap">{{ tf.label }}</span>
+                        <sc-if value="{{ tf.isSel }}">
                         <select value="{{ tf.value }}" onChange="{{ tf.onChange }}" style="width:100%;min-width:0;height:28px;padding:0 4px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;outline:none;font-size:12px;cursor:pointer">
                           <sc-for list="{{ tf.opts }}" as="o" hint-placeholder-count="3">
                             <option value="{{ o.v }}">{{ o.l }}</option>
                           </sc-for>
                         </select>
+                        </sc-if>
+                        <sc-if value="{{ tf.num }}"><span style="display:flex;align-items:center;gap:4px;min-width:0"><input type="number" step="{{ tf.step }}" min="{{ tf.min }}" value="{{ tf.value }}" onChange="{{ tf.onChange }}" style="width:100%;min-width:0;height:28px;padding:0 6px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;font-size:13px"><span style="flex:none;font-size:11px;color:#6b6458">{{ tf.unit }}</span></span></sc-if>
                         <sc-if value="{{ tf.over }}"><button onClick="{{ tf.onReset }}" title="Remove this layer's override (use the style)" style="padding:0 4px;border:0;background:none;cursor:pointer;color:#6b6458">↺</button></sc-if>
                       </label>
                     </sc-for>
@@ -2299,7 +2302,10 @@ class Component extends DCLogic {
       lyOp: ly ? (ly.opacity ?? 1) : 1, opLabel: ly ? Math.round((ly.opacity ?? 1) * 100) + '%' : '', onLyOp: e => upL({ opacity: +e.target.value }),
     };
     const withCur = (list, v) => (v === undefined || list.includes(v) ? list : [...list, v].sort((a, b) => a - b));
-    const field = (label, key, opts, fallback, parse) => ({ label: label + (over(key) ? ' •' : ''), value: String(lv ? (lv[key] ?? fallback) : fallback), opts: opts.map(([v, l]) => ({ v: String(v), l })), onChange: e => upL({ [key]: parse ? parse(e.target.value) : e.target.value }), over: over(key), onReset: () => this.clearKeys(cur, ly.id, [key]) });
+    const field = (label, key, opts, fallback, parse) => ({ isSel: true, label: label + (over(key) ? ' •' : ''), value: String(lv ? (lv[key] ?? fallback) : fallback), opts: opts.map(([v, l]) => ({ v: String(v), l })), onChange: e => upL({ [key]: parse ? parse(e.target.value) : e.target.value }), over: over(key), onReset: () => this.clearKeys(cur, ly.id, [key]) });
+    // Numeric settings: a number input; empty, non-numeric or below-minimum input is ignored.
+    const numField = (label, key, step, min, unit, fallback) => ({ num: true, label: label + (over(key) ? ' •' : ''), step, min, unit, value: String(lv ? (lv[key] ?? fallback) : fallback),
+      onChange: e => { const v = parseFloat(e.target.value); if (Number.isFinite(v) && v >= min) upL({ [key]: v }); }, over: over(key), onReset: () => this.clearKeys(cur, ly.id, [key]) });
     const CARD0 = { mode: 'none', color: '#0b1220', opacity: 0.45, blur: 8 }; const cardCfg = { ...CARD0, ...(S.card || {}) };
     const setCard = patch => this.setState(s => ({ card: { ...CARD0, ...(s.card || {}), ...patch } }));
     // Text box: deck default / on (deck style) / custom / off. Custom starts from the deck's style.
@@ -2316,13 +2322,13 @@ class Component extends DCLogic {
       .map(([label, k, min, max, step, fmt]) => ({ label, min, max, step, value: bx[k], valLabel: fmt(bx[k]), onChange: e => upBox({ [k]: +e.target.value }) })) : [];
     const textFields = ly && ly.type === 'text' ? [
       field('Font', 'font', FONT_LIST.map(f => [f[0], f[1]]), 'grot'),
-      field('Size', 'size', withCur([12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 48, 56, 64, 72, 80, 96, 110, 128, 144, 160, 192, 240], lv.size || 40).map(v => [v, v + ' px']), 40, Number),
+      numField('Size', 'size', 1, 1, 'px', 40),
       field('Weight', 'weight', [[400, 'Regular'], [500, 'Medium'], [600, 'Semibold'], [700, 'Bold'], [800, 'Extra bold']], 400, Number),
       field('Align', 'align', [['left', 'Left'], ['center', 'Centre'], ['right', 'Right']], 'left'),
       field('V-align', 'valign', [['top', 'Top'], ['middle', 'Middle'], ['bottom', 'Bottom']], 'top'),
       field('Bullets', 'bullets', [['none', 'None'], ['disc', '•  Dot'], ['dash', '–  Dash'], ['number', '1.  Numbers'], ['check', '✓  Check'], ['arrow', '→  Arrow']], 'none'),
-      field('Line ht', 'lh', withCur([0.9, 1, 1.1, 1.2, 1.25, 1.3, 1.35, 1.4, 1.5, 1.75, 2], lv.lh || 1.2).map(v => [v, v.toFixed(2)]), 1.2, Number),
-      field('Gap', 'gap', withCur([0, 0.1, 0.15, 0.25, 0.4, 0.45, 0.6, 0.8, 1], lv.gap ?? 0.15).map(v => [v, v + ' em']), 0.15, Number),
+      numField('Line ht', 'lh', 0.05, 0.5, '', 1.2),
+      numField('Gap', 'gap', 0.05, 0, 'em', 0.15),
     ] : [];
     // frames
     const framesCur = this.framesOf(cur); const fiCur = this.fiFor(cur); const nCur = N[cur];

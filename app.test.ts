@@ -1559,3 +1559,16 @@ test("Bullets is a built-in style: dot bullets with roomy lines", async () => {
   const c = await styledDeck();
   expect(c.styles().bullets).toMatchObject({ name: "Bullets", bullets: "disc", font: "grot" });
 });
+
+test("Size, Line height and Gap are number inputs; typed values override (or edit the style); invalid input is ignored", async () => {
+  const c = await styledDeck(); c.setState({ layerSel: "c" });
+  const f = (n: string) => c.renderVals().textFields.find((x: any) => x.label.startsWith(n));
+  expect(["Size", "Line ht", "Gap"].map(n => [f(n).num, f(n).step, f(n).min])).toEqual([[true, 1, 1], [true, 0.05, 0.5], [true, 0.05, 0]]);
+  expect(f("Weight").num).toBeFalsy(); expect(f("Weight").isSel).toBe(true);
+  f("Size").onChange({ target: { value: "37" } }); expect(c.layersOf("s")[2].size).toBe(37);
+  f("Gap").onChange({ target: { value: "0.3" } }); expect(c.layersOf("s")[2].gap).toBe(0.3);
+  for (const bad of ["", "abc", "-2"]) f("Line ht").onChange({ target: { value: bad } }); expect(c.layersOf("s")[2].lh).toBeUndefined();
+  c.setState({ layerSel: "a", styleTarget: "style" }); f("Size").onChange({ target: { value: "70" } }); expect(c.state.styles.h1.size).toBe(70);
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  expect(html).toContain('type="number" step="{{ tf.step }}" min="{{ tf.min }}"');
+});

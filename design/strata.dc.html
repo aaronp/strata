@@ -399,18 +399,49 @@ input,textarea,button{font:inherit;color:inherit}
               </sc-for>
             </div>
             <sc-if value="{{ stabLayout }}">
-              <div style="display:flex;flex-direction:column;gap:6px;padding:0 10px 10px">
-              <span style="font-size:12px;color:#6b6458;margin-top:-2px">Rearranges this slide's text and images. Undo to go back.</span>
-              <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:6px">
-                <sc-for list="{{ layoutBtns }}" as="lb" hint-placeholder-count="8">
-                  <button onClick="{{ lb.onClick }}" title="{{ lb.label }}" style="display:flex;flex-direction:column;gap:4px;padding:4px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer;text-align:left;min-width:0" style-hover="border-color:#1d1b17">
-                    <div style="position:relative;width:100%;aspect-ratio:16/9;border-radius:4px;overflow:hidden;background:{{ base }}">
-                      <dc-import name="Layers" card="{{ deckCard }}" cards="true" layers="{{ lb.layers }}" images="{{ images }}" ink="{{ ink }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
+              <div style="display:flex;flex-direction:column;gap:10px">
+                <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center">
+                  <sc-for list="{{ layChips }}" as="ch" hint-placeholder-count="2"><span style="padding:2px 7px;border-radius:999px;background:#ece6d9;font-family:'JetBrains Mono',monospace;font-size:11px">{{ ch }}</span></sc-for>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:#3d5a78">
+                  <span style="flex:1">{{ layStatus }}</span>
+                  <sc-if value="{{ layCustom }}"><button onClick="{{ onLayReset }}" style="padding:3px 8px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer;font-size:12px">↺ Reset to default</button></sc-if>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px">
+                  <sc-for list="{{ layTiles }}" as="lt" hint-placeholder-count="2">
+                    <div style="display:flex;flex-direction:column;gap:4px;padding:5px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;min-width:0">
+                      <div style="position:relative;width:100%;aspect-ratio:16/9;border-radius:4px;overflow:hidden;background:{{ base }}">
+                        <dc-import name="Layers" card="{{ deckCard }}" cards="true" layers="{{ lt.layers }}" images="{{ images }}" ink="{{ ink }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
+                      </div>
+                      <div style="display:flex;align-items:center;gap:4px;min-width:0">
+                        <sc-if value="{{ lt.star }}"><span title="This type's default" style="color:#d9432b">★</span></sc-if>
+                        <input value="{{ lt.name }}" onChange="{{ lt.onName }}" style="flex:1;min-width:0;height:22px;padding:0 4px;border:1px solid transparent;border-radius:4px;font-size:12px;font-weight:600;background:transparent">
+                        <sc-if value="{{ lt.canDelete }}"><button onClick="{{ lt.onDelete }}" title="Delete this layout (its slides keep their arrangement)" style="border:0;background:none;color:#a8301d;cursor:pointer">✕</button></sc-if>
+                      </div>
+                      <div style="display:flex;gap:4px">
+                        <button onClick="{{ lt.onApply }}" style="flex:1;padding:3px 0;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer;font-size:11.5px">Apply</button>
+                        <button onClick="{{ lt.onApplyAll }}" title="Make this the default for this type and update every slide of the type that isn't custom" style="flex:1;padding:3px 0;border:0;border-radius:6px;background:#1d1b17;color:#fbf9f4;cursor:pointer;font-size:11.5px">Apply to all</button>
+                      </div>
+                      <button onClick="{{ lt.onToggle }}" style="align-self:flex-start;padding:0;border:0;background:none;color:#1f4f80;cursor:pointer;font-size:11.5px">{{ lt.count }}</button>
+                      <sc-if value="{{ lt.open }}"><div style="display:flex;flex-direction:column;gap:2px"><sc-for list="{{ lt.slides }}" as="ls" hint-placeholder-count="2"><button onClick="{{ ls.onClick }}" style="padding:0;border:0;background:none;text-align:left;color:#1d1b17;cursor:pointer;font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">→ {{ ls.name }}</button></sc-for></div></sc-if>
                     </div>
-                    <span style="font-size:11px;font-weight:600;padding:0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ lb.label }}</span>
-                  </button>
-                </sc-for>
-              </div>
+                  </sc-for>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:6px">
+                  <button onClick="{{ onLaySave }}" style="padding:5px 10px;border:1px solid #e0d9cb;border-radius:7px;background:#fff;cursor:pointer;font-size:12.5px">Save as layout</button>
+                  <sc-if value="{{ layCanUpdate }}"><button onClick="{{ onLayUpdate }}" style="padding:5px 10px;border:1px solid #e0d9cb;border-radius:7px;background:#fff;cursor:pointer;font-size:12.5px">{{ layUpdateLabel }}</button></sc-if>
+                </div>
+                <button onClick="{{ onLayAllToggle }}" style="align-self:flex-start;padding:0;border:0;background:none;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#6b6458">All layouts</button>
+                <sc-if value="{{ layAllOpen }}">
+                  <div style="display:flex;flex-direction:column;gap:6px">
+                    <sc-for list="{{ layAll }}" as="la" hint-placeholder-count="3">
+                      <div style="display:flex;flex-direction:column;gap:2px;padding:4px 0;border-top:1px solid #f0ebe0">
+                        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><b style="font-size:12px">{{ la.name }}</b><sc-for list="{{ la.chips }}" as="ch" hint-placeholder-count="2"><span style="padding:1px 6px;border-radius:999px;background:#ece6d9;font-family:'JetBrains Mono',monospace;font-size:10.5px">{{ ch }}</span></sc-for><button onClick="{{ la.onToggle }}" style="margin-left:auto;padding:0;border:0;background:none;color:#1f4f80;cursor:pointer;font-size:11.5px">{{ la.count }}</button></div>
+                        <sc-if value="{{ la.open }}"><sc-for list="{{ la.slides }}" as="ls" hint-placeholder-count="2"><button onClick="{{ ls.onClick }}" style="padding:0 0 0 8px;border:0;background:none;text-align:left;cursor:pointer;font-size:11.5px">→ {{ ls.name }}</button></sc-for></sc-if>
+                      </div>
+                    </sc-for>
+                  </div>
+                </sc-if>
               </div>
             </sc-if>
             <sc-if value="{{ stabFrames }}">
@@ -1178,7 +1209,6 @@ const relUrl = v => typeof v === 'string' && DECK_BASE && v.startsWith(DECK_BASE
 const rectsTouch = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 const groupBox = ls => { const x = Math.min(...ls.map(l => l.x)), y = Math.min(...ls.map(l => l.y)); return { x, y, w: Math.max(...ls.map(l => l.x + l.w)) - x, h: Math.max(...ls.map(l => l.y + l.h)) - y }; };
 const scaleLayers = (ls, from, to) => ls.map(l => ({ ...l, x: rd(to.x + (l.x - from.x) * to.w / from.w), y: rd(to.y + (l.y - from.y) * to.h / from.h), w: rd(l.w * to.w / from.w), h: rd(l.h * to.h / from.h) }));
-const layoutKeeps = l => !!l.link || (l.type !== 'text' && l.type !== 'image');
 const mapImgs = (im, f) => Object.fromEntries(Object.entries(im || {}).map(([k, v]) => [k, f(v)]));
 // Linked decks: a node with include: B gets B's slides grafted under it in memory, ids "<linked node id>.<B's id>", marked _from: B; saves strip them.
 const prefixLayer = (l, p) => ({ ...l, ...(l.link && l.link.type === 'slide' ? { link: { ...l.link, id: p + l.link.id } } : {}), ...(l.imgKey ? { imgKey: p + l.imgKey } : {}) });
@@ -1212,10 +1242,6 @@ const easeFn = k => { const [x1, y1, x2, y2] = EASE_PTS[k] || EASE_PTS.both; con
 const bez = (p0, c1, c2, p3, t) => { const u = 1 - t; return { x: u * u * u * p0.x + 3 * u * u * t * c1.x + 3 * u * t * t * c2.x + t * t * t * p3.x, y: u * u * u * p0.y + 3 * u * u * t * c1.y + 3 * u * t * t * c2.y + t * t * t * p3.y }; };
 const DEF_ACTS = ['move', 'scale', 'rotate', 'colour', 'size', 'fade'];
 const SWATCH = ['#15171c', '#fbf9f4', '#d9432b', '#1f6fb8', '#2f8f4e', '#e0a019', '#7a4bb0', 'rgba(255,255,255,0.75)', 'rgba(10,14,28,0.55)'];
-const LT = (text, g) => ({ type: 'text', text, font: 'grot', size: 40, weight: 400, color: null, align: 'left', valign: 'top', lh: 1.25, bullets: 'none', gap: 0.15, rot: 0, opacity: 1, ...g });
-const LI = (imgKey, g) => ({ type: 'image', imgKey: imgKey || null, radius: 16, fit: 'cover', rot: 0, opacity: 1, ...g });
-const LS = g => ({ type: 'shape', shape: 'rect', fill: '#d9432b', radius: 0, rot: 0, opacity: 1, ...g });
-const LC = (icon, g) => ({ type: 'icon', icon, fill: null, sw: 1.8, rot: 0, opacity: 1, ...g });
 // Component layers: the default snippet (a self-documenting demo) and the brief for an AI writing one.
 const COMPONENT_DEFAULT = `<div id="out" style="height:100%;display:grid;place-items:center;font:600 7vw system-ui;color:#fbf9f4;background:rgba(31,111,184,.35);border-radius:12px"></div>
 <script>
@@ -1240,16 +1266,6 @@ A global \`strata\` object connects it to the slide:
   strata.jumpTo('slide-id-or-title'), strata.nav('left'|'right'|'up'|'down'|'next'|'prev')
 Keys pressed inside the component (arrows, Space, Escape) are passed to the deck unless you call preventDefault() on them. alert/confirm, popups and form submits are blocked; errors from CDN scripts show only as "Script error.".
 Reply with the complete snippet in one \`\`\`html block.`;
-const SLIDE_LAYOUTS = [
-  { id: 'title', label: 'Title', make: c => [LT(c.title, { x: 8, y: 30, w: 84, h: 24, size: 110, weight: 800, align: 'center', valign: 'middle', lh: 1 }), LT(c.sub, { x: 16, y: 57, w: 68, h: 14, size: 36, align: 'center', lh: 1.35 })] },
-  { id: 'list', label: 'Title + list', make: c => [LT(c.title, { x: 8, y: 8, w: 84, h: 18, size: 80, weight: 800, valign: 'bottom', lh: 1 }), LT(c.list, { x: 8, y: 33, w: 74, h: 58, size: 40, bullets: 'disc', lh: 1.3, gap: 0.45 })] },
-  { id: 'imgL', label: 'Image left', make: c => [LI(c.img0, { x: 5, y: 8.9, w: 42, h: 82.2 }), LT(c.title, { x: 52, y: 14, w: 43, h: 28, size: 72, weight: 800, valign: 'bottom', lh: 1.02 }), LT(c.sub, { x: 52, y: 46, w: 43, h: 40, size: 32, lh: 1.4 })] },
-  { id: 'imgR', label: 'Image right', make: c => [LI(c.img0, { x: 53, y: 8.9, w: 42, h: 82.2 }), LT(c.title, { x: 5, y: 14, w: 43, h: 28, size: 72, weight: 800, valign: 'bottom', lh: 1.02 }), LT(c.sub, { x: 5, y: 46, w: 43, h: 40, size: 32, lh: 1.4 })] },
-  { id: 'cols', label: 'Two columns', make: c => [LT(c.title, { x: 8, y: 8, w: 84, h: 18, size: 72, weight: 800, valign: 'bottom', lh: 1 }), LT(c.col1, { x: 8, y: 34, w: 40, h: 56, size: 32, lh: 1.4 }), LT(c.col2, { x: 52, y: 34, w: 40, h: 56, size: 32, lh: 1.4 })] },
-  { id: 'full', label: 'Full image', make: c => [LI(c.img0, { x: 0, y: 0, w: 100, h: 100, radius: 0 }), LS({ x: 0, y: 60, w: 100, h: 40, fill: 'rgba(10,14,28,0.55)' }), LT(c.title, { x: 6, y: 64, w: 82, h: 17, size: 84, weight: 800, color: '#fbf9f4', valign: 'bottom', lh: 1 }), LT(c.sub, { x: 6, y: 83, w: 72, h: 10, size: 30, color: '#fbf9f4' })] },
-  { id: 'quote', label: 'Quote', make: c => [LT(/^[“"]/.test(c.title) ? c.title : '“' + c.title + '”', { x: 12, y: 20, w: 76, h: 44, size: 72, font: 'serif', align: 'center', valign: 'middle', lh: 1.12 }), LT(c.sub || '— Name, role', { x: 20, y: 68, w: 60, h: 8, size: 26, font: 'mono', align: 'center' })] },
-  { id: 'three', label: 'Three points', make: c => [LT(c.title, { x: 8, y: 8, w: 84, h: 18, size: 72, weight: 800, valign: 'bottom', lh: 1 })].concat([0, 1, 2].flatMap(i => [LC(['target', 'bolt', 'check'][i], { x: 8 + i * 29, y: 36, w: 6, h: 10.7 }), LT(c.points[i], { x: 8 + i * 29, y: 52, w: 26, h: 38, size: 30, lh: 1.35 })])) },
-];
 const toHex = c => /^#[0-9a-f]{6}$/i.test(c || '') ? c : '#000000';
 const rd = v => Math.round(v * 10) / 10;
 const short = (s, n) => (s && s.length > n ? s.slice(0, n - 1) + '…' : s || '');
@@ -1816,25 +1832,47 @@ class Component extends DCLogic {
   }
   undo() { if (!this._past.length) return; this._future.push(this.state.nodes); this.restore(this._past.pop()); }
   redo() { if (!this._future.length) return; this._past.push(this.state.nodes); this.restore(this._future.pop()); }
-  layoutContent(id) {
-    const n = this.state.nodes[id]; const ls = this.layersOf(id).filter(l => !layoutKeeps(l));
-    const texts = ls.filter(l => l.type === 'text').map(l => String(l.text || '')); const imgs = ls.filter(l => l.type === 'image').map(l => l.imgKey);
-    const title = (texts[0] || n.title || 'Title').replace(/^[“"]|[”"]$/g, '');
-    const rest = texts.slice(1).join('\n').trim() || n.body || '';
-    const lines = rest.split('\n').map(s => s.trim()).filter(Boolean);
-    const list = lines.length ? lines.join('\n') : 'First point\nSecond point\nThird point';
-    const half = Math.ceil(lines.length / 2);
-    return { title, sub: rest || 'A supporting line of text', list, col1: texts[1] || (lines.slice(0, half).join('\n') || 'Left column text'), col2: texts[2] || (lines.slice(half).join('\n') || 'Right column text'),
-      points: [0, 1, 2].map(i => lines[i] || ['First point', 'Second point', 'Third point'][i]), img0: imgs[0] || null };
+
+  // A layout applied to one node: its single frame's counted boxes; layout recorded, custom cleared. Null for multi-frame / linked-in slides.
+  layoutPatch(n, L) { const fr = this.framesOfNode(n); if (!L || n._from || fr.length !== 1) return null;
+    const boxes = fillSlots(fr[0].layers, L, this.styles()), { custom: _c, layers: _l, ...rest } = n;
+    return { ...rest, frames: [{ ...fr[0], layers: fr[0].layers.map(l => (boxes[l.id] ? { ...l, ...boxes[l.id] } : l)) }], layout: L.id }; }
+  applyLayout(id, lid) { const p = this.layoutPatch(this.state.nodes[id], this.layouts()[lid]); if (!p) return; const nodes = { ...this.state.nodes, [id]: p }; this.allowLayout(nodes); this.setState({ nodes }); }
+  ownSlideIds() { return Object.keys(this.state.nodes).filter(k => !this.state.nodes[k]._from && (k !== 'ROOT' || this.state.titlePage)); }
+  // Make L the default for its type and lay out every default (non-custom, single-frame) slide of that type.
+  applyToAll(lid) {
+    const L = this.layouts()[lid]; if (!L) return; const sig = sigKey(L.match), N = this.state.nodes, nodes = { ...N }; let updated = 0, kept = 0;
+    for (const k of this.ownSlideIds()) { if (this.slideSig(k) !== sig) continue; if (this.isCustom(k)) { kept++; continue; } const p = this.layoutPatch(N[k], L); if (p) { nodes[k] = p; updated++; } }
+    this.allowLayout(nodes); this.setState(s => ({ nodes, layoutDefaults: { ...(s.layoutDefaults || {}), [sig]: lid } }));
+    this.flash('Updated ' + updated + ' slide' + (updated === 1 ? '' : 's') + ' · kept ' + kept + ' custom');
   }
-  applyLayout(lid) {
-    const id = this.curId(); const L = SLIDE_LAYOUTS.find(x => x.id === lid); if (!L) return;
-    // Reuse the replaced layers' ids by type, in order, so e.g. md-title/md-body stay recognisable to a markdown re-import.
-    const old = this.layersOf(id), spare = { text: [], image: [] };
-    old.filter(l => !layoutKeeps(l)).forEach(l => spare[l.type].push(l.id));
-    const layers = L.make(this.layoutContent(id)).map(l => ({ ...l, id: (spare[l.type] || []).shift() || 'l' + uid() })).concat(old.filter(layoutKeeps));
-    this.setLayers(id, () => layers); this.setState({ layerSel: null, editing: null, view: 'slide' });
+  resetToDefault(id) { const sig = this.slideSig(id), L = this.layouts(), fits = x => x && sigKey(x.match) === sig;
+    const d = fits(L[(this.state.layoutDefaults || {})[sig]]) ? L[(this.state.layoutDefaults || {})[sig]] : Object.values(L).find(fits); if (d) this.applyLayout(id, d.id); }
+  saveAsLayout(id) {
+    const fr = this.framesOf(id), layers = fr[0] ? fr[0].layers : [], match = sigOf(layers, this.styles()); if (!sigKey(match)) { this.flash('Nothing on this slide to lay out'); return null; }
+    const L = this.layouts(), names = Object.values(L).map(x => x.name); let n = 1; while (names.includes('Layout ' + n)) n++;
+    const name = 'Layout ' + n; let lid = 'layout-' + n, i = 2; while (L[lid]) lid = 'layout-' + n + '-' + i++;
+    this.setState(s => ({ layouts: { ...(s.layouts || {}), [lid]: { name, match, slots: slotsOf(layers, this.styles()) } } }));
+    const { custom: _c, ...rest } = this.state.nodes[id], nodes = { ...this.state.nodes, [id]: { ...rest, layout: lid } }; this.allowLayout(nodes); this.setState({ nodes });
+    return lid;
   }
+  // The slide's effective layout takes this slide's boxes; every default slide using it follows. Uses the new layout object directly (no read-after-setState).
+  updateLayoutFrom(id) {
+    const L0 = this.effectiveLayout(id); if (!L0 || this.framesOf(id).length !== 1) return;
+    const { id: lid, ...stored } = { ...L0, slots: slotsOf(this.framesOf(id)[0].layers, this.styles()) }, L = { id: lid, ...stored };
+    this.setState(s => ({ layouts: { ...(s.layouts || {}), [lid]: stored } }));
+    const N = this.state.nodes, nodes = { ...N };
+    for (const k of this.ownSlideIds()) { if (k !== id && (this.isCustom(k) || (this.effectiveLayout(k) || {}).id !== lid)) continue; const p = this.layoutPatch(N[k], L); if (p) nodes[k] = p; }
+    this.allowLayout(nodes); this.setState({ nodes });
+  }
+  renameLayout(lid, name) { const L = this.layouts()[lid]; if (!L) return; const { id: _i, ...stored } = L; this.setState(s => ({ layouts: { ...(s.layouts || {}), [lid]: { ...stored, name } } })); }
+  deleteLayout(lid) {
+    if (BUILTIN_LAYOUTS[lid] || !(this.state.layouts || {})[lid]) return;
+    const N = this.state.nodes, nodes = { ...N }; for (const k in N) if (N[k].layout === lid) { const { layout: _l, ...rest } = N[k]; nodes[k] = { ...rest, custom: true }; }
+    const { [lid]: _gone, ...layouts } = this.state.layouts, layoutDefaults = Object.fromEntries(Object.entries(this.state.layoutDefaults || {}).filter(([, v]) => v !== lid));
+    this.allowLayout(nodes); this.setState({ nodes, layouts, layoutDefaults });
+  }
+
   curId() { const N = this.state.nodes, c = this.state.cur; return N[c] && (c !== 'ROOT' || this.state.titlePage) ? c : N.ROOT.children[0]; }
   defaultLayers(n) {
     const L = [{ id: 't-' + n.id, type: 'text', x: 8, y: n.body ? 30 : 38, w: 84, h: 22, text: n.title || 'Untitled', font: 'grot', size: 104, weight: 800, color: null, align: 'center', valign: 'middle', lh: 1, bullets: 'none', gap: 0.15 }];
@@ -2503,6 +2541,18 @@ class Component extends DCLogic {
     const rich = !!edL && editable && S.editMode !== 'markup';
     const wl = rich ? (this._wysLines || linesOf(edL.text)) : null, ws = S.wysSel || this._wysSel || null;
     const lk = rich && ws ? linkAt(wl, ws.start) : null;
+    // ---- Layout panel. ponytail: effectiveLayout for every node per render; fine for hundreds of slides, memoise on nodes if it shows in a profile.
+    const LAY = this.layouts(), STY = this.styles(), curFr0 = (this.framesOf(cur)[0] || { layers: [] }).layers;
+    const sigM = sigOf(curFr0, STY), sigK = sigKey(sigM), effL = sigK ? this.effectiveLayout(cur) : null, animated = this.framesOf(cur).length > 1;
+    const keyName = k => (k === 'text' ? 'Text' : k === 'image' ? 'Image' : (STY[k] && STY[k].name) || k), chipsOf = m => Object.keys(m).sort().map(k => keyName(k) + ' ×' + m[k]);
+    const users = {}; for (const k of this.ownSlideIds()) { const e = this.effectiveLayout(k); if (e) (users[e.id] = users[e.id] || []).push(k); }
+    const defId = (S.layoutDefaults || {})[sigK], firstFit = Object.values(LAY).find(x => sigKey(x.match) === sigK);
+    const listOf = lid => (users[lid] || []).map(k => ({ name: name(k), onClick: () => { this.nav(k, 'jump'); this.setState({ rtab: 'slide', stab: 'layout' }); } }));
+    const tileOf = L => ({ id: L.id, name: L.name, star: L.id === (LAY[defId] && sigKey(LAY[defId].match) === sigK ? defId : firstFit && firstFit.id), count: (users[L.id] || []).length + ' slides',
+      open: S.layOpen === L.id, slides: listOf(L.id), onToggle: () => this.setState({ layOpen: S.layOpen === L.id ? null : L.id }),
+      onApply: () => this.applyLayout(cur, L.id), onApplyAll: () => this.applyToAll(L.id), onName: e => this.renameLayout(L.id, e.target.value),
+      canDelete: !BUILTIN_LAYOUTS[L.id], onDelete: () => this.deleteLayout(L.id), chips: chipsOf(L.match),
+      layers: (b => this.shown(cur, curFr0.map(l => (b[l.id] ? { ...l, ...b[l.id] } : l))))(fillSlots(curFr0, L, STY)) });
     const tvw = { zoom: 1, x: 0.5, y: 0.5, ...S.titleView }, setTv = p => this.setState(s => ({ titleView: { zoom: 1, x: 0.5, y: 0.5, ...s.titleView, ...p } }));
     const tvFree = [TC.Wc <= 1.001 && 'Pan X', TC.Hc <= 1.001 && 'Pan Y'].filter(Boolean);
 
@@ -2546,6 +2596,12 @@ class Component extends DCLogic {
       onLinkPick: e => { const v = e.target.value; if (!v) return; const r = lk || ws || { start: 0, end: 0 };
         if (v === '@url') { this._linkTarget = r; this.setState({ fmtUrl: true, fmtUrlVal: '' }); return; }
         this.formatRange(r.start, r.end, { attrs: v === '-' ? { link: null, href: null } : { link: v, href: null } }); this.setState({ linkPick: false }); },
+      layChips: chipsOf(sigM), layMulti: animated, layCustom: !!(curN && curN.custom) && !animated,
+      layStatus: animated ? 'Animated (' + this.framesOf(cur).length + ' frames) · layouts don\'t apply' : !sigK ? 'Nothing on this slide to lay out' : !effL ? 'No layout for this type yet' : curN.custom ? 'Custom (' + effL.name + ')' : 'Default · ' + effL.name,
+      onLayReset: () => this.resetToDefault(cur),
+      layTiles: animated || !sigK ? [] : Object.values(LAY).filter(L => sigKey(L.match) === sigK).map(tileOf), layNoTiles: !animated && !!sigK && !firstFit,
+      onLaySave: () => this.saveAsLayout(cur), layCanUpdate: !!effL && !animated, layUpdateLabel: effL ? 'Update “' + effL.name + '” from this slide' : '', onLayUpdate: () => this.updateLayoutFrom(cur),
+      layAll: Object.values(LAY).map(L => ({ ...tileOf(L), layers: [] })), layAllOpen: !!S.layAllOpen, onLayAllToggle: () => this.setState({ layAllOpen: !S.layAllOpen }),
       exportShow: !STATIC, onExportMd: () => this.downloadMarkdown(cur),
       isTitlePage: cur === 'ROOT', titlePage: !!S.titlePage, onTitlePage: e => this.setTitlePage(!!e.target.checked),
       tvZoom: tvw.zoom, tvZoomMax: Math.max(8, Math.ceil(this.titleCover(L))), tvZoomLabel: tvw.zoom.toFixed(2) + '×', onTvZoom: e => setTv({ zoom: +e.target.value }),
@@ -2567,7 +2623,6 @@ class Component extends DCLogic {
       resetAllTrans: () => this.resetAllTrans(), defApply: { ease: () => this.resetTransKey('ease'), dur: () => this.resetTransKey('dur'), delay: () => this.resetTransKey('delay') },
       transCountText: (c => c ? `${c} slide${c === 1 ? ' has' : 's have'} custom transition settings. Undo restores them.` : 'No custom settings yet: every transition uses these defaults.')(Object.values(N).filter(n => n.ftrans && Object.values(n.ftrans).some(m => Object.keys(m || {}).length)).length),
       undo: () => this.undo(), redo: () => this.redo(), undoOp: this._past && this._past.length ? 1 : 0.4, redoOp: this._future && this._future.length ? 1 : 0.4,
-      layoutBtns: SLIDE_LAYOUTS.map(L => ({ label: L.label, layers: L.make(this.layoutContent(cur)).map((l, i) => ({ ...l, id: 'p' + i })), onClick: () => this.applyLayout(L.id) })),
       deckTitle: S.title || (S.titlePage && N.ROOT.title) || name(N.ROOT.children[0]), editTitle: !!DECK && !STATIC && !isPresent, showTitle: !(DECK && !STATIC && !isPresent),
       titleVal: S.title || '', onTitle: e => this.setState({ title: e.target.value }), keyHint: S.saveMsg || S.note || (isPresent ? '← → ↑ ↓  ·  Space next  ·  / search' + (STATIC ? '' : '  ·  Esc') : ''),
       cardModes: [['none', 'None'], ['slide', 'Whole slide']].map(([m, label]) => ({ label, ...tab(cardCfg.mode === m), onClick: () => setCard({ mode: m }) })),

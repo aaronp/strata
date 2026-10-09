@@ -160,38 +160,6 @@ test("every Layers render gets the deck card, and the card controls exist", asyn
   expect(html).toContain('<sc-for list="{{ boxFields }}"');
 });
 
-test("applying a layout keeps linked layers, shapes and icons; only plain text and images are rearranged", async () => {
-  const chip = { id: "md-link-0", type: "text", text: "Go →", x: 67, y: 24, w: 26, h: 9, link: { type: "slide", id: "b" } };
-  const bg = { id: "md-linkbg-0", type: "shape", x: 66, y: 24, w: 28, h: 9 };
-  await writeDeck("talk", {
-    ROOT: slideNode("ROOT", "", ["a", "b"]),
-    a: slideNode("a", "A", [], { frames: [{ id: "f1", layers: [
-      { id: "md-title", type: "text", text: "Title" }, { id: "md-body", type: "text", text: "Body line" }, bg, chip] }] }),
-    b: slideNode("b", "B"),
-  });
-  const { c } = await mount("?deck=talk");
-  c.setState({ cur: "a" });
-  c.applyLayout("list");
-  const ls = c.layersOf("a");
-  expect(ls.find((l: any) => l.id === "md-link-0")).toEqual(chip);
-  expect(ls.find((l: any) => l.id === "md-linkbg-0")).toEqual(bg);
-  expect(ls.filter((l: any) => l.type === "text" && !l.link).map((l: any) => l.text).join("|")).not.toContain("Go →");
-});
-
-test("a layout keeps the replaced layers' ids, so a later markdown re-import doesn't duplicate them", async () => {
-  const { importInto } = await import("./importer");
-  const { parseMarkdown } = await import("./markdown");
-  const md = "# A\nslug: a\n\nBody line\n";
-  const fresh = importInto(null, parseMarkdown(md).sections);
-  await writeDeck("talk", fresh.nodes);
-  const { c } = await mount("?deck=talk");
-  c.setState({ cur: "a" });
-  c.applyLayout("list");
-  expect(c.layersOf("a").map((l: any) => l.id)).toEqual(["md-title", "md-body"]);
-  const again = importInto({ nodes: c.state.nodes }, parseMarkdown(md).sections);
-  expect(again.nodes.a.frames[0].layers.map((l: any) => l.id)).toEqual(["md-title", "md-body"]);
-});
-
 test("the editor measures grown text boxes so the selection outline matches", async () => {
   const { c } = await mount("?deck=talk");
   const el = (lid: string, px: number) => ({ dataset: { lid }, firstElementChild: { offsetHeight: px } });
@@ -1619,4 +1587,46 @@ test("a hand edit to a counted element's box marks the slide custom (same undo s
   c.undo(); c.componentDidUpdate(); expect(c.state.nodes.a.custom).toBeUndefined(); expect(c.layersOf("a")[1].x).toBe(6);   // one undo step
   const nodes = { ...c.state.nodes, a: { ...c.state.nodes.a, frames: [{ id: "f", layers: c.layersOf("a").map((l: any) => l.id === "t" ? { ...l, y: 50 } : l) }] } };
   c.allowLayout(nodes); c.setState({ nodes }); c.componentDidUpdate(); expect(c.state.nodes.a.custom).toBeUndefined();
+});
+
+test("layout actions: apply, apply to all (default slides only), reset, save as, update from, rename, delete", async () => {
+  const two = (p: string) => [LTX(p + "t", "h1", 1, 1), LTX(p + "b", "body", 1, 50), LTX(p + "c", "body", 50, 50), { id: p + "s", type: "shape", x: 3, y: 3, w: 3, h: 3 }];
+  const c = await layDeck({ a: two("a"), b: two("b"), d: two("d"), m: two("m") }); await Bun.sleep(150);
+  c.setNode("d", { custom: true }); c.setNode("m", { frames: [{ id: "f", layers: two("m") }, { id: "g", layers: two("m") }] }); c.componentDidUpdate(); await Bun.sleep(500);
+  c.applyLayout("a", "stack-2"); c.componentDidUpdate();
+  expect(c.layersOf("a").find((l: any) => l.id === "ac")).toMatchObject({ x: 6, y: 59, w: 88, h: 31 }); expect(c.state.nodes.a).toMatchObject({ layout: "stack-2" });
+  expect(c.layersOf("a").find((l: any) => l.id === "as")).toMatchObject({ x: 3, y: 3 });                         // decorations untouched
+  await Bun.sleep(500);
+  c.applyToAll("cols-2"); c.componentDidUpdate();
+  expect(c.state.layoutDefaults["body:2,h1:1"]).toBe("cols-2"); expect(c.state.note).toBe("Updated 2 slides · kept 2 custom");
+  expect(c.layersOf("b").find((l: any) => l.id === "bc")).toMatchObject({ x: 52, y: 24 });
+  expect(c.layersOf("d").find((l: any) => l.id === "dc")).toMatchObject({ x: 50, y: 50 });                        // custom kept
+  c.undo(); c.componentDidUpdate(); expect(c.layersOf("b").find((l: any) => l.id === "bc")).toMatchObject({ x: 50, y: 50 });   // one undo step
+  c.resetToDefault("d"); expect(c.state.nodes.d.custom).toBeUndefined(); expect(c.layersOf("d").find((l: any) => l.id === "dc")).toMatchObject({ x: 52 });
+  c.updLayer("a", "ac", { x: 70, y: 70, w: 20, h: 20 }); c.componentDidUpdate();
+  const lid = c.saveAsLayout("a");
+  expect(c.layouts()[lid]).toMatchObject({ name: "Layout 1", match: { h1: 1, body: 2 } }); expect(c.layouts()[lid].slots.body[1]).toMatchObject({ x: 70, y: 70 });
+  expect(c.state.nodes.a).toMatchObject({ layout: lid }); expect(c.state.nodes.a.custom).toBeUndefined();
+  c.applyLayout("b", lid); c.componentDidUpdate(); c.updLayer("a", "ac", { x: 72 }); c.componentDidUpdate(); c.updateLayoutFrom("a");
+  expect(c.layouts()[lid].slots.body[1].x).toBe(72); expect(c.layersOf("b").find((l: any) => l.id === "bc").x).toBe(72);
+  c.renameLayout("cols-2", "Side by side"); expect(c.layouts()["cols-2"].name).toBe("Side by side"); expect(c.state.layouts["cols-2"].slots).toBeTruthy();
+  c.deleteLayout("cols-2"); expect(c.layouts()["cols-2"]).toBeTruthy();                                            // built-ins stay
+  c.deleteLayout(lid); expect(c.layouts()[lid]).toBeUndefined();
+  expect(c.state.nodes.b).toMatchObject({ custom: true }); expect(c.state.nodes.b.layout).toBeUndefined(); expect(c.layersOf("b").find((l: any) => l.id === "bc").x).toBe(72);
+});
+
+test("Layout panel: signature chips, status, matching tiles with default star, counts and jump lists, actions, all layouts", async () => {
+  const two = (p: string) => [LTX(p + "t", "h1", 1, 1), LTX(p + "b", "body", 1, 50), LTX(p + "c", "body", 50, 50)];
+  const c = await layDeck({ a: two("a"), b: two("b") }, { layoutDefaults: { "body:2,h1:1": "cols-2" } });
+  c.setState({ cur: "a", stab: "layout" }); let v = c.renderVals();
+  expect(v.layChips).toEqual(["Body ×2", "H1 ×1"]); expect(v.layStatus).toBe("Default · Two columns");
+  expect(v.layTiles.map((t: any) => [t.id, t.star, t.count])).toEqual([["cols-2", true, "2 slides"], ["stack-2", false, "0 slides"]]);
+  expect(v.layTiles[0].layers.find((l: any) => l.id === "ac")).toMatchObject({ x: 52, _lines: expect.anything() });   // preview: this slide's content, resolved
+  v.layTiles[0].onToggle(); v = c.renderVals(); expect(v.layTiles[0].slides.map((s: any) => s.name)).toEqual(["A", "B"]);
+  v.layTiles[0].slides[1].onClick(); expect(c.state.cur).toBe("b"); expect(c.state.stab).toBe("layout");
+  c.setNode("b", { custom: true }); c.setState({ cur: "b" }); v = c.renderVals(); expect(v.layStatus).toBe("Custom (Two columns)"); expect(v.layCustom).toBe(true);
+  v.layTiles[1].onApplyAll(); expect(c.state.layoutDefaults["body:2,h1:1"]).toBe("stack-2");
+  expect(c.renderVals().layAll.length).toBeGreaterThanOrEqual(13); expect(c.renderVals().layCanUpdate).toBe(true);
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  for (const h of ["{{ layTiles }}", "{{ layStatus }}", "{{ onLaySave }}", "{{ onLayUpdate }}", "{{ layAll }}"]) expect(html).toContain(h);
 });

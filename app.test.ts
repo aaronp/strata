@@ -1547,3 +1547,10 @@ test("rich editor: typing after a run vanished keeps the other runs' formatting 
   const spans = root.querySelectorAll("[data-run]"); spans[spans.length - 1].textContent = "w!"; root.dispatchEvent(new w.Event("input"));
   expect(c.layersOf("s")[0].text).toBe("xz*w!*");
 });
+
+test("tree Focus mode on a deep slide renders (top-row connector only joins top-level slides that are laid out)", async () => {
+  const c = await treeDeck();
+  c.setState({ treeFocus: true, cur: "b" }); expect(() => c.renderVals()).not.toThrow();
+  c.nav("a1x", "jump"); expect(() => c.renderVals()).not.toThrow();                 // e.g. a link jumping deeper
+  const v = c.renderVals(); expect(v.treeNodes.map((n: any) => n.full)).toContain("A1x");
+});

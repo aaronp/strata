@@ -1662,3 +1662,21 @@ test("right panel: Slide and Canvas tabs; spacing settings are a Spacing section
   const canvas = html.slice(html.indexOf('<sc-if value="{{ tabCanvas }}">'));
   expect(canvas).toContain('onClick="{{ sec.spacing.toggle }}"'); expect(canvas).toContain('value="{{ rowStep }}"'); expect(html).not.toContain("{{ tabLayout }}");
 });
+
+test("present: Max/Fit sizing (button and F), Jump to lives in the header, header auto-hides and shows on hover or search", async () => {
+  await deckTalk(); const { c } = await mount("?deck=talk");
+  let v = c.renderVals(); expect(v.hdrShown).toBe(true);                                   // build mode: always shown
+  c.setState({ mode: "present" }); v = c.renderVals();
+  expect(v.hdrShown).toBe(false); expect(v.isMax).toBe(false); expect(v.stagePad).toBe("136px 66px 60px");
+  v.onFitToggle(); v = c.renderVals(); expect(v.isMax).toBe(true); expect(v.stagePad).toBe("0"); expect(v.fitLabel).toBe("⤡ Fit");
+  c.onKey({ key: "f", target: {}, preventDefault() {} }); expect(c.renderVals().isMax).toBe(false);
+  c.renderVals().onHdrEnter(); expect(c.renderVals().hdrShown).toBe(true);
+  c.renderVals().onHdrLeave(); await Bun.sleep(450); expect(c.renderVals().hdrShown).toBe(false);
+  c.renderVals().onSearchFocus(); expect(c.renderVals().hdrShown).toBe(true);
+  c.renderVals().onSearchBlur(); expect(c.renderVals().hdrShown).toBe(false);
+  c.setState({ query: "x" }); expect(c.renderVals().hdrShown).toBe(true);
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  const header = html.slice(html.indexOf("<header"), html.indexOf("</header>"));
+  expect(header).toContain('ref="{{ searchRef }}"'); expect(header).toContain('onMouseEnter="{{ onHdrEnter }}"'); expect(header).toContain("{{ onFitToggle }}");
+  expect(html).toContain("padding:{{ stagePad }}");
+});

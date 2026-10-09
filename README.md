@@ -89,6 +89,10 @@ A layer keeps the **same `id`** across frames; that's how it's matched for tween
 - The camera centres on the current slide's rectangle. The background is drawn at canvas height, looped horizontally, and shifted by `offset`.
 - Transitions between slides are swipes (fade for jumps from search or breadcrumbs); the background pans with the camera.
 
+### Present view
+- **Fit / Max** (header button or **F**): Max makes the slide fill the whole area; crumbs and arrows float over it. Remembered in the browser.
+- The header hides itself while presenting; move the mouse to the top edge to show it. **Jump to** (**/**) lives in the header.
+
 ### Breadcrumbs (present view, top-left)
 - A wizard-style row for the current level: earlier siblings shown as completed, the current one highlighted, later ones at reduced opacity.
 - A ↓ marker under the current crumb when it has children.

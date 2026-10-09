@@ -407,6 +407,8 @@ input,textarea,button{font:inherit;color:inherit}
                   <span style="flex:1">{{ layStatus }}</span>
                   <sc-if value="{{ layCustom }}"><button onClick="{{ onLayReset }}" style="padding:3px 8px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer;font-size:12px">↺ Reset to default</button></sc-if>
                 </div>
+                <sc-if value="{{ layEditable }}">
+                <sc-if value="{{ layNoTiles }}"><span style="font-size:12px;line-height:1.45;color:#6b6458">No layout for this type yet: arrange this slide and press Save as layout.</span></sc-if>
                 <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px">
                   <sc-for list="{{ layTiles }}" as="lt" hint-placeholder-count="2">
                     <div style="display:flex;flex-direction:column;gap:4px;padding:5px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;min-width:0">
@@ -438,6 +440,7 @@ input,textarea,button{font:inherit;color:inherit}
                       <div style="display:flex;flex-direction:column;gap:2px;padding:4px 0;border-top:1px solid #f0ebe0">
                         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><b style="font-size:12px">{{ la.name }}</b><sc-for list="{{ la.chips }}" as="ch" hint-placeholder-count="2"><span style="padding:1px 6px;border-radius:999px;background:#ece6d9;font-family:'JetBrains Mono',monospace;font-size:10.5px">{{ ch }}</span></sc-for><button onClick="{{ la.onToggle }}" style="margin-left:auto;padding:0;border:0;background:none;color:#1f4f80;cursor:pointer;font-size:11.5px">{{ la.count }}</button></div>
                         <sc-if value="{{ la.open }}"><sc-for list="{{ la.slides }}" as="ls" hint-placeholder-count="2"><button onClick="{{ ls.onClick }}" style="padding:0 0 0 8px;border:0;background:none;text-align:left;cursor:pointer;font-size:11.5px">→ {{ ls.name }}</button></sc-for></sc-if>
+                </sc-if>
                       </div>
                     </sc-for>
                   </div>
@@ -976,6 +979,8 @@ const groupsOf = (layers, S) => { const g = {}; for (const l of layers || []) if
 const fillSlots = (layers, layout, S) => { const out = {}, g = groupsOf(layers, S);
   for (const k in g) g[k].forEach((l, i) => { const b = ((layout.slots || {})[k] || [])[i]; if (b) out[l.id] = { x: b.x, y: b.y, w: b.w, h: b.h, rot: b.rot || 0 }; }); return out; };
 // A slide's counted boxes, by key, in reading order (what Save as layout / Update layout record).
+// A layer given a full-slide slot goes to the back (stable), so e.g. Full image doesn't cover its title.
+const backFirst = (layers, boxes) => { const full = l => { const b = boxes[l.id]; return !!b && b.x <= 0 && b.y <= 0 && b.w >= 100 && b.h >= 100; }; return [...layers.filter(full), ...layers.filter(l => !full(l))]; };
 const slotsOf = (layers, S) => { const out = {}, g = groupsOf(layers, S); for (const k in g) out[k] = g[k].map(l => ({ x: l.x, y: l.y, w: l.w, h: l.h, rot: l.rot || 0 })); return out; };
 // ---- Inline markup: **bold**, *italic*, [words]{style=h2 size=72 color=#hex font=serif weight=600}, \ escapes. Per line; malformed markup is literal.
 const ESC = '*[]{}\\';
@@ -1836,7 +1841,7 @@ class Component extends DCLogic {
   // A layout applied to one node: its single frame's counted boxes; layout recorded, custom cleared. Null for multi-frame / linked-in slides.
   layoutPatch(n, L) { const fr = this.framesOfNode(n); if (!L || n._from || fr.length !== 1) return null;
     const boxes = fillSlots(fr[0].layers, L, this.styles()), { custom: _c, layers: _l, ...rest } = n;
-    return { ...rest, frames: [{ ...fr[0], layers: fr[0].layers.map(l => (boxes[l.id] ? { ...l, ...boxes[l.id] } : l)) }], layout: L.id }; }
+    return { ...rest, frames: [{ ...fr[0], layers: backFirst(fr[0].layers.map(l => (boxes[l.id] ? { ...l, ...boxes[l.id] } : l)), boxes) }], layout: L.id }; }
   applyLayout(id, lid) { const p = this.layoutPatch(this.state.nodes[id], this.layouts()[lid]); if (!p) return; const nodes = { ...this.state.nodes, [id]: p }; this.allowLayout(nodes); this.setState({ nodes }); }
   ownSlideIds() { return Object.keys(this.state.nodes).filter(k => !this.state.nodes[k]._from && (k !== 'ROOT' || this.state.titlePage)); }
   // Make L the default for its type and lay out every default (non-custom, single-frame) slide of that type.
@@ -1849,6 +1854,7 @@ class Component extends DCLogic {
   resetToDefault(id) { const sig = this.slideSig(id), L = this.layouts(), fits = x => x && sigKey(x.match) === sig;
     const d = fits(L[(this.state.layoutDefaults || {})[sig]]) ? L[(this.state.layoutDefaults || {})[sig]] : Object.values(L).find(fits); if (d) this.applyLayout(id, d.id); }
   saveAsLayout(id) {
+    if (!this.state.nodes[id] || this.state.nodes[id]._from) return null;   // linked-in slides belong to their own deck
     const fr = this.framesOf(id), layers = fr[0] ? fr[0].layers : [], match = sigOf(layers, this.styles()); if (!sigKey(match)) { this.flash('Nothing on this slide to lay out'); return null; }
     const L = this.layouts(), names = Object.values(L).map(x => x.name); let n = 1; while (names.includes('Layout ' + n)) n++;
     const name = 'Layout ' + n; let lid = 'layout-' + n, i = 2; while (L[lid]) lid = 'layout-' + n + '-' + i++;
@@ -1858,6 +1864,7 @@ class Component extends DCLogic {
   }
   // The slide's effective layout takes this slide's boxes; every default slide using it follows. Uses the new layout object directly (no read-after-setState).
   updateLayoutFrom(id) {
+    if (!this.state.nodes[id] || this.state.nodes[id]._from) return;
     const L0 = this.effectiveLayout(id); if (!L0 || this.framesOf(id).length !== 1) return;
     const { id: lid, ...stored } = { ...L0, slots: slotsOf(this.framesOf(id)[0].layers, this.styles()) }, L = { id: lid, ...stored };
     this.setState(s => ({ layouts: { ...(s.layouts || {}), [lid]: stored } }));
@@ -1868,15 +1875,15 @@ class Component extends DCLogic {
   renameLayout(lid, name) { const L = this.layouts()[lid]; if (!L) return; const { id: _i, ...stored } = L; this.setState(s => ({ layouts: { ...(s.layouts || {}), [lid]: { ...stored, name } } })); }
   deleteLayout(lid) {
     if (BUILTIN_LAYOUTS[lid] || !(this.state.layouts || {})[lid]) return;
-    const N = this.state.nodes, nodes = { ...N }; for (const k in N) if (N[k].layout === lid) { const { layout: _l, ...rest } = N[k]; nodes[k] = { ...rest, custom: true }; }
+    const N = this.state.nodes, nodes = { ...N }; for (const k in N) if (!N[k]._from && N[k].layout === lid) { const { layout: _l, ...rest } = N[k]; nodes[k] = { ...rest, custom: true }; }
     const { [lid]: _gone, ...layouts } = this.state.layouts, layoutDefaults = Object.fromEntries(Object.entries(this.state.layoutDefaults || {}).filter(([, v]) => v !== lid));
     this.allowLayout(nodes); this.setState({ nodes, layouts, layoutDefaults });
   }
 
   curId() { const N = this.state.nodes, c = this.state.cur; return N[c] && (c !== 'ROOT' || this.state.titlePage) ? c : N.ROOT.children[0]; }
   defaultLayers(n) {
-    const L = [{ id: 't-' + n.id, type: 'text', x: 8, y: n.body ? 30 : 38, w: 84, h: 22, text: n.title || 'Untitled', font: 'grot', size: 104, weight: 800, color: null, align: 'center', valign: 'middle', lh: 1, bullets: 'none', gap: 0.15 }];
-    if (n.body) L.push({ id: 'b-' + n.id, type: 'text', x: 14, y: 56, w: 72, h: 16, text: n.body, font: 'grot', size: 36, weight: 400, color: null, align: 'center', valign: 'top', lh: 1.35, bullets: 'none', gap: 0.15 });
+    const L = [{ id: 't-' + n.id, type: 'text', style: 'h1', x: 8, y: n.body ? 30 : 38, w: 84, h: 22, text: n.title || 'Untitled', font: 'grot', size: 104, weight: 800, color: null, align: 'center', valign: 'middle', lh: 1, bullets: 'none', gap: 0.15 }];
+    if (n.body) L.push({ id: 'b-' + n.id, type: 'text', style: 'body', x: 14, y: 56, w: 72, h: 16, text: n.body, font: 'grot', size: 36, weight: 400, color: null, align: 'center', valign: 'top', lh: 1.35, bullets: 'none', gap: 0.15 });
     return L;
   }
   framesOfNode(n) { return n.frames || [{ id: 'f0-' + n.id, layers: n.layers || this.defaultLayers(n) }]; }
@@ -2537,7 +2544,7 @@ class Component extends DCLogic {
     };
     const results = isPresent && q ? D.order.filter(id => match[id]).slice(0, 10).map(id => ({ title: name(id), path: pathOf(id).slice(0, -1).map(name).join(' › ') || 'Top level', onClick: () => { this.setState({ query: '' }); this.nav(id, 'jump'); } })) : [];
 
-    const styleCount = {}; for (const k in N) { if (N[k]._from) continue; this.framesOf(k).forEach(f => f.layers.forEach(l => { if (l.style) styleCount[l.style] = (styleCount[l.style] || 0) + 1; })); }   // ponytail: per-render scan; memoise on nodes if it shows in a profile
+    const styleCount = {}; for (const k of this.ownSlideIds()) { this.framesOf(k).forEach(f => f.layers.forEach(l => { if (l.style) styleCount[l.style] = (styleCount[l.style] || 0) + 1; })); }   // ponytail: per-render scan; memoise on nodes if it shows in a profile
     const rich = !!edL && editable && S.editMode !== 'markup';
     const wl = rich ? (this._wysLines || linesOf(edL.text)) : null, ws = S.wysSel || this._wysSel || null;
     const lk = rich && ws ? linkAt(wl, ws.start) : null;
@@ -2596,7 +2603,7 @@ class Component extends DCLogic {
       onLinkPick: e => { const v = e.target.value; if (!v) return; const r = lk || ws || { start: 0, end: 0 };
         if (v === '@url') { this._linkTarget = r; this.setState({ fmtUrl: true, fmtUrlVal: '' }); return; }
         this.formatRange(r.start, r.end, { attrs: v === '-' ? { link: null, href: null } : { link: v, href: null } }); this.setState({ linkPick: false }); },
-      layChips: chipsOf(sigM), layMulti: animated, layCustom: !!(curN && curN.custom) && !animated,
+      layChips: chipsOf(sigM), layMulti: animated, layEditable: !(curN && curN._from) && !animated, layCustom: !!(curN && curN.custom) && !animated && !curN._from && !!effL,
       layStatus: animated ? 'Animated (' + this.framesOf(cur).length + ' frames) · layouts don\'t apply' : !sigK ? 'Nothing on this slide to lay out' : !effL ? 'No layout for this type yet' : curN.custom ? 'Custom (' + effL.name + ')' : 'Default · ' + effL.name,
       onLayReset: () => this.resetToDefault(cur),
       layTiles: animated || !sigK ? [] : Object.values(LAY).filter(L => sigKey(L.match) === sigK).map(tileOf), layNoTiles: !animated && !!sigK && !firstFit,

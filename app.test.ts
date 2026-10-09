@@ -1630,3 +1630,25 @@ test("Layout panel: signature chips, status, matching tiles with default star, c
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
   for (const h of ["{{ layTiles }}", "{{ layStatus }}", "{{ onLaySave }}", "{{ onLayUpdate }}", "{{ layAll }}"]) expect(html).toContain(h);
 });
+
+test("layouts: linked-in slides get a read-only panel and can't save/update; deleting a layout skips linked-in slides", async () => {
+  await deckBWithImage();
+  const B = await Bun.file(join(root, "decks/b/deck.json")).json(); B.nodes.x.layout = "layout-1"; await Bun.write(join(root, "decks/b/deck.json"), JSON.stringify(B));
+  await writeDeck("talk", { ROOT: slideNode("ROOT", "", ["t", "a"]), t: slideNode("t", "Intro", [], { include: "b" }),
+    a: slideNode("a", "A", [], { layout: "layout-1", frames: [{ id: "f", layers: [LTX("h", "h1", 6, 6)] }] }) }, { layouts: { "layout-1": { name: "Layout 1", match: { h1: 1 }, slots: { h1: [{ x: 1, y: 1, w: 9, h: 9, rot: 0 }] } } } });
+  const { c } = await mount("?deck=talk");
+  c.setState({ cur: "t.x" }); expect(c.renderVals().layEditable).toBe(false);
+  expect(c.saveAsLayout("t.x")).toBeNull(); c.updateLayoutFrom("t.x"); expect(Object.keys(c.state.layouts)).toEqual(["layout-1"]);
+  c.deleteLayout("layout-1"); c.componentDidUpdate();
+  expect(c.state.layouts["layout-1"]).toBeUndefined(); expect(c.state.nodes.a).toMatchObject({ custom: true }); expect(c.state.nodes.a.layout).toBeUndefined();
+});
+
+test("layouts: multi-frame slides show status only; the full-bleed slot goes to the back; new builder slides match a layout", async () => {
+  const c = await layDeck({ a: [LTX("h", "h1", 6, 6), { id: "im", type: "image", x: 50, y: 50, w: 10, h: 10 }] }); await Bun.sleep(150);
+  c.applyLayout("a", "image-full"); expect(c.layersOf("a").map((l: any) => l.id)).toEqual(["im", "h"]);       // the image no longer covers the title
+  c.setNode("a", { frames: [{ id: "f", layers: c.layersOf("a") }, { id: "g", layers: [] }] }); c.setState({ cur: "a" });
+  expect(c.renderVals().layEditable).toBe(false);
+  c.insert("ROOT", 1); const id = c.state.cur; expect(c.effectiveLayout(id)?.id).toBe("title");                // a new slide's title counts as H1
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  expect(html).toContain('<sc-if value="{{ layEditable }}">'); expect(html).toContain("{{ layNoTiles }}");
+});

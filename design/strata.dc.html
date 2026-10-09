@@ -70,11 +70,15 @@ input,textarea,button{font:inherit;color:inherit}
       </div>
     </sc-if>
     <sc-if value="{{ isPresent }}">
-      <div style="display:flex;gap:2px;padding:3px;border-radius:9px;background:#ece6d9;flex:none">
-        <sc-for list="{{ viewSwitch }}" as="vs" hint-placeholder-count="2"><button onClick="{{ vs.onClick }}" title="Slides, or the whole tree (T)" style="padding:4px 10px;border:0;border-radius:7px;cursor:pointer;background:{{ vs.bg }};box-shadow:{{ vs.shadow }};font-size:12.5px;white-space:nowrap">{{ vs.label }}</button></sc-for>
+      <div style="position:relative;flex:none">
+        <button onClick="{{ onViewMenu }}" title="Slides, Tree or Radial; breadcrumbs; size (T, B, F)" style="height:30px;padding:0 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer;font-size:12.5px;white-space:nowrap">View ▾</button>
+        <sc-if value="{{ viewMenuOpen }}">
+          <div onClick="{{ onViewMenuClose }}" style="position:fixed;inset:0;z-index:70"></div>
+          <div style="position:absolute;right:0;top:calc(100% + 6px);z-index:71;min-width:180px;padding:6px;border-radius:10px;background:#fbf9f4;box-shadow:0 12px 40px -12px rgba(0,0,0,.4)">
+            <sc-for list="{{ viewItems }}" as="vi" hint-placeholder-count="5"><button onClick="{{ vi.onClick }}" style="display:flex;align-items:center;gap:8px;width:100%;padding:6px 8px;border:0;border-top:{{ vi.sep }};border-radius:6px;background:none;text-align:left;cursor:pointer;font-size:13px"><span style="width:14px;flex:none;color:#d9432b">{{ vi.mark }}</span>{{ vi.label }}</button></sc-for>
+          </div>
+        </sc-if>
       </div>
-      <button onClick="{{ onCrumbsToggle }}" title="Show or hide the breadcrumbs (B)" style="height:30px;padding:0 10px;border:1px solid #e0d9cb;border-radius:8px;background:{{ crumbsBg }};cursor:pointer;font-size:12.5px;white-space:nowrap;flex:none">Crumbs</button>
-      <button onClick="{{ onFitToggle }}" title="Slide size: Fit or Max (F)" style="height:30px;padding:0 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer;font-size:12.5px;white-space:nowrap;flex:none">{{ fitLabel }}</button>
     </sc-if>
     <div style="display:flex;gap:2px;padding:3px;border-radius:10px;background:#ece6d9;flex:none">
       <sc-for list="{{ modeTabs }}" as="t" hint-placeholder-count="2">
@@ -312,6 +316,31 @@ input,textarea,button{font:inherit;color:inherit}
           </div>
         </sc-if>
 
+        <sc-if value="{{ showMap }}">
+          <div style="position:absolute;inset:0;overflow:auto;padding:24px;box-sizing:border-box">
+            <div style="position:relative;width:{{ mapWz }}px;height:{{ mapHz }}px;margin:0 auto">
+              <div style="position:absolute;left:0;top:0;width:{{ mapW }}px;height:{{ mapH }}px;transform:scale({{ mapZoom }});transform-origin:0 0">
+                <svg width="{{ mapW }}" height="{{ mapH }}" style="position:absolute;left:0;top:0;pointer-events:none"><sc-for list="{{ mapEdges }}" as="me" hint-placeholder-count="0"><path d="{{ me.d }}" style="fill:none;stroke:rgba(251,249,244,.45);stroke-width:2"></path></sc-for></svg>
+                <sc-for list="{{ mapCards }}" as="mc" hint-placeholder-count="0">
+                  <div onClick="{{ mc.onClick }}" title="{{ mc.name }}" data-mapcur="{{ mc.cur }}" style="position:absolute;left:{{ mc.x }}px;top:{{ mc.y }}px;width:{{ mapCardW }}px;cursor:pointer">
+                    <div style="position:relative;width:{{ mapCardW }}px;height:{{ mapCardH }}px;border-radius:6px;overflow:hidden;background:{{ base }};outline:{{ mc.outline }};outline-offset:2px">
+                      <div style="position:absolute;left:0;top:0;width:{{ cam.w }}%;height:{{ cam.h }}%;transform:{{ mc.cam }};transform-origin:0 0">
+                        <sc-for list="{{ tiles }}" as="tl" hint-placeholder-count="0"><div style="position:absolute;top:{{ tl.t }}%;height:{{ tl.h }}%;left:{{ tl.l }}%;width:calc({{ tl.w }}% + 2px);background:{{ bgCss }};opacity:{{ opacity }}"></div></sc-for>
+                      </div>
+                      <dc-import name="Layers" card="{{ deckCard }}" cards="true" layers="{{ mc.layers }}" images="{{ images }}" ink="{{ ink }}" shadow="{{ inkShadow }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
+                    </div>
+                    <div style="margin-top:5px;font-size:12px;font-weight:600;color:#fbf9f4;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ mc.name }}</div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+          <div style="position:absolute;right:14px;bottom:14px;display:flex;gap:4px;z-index:5">
+            <button onClick="{{ onMapZoomOut }}" style="width:30px;height:30px;border:0;border-radius:8px;background:rgba(251,249,244,.9);cursor:pointer">−</button>
+            <button onClick="{{ onMapFit }}" style="height:30px;padding:0 10px;border:0;border-radius:8px;background:rgba(251,249,244,.9);cursor:pointer;font-size:12.5px">Fit</button>
+            <button onClick="{{ onMapZoomIn }}" style="width:30px;height:30px;border:0;border-radius:8px;background:rgba(251,249,244,.9);cursor:pointer">+</button>
+          </div>
+        </sc-if>
         <sc-if value="{{ showWire }}">
           <div style="position:absolute;inset:0;overflow:auto;display:flex;align-items:center;padding:24px">
             <div style="position:relative;flex:none;height:min(100cqh - 48px, 100%);aspect-ratio:{{ canvasRatio }};margin:0 auto;background:{{ base }};border-radius:6px;box-shadow:0 20px 60px -24px rgba(0,0,0,.5);overflow:hidden">
@@ -324,8 +353,7 @@ input,textarea,button{font:inherit;color:inherit}
                 </sc-for>
               </svg>
               <sc-for list="{{ wireRects }}" as="wr" hint-placeholder-count="0">
-                <div onClick="{{ wr.onClick }}" onDoubleClick="{{ wr.onOpen }}" title="{{ wr.full }}" data-cur="{{ wr.cur }}" style="position:absolute;left:{{ wr.l }}%;top:{{ wr.t }}%;width:{{ wr.w }}%;height:{{ wr.h }}%;border:{{ wr.border }};background:{{ wr.fill }};border-radius:3px;cursor:pointer;overflow:hidden">
-                  <sc-if value="{{ wr.thumb }}"><dc-import name="Layers" card="{{ deckCard }}" cards="true" layers="{{ wr.layers }}" images="{{ images }}" ink="{{ ink }}" shadow="{{ inkShadow }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import></sc-if>
+                <div onClick="{{ wr.onClick }}" onDoubleClick="{{ wr.onOpen }}" title="{{ wr.full }}" style="position:absolute;left:{{ wr.l }}%;top:{{ wr.t }}%;width:{{ wr.w }}%;height:{{ wr.h }}%;border:{{ wr.border }};background:{{ wr.fill }};border-radius:3px;cursor:pointer;overflow:hidden">
                   <div style="position:absolute;left:5px;top:4px;right:5px;font-size:11px;font-weight:600;line-height:1.1;color:#fbf9f4;text-shadow:0 1px 3px rgba(0,0,0,.7);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ wr.title }}</div>
                 </div>
               </sc-for>
@@ -997,6 +1025,30 @@ const fillSlots = (layers, layout, S) => { const out = {}, g = groupsOf(layers, 
   for (const k in g) g[k].forEach((l, i) => { const b = ((layout.slots || {})[k] || [])[i]; if (b) out[l.id] = { x: b.x, y: b.y, w: b.w, h: b.h, rot: b.rot || 0 }; }); return out; };
 // A slide's counted boxes, by key, in reading order (what Save as layout / Update layout record).
 // A layer given a full-slide slot goes to the back (stable), so e.g. Full image doesn't cover its title.
+// ---- Present map views: the deck as a navigation tree (parents centred over children) or a radial layout (levels on rings,
+// each slide's angular share proportional to the slides below it). Positions are card top-lefts in px; cards are MAP_W × MAP_H.
+const MAP_W = 160, MAP_H = 90, MAP_GX = 36, MAP_GY = 84, MAP_RING = 230;
+function treeMap(N, roots) {
+  const pos = {}; let leaf = 0;
+  const lay = (id, d) => { const kids = N[id].children || [], y = d * (MAP_H + MAP_GY);
+    if (!kids.length) { pos[id] = { x: leaf * (MAP_W + MAP_GX), y }; leaf++; return; }
+    kids.forEach(k => lay(k, d + 1)); pos[id] = { x: (pos[kids[0]].x + pos[kids[kids.length - 1]].x) / 2, y }; };
+  roots.forEach(k => lay(k, 0));
+  const ps = Object.values(pos); return { pos, w: Math.max(MAP_W, ...ps.map(p => p.x + MAP_W)), h: Math.max(MAP_H, ...ps.map(p => p.y + MAP_H + 24)) };
+}
+// ponytail: fixed ring spacing; many slides on an inner ring can overlap. Grow the ring radius per level by its card count if that bites.
+function radialMap(N, roots) {
+  const leaves = id => { const k = N[id].children || []; return k.length ? k.reduce((n, c) => n + leaves(c), 0) : 1; };
+  const polar = {}; let maxD = 0;
+  const lay = (id, d, a0, a1) => { polar[id] = { r: d * MAP_RING, a: (a0 + a1) / 2 }; maxD = Math.max(maxD, d);
+    const kids = N[id].children || [], tot = kids.reduce((n, c) => n + leaves(c), 0); let s = a0;
+    kids.forEach(k => { const span = (a1 - a0) * leaves(k) / tot; lay(k, d + 1, s, s + span); s += span; }); };
+  const fan = (ids, d) => { const tot = ids.reduce((n, c) => n + leaves(c), 0); let s = 0; ids.forEach(k => { const span = 2 * Math.PI * leaves(k) / tot; lay(k, d, s, s + span); s += span; }); };
+  if (roots.length === 1 && roots[0] === 'ROOT') lay('ROOT', 0, 0, 2 * Math.PI); else fan(roots, 1);   // the deck (or its title page) at the centre
+  const R = maxD * MAP_RING + MAP_W, pos = {};
+  for (const id in polar) { const p = polar[id]; pos[id] = { x: R + p.r * Math.cos(p.a - Math.PI / 2) - MAP_W / 2, y: R + p.r * Math.sin(p.a - Math.PI / 2) - MAP_H / 2 }; }
+  return { pos, w: 2 * R, h: 2 * R };
+}
 const backFirst = (layers, boxes) => { const full = l => { const b = boxes[l.id]; return !!b && b.x <= 0 && b.y <= 0 && b.w >= 100 && b.h >= 100; }; return [...layers.filter(full), ...layers.filter(l => !full(l))]; };
 const slotsOf = (layers, S) => { const out = {}, g = groupsOf(layers, S); for (const k in g) out[k] = g[k].map(l => ({ x: l.x, y: l.y, w: l.w, h: l.h, rot: l.rot || 0 })); return out; };
 // ---- Inline markup: **bold**, *italic*, [words]{style=h2 size=72 color=#hex font=serif weight=600}, \ escapes. Per line; malformed markup is literal.
@@ -1603,10 +1655,10 @@ class Component extends DCLogic {
       if (this._wysFor !== S.editing) { this._wysFor = S.editing; this._wysLines = linesOf(text); this._wysText = text; this.rebuildWys(); root.focus && root.focus(); const end = toPlain(this._wysLines).length; setOffsets(root, end, end); }
       else if (l && text !== this._wysText) { this._wysLines = linesOf(text); this._wysText = text; const o = this._wysSel || { start: 0, end: 0 }; this.rebuildWys(o.start, o.end); }   // undo/redo or an outside change
     } else if (!S.editing) { this._wysFor = null; this._wysLines = null; }
-    // Present tree view: open scrolled to the current slide.
-    const inTree = S.mode === 'present' && S.presentView === 'tree';
-    if (inTree && !this._treeShown && typeof document !== 'undefined') { const el = document.querySelector('[data-cur="true"]'); if (el && el.scrollIntoView) el.scrollIntoView({ inline: 'center', block: 'nearest' }); }
-    this._treeShown = inTree;
+    // Present map views: open scrolled to the current slide.
+    const inMap = S.mode === 'present' && (S.presentView === 'tree' || S.presentView === 'radial');
+    if (inMap && this._mapShown !== S.presentView && typeof document !== 'undefined') { const el = document.querySelector('[data-mapcur="true"]'); if (el && el.scrollIntoView) el.scrollIntoView({ inline: 'center', block: 'center' }); }
+    this._mapShown = inMap ? S.presentView : null;
     const te = this.treeRef.current;
     if (te !== this._wheelEl) {
       if (this._wheelEl) this._wheelEl.removeEventListener('wheel', this.onTreeWheel);
@@ -2242,8 +2294,9 @@ class Component extends DCLogic {
       if (k === '/') { e.preventDefault(); this.searchRef.current && this.searchRef.current.focus(); }
       else if (k === 'f' || k === 'F') this.setState(s => ({ presentFit: s.presentFit === 'max' ? 'fit' : 'max' }));
       else if (k === 'b' || k === 'B') this.setState(s => ({ showCrumbs: s.showCrumbs === false }));
-      else if (k === 't' || k === 'T') this.setState(s => ({ presentView: s.presentView === 'tree' ? 'slides' : 'tree' }));
-      else if (k === 'Escape' && S.presentView === 'tree') this.setState({ presentView: 'slides' });
+      else if (k === 't' || k === 'T') this.setState(s => ({ presentView: s.presentView === 'tree' ? 'radial' : s.presentView === 'radial' ? 'slides' : 'tree', mapZoom: null }));   // Slides → Tree → Radial
+      else if (k === 'Escape' && S.viewMenu) this.setState({ viewMenu: false });
+      else if (k === 'Escape' && (S.presentView === 'tree' || S.presentView === 'radial')) this.setState({ presentView: 'slides' });
       else if (k === 'Escape' && !STATIC) this.setState({ mode: 'build' });
     } else {
       if (k === 'Enter') { e.preventDefault(); this.addPeer(S.cur); }
@@ -2261,7 +2314,7 @@ class Component extends DCLogic {
 
   renderVals() {
     const S = this.state; const N = S.nodes; const D = this.derive(); const B = this.bgInfo(); const L = this.layout(D);
-    const cur = this.curId(); const curN = N[cur]; const isPresent = S.mode === 'present'; const isWire = !isPresent && S.view === 'wire', presentTree = isPresent && S.presentView === 'tree';   // present: the whole tree, slides drawn with their content
+    const cur = this.curId(); const curN = N[cur]; const isPresent = S.mode === 'present'; const isWire = !isPresent && S.view === 'wire', mapView = isPresent && (S.presentView === 'tree' || S.presentView === 'radial') ? S.presentView : null;   // present: the deck as a tree or radial map
     const q = S.query.trim().toLowerCase(); const name = id => N[id].title || (id === 'ROOT' ? 'Title page' : 'Untitled');
     const pathOf = id => { const p = []; let x = id; while (x && x !== 'ROOT') { p.unshift(x); x = D.parent[x]; } return p; };
     const tab = on => ({ bg: on ? '#fbf9f4' : 'transparent', color: on ? '#1d1b17' : '#6b6458', shadow: on ? '0 1px 3px rgba(0,0,0,.12)' : 'none' });
@@ -2338,8 +2391,7 @@ class Component extends DCLogic {
     const pct = r => ({ l: f3(r.x / CW * 100), t: f3(r.y / H * 100), w: f3(r.w / CW * 100), h: f3(r.h / H * 100) });
     const wireRects = D.order.map(id => { const on = id === cur, row = D.parent[id] === D.parent[cur];
       return { ...pct(L.rect[id]), title: name(id), full: name(id), border: on ? '2px solid #d9432b' : row ? '1.5px solid #e0a019' : '1px solid rgba(251,249,244,.7)', fill: on ? 'rgba(217,67,43,.2)' : 'rgba(251,249,244,.06)',
-        thumb: presentTree, layers: presentTree ? this.shown(id, this.layersOf(id)) : [], cur: on,
-        onClick: () => { this.nav(id, 'jump'); if (presentTree) this.setState({ presentView: 'slides' }); }, onOpen: () => this.setState({ view: 'slide' }) }; });
+        onClick: () => this.nav(id, 'jump'), onOpen: () => this.setState({ view: 'slide' }) }; });
     const wireLinesSafe = [];
     D.order.filter(id => D.parent[id] !== 'ROOT').forEach(id => { const a = L.rect[D.parent[id]], b = L.rect[id];
       const xa = (a.x + a.w * 0.1) / CW * 100, ya = (a.y + a.h) / H * 100, xb = (b.x + b.w * 0.1) / CW * 100, yb = b.y / H * 100, my = (ya + yb) / 2;
@@ -2586,6 +2638,20 @@ class Component extends DCLogic {
       onApply: () => this.applyLayout(cur, L.id), onApplyAll: () => this.applyToAll(L.id), onName: e => this.renameLayout(L.id, e.target.value),
       canDelete: !BUILTIN_LAYOUTS[L.id], onDelete: () => this.deleteLayout(L.id), chips: chipsOf(L.match),
       layers: (b => this.shown(cur, curFr0.map(l => (b[l.id] ? { ...l, ...b[l.id] } : l))))(fillSlots(curFr0, L, STY)) });
+    // ---- Present map (Tree / Radial). ponytail: every slide's thumbnail is rendered; fine for hundreds of slides.
+    let mapCards = [], mapEdges = [], mapW = 0, mapH = 0;
+    if (mapView) {
+      const roots = S.titlePage ? ['ROOT'] : N.ROOT.children, M = (mapView === 'radial' ? radialMap : treeMap)(N, roots), onPath = new Set(pathOf(cur));
+      mapW = M.w; mapH = M.h;
+      mapCards = (S.titlePage ? ['ROOT'] : []).concat(D.order).filter(id => M.pos[id]).map(id => ({ id, name: name(id), x: M.pos[id].x, y: M.pos[id].y, cur: id === cur,
+        cam: camOf(id), layers: this.shown(id, this.layersOf(id)), outline: id === cur ? '3px solid #d9432b' : onPath.has(id) ? '2px solid #e0a019' : '1px solid rgba(251,249,244,.25)',
+        onClick: () => { this.nav(id, 'jump'); this.setState({ presentView: 'slides' }); } }));
+      for (const id in M.pos) { const pid = D.parent[id]; const a = pid && M.pos[pid], b = M.pos[id]; if (!a) continue;
+        if (mapView === 'radial') mapEdges.push({ d: `M${a.x + MAP_W / 2} ${a.y + MAP_H / 2}L${b.x + MAP_W / 2} ${b.y + MAP_H / 2}` });
+        else { const x1 = a.x + MAP_W / 2, y1 = a.y + MAP_H + 24, x2 = b.x + MAP_W / 2, y2 = b.y - 6, my = (y1 + y2) / 2; mapEdges.push({ d: `M${x1} ${y1}V${my}H${x2}V${y2}` }); } }
+    }
+    const fitZ = typeof window !== 'undefined' && window.innerWidth && mapW ? Math.min((window.innerWidth - 48) / mapW, (window.innerHeight - 48) / mapH, 1.25) : 1, mapZ = S.mapZoom ?? fitZ;
+    const pv = S.presentView === 'tree' || S.presentView === 'radial' ? S.presentView : 'slides', closeMenu = { viewMenu: false };
     const tvw = { zoom: 1, x: 0.5, y: 0.5, ...S.titleView }, setTv = p => this.setState(s => ({ titleView: { zoom: 1, x: 0.5, y: 0.5, ...s.titleView, ...p } }));
     const tvFree = [TC.Wc <= 1.001 && 'Pan X', TC.Hc <= 1.001 && 'Pan Y'].filter(Boolean);
 
@@ -2635,13 +2701,18 @@ class Component extends DCLogic {
       layTiles: animated || !sigK ? [] : Object.values(LAY).filter(L => sigKey(L.match) === sigK).map(tileOf), layNoTiles: !animated && !!sigK && !firstFit,
       onLaySave: () => this.saveAsLayout(cur), layCanUpdate: !!effL && !animated, layUpdateLabel: effL ? 'Update “' + effL.name + '” from this slide' : '', onLayUpdate: () => this.updateLayoutFrom(cur),
       layAll: Object.values(LAY).map(L => ({ ...tileOf(L), layers: [] })), layAllOpen: !!S.layAllOpen, onLayAllToggle: () => this.setState({ layAllOpen: !S.layAllOpen }),
-      crumbsOn: S.showCrumbs !== false, crumbsBg: S.showCrumbs !== false ? '#ece6d9' : '#fff', onCrumbsToggle: () => this.setState({ showCrumbs: S.showCrumbs === false }),
-      viewSwitch: [['slides', 'Slides'], ['tree', 'Tree']].map(([v, label]) => ({ label, ...tab((S.presentView === 'tree' ? 'tree' : 'slides') === v), onClick: () => this.setState({ presentView: v }) })),
-      isMax: isPresent && S.presentFit === 'max', fitLabel: S.presentFit === 'max' ? '⤡ Fit' : '⤢ Max', onFitToggle: () => this.setState({ presentFit: S.presentFit === 'max' ? 'fit' : 'max' }),
+      mapCards, mapEdges, mapW, mapH, mapCardW: MAP_W, mapCardH: MAP_H, mapZoom: mapZ, mapWz: Math.ceil(mapW * mapZ), mapHz: Math.ceil(mapH * mapZ),
+      onMapZoomIn: () => this.setState({ mapZoom: Math.min(3, mapZ * 1.25) }), onMapZoomOut: () => this.setState({ mapZoom: Math.max(0.1, mapZ / 1.25) }), onMapFit: () => this.setState({ mapZoom: null }),
+      viewMenuOpen: !!S.viewMenu, onViewMenu: () => this.setState({ viewMenu: !S.viewMenu }), onViewMenuClose: () => this.setState(closeMenu),
+      viewItems: [['slides', 'Slides'], ['tree', 'Tree'], ['radial', 'Radial']].map(([v, label]) => ({ label, on: pv === v, mark: pv === v ? '●' : '', sep: 'none', onClick: () => this.setState({ presentView: v, mapZoom: null, ...closeMenu }) }))
+        .concat([{ label: 'Breadcrumbs', on: S.showCrumbs !== false, mark: S.showCrumbs !== false ? '✓' : '', sep: '1px solid #e0d9cb', onClick: () => this.setState({ showCrumbs: S.showCrumbs === false }) },
+          { label: 'Max size', on: S.presentFit === 'max', mark: S.presentFit === 'max' ? '✓' : '', sep: 'none', onClick: () => this.setState({ presentFit: S.presentFit === 'max' ? 'fit' : 'max' }) }]),
+      crumbsOn: S.showCrumbs !== false,
+      isMax: isPresent && S.presentFit === 'max',
       stagePad: isPresent && S.presentFit === 'max' ? '0' : '136px 66px 60px', stageRadius: isPresent && S.presentFit === 'max' ? '0' : '12px',
       stageW: isPresent && S.presentFit === 'max' ? 'min(100cqw, 100cqh * 16 / 9)' : 'min(100cqw - 132px, (100cqh - 196px) * 16 / 9)',
-      hdrShown: !isPresent || !!S.hdrShow || !!S.searchFocus || !!S.query,
-      hdrStyle: isPresent ? 'position:absolute;left:0;right:0;top:0;z-index:50;transition:transform .2s ease;transform:translateY(' + (S.hdrShow || S.searchFocus || S.query ? '0' : '-100%') + ')' : '',
+      hdrShown: !isPresent || !!S.hdrShow || !!S.searchFocus || !!S.query || !!S.viewMenu,
+      hdrStyle: isPresent ? 'position:absolute;left:0;right:0;top:0;z-index:50;transition:transform .2s ease;transform:translateY(' + (S.hdrShow || S.searchFocus || S.query || S.viewMenu ? '0' : '-100%') + ')' : '',
       onHdrEnter: () => { clearTimeout(this._hdrT); if (!S.hdrShow) this.setState({ hdrShow: true }); },
       onHdrLeave: () => { clearTimeout(this._hdrT); this._hdrT = setTimeout(() => this.setState({ hdrShow: false }), 300); },
       onSearchFocus: () => this.setState({ searchFocus: true }), onSearchBlur: () => this.setState({ searchFocus: false }),
@@ -2696,7 +2767,7 @@ class Component extends DCLogic {
       treeRef: this.treeRef, treeW: TPX * 2 + Math.max(1, leaf) * COLW + 20, treeH: TPY + (D.levels + r0) * ROWH + 20, treeNodes, treeEdges: topEdge.concat(treeEdges),
       viewTabs: [{ label: 'Slide', ...tab(S.view === 'slide'), onClick: () => this.setState({ view: 'slide' }) }, { label: 'Wireframe', ...tab(S.view === 'wire'), onClick: () => this.setState({ view: 'wire' }) }],
       viewHint: isWire ? 'Every slide on the looping canvas. Click to select, double-click to open.' : 'What viewers see. Arrow keys move around the tree.',
-      stageAreaBg: isPresent ? '#05070c' : '#e6e0d3', showStage: !isWire && !presentTree, showWire: isWire || presentTree, presentTree,
+      stageAreaBg: isPresent ? '#05070c' : '#e6e0d3', showStage: !isWire && !mapView, showWire: isWire, showMap: !!mapView,
       base: S.base, bgCss: B.src ? `url("${B.src}") center / 100% 100% no-repeat` : 'none', opacity: S.opacity, tiles, cam,
       curCam: camOf(cur), camTransition: `transform ${S.speed}ms ${ease}`,
       hasPrev: !!active, planeA, planeB, planeTr: active && S.phase === 'run' ? `transform ${S.speed}ms ${ease}, opacity ${S.speed}ms ease` : 'none',

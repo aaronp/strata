@@ -1668,7 +1668,7 @@ test("present: Max/Fit sizing (button and F), Jump to lives in the header, heade
   let v = c.renderVals(); expect(v.hdrShown).toBe(true);                                   // build mode: always shown
   c.setState({ mode: "present" }); v = c.renderVals();
   expect(v.hdrShown).toBe(false); expect(v.isMax).toBe(false); expect(v.stagePad).toBe("136px 66px 60px");
-  v.onFitToggle(); v = c.renderVals(); expect(v.isMax).toBe(true); expect(v.stagePad).toBe("0"); expect(v.fitLabel).toBe("⤡ Fit");
+  v.viewItems[4].onClick(); v = c.renderVals(); expect(v.isMax).toBe(true); expect(v.stagePad).toBe("0");
   c.onKey({ key: "f", target: {}, preventDefault() {} }); expect(c.renderVals().isMax).toBe(false);
   c.renderVals().onHdrEnter(); expect(c.renderVals().hdrShown).toBe(true);
   c.renderVals().onHdrLeave(); await Bun.sleep(450); expect(c.renderVals().hdrShown).toBe(false);
@@ -1677,25 +1677,34 @@ test("present: Max/Fit sizing (button and F), Jump to lives in the header, heade
   c.setState({ query: "x" }); expect(c.renderVals().hdrShown).toBe(true);
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
   const header = html.slice(html.indexOf("<header"), html.indexOf("</header>"));
-  expect(header).toContain('ref="{{ searchRef }}"'); expect(header).toContain('onMouseEnter="{{ onHdrEnter }}"'); expect(header).toContain("{{ onFitToggle }}");
+  expect(header).toContain('ref="{{ searchRef }}"'); expect(header).toContain('onMouseEnter="{{ onHdrEnter }}"'); expect(header).toContain("{{ onViewMenu }}");
   expect(html).toContain("padding:{{ stagePad }}");
 });
 
-test("present: breadcrumbs toggle (button and B); Tree view shows every slide with content, jumps on click, Esc/T return", async () => {
+test("present View menu: layout (Slides / Tree / Radial), breadcrumbs, max size; keys T/B/F; map views jump on click; zoom", async () => {
   const c = await treeDeck(); c.setState({ mode: "present", cur: "a1" });
-  let v = c.renderVals(); expect(v.crumbsOn).toBe(true);
-  v.onCrumbsToggle(); expect(c.renderVals().crumbsOn).toBe(false);
-  c.onKey({ key: "b", target: {}, preventDefault() {} }); expect(c.renderVals().crumbsOn).toBe(true);
-  expect(c.renderVals().showWire).toBe(false);
+  let v = c.renderVals(); v.onViewMenu(); v = c.renderVals(); expect(v.viewMenuOpen).toBe(true);
+  expect(v.viewItems.map((i: any) => i.label)).toEqual(["Slides", "Tree", "Radial", "Breadcrumbs", "Max size"]);
+  expect(v.viewItems.map((i: any) => i.on)).toEqual([true, false, false, true, false]);
+  v.viewItems[3].onClick(); expect(c.renderVals().crumbsOn).toBe(false);
+  c.renderVals().viewItems[4].onClick(); expect(c.renderVals().isMax).toBe(true);
+  c.onKey({ key: "b", target: {}, preventDefault() {} }); c.onKey({ key: "f", target: {}, preventDefault() {} });
+  v = c.renderVals(); expect([v.crumbsOn, v.isMax]).toEqual([true, false]);
+  c.onKey({ key: "Escape", target: {}, preventDefault() {} }); expect(c.renderVals().viewMenuOpen).toBe(false); expect(c.state.mode).toBe("present");
   c.onKey({ key: "t", target: {}, preventDefault() {} }); v = c.renderVals();
-  expect(v.presentTree).toBe(true); expect(v.showWire).toBe(true); expect(v.showStage).toBe(false);
-  expect(v.wireRects.map((r: any) => r.full)).toEqual(["A", "A1", "A1x", "A2", "B"]);
-  expect(v.wireRects.every((r: any) => r.thumb && Array.isArray(r.layers) && r.layers.length > 0)).toBe(true);
-  expect(v.wireRects.find((r: any) => r.full === "A1").border).toContain("#d9432b");      // current slide outlined
-  v.wireRects.find((r: any) => r.full === "B").onClick(); expect(c.state.cur).toBe("b"); expect(c.renderVals().presentTree).toBe(false);
-  v.viewSwitch[1].onClick(); expect(c.renderVals().presentTree).toBe(true);
-  c.onKey({ key: "Escape", target: {}, preventDefault() {} }); expect(c.renderVals().presentTree).toBe(false); expect(c.state.mode).toBe("present");
-  c.setState({ mode: "build", view: "wire" }); v = c.renderVals(); expect(v.wireRects[0].thumb).toBe(false);      // builder wireframe unchanged
+  expect(v.showMap).toBe(true); expect(v.showStage).toBe(false); expect(v.showWire).toBe(false);
+  const at = (n: string) => v.mapCards.find((m: any) => m.name === n);
+  expect(v.mapCards.map((m: any) => m.name)).toEqual(["A", "A1", "A1x", "A2", "B"]);
+  expect(at("A").x).toBeCloseTo((at("A1").x + at("A2").x) / 2); expect(at("A1").x).toBeCloseTo(at("A1x").x);   // parents centred over children
+  expect(at("A1").y).toBeGreaterThan(at("A").y); expect(at("A1").outline).toContain("#d9432b");
+  expect(v.mapCards.every((m: any) => m.layers.length > 0)).toBe(true); expect(v.mapEdges.length).toBe(3);
+  c.onKey({ key: "t", target: {}, preventDefault() {} }); v = c.renderVals();
+  const ctr = (m: any) => [m.x + v.mapCardW / 2 - v.mapW / 2, m.y + v.mapCardH / 2 - v.mapH / 2], r = (m: any) => Math.hypot(...ctr(m));
+  expect(r(at("A"))).toBeCloseTo(r(at("B"))); expect(r(at("A1"))).toBeCloseTo(r(at("A2"))); expect(r(at("A1x"))).toBeGreaterThan(r(at("A1")));
+  expect(r(at("A1"))).toBeGreaterThan(r(at("A")));
+  const z0 = v.mapZoom; v.onMapZoomIn(); expect(c.renderVals().mapZoom).toBeGreaterThan(z0); c.renderVals().onMapFit(); expect(c.state.mapZoom).toBeNull();
+  at("B").onClick(); expect(c.state.cur).toBe("b"); expect(c.renderVals().showMap).toBe(false);
+  c.setState({ presentView: "tree" }); c.onKey({ key: "Escape", target: {}, preventDefault() {} }); expect(c.renderVals().showMap).toBe(false);
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
-  for (const h of ['<sc-if value="{{ crumbsOn }}">', "{{ wr.layers }}", "{{ onCrumbsToggle }}", "{{ viewSwitch }}"]) expect(html).toContain(h);
+  for (const h of ["{{ onViewMenu }}", "{{ viewItems }}", "{{ mapCards }}", "{{ mapEdges }}", "{{ onMapZoomIn }}", '<sc-if value="{{ crumbsOn }}">']) expect(html).toContain(h);
 });

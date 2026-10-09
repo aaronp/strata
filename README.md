@@ -98,7 +98,7 @@ A layer keeps the **same `id`** across frames; that's how it's matched for tween
 ### Build mode
 - **Left panel (resizable):** vertical tree of thumbnail nodes with + sibling / + child / delete and drag to reorder. Keys: Enter adds a sibling, Tab adds a child, ⌫ deletes, double-click renames.
 - **Centre:** the slide editor. Select / drag / resize (8 handles) / rotate layers, double-click to edit text, drop images, and Ctrl/⌘+V to paste an image (replaces the selected image layer, or adds a new one). There is also a wireframe view showing every slide rectangle over the background.
-- **Right panel (resizable), tabs: Slide / Layout / Background.**
+- **Right panel (resizable), tabs: Slide / Canvas** (Canvas holds the title page, Spacing — row/column step, Even steps vs Fit subtrees, transition time — text styles, background and readability).
   - **Layout section (collapsible):** preset layouts (Title, Title + list, Side by side, …) that rebuild the frame's layers from the slide's content.
   - **Frames section (collapsible):** a left-to-right strip of frame thumbnails with a → between each pair.
     - Buttons: ▶ Preview / ■ Stop (steps through the frames with → / Space; Esc stops), ⧉ Duplicate, Delete. Header checkbox: Progress.

@@ -803,8 +803,17 @@ input,textarea,button{font:inherit;color:inherit}
             </sc-if>
           </sc-if>
 
-          <sc-if value="{{ tabLayout }}">
-            <span style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#6b6458">Spacing</span>
+          <sc-if value="{{ tabCanvas }}">
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+              <input type="checkbox" checked="{{ titlePage }}" onChange="{{ onTitlePage }}" style="accent-color:#1d1b17">Title page · the whole canvas as a first slide
+            </label>
+            <div style="display:flex;flex-direction:column;border:1px solid #e0d9cb;border-radius:10px;background:#fff">
+              <div onClick="{{ sec.spacing.toggle }}" style="display:flex;align-items:center;gap:8px;padding:9px 10px;cursor:pointer;user-select:none">
+                <span style="width:12px;flex:none;font-size:10px;color:#6b6458">{{ sec.spacing.caret }}</span>
+                <span style="flex:1;min-width:0;font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#1d1b17">Spacing</span>
+              </div>
+              <sc-if value="{{ sec.spacing.open }}">
+              <div style="display:flex;flex-direction:column;gap:12px;padding:0 10px 10px">
             <div style="display:flex;align-items:center;gap:8px">
               <span style="font-size:12px;color:#6b6458;flex:1" title="Even steps: every move between neighbours or levels shifts the background the same amount (branches may overlap on the canvas). Fit subtrees: each slide makes room for everything below it.">Spacing</span>
               <div style="display:flex;gap:2px;padding:3px;border-radius:9px;background:#ece6d9">
@@ -829,12 +838,9 @@ input,textarea,button{font:inherit;color:inherit}
               <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>Transition time</span><span style="font-family:'JetBrains Mono',monospace">{{ speedLabel }}</span></span>
               <input type="range" min="0" max="2000" step="50" value="{{ speed }}" onChange="{{ onSpeed }}" style="accent-color:#1d1b17;width:100%;min-width:0">
             </label>
-          </sc-if>
-
-          <sc-if value="{{ tabCanvas }}">
-            <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
-              <input type="checkbox" checked="{{ titlePage }}" onChange="{{ onTitlePage }}" style="accent-color:#1d1b17">Title page · the whole canvas as a first slide
-            </label>
+              </div>
+              </sc-if>
+            </div>
             <span style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#6b6458">Text styles</span>
             <div style="display:flex;flex-direction:column;gap:4px">
               <sc-for list="{{ styleRows }}" as="sr" hint-placeholder-count="4">
@@ -2617,7 +2623,7 @@ class Component extends DCLogic {
       tvY: tvw.y, tvYLabel: Math.round(tvw.y * 100) + '%', onTvY: e => setTv({ y: +e.target.value }),
       tvHint: tvFree.length ? 'The whole canvas fits this way, so ' + tvFree.join(' and ') + ' has no effect.' : '',
       ...layerVals, ...linkVals, textFields, boxModes, boxModeLabel, boxTitle, boxColors, boxFields, ...frameVals,
-      sec: Object.fromEntries(['layout', 'frames', 'layers', 'tdef', 'box', 'insert'].map(k => { const open = !!(S.secOpen || {})[k]; return [k, { open, caret: open ? '▾' : '▸', toggle: () => this.setState(st => ({ secOpen: { ...st.secOpen, [k]: !open } })) }]; })),
+      sec: Object.fromEntries(['layout', 'frames', 'layers', 'tdef', 'box', 'insert', 'spacing'].map(k => { const open = !!((S.secOpen || {})[k] ?? k === 'spacing'); return [k, { open, caret: open ? '▾' : '▸', toggle: () => this.setState(st => ({ secOpen: { ...st.secOpen, [k]: !open } })) }]; })),
       defAll: Object.fromEntries(['ease', 'dur', 'delay'].map(key => { const on = !!S.dAll[key]; const fb = { ease: 'both', dur: 600, delay: 0 }[key];
         return [key, { label: on ? '✓ All' : 'All', bg: on ? '#1d1b17' : '#fff', color: on ? '#fbf9f4' : '#1d1b17', border: on ? '#1d1b17' : '#cfc6b4',
           onClick: () => this.setState(st => { const next = !on; const out = { dAll: { ...st.dAll, [key]: next } }; if (next) { const v = ((st.tdef || {}).move || {})[key] ?? fb; const td = { ...(st.tdef || {}) }; DEF_ACTS.forEach(a => { td[a] = { ...(td[a] || {}), [key]: v }; }); out.tdef = td; } return out; }) }]; })),
@@ -2677,8 +2683,8 @@ class Component extends DCLogic {
 
       canvasRatio: f3(CW / H), wireRects, titleFrame, wireLines: wireLinesSafe.map(([x1, y1, x2, y2]) => ({ x1: f3(x1) + '%', y1: f3(y1) + '%', x2: f3(x2) + '%', y2: f3(y2) + '%' })),
 
-      rTabs: [['slide', 'Slide'], ['layout', 'Layout'], ['canvas', 'Canvas']].map(([id, label]) => ({ label, ...tab(S.rtab === id), onClick: () => this.setState(id === 'layout' ? { rtab: id, view: 'wire' } : { rtab: id }) })),
-      tabSlide: S.rtab === 'slide', tabLayout: S.rtab === 'layout', tabCanvas: S.rtab === 'canvas',
+      rTabs: [['slide', 'Slide'], ['canvas', 'Canvas']].map(([id, label]) => ({ label, ...tab((S.rtab === 'layout' ? 'canvas' : S.rtab) === id), onClick: () => this.setState({ rtab: id }) })),   // an old saved 'layout' tab opens Canvas
+      tabSlide: S.rtab === 'slide', tabCanvas: S.rtab === 'canvas' || S.rtab === 'layout',
       titleRef: this.titleRef, onTitle: e => this.setNode(cur, { title: e.target.value }), onBody: e => this.setNode(cur, { body: e.target.value }),
       toneBtns: [['light', 'Light'], ['dark', 'Dark']].map(([id, l]) => ({ label: l, ...tab(S.tone === id), onClick: () => this.setState({ tone: id }) })),
       rowStep: L.rowStep, rowStepLabel: Math.round(L.rowStep * 100) + '% of a slide', onRowStep: e => this.setState({ rowGap: +e.target.value - 1 }),   // stored as rowGap = step − 1

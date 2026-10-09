@@ -1652,3 +1652,13 @@ test("layouts: multi-frame slides show status only; the full-bleed slot goes to 
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
   expect(html).toContain('<sc-if value="{{ layEditable }}">'); expect(html).toContain("{{ layNoTiles }}");
 });
+
+test("right panel: Slide and Canvas tabs; spacing settings are a Spacing section in Canvas; an old saved 'layout' tab opens Canvas", async () => {
+  await deckTalk(); const { c } = await mount("?deck=talk");
+  let v = c.renderVals(); expect(v.rTabs.map((t: any) => t.label)).toEqual(["Slide", "Canvas"]);
+  c.setState({ rtab: "layout" }); v = c.renderVals(); expect(v.tabCanvas).toBe(true); expect(v.tabSlide).toBe(false);
+  expect(v.sec.spacing.open).toBe(true); v.sec.spacing.toggle(); expect(c.renderVals().sec.spacing.open).toBe(false);
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  const canvas = html.slice(html.indexOf('<sc-if value="{{ tabCanvas }}">'));
+  expect(canvas).toContain('onClick="{{ sec.spacing.toggle }}"'); expect(canvas).toContain('value="{{ rowStep }}"'); expect(html).not.toContain("{{ tabLayout }}");
+});

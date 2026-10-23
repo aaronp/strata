@@ -7,15 +7,11 @@ const HOOK = '<script src="./support.js">';
 
 // With a deck: publish only that deck, and the site root opens it. Without: every deck, and the root lists them.
 export async function build(root: string, out: string, deck?: string) {
-  const publish = new Set<string>();   // the deck plus every deck it links to (include fields), transitively
-  const visit = async (s: string, from?: string): Promise<void> => {
-    if (publish.has(s)) return;
-    const f = join(root, "decks", s, "deck.json");
-    if (!existsSync(f)) throw new Error(from ? `build: deck "${from}" links to "${s}", which isn't in decks/` : `build: no deck "${s}" in decks/`);
-    publish.add(s);
-    for (const n of Object.values<any>((await Bun.file(f).json()).nodes)) if (n.include) await visit(n.include, s);
-  };
-  if (deck) await visit(deck);
+  const publish = new Set<string>();   // ponytail: no linked-deck traversal yet (markdown has no include field); add when cross-deck links are defined
+  if (deck) {
+    if (!existsSync(join(root, "decks", deck, deck + ".md"))) throw new Error(`build: no deck "${deck}" in decks/`);
+    publish.add(deck);
+  }
   await rm(out, { recursive: true, force: true });
   await cp(join(root, "design"), join(out, "design"), { recursive: true });
   if (deck) for (const s of publish) await cp(join(root, "decks", s), join(out, "decks", s), { recursive: true });

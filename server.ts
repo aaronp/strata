@@ -1,6 +1,7 @@
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
+import { parseMarkdown, plainText } from "./markdown";
 
 export const SLUG = /^[a-z0-9-]+$/;
 export type DeckInfo = { slug: string; title: string };
@@ -11,11 +12,10 @@ export async function deckList(root: string): Promise<DeckInfo[]> {
   const out: DeckInfo[] = [];
   for (const e of ents) {
     if (!e.isDirectory() || !SLUG.test(e.name)) continue;
-    const f = Bun.file(join(dir, e.name, "deck.json"));
+    const f = Bun.file(join(dir, e.name, e.name + ".md"));
     if (!(await f.exists())) continue;
-    const d = await f.json().catch(() => null);
-    const first = d?.nodes?.[d?.nodes?.ROOT?.children?.[0]];
-    out.push({ slug: e.name, title: d?.title || first?.title || e.name });
+    const h = parseMarkdown(await f.text()).sections[0];
+    out.push({ slug: e.name, title: (h && plainText(h.title)) || e.name });
   }
   return out.sort((a, b) => a.slug.localeCompare(b.slug));
 }
@@ -42,13 +42,14 @@ async function extract(url: unknown, imgDir: string): Promise<unknown> {
   return "img/" + name;
 }
 
-export async function saveDeck(root: string, slug: string, deck: any) {
-  const dir = join(root, "decks", slug), imgDir = join(dir, "img");
+export async function saveDeck(root: string, slug: string, { md, layout }: { md: string; layout: any }) {
+  const dir = join(root, "decks", slug), imgDir = join(dir, "img"), d = layout?.deck ?? {};
   const images: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(deck.images ?? {})) images[k] = await extract(v, imgDir);
-  const out = { ...deck, images, customBg: deck.customBg ? await extract(deck.customBg, imgDir) : null };
-  await Bun.write(join(dir, "deck.json"), JSON.stringify(out, null, 2) + "\n");
-  return out;
+  for (const [k, v] of Object.entries(d.images ?? {})) images[k] = await extract(v, imgDir);
+  const out = { ...layout, deck: { ...d, images, customBg: d.customBg ? await extract(d.customBg, imgDir) : null } };
+  await Bun.write(join(dir, slug + ".md"), md);
+  await Bun.write(join(dir, slug + "-layout.json"), JSON.stringify(out, null, 2) + "\n");
+  return { layout: out };
 }
 
 // The parser as a classic script: window.StrataMd = { parseMarkdown, plainText }.
@@ -73,9 +74,9 @@ export function handler(root: string) {
     const m = /^\/api\/decks\/(.+)$/.exec(p);
     if (m && req.method === "PUT") {
       if (!SLUG.test(m[1])) return new Response("bad slug", { status: 400 });
-      const deck = await req.json().catch(() => null);
-      if (!deck?.nodes?.ROOT) return new Response("bad deck: expected { nodes: { ROOT } }", { status: 400 });
-      return Response.json(await saveDeck(root, m[1], deck));
+      const body = await req.json().catch(() => null);
+      if (typeof body?.md !== "string") return new Response("bad deck: expected { md, layout }", { status: 400 });
+      return Response.json(await saveDeck(root, m[1], body));
     }
     if (p === "/" || p === "/index.html") return new Response(indexHtml(await deckList(root), true), { headers: { "content-type": "text/html; charset=utf-8" } });
     if (p === "/design/md.js") return new Response(await mdBundle(root), { headers: { "content-type": "text/javascript; charset=utf-8", "cache-control": "no-store" } });

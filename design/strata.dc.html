@@ -77,6 +77,13 @@ input,textarea,button{font:inherit;color:inherit}
       </sc-for>
     </div>
   </header>
+  <sc-if value="{{ draftPrompt }}">
+    <div style="flex:none;display:flex;align-items:center;gap:10px;padding:8px 16px;border-bottom:1px solid #e8d9a8;background:#fbf3d9;font-size:13px">
+      <span style="flex:1">You have local changes to this deck</span>
+      <button onClick="{{ onUseDraft }}" style="height:28px;padding:0 12px;border:1px solid #1d1b17;border-radius:8px;background:#1d1b17;color:#fbf9f4;cursor:pointer;font-size:13px">Use my draft</button>
+      <button onClick="{{ onDiscardDraft }}" style="height:28px;padding:0 12px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer;font-size:13px">Discard</button>
+    </div>
+  </sc-if>
 
   <div style="flex:1;min-height:0;display:flex">
     <sc-if value="{{ isBuild }}" hint-placeholder-val="{{ true }}">
@@ -968,7 +975,8 @@ const layoutUrl = src => src.replace(/\.md(\?.*)?$/i, '-layout.json$1');
 const RO_MSG = 'Linked slides are read-only here: change them in their own markdown file';
 const EMPTY_MSG = 'Add a # heading to make a slide';
 const MD = window.StrataMd;
-const UIKEY = 'strata-ui';
+const UIKEY = 'strata-ui', DRAFT_KEY = src => 'strata-draft:' + src;
+const webUrl = u => { u = String(u || '').trim(); if (u && !/^[a-z][a-z0-9+.-]*:/i.test(u)) u = 'https://' + u; return /^https?:\/\//i.test(u) ? u : null; };   // only http(s) targets open
 const AUTOSAVE_MS = 800;
 const DECK_FIELDS = ['title', 'source', 'card', 'nodes', 'bg', 'customBg', 'customAspect', 'bgScale', 'bgRepeat', 'bgY', 'opacity', 'base', 'offset', 'gap', 'tone', 'speed', 'tdef', 'titlePage', 'titleView', 'spacing', 'rowGap', 'styles', 'layouts', 'layoutDefaults', 'images'];
 const SAVED = [...DECK_FIELDS, 'md'];   // what save writes (markdown + layout file); dirty tracking compares these
@@ -1149,7 +1157,7 @@ const spanFmt = (fmt, a, lookupStyle, raw) => {
   if (/^(#[0-9a-f]{3,8}|[a-z]+)$/i.test(a.color || '')) f.color = a.color;
   if (a.font && FONT_CSS[a.font]) f.font = a.font;
   if (/^[A-Za-z0-9._!-]+$/.test(a.link || '')) f.link = a.link;            // a slide id (linked-in ids are dotted)
-  if (/^(https?:\/\/|mailto:)\S+$/i.test(a.href || '')) f.href = a.href;  // web links only
+  if (/^https?:\/\/\S+$/i.test(a.href || '')) f.href = a.href;  // web links only; anything else is plain text
   return f;
 };
 function parseRich(line, lookupStyle, opts) {
@@ -1596,7 +1604,9 @@ class Component extends DCLogic {
       if (/text\/html/i.test((r.headers && r.headers.get('content-type')) || '') || /^\s*<(!doctype|html)/i.test(md)) throw new Error('not a markdown file');
       let L = null; const lr = await fetch(layoutUrl(SRC), { cache: 'no-store' }).catch(() => null);   // missing is fine; invalid is ignored, with a note
       if (lr && lr.ok) try { L = JSON.parse(await lr.text()); } catch (e) { this.flash('Layout file ignored: ' + e.message, 8000); }
-      this.adopt(md, L);
+      let dr = null; if (!DECK && this.state.mode !== 'present') try { dr = JSON.parse(localStorage.getItem(DRAFT_KEY(SRC)) || 'null'); } catch (e) {}   // present always shows the remote file
+      this._draft = dr && typeof dr.md === 'string' && (dr.md !== md || JSON.stringify(dr.layout) !== JSON.stringify(L)) ? dr : null;
+      this.adopt(md, L, () => this.setState({ draftPrompt: !!this._draft }));
     } catch (e) { this.setState({ saveMsg: (DECK ? 'Could not load deck "' + DECK + '": ' : "Can't load " + SRC + ': ') + e.message }); }
   }
   async save() {
@@ -1641,9 +1651,11 @@ class Component extends DCLogic {
   componentDidUpdate() {
     if (!this.markCustom()) this.histTrack();
     const S = this.state;
-    if (!SRC) {   // scratch deck: markdown + layout in the browser
+    // Scratch deck: markdown + layout in the browser. Remote (?src=): edits since load are a draft, kept until downloaded or discarded.
+    const store = !SRC ? KEY : !DECK && S.mode === 'build' && this._loaded && !S.draftPrompt && this.isDirty() ? DRAFT_KEY(SRC) : null;
+    if (store) {
       const refs = SAVED.map(k => S[k]);
-      if (!this._sr || refs.some((v, i) => v !== this._sr[i])) { this._sr = refs; try { localStorage.setItem(KEY, JSON.stringify({ md: S.md, layout: layoutOf(S.nodes, S, this._linkedOv) })); } catch (e) {} }
+      if (!this._sr || refs.some((v, i) => v !== this._sr[i])) { this._sr = refs; try { localStorage.setItem(store, JSON.stringify({ md: S.md, layout: layoutOf(S.nodes, S, this._linkedOv) })); } catch (e) {} }
     }
     if (!STATIC) {
       const u = JSON.stringify({ navW: S.navW, rightW: S.rightW, mdW: S.mdW, mdOpen: S.mdOpen, secOpen: S.secOpen, stab: S.stab, presentFit: S.presentFit, showCrumbs: S.showCrumbs, crumbFade: S.crumbFade, view: S.view, rtab: S.rtab, collapsed: S.collapsed, treeZoom: S.treeZoom, treeFocus: S.treeFocus, applyTo: S.applyTo });
@@ -2019,7 +2031,7 @@ class Component extends DCLogic {
   // An inline link: a slide (if it exists) or a web page in a new tab.
   followInline(ds) {
     if (ds.link) this.nav(ds.link, 'jump');
-    else if (ds.href && typeof window !== 'undefined' && window.open) window.open(ds.href, '_blank', 'noopener');
+    else if (webUrl(ds.href) && typeof window !== 'undefined' && window.open) window.open(webUrl(ds.href), '_blank', 'noopener');
   }
   activeEl() { return typeof document !== 'undefined' ? document.activeElement : null; }
   focusInBar() { const a = typeof document !== 'undefined' && document.activeElement; return !!(a && a.closest && a.closest('[data-role="fmtbar"]')); }
@@ -2578,11 +2590,11 @@ class Component extends DCLogic {
       slideOptions: (S.titlePage ? ['ROOT'] : []).concat(D.order).map(id => ({ id, label: '\u00a0'.repeat(id === 'ROOT' ? 0 : D.depth[id] * 3) + name(id) + (id === cur ? '  (this slide)' : '') })),
       followLink: () => linkOf && linkOf.id && this.nav(linkOf.id, 'jump'),
       showLinkSpots: isPresent && !active,
-      linkSpots: isPresent ? curLayers.filter(l => l.link && !l.hidden && ((l.link.type === 'url' && l.link.url) || (l.link.type === 'slide' && N[l.link.id]))).map(l => ({ l: l.x, t: l.y, w: l.w, h: l.h, rot: l.rot || 0,
+      linkSpots: isPresent ? curLayers.filter(l => l.link && !l.hidden && ((l.link.type === 'url' && webUrl(l.link.url)) || (l.link.type === 'slide' && N[l.link.id]))).map(l => ({ l: l.x, t: l.y, w: l.w, h: l.h, rot: l.rot || 0,
         title: l.link.type === 'url' ? 'Open ' + l.link.url : 'Go to ' + pathName(l.link.id),
         onClick: e => { const hit = e && typeof document !== 'undefined' && document.elementsFromPoint ? document.elementsFromPoint(e.clientX, e.clientY).find(x => x.dataset && (x.dataset.link || x.dataset.href)) : null;
           if (hit) { this.followInline(hit.dataset); return; }   // an inline link under the pointer wins over the layer's own link
-          if (l.link.type === 'url') { let u = l.link.url.trim(); if (!/^[a-z]+:/i.test(u)) u = 'https://' + u; window.open(u, '_blank', 'noopener'); } else this.nav(l.link.id, 'jump'); } })) : [],
+          if (l.link.type === 'url') window.open(webUrl(l.link.url), '_blank', 'noopener'); else this.nav(l.link.id, 'jump'); } })) : [],
     };
     const results = isPresent && q ? D.order.filter(id => match[id]).slice(0, 10).map(id => ({ title: name(id), path: pathOf(id).slice(0, -1).map(name).join(' › ') || 'Top level', onClick: () => { this.setState({ query: '' }); this.nav(id, 'jump'); } })) : [];
 
@@ -2643,7 +2655,7 @@ class Component extends DCLogic {
       fmtLinkOpts: [{ v: '', l: 'Link', off: true }, { v: '-', l: 'No link', off: false }].concat((S.titlePage ? ['ROOT'] : []).concat(D.order).map(id => ({ v: id, l: '\u00a0'.repeat(id === 'ROOT' ? 0 : D.depth[id] * 2) + name(id), off: false })), [{ v: '@url', l: 'Web address…', off: false }]),
       onFmtLink: e => { const v = e.target.value; if (!v) return; if (v === '@url') this.setState({ fmtUrl: true, fmtUrlVal: '' }); else this.formatSel({ attrs: v === '-' ? { link: null, href: null } : { link: v, href: null } }); },
       fmtUrl: !!S.fmtUrl, fmtUrlVal: S.fmtUrlVal || '', onFmtUrlVal: e => this.setState({ fmtUrlVal: e.target.value }),
-      onFmtUrlApply: () => { const u = (S.fmtUrlVal || '').trim(), attrs = { href: /^(https?:|mailto:)/i.test(u) ? u : 'https://' + u, link: null }, tg = this._linkTarget; this._linkTarget = null;
+      onFmtUrlApply: () => { const u = (S.fmtUrlVal || '').trim(), attrs = { href: webUrl(u), link: null }, tg = this._linkTarget; this._linkTarget = null;
         if (u) { if (tg && S.editMode !== 'markup') this.formatRange(tg.start, tg.end, { attrs }); else this.formatSel({ attrs }); } this.setState({ fmtUrl: false, fmtUrlVal: '', linkPick: false }); },
       onStageLinkClick: e => { if (!isPresent) return; const el = e.target && e.target.closest && e.target.closest('[data-link],[data-href]');
         if (el && (el.dataset.link || el.dataset.href)) { e.stopPropagation(); this.followInline(el.dataset); } }, onFmtClear: () => this.formatSel({ clear: true }),
@@ -2710,7 +2722,9 @@ class Component extends DCLogic {
       cardOn: cardCfg.mode !== 'none', cardColor: cardCfg.color, onCardColor: e => setCard({ color: e.target.value }),
       cardOp: cardCfg.opacity, cardOpLabel: Math.round(cardCfg.opacity * 100) + '%', onCardOp: e => setCard({ opacity: +e.target.value }),
       cardBlur: cardCfg.blur, cardBlurLabel: cardCfg.blur + ' px', onCardBlur: e => setCard({ blur: +e.target.value }), deckCard: S.card || null,
-      hasDeck: !!DECK && !STATIC, save: () => this.save(), saveLabel: S.saving ? 'Saving…' : S.saveMsg ? '⚠ Save' : this.isDirty() ? '● Unsaved' : '✓ Saved',
+      hasDeck: !!DECK && !STATIC, draftPrompt: !!S.draftPrompt && !isPresent,
+      onUseDraft: () => { const d = this._draft; this._draft = null; if (d) this.adopt(d.md, d.layout, () => this.setState({ draftPrompt: false })); },
+      onDiscardDraft: () => { this._draft = null; try { localStorage.removeItem(DRAFT_KEY(SRC)); } catch (e) {} this.setState({ draftPrompt: false }); }, save: () => this.save(), saveLabel: S.saving ? 'Saving…' : S.saveMsg ? '⚠ Save' : this.isDirty() ? '● Unsaved' : '✓ Saved',
       modeTabs: STATIC ? [] : [{ label: 'Build', ...tab(!isPresent), onClick: () => this.setState({ mode: 'build' }) }, { label: 'Present', ...tab(isPresent), onClick: () => this.setState({ mode: 'present', query: '' }) }],
       showMd: !isPresent && S.mdOpen !== false, mdBtnBg: S.mdOpen !== false ? '#ece6d9' : '#fff', onToggleMd: () => this.setState(s => ({ mdOpen: s.mdOpen === false })),
       mdW: Math.max(240, S.mdW), onMdResize: e => this.mdResize(e), mdRef: this.mdRef, mdText: S.md, onMdInput: e => this.setMd(e.target.value),

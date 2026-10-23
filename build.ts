@@ -5,17 +5,12 @@ import { deckList, indexHtml, mdBundle } from "./server";
 
 const HOOK = '<script src="./support.js">';
 
-// With a deck: publish only that deck, and the site root opens it. Without: every deck, and the root lists them.
+// Every deck is published (children: links may point at sibling decks). With a deck, the site root opens it; without, it lists them.
 export async function build(root: string, out: string, deck?: string) {
-  const publish = new Set<string>();   // ponytail: no linked-deck traversal yet (markdown has no include field); add when cross-deck links are defined
-  if (deck) {
-    if (!existsSync(join(root, "decks", deck, deck + ".md"))) throw new Error(`build: no deck "${deck}" in decks/`);
-    publish.add(deck);
-  }
+  if (deck && !existsSync(join(root, "decks", deck, deck + ".md"))) throw new Error(`build: no deck "${deck}" in decks/`);
   await rm(out, { recursive: true, force: true });
   await cp(join(root, "design"), join(out, "design"), { recursive: true });
-  if (deck) for (const s of publish) await cp(join(root, "decks", s), join(out, "decks", s), { recursive: true });
-  else if (existsSync(join(root, "decks"))) await cp(join(root, "decks"), join(out, "decks"), { recursive: true });
+  if (existsSync(join(root, "decks"))) await cp(join(root, "decks"), join(out, "decks"), { recursive: true });
   const app = join(out, "design/strata.dc.html");
   const html = await Bun.file(app).text();
   if (!html.includes(HOOK)) throw new Error(`build: ${HOOK} not found in strata.dc.html; cannot inject STRATA_STATIC`);

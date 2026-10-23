@@ -16,12 +16,12 @@ beforeEach(async () => { for (const m of mounted.splice(0)) { clearTimeout(m._as
 
 const until = async (ok: () => boolean, ms = 3000) => { const t0 = Date.now(); while (!ok()) { if (Date.now() - t0 > ms) throw new Error("timed out waiting for the app"); await Bun.sleep(5); } };
 
-async function mount(search: string, opts: { isStatic?: boolean; settle?: boolean; deckMode?: boolean; fetch?: (u: string) => Response | undefined } = {}) {
+async function mount(search: string, opts: { isStatic?: boolean; settle?: boolean; deckMode?: boolean; fetch?: (u: string) => Response | undefined; store?: Record<string, string> } = {}) {
   opts = { deckMode: /(deck=[a-z0-9-]+|src=)/.test(search), ...opts };
-  const store: Record<string, string> = {}, listeners: Record<string, Function> = {};
+  const store: Record<string, string> = opts.store ?? {}, listeners: Record<string, Function> = {};
   const g = {
     location: { search }, window: { StrataMd: await import("./markdown"), STRATA_STATIC: !!opts.isStatic, addEventListener: (t: string, f: Function) => (listeners[t] = f), removeEventListener() {} },
-    localStorage: { getItem: (k: string) => store[k] ?? null, setItem: (k: string, v: string) => (store[k] = v) },
+    localStorage: { getItem: (k: string) => store[k] ?? null, setItem: (k: string, v: string) => (store[k] = v), removeItem: (k: string) => delete store[k] },
     fetch: async (u: string, o: RequestInit = {}) => opts.fetch?.(u) ?? handler(root)(new Request(new URL(u, "http://x/design/strata.dc.html"), o)),
     setTimeout, requestAnimationFrame: () => {},
   };
@@ -29,7 +29,7 @@ async function mount(search: string, opts: { isStatic?: boolean; settle?: boolea
   const c = new C(); mounted.push(c); c.componentDidMount();
   // Wait for the deck load (and a new deck's first save) to finish rather than sleeping a fixed time.
   if (opts.settle !== false) await until(() => (!!c._loaded || !!c.state.saveMsg || !opts.deckMode) && !c.state.saving);
-  return { c, listeners };
+  return { c, listeners, win: g.window as any, store };
 }
 
 // ---- markdown + layout file decks ----
@@ -1109,6 +1109,46 @@ test("inline links: parsed into runs, broken targets flagged, followed in presen
   expect(c.layersOf("s")[0].text.startsWith("[go]{href=https://a.b}")).toBe(true);
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
   for (const h of ["{{ fmtLinkOpts }}", "{{ onFmtUrlApply }}", 'onClick="{{ onStageLinkClick }}"', 'links="{{ isPresent }}"']) expect(html).toContain(h);
+});
+
+test("links: javascript: href not clickable", async () => {
+  const { parseRich } = await rich(), md = await import("./markdown");
+  expect(parseRich("[x]{href=mailto:a@b.c} [y]{href=http://e.x}")).toEqual([{ text: "x " }, { text: "y", href: "http://e.x" }]);   // only http(s)
+  const files: Record<string, Response> = { "https://x/a.md": reply("# A\nslug: a\n\n[bad](javascript:alert%281%29)\n", "text/markdown") };
+  const { c, win } = await mount("?src=https://x/a.md", { fetch: u => files[u] });
+  const opened: string[] = []; win.open = (u: string) => opened.push(u);
+  expect(c.resolveLayer(c.layersOf("a").find((l: any) => /bad/.test(l.text)), "a")._lines[0]).toEqual([{ text: "bad" }]);
+  c.followInline({ href: "javascript:alert(1)" }); expect(opened).toEqual([]);
+  const lid = c.layersOf("a")[0].id, setUrl = (url: string) => c.setLayers("a", (ls: any[]) => ls.map(l => l.id === lid ? { ...l, link: { type: "url", url } } : l));
+  c.setState({ mode: "present", cur: "a" }); setUrl("javascript:alert(1)");
+  expect(c.renderVals().linkSpots).toEqual([]);
+  setUrl("e.x/p"); c.renderVals().linkSpots[0].onClick(); expect(opened).toEqual(["https://e.x/p"]);
+});
+
+// ---- remote drafts ----
+const REMOTE = "# Remote\nslug: r\n", DRAFTED = "# Mine\nslug: r\n";
+const remote = (u: string) => u === "https://x/a.md" ? reply(REMOTE, "text/markdown") : u.startsWith("https://") ? reply("", "text/plain", 404) : undefined;
+const draftStore = () => ({ "strata-draft:https://x/a.md": JSON.stringify({ md: DRAFTED, layout: null }) });
+
+test("draft: present ignores draft", async () => {
+  const { c } = await mount("?src=https://x/a.md", { fetch: remote, store: draftStore(), isStatic: true });
+  expect(c.state.md).toBe(REMOTE); expect(c.renderVals().draftPrompt).toBeFalsy();
+});
+
+test("draft: build asks; use draft loads it; discard removes it", async () => {
+  const { c } = await mount("?src=https://x/a.md", { fetch: remote, store: draftStore() });
+  expect(c.state.md).toBe(REMOTE); expect(c.renderVals().draftPrompt).toBe(true);
+  c.renderVals().onUseDraft(); expect(c.state.md).toBe(DRAFTED); expect(c.renderVals().draftPrompt).toBe(false);
+  const { c: c2, store } = await mount("?src=https://x/a.md", { fetch: remote, store: draftStore() });
+  c2.renderVals().onDiscardDraft(); expect(c2.state.md).toBe(REMOTE); expect(c2.state.draftPrompt).toBe(false);
+  expect(store["strata-draft:https://x/a.md"]).toBeUndefined();
+  c2.componentDidUpdate(); expect(store["strata-draft:https://x/a.md"]).toBeUndefined();   // loading isn't an edit
+  c2.setMd(REMOTE + "\nMore.\n"); c2.componentDidUpdate();   // edits autosave
+  expect(JSON.parse(store["strata-draft:https://x/a.md"]).md).toBe(REMOTE + "\nMore.\n");
+  const { c: c3 } = await mount("?src=https://x/a.md", { fetch: remote, store: { "strata-draft:https://x/a.md": JSON.stringify({ md: REMOTE, layout: null }) } });
+  expect(c3.state.draftPrompt).toBeFalsy();   // same as remote: nothing to ask
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  for (const h of ["You have local changes to this deck", "{{ onUseDraft }}", "{{ onDiscardDraft }}"]) expect(html).toContain(h);
 });
 
 // ---- WYSIWYG: model ----

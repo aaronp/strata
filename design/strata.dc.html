@@ -1563,7 +1563,7 @@ class Component extends DCLogic {
     if (this._layoutNodes && S.nodes === this._layoutNodes) { this._layoutNodes = null; return; }
     const ro = Object.keys(S.nodes).find(k => { const n = S.nodes[k], p = prev[k]; return p && n._from && n.frames !== p.frames; });
     if (ro) { const nodes = { ...S.nodes }; for (const k in nodes) if (nodes[k]._from && prev[k]) nodes[k] = prev[k];   // linked slides are read-only: put them back
-      this.flash('This slide comes from ' + S.nodes[ro]._from + ': open it to edit'); this._lastNodes = nodes; this.setState({ nodes }); return; }   // and no undo step
+      this.flash('This slide comes from ' + S.nodes[ro]._from + ': open it to edit'); this._lastNodes = nodes; this.setState({ nodes }); return true; }   // and no undo step (the caller skips histTrack)
     const hits = Object.keys(S.nodes).filter(k => { const n = S.nodes[k], p = prev[k]; return k !== 'ROOT' && p && n !== p && n.frames !== p.frames; });
     const toLayout = S.applyTo === 'layout' && hits.find(k => !S.nodes[k].custom && this.framesOf(k).length === 1 && !this.hasExtras(k) && this.effectiveLayout(k));
     const nodes = { ...S.nodes }; let changed = false;
@@ -1639,8 +1639,7 @@ class Component extends DCLogic {
     this._crT = setTimeout(() => this.setState({ crumbLit: false }), (this.state.crumbFade || 2) * 1000);
   }
   componentDidUpdate() {
-    this.markCustom();
-    this.histTrack();
+    if (!this.markCustom()) this.histTrack();
     const S = this.state;
     if (!SRC) {   // scratch deck: markdown + layout in the browser
       const refs = SAVED.map(k => S[k]);
@@ -2204,10 +2203,12 @@ class Component extends DCLogic {
     requestAnimationFrame(() => requestAnimationFrame(() => this.setState({ phase: 'run' })));
     this.t = setTimeout(() => this.setState({ prev: null, phase: 'idle' }), S.speed + 60);
   }
-  go(dir) { if (dir === 'down' && this.unloaded(this.state.cur)) { this.loadChildren(this.state.cur).then(() => this.go('down')); return; }
+  go(dir) { const id = this.state.cur; if (dir === 'down' && this.unloaded(id)) { this.loadChildren(id).then(() => this.state.cur === id && this.go('down')); return; }   // unless the viewer moved meanwhile
     if ((dir === 'right' && this.stepFrame(1)) || (dir === 'left' && this.stepFrame(-1))) return; const D = this.derive(); this.nav(this.neighbour(this.state.cur, dir, D), dir); }
   step(delta) {
-    if (this.stepFrame(delta)) return; const D = this.derive(), cur = this.curId();
+    if (this.stepFrame(delta)) return; const cur0 = this.curId();
+    if (delta > 0 && this.unloaded(cur0)) { this.loadChildren(cur0).then(() => this.curId() === cur0 && this.step(delta)); return; }   // next into a first child is going down
+    const D = this.derive(), cur = this.curId();
     const order = this.state.titlePage ? ['ROOT', ...D.order] : D.order, dep = x => x === 'ROOT' ? -1 : D.depth[x];
     const id = order[order.indexOf(cur) + delta]; if (!id) return; const dd = dep(id) - dep(cur);
     this.nav(id, dd > 0 ? 'down' : dd < 0 ? 'up' : (delta > 0 ? 'right' : 'left'));

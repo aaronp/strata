@@ -1685,3 +1685,24 @@ test("linked: read-only", async () => {
   expect(c.state.note).toBe("This slide comes from https://h/team.md: open it to edit");
   expect(c.constructor.md.layoutOf(c.state.nodes, c.state).slides["a.costs"]).toBeUndefined();
 });
+
+test("linked: read-only revert settles when setState is deferred", async () => {
+  const { c } = await linked(); await down(c, "a");
+  const real = c.setState.bind(c), q: any[] = []; c.setState = (u: any, cb?: () => void) => { q.push([u, cb]); };   // React: applied after componentDidUpdate
+  const x0 = layerOf(c, "a.costs", "md-title").x, n = c._past.length;
+  c.setLayers("a.costs", (ls: any[]) => ls.map(l => l.id === "md-title" ? { ...l, x: l.x + 5 } : l));
+  for (let i = 0; i < 10 && q.length; i++) { for (const [u, cb] of q.splice(0)) real(u, cb); c.componentDidUpdate(); }
+  expect(q.length).toBe(0);
+  expect(layerOf(c, "a.costs", "md-title").x).toBe(x0); expect(c._past.length).toBe(n);
+});
+
+test("linked: going down or stepping waits for the load, from the same slide", async () => {
+  const { c } = await linked();
+  c.setState({ cur: "a" }); c.step(1); await until(() => c.state.cur !== "a"); expect(c.state.cur).toBe("a.costs");   // next into a first child is going down
+  for (const move of [() => c.go("down"), () => c.step(1)]) {
+    c.setState({ cur: "b" }); move(); c.nav("c", "jump");   // moved away while b's file loads
+    await until(() => !c.state.loading); await Bun.sleep(20);
+    expect(c.state.cur).toBe("c"); expect(c.state.nodes["c.!error"]).toBeUndefined();
+    delete c._linked.b; c.reenrich();
+  }
+});

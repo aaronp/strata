@@ -1013,7 +1013,7 @@ const mergeStyles = own => { const out = {}; for (const k in BUILTIN_STYLES) out
 const B = (x, y, w, h) => ({ x, y, w, h, rot: 0 });
 const HEAD = [B(6, 6, 88, 14)];
 const BODY_Y = [24, 90];
-const stackOf = n => { const h = (BODY_Y[1] - BODY_Y[0] - 2 * (n - 1)) / n; return Array.from({ length: n }, (_, i) => B(6, +(BODY_Y[0] + i * (h + 2)).toFixed(2), 88, +h.toFixed(2))); };
+const stackOf = (n, [y0, y1] = BODY_Y) => { const h = (y1 - y0 - 2 * (n - 1)) / n; return Array.from({ length: n }, (_, i) => B(6, +(y0 + i * (h + 2)).toFixed(2), 88, +h.toFixed(2))); };
 const BUILTIN_LAYOUTS = {
   'stacked-1': { name: 'Stacked', match: { title: 1, body: 1 }, slots: { title: HEAD, body: stackOf(1) } },
   'stacked-2': { name: 'Stacked 2', match: { title: 1, body: 2 }, slots: { title: HEAD, body: stackOf(2) } },
@@ -1072,6 +1072,85 @@ function radialMap(N, roots) {
 }
 const backFirst = (layers, boxes) => { const full = l => { const b = boxes[l.id]; return !!b && b.x <= 0 && b.y <= 0 && b.w >= 100 && b.h >= 100; }; return [...layers.filter(full), ...layers.filter(l => !full(l))]; };
 const slotsOf = (layers, S) => { const out = {}, g = groupsOf(layers, S); for (const k in g) out[k] = g[k].map(l => ({ x: l.x, y: l.y, w: l.w, h: l.h, rot: l.rot || 0 })); return out; };
+// ---- Enrichment: markdown sections + layout files -> nodes (never saved), and layoutOf, its inverse (what the layout file keeps).
+// LayoutFile: { version: 1, deck: { deck fields but nodes/title/source }, slides: { [id]: node minus content } }; ROOT is stored whole.
+const MD_CONTENT = ['text', 'link', 'bullets', 'src', 'imgKey', 'alt'];   // what markdown owns on an md-* layer
+const CHIP_BOX = { bg: '#ffffff', bgOpacity: 0.75, blur: 0, border: 0, borderColor: '#ffffff', radius: 12, pad: 12 };   // link chips draw their own container
+const bodySize = t => Math.max(22, Math.min(40, Math.round(40 - (t.length - 120) / 20)));
+const isMd = l => String(l.id).startsWith('md-');
+const srcBase = src => src || (typeof location !== 'undefined' && location.href) || 'http://localhost/';
+function blockLayers(sec, depth, prefix = '', src = null) {
+  const own = new Set((sec.inline || []).map(c => c.target).filter(Boolean));   // in-file targets get the namespace; unresolved refs stay as written
+  const pre = t => prefix ? t.replace(/\]\{([^}]*)\}/g, (m, a) => ']{' + a.split(/\s+/).map(k => { const v = /^link=(\S+)$/.exec(k); return v && own.has(v[1]) ? 'link=' + prefix + v[1] : k; }).join(' ') + '}') : t;
+  const esc = t => t.replace(/[\\*[\]{}]/g, c => '\\' + c), n = {};
+  const L = [{ id: 'md-title', type: 'text', block: 'title', style: 'h' + Math.min(depth, 3), text: pre(sec.title), ...HEAD[0], opacity: 1 }];
+  for (const b of sec.blocks) {
+    const i = n[b.key] = (n[b.key] || 0) + 1, id = 'md-' + b.key + '-' + i;
+    if (b.key === 'body' || b.key === 'list') L.push({ id, type: 'text', block: b.key, style: 'body', text: pre(b.text), ...B(6, 24, sec.links.length ? 56 : 88, 60), opacity: 1, size: bodySize(b.text), ...(b.key === 'list' ? { bullets: 'disc' } : {}) });
+    else if (b.key === 'links') L.push({ id: 'md-links', type: 'text', block: 'links', style: 'bullets', text: sec.links.map(k => `[${esc(k.label)}]{link=${k.target ? prefix + k.target : k.ref}}`).join('\n'),
+      ...B(66, 24, 28, Math.min(62, 4 + sec.links.length * 8)), opacity: 1, size: 22, weight: 600, color: '#15171c', card: 'custom', box: CHIP_BOX });
+    else if (b.key === 'sources') L.push({ id: 'md-sources', type: 'text', block: 'sources', text: b.text, ...SOURCES_BOX, opacity: 1,
+      font: 'mono', size: 16, weight: 400, color: null, align: 'left', valign: 'middle', lh: 1.2, bullets: 'none', gap: 0.15 });
+    else if (b.key === 'image') { const u = new URL(b.url, srcBase(src)).href; L.push({ id, type: 'image', block: 'image', imgKey: 'md:' + u, alt: b.alt || '', ...B(30, 20, 40, 60), opacity: 1, radius: 0, fit: 'contain' }); }
+  }
+  return L;
+}
+// The importer's merge rule: markdown fills an md-* layer's content; the stored layer keeps geometry and style (a styled layer's missing style keys follow the style).
+function mergeContent(stored, gen) {
+  const u = { ...(stored.style ? Object.fromEntries(Object.entries(gen).filter(([k]) => !STYLE_KEYS.includes(k) || MD_CONTENT.includes(k))) : gen), ...stored };
+  for (const k of MD_CONTENT) { if (k in gen) u[k] = gen[k]; else delete u[k]; }
+  return u;
+}
+function enrich(sections, layouts, opts = {}) {
+  const { prefix = '', depth0 = 1, from = null, root = null, src = null } = opts, nodes = {}, images = {}, warnings = [];
+  const shapeLayout = sig => {
+    for (const F of layouts) { const own = (F.deck || {}).layouts || {}, get = k => own[k] || BUILTIN_LAYOUTS[k], fits = x => x && sigKey(x.match) === sig;
+      const d = ((F.deck || {}).layoutDefaults || {})[sig]; if (fits(get(d))) return { id: d, ...get(d) };
+      const k = Object.keys(own).find(k => fits(own[k])); if (k) return { id: k, ...own[k] }; }
+    const k = Object.keys(BUILTIN_LAYOUTS).find(k => sigKey(BUILTIN_LAYOUTS[k].match) === sig); return k ? { id: k, ...BUILTIN_LAYOUTS[k] } : null;
+  };
+  const add = (sec, depth) => {
+    const id = prefix + sec.slug, gen = blockLayers(sec, depth, prefix, src);
+    for (const l of gen) if (l.imgKey) images[l.imgKey] = l.imgKey.slice(3);
+    // The host's override is keyed by full id; a linked doc's own layout file by its local slug. Only the host may embed components.
+    const i = layouts.findIndex((F, i) => ((F.slides || {})[i ? sec.slug : id])), ov = i < 0 ? null : layouts[i].slides[i ? sec.slug : id];
+    let extra;
+    if (ov) {
+      const byId = new Map(gen.map(g => [g.id, g])), kept = {};
+      const frames = (ov.frames || [{ id: 'f1', layers: [] }]).map(f => {
+        const ls = f.layers.filter(l => !(i && l.type === 'component'));
+        const gone = ls.filter(l => isMd(l) && !byId.has(l.id)); if (gone.length) kept[f.id] = gone;   // back in the layout file, out of the slide
+        const have = new Set(ls.map(l => l.id));
+        return { ...f, layers: ls.filter(l => !isMd(l) || byId.has(l.id)).map(l => isMd(l) ? mergeContent(l, byId.get(l.id)) : l).concat(gen.filter(g => !have.has(g.id)).map(g => ({ ...g, _warn: true }))) };
+      });
+      const { _kept: _k, ...rest } = ov; extra = { ...rest, frames, custom: true, ...(Object.keys(kept).length ? { _kept: kept } : {}) };
+    } else {
+      const lay = shapeLayout(sigKey(sigOf(gen)));
+      if (lay) { const boxes = fillSlots(gen, lay); extra = { frames: [{ id: 'f1', layers: backFirst(gen.map(l => boxes[l.id] ? { ...l, ...boxes[l.id] } : l), boxes) }], layout: lay.id }; }
+      else { const rest = gen.filter(l => counted(l) && l.block !== 'title'), st = stackOf(rest.length, [24, 88]);   // no match: stack the blocks, and flag them
+        extra = { frames: [{ id: 'f1', layers: gen.map(l => { const k = rest.indexOf(l); return k < 0 ? l : { ...l, ...st[k], _warn: true }; }) }] }; }
+    }
+    for (const f of extra.frames.slice(0, 1)) for (const l of f.layers) if (l._warn) warnings.push({ id, block: l.id.slice(3) });
+    nodes[id] = { ...extra, id, title: plainText(sec.title), body: sec.body, children: sec.children.map(c => prefix + c.slug), childSrc: sec.childSrc || [], ...(from ? { _from: from } : {}) };
+    sec.children.forEach(c => add(c, depth + 1));
+  };
+  sections.forEach(s => add(s, depth0));
+  const R = root || (!prefix && ((layouts[0] || {}).slides || {}).ROOT) || { id: 'ROOT', title: '', body: '' };
+  nodes.ROOT = { ...R, id: 'ROOT', children: sections.map(s => prefix + s.slug) };
+  return { nodes, images, warnings };
+}
+const NOT_SAVED = ['id', 'title', 'body', 'children', 'childSrc', '_from', '_kept'];
+function layoutOf(nodes, deckFields = {}) {
+  const deck = {}; for (const k of DECK_FIELDS) if (k in deckFields && !['nodes', 'title', 'source'].includes(k)) deck[k] = deckFields[k];
+  if (deck.images) deck.images = Object.fromEntries(Object.entries(deck.images).filter(([k]) => !k.startsWith('md:')));
+  const slides = nodes.ROOT ? { ROOT: nodes.ROOT } : {};
+  for (const id in nodes) { const n = nodes[id]; if (id === 'ROOT' || n.custom !== true || n._from) continue;
+    const o = Object.fromEntries(Object.entries(n).filter(([k]) => !NOT_SAVED.includes(k)));
+    if (n.frames) o.frames = n.frames.map(f => ({ ...f, layers: f.layers.filter(l => !(isMd(l) && l._warn))   // an unclaimed block isn't part of the override yet
+      .map(l => isMd(l) ? Object.fromEntries(Object.entries(l).filter(([k]) => !MD_CONTENT.includes(k))) : l).concat(((n._kept || {})[f.id]) || []) }));
+    slides[id] = o; }
+  return { version: 1, deck, slides };
+}
 // ---- Inline markup: **bold**, *italic*, [words]{style=h2 size=72 color=#hex font=serif weight=600}, \ escapes. Per line; malformed markup is literal.
 const ESC = '*[]{}\\';
 const runKeys = ['b', 'i', 'style', 'size', 'color', 'font', 'weight', 'ls', 'link', 'href'];
@@ -1382,6 +1461,7 @@ function seed() {
 
 class Component extends DCLogic {
   static lay = { BUILTIN_LAYOUTS, sigOf, sigKey, fillSlots, slotsOf };
+  static md = { enrich, layoutOf, blockLayers };
   static rich = { parseRich, plainText, applyFormat, runsToMarkup, linesOf, textOf, toPlain, lineLen, locate, setAttr, toggleAttr, clearRange, insertBreak, insertPlain, deleteRange, linkAt, buildEditor, getOffsets, setOffsets, readLines, wysBefore };
   state = {
     nodes: seed(), cur: 'a', prev: null, phase: 'idle', dx: 0, dy: 0, type: 'swipe', mode: STATIC ? 'present' : 'build', view: 'slide', rtab: 'slide',

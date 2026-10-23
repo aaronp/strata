@@ -21,11 +21,11 @@ beforeEach(async () => { for (const m of mounted.splice(0)) { clearTimeout(m._as
 
 const until = async (ok: () => boolean, ms = 3000) => { const t0 = Date.now(); while (!ok()) { if (Date.now() - t0 > ms) throw new Error("timed out waiting for the app"); await Bun.sleep(5); } };
 
-async function mount(search: string, opts: { batched?: boolean; isStatic?: boolean; settle?: boolean; deckMode?: boolean; fetch?: (u: string) => Response | undefined; store?: Record<string, string> } = {}) {
+async function mount(search: string, opts: { href?: string; batched?: boolean; isStatic?: boolean; settle?: boolean; deckMode?: boolean; fetch?: (u: string) => Response | undefined; store?: Record<string, string> } = {}) {
   opts = { deckMode: /(deck=[a-z0-9-]+|src=)/.test(search), ...opts };
   const store: Record<string, string> = opts.store ?? {}, listeners: Record<string, Function> = {};
   const g = {
-    location: { search }, window: { StrataMd: await import("./markdown"), STRATA_STATIC: !!opts.isStatic, addEventListener: (t: string, f: Function) => (listeners[t] = f), removeEventListener() {} },
+    location: { search, href: opts.href }, window: { StrataMd: await import("./markdown"), STRATA_STATIC: !!opts.isStatic, addEventListener: (t: string, f: Function) => (listeners[t] = f), removeEventListener() {} },
     localStorage: { getItem: (k: string) => store[k] ?? null, setItem: (k: string, v: string) => (store[k] = v), removeItem: (k: string) => delete store[k] },
     fetch: async (u: string, o: RequestInit = {}) => opts.fetch?.(u) ?? handler(root)(new Request(new URL(u, "http://x/design/strata.dc.html"), o)),
     setTimeout, requestAnimationFrame: () => {},
@@ -1867,4 +1867,16 @@ test("src: an unknown &slide= stays on the first slide with a note", async () =>
   const { c } = await mount("?src=https://s/a.md&slide=a.nope", { fetch: shareFetch });
   await until(() => !!c.state.note);
   expect(c.state.note).toBe('No slide "a.nope"'); expect(c.state.cur).toBe("a");
+});
+
+test("example: the Strata tour loads from the dev server; going down chains three files, each resolved against its own url", async () => {
+  const got: string[] = [], S = "?src=/examples/strata-tour/strata-tour.md";
+  const { c } = await mount(S, { href: "http://x/design/strata.dc.html" + S, fetch: u => { got.push(u); return handler(import.meta.dir)(new Request(new URL(u, "http://x/design/strata.dc.html"))) as any; } });
+  expect(c.state.saveMsg).toBeFalsy(); expect(c.state.bg).toBe("sky"); expect(c.state.titlePage).toBe(false); expect(c.state.cur).toBe("tour");
+  expect(c.state.mdIssues.filter((i: any) => i.level === "error")).toEqual([]);
+  await down(c, "stitching");
+  expect(c.state.cur).toBe("stitching.another-file"); expect(c.state.nodes["stitching.another-file"]._from).toBe("http://x/examples/strata-tour/linked/children.md");
+  await down(c, "stitching.joining");
+  expect(c.state.cur).toBe("stitching.joining.three-deep"); expect(c.state.nodes["stitching.joining.three-deep"]._from).toBe("http://x/examples/strata-tour/linked/deeper.md");
+  expect(got).toContain("http://x/examples/strata-tour/linked/deeper.md");
 });

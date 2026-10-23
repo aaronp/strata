@@ -1,5 +1,6 @@
 import { test, expect } from "bun:test";
 import { parseMarkdown, plainText } from "./markdown";
+import { join } from "node:path";
 
 const MD = `<!--
 metadata, ignored
@@ -179,4 +180,8 @@ test("an empty slug line falls back to the generated slug", () => {
   expect(sections[0].slug).toBe("hello-world");
   expect(warnings).toEqual([{ line: 1, msg: 'no slug line; using "hello-world"' }]);
   expect(errors).toEqual([]);
+});
+
+test("example decks parse without errors", async () => {
+  for (const f of new Bun.Glob("examples/**/*.md").scanSync(import.meta.dir)) expect([f, parseMarkdown(await Bun.file(join(import.meta.dir, f)).text()).errors]).toEqual([f, []]);
 });

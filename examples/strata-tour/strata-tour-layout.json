@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "deck": {
+    "bg": "sky",
+    "customBg": null,
+    "customAspect": 1,
+    "opacity": 1,
+    "base": "#0b1220",
+    "offset": 0,
+    "gap": -0.7,
+    "tone": "light",
+    "speed": 900,
+    "tdef": {},
+    "titlePage": false,
+    "rowGap": -0.7,
+    "images": {}
+  },
+  "slides": {}
+}

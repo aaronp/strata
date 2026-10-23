@@ -160,8 +160,8 @@
   function blockLayers(sec, depth, prefix)        // → layers: md-title (style 'h'+min(depth,3), block 'title'),
                                                   //   md-body-<n>, md-list-<n>, md-links, md-sources, md-image-<n>; default geometry from importer.ts layersFor
   function enrich(sections, layouts, opts)        // layouts: LayoutFile[] in resolution order (host first, then linked doc's);
-                                                  // opts: { prefix = '', depth0 = 1, from = null, root = ROOT node or null }
-                                                  // → { nodes, warnings: [{ id, block }] }
+                                                  // opts: { prefix = '', depth0 = 1, from = null, root = ROOT node or null, src = null }
+                                                  // → { nodes, images, warnings: [{ id, block }] }
   function layoutOf(nodes, deckFields)            // → LayoutFile: overrides for nodes with custom === true, never for _from nodes
   ```
   - For each section, the node is `{ id: prefix+slug, title: plainText(title), body, children, childSrc, frames, layout?, custom?, _from? }`.
@@ -170,6 +170,7 @@
   - **No match:** title at `HEAD[0]`, other blocks stacked full-width in `y 24–88`, each with `_warn: true`.
   - Slide links: `target ? prefix+target : ref`.
   - Layers of type `component` are dropped from any `layouts[i]` with `i > 0`.
+  - Markdown image blocks become `type: 'image'` layers with `imgKey: 'md:' + resolved`, where `resolved = new URL(url, opts.src || location.href).href`, and `images['md:' + resolved] = resolved`. `layoutOf` never stores `md:` image keys.
 
 - [ ] **Step 1: Write the failing tests** in `enrich.test.ts`:
   - `enrich: stacked by default`: `# T\n\nA.\n\nB.` → the node's frame has `md-body-1` and `md-body-2` at the `stacked-2` boxes. `layout === "stacked-2"`. No `_warn`.
@@ -180,6 +181,7 @@
   - `enrich: prefix and fallback chain`: `prefix: "a."`, layouts `[host, linked]`, where `linked.slides.x` overrides → node `a.x` uses the linked override. If `host.slides["a.x"]` exists, the host wins.
   - `enrich: linked component layers dropped`: a linked override containing `{ type: "component" }` → not in frames.
   - `layoutOf: strips content`: no `text`/`link`/`src` on `md-*` layers. Extras keep their `text`.
+  - `enrich: markdown image resolves against src`: `![c](img/c.png)` with `src: "https://h/d/a.md"` → `images["md:https://h/d/img/c.png"]` is set.
   - `enrich: empty markdown`: `""` → `nodes.ROOT.children` is `[]`.
 
 - [ ] **Step 2: Run** `bun test enrich.test.ts`. Expected: FAIL.
@@ -238,7 +240,7 @@
   - **`SRC`** (const): `?src=` if `https:` or same-origin, else `null`. With `DECK`, `SRC = '../decks/'+DECK+'/'+DECK+'.md'`.
   - **`layoutUrl(src) = src.replace(/\.md(\?.*)?$/i, '-layout.json$1')`**.
   - **`setMd(md)`**: sets `md` and schedules `reenrich()` after 200 ms.
-  - **`reenrich(baseNodes = this.state.nodes)`**: parses, then runs `enrich([layoutOf(baseNodes, deck fields), ...linkedLayouts])`. It commits with `this._lastNodes = nodes; this.allowLayout(nodes)`, so the commit is neither an undo step nor a hand edit. If `cur` is gone, it moves to the nearest existing ancestor id (by trimming dot/heading path), then `ROOT.children[0]`.
+  - **`reenrich(baseNodes = this.state.nodes)`**: parses `md`, then runs `enrich(sections, [layoutOf(baseNodes, deck fields)], { root: baseNodes.ROOT, src: SRC })` and merges the returned `images`. It commits with `this._lastNodes = nodes; this.allowLayout(nodes)`, so the commit is neither an undo step nor a hand edit. If `cur` is gone, it moves to the nearest existing ancestor id (by trimming dot/heading path), then `ROOT.children[0]`.
   - **`restore(nodes)`** (undo/redo) ends with `reenrich(nodes)`.
   - **`save()`** PUTs `{ md, layout: layoutOf(...) }`.
   - **Scratch** (no `DECK`/`SRC`): `localStorage[KEY] = JSON.stringify({ md, layout })`.
@@ -346,7 +348,7 @@
   - **`this._linked: { [nodeId]: { status: 'loading'|'ok'|'error', md, layout, src } }`**: an in-memory cache keyed by the linking node's full id.
   - **`loadChildren(id): Promise<void>`:**
     - For each `childSrc` URL, resolved with `new URL(u, sourceOfNode(id))`: fetch the `.md` (plus `-layout.json`, where a 404 is fine).
-    - Enrich with `prefix: id + '.'`, `depth0: depth(id) + 1`, `from: url`, `layouts: [hostLayout, thatLayout]`.
+    - Run `enrich(sections, [hostLayout, thatLayout], { prefix: id + '.', depth0: depth(id) + 1, from: url, src: url })`.
     - Append the tops to `id`'s children after its heading children, in list order.
     - Commits like `reenrich`.
     - **Loop:** the URL is already on the chain of `from` URLs above `id`. **Fetch error, non-markdown, loop:** one node `id + '.!error'`, titled `Can't link <url>`, body = reason, `_from: url`.

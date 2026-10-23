@@ -22,12 +22,18 @@ export async function deckList(root: string): Promise<DeckInfo[]> {
 
 const esc = (s: string) => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 
+const TOUR = "https://github.com/aaronp/strata/blob/master/examples/strata-tour/strata-tour.md";
+
 export function indexHtml(decks: DeckInfo[], dev: boolean): string {
   const items = decks.map(d => `<li><a href="design/strata.dc.html?deck=${d.slug}">${esc(d.title)}</a> <code>${d.slug}</code></li>`).join("\n");
   const form = dev ? `<form action="design/strata.dc.html"><input name="deck" required pattern="[a-z0-9-]+" placeholder="new-deck-slug"> <button>New deck</button></form>` : "";
-  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Strata decks</title>
-<style>body{font:16px system-ui,sans-serif;background:#f2eee5;color:#1d1b17;max-width:640px;margin:48px auto;padding:0 16px}a{color:#d9432b}code{color:#6b6458;font-size:12px}li{margin:8px 0}</style></head>
-<body><h1>Strata</h1><ul>${items || "<li>No decks yet.</li>"}</ul>${form}</body></html>`;
+  // Static (GitHub Pages): /?src=…&slide=… presents straight away.
+  const redirect = dev ? "" : `<script>if (/[?&]src=/.test(location.search)) location.replace('design/strata.dc.html' + location.search)</script>`;
+  const open = `<h2>Open from a URL</h2><form action="design/strata.dc.html"><input name="src" type="url" required size="40" placeholder="https://github.com/you/repo/blob/main/talk.md"> <button>Open</button></form>
+<p>Example: <a href="design/strata.dc.html?src=${encodeURIComponent(TOUR)}">Strata tour</a></p>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Strata decks</title>${redirect}
+<style>body{font:16px system-ui,sans-serif;background:#f2eee5;color:#1d1b17;max-width:640px;margin:48px auto;padding:0 16px}a{color:#d9432b}code{color:#6b6458;font-size:12px}li{margin:8px 0}input{max-width:100%}</style></head>
+<body><h1>Strata</h1><ul>${items || "<li>No decks yet.</li>"}</ul>${form}${open}</body></html>`;
 }
 
 const EXT: Record<string, string> = { "image/png": "png", "image/jpeg": "jpg", "image/gif": "gif", "image/webp": "webp", "image/svg+xml": "svg", "image/avif": "avif" };
@@ -80,7 +86,7 @@ export function handler(root: string) {
     }
     if (p === "/" || p === "/index.html") return new Response(indexHtml(await deckList(root), true), { headers: { "content-type": "text/html; charset=utf-8" } });
     if (p === "/design/md.js") return new Response(await mdBundle(root), { headers: { "content-type": "text/javascript; charset=utf-8", "cache-control": "no-store" } });
-    if ((p.startsWith("/design/") || p.startsWith("/decks/")) && !p.includes("..")) {
+    if ((p.startsWith("/design/") || p.startsWith("/decks/") || p.startsWith("/examples/")) && !p.includes("..")) {
       const f = Bun.file(join(root, p));
       if (await f.exists()) return new Response(f, { headers: { "cache-control": "no-store" } });
     }

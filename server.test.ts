@@ -103,3 +103,21 @@ test("md.js is served and defines StrataMd", async () => {
   new Function("window", await r.text())(w);
   expect(typeof w.StrataMd.parseMarkdown).toBe("function");
 });
+
+test("index: open-from-url form and tour link in both variants; the ?src= redirect only static; New deck only dev", () => {
+  const tour = 'href="design/strata.dc.html?src=' + encodeURIComponent("https://github.com/aaronp/strata/blob/master/examples/strata-tour/strata-tour.md") + '"';
+  for (const dev of [true, false]) {
+    const html = indexHtml([], dev);
+    expect(html).toContain('placeholder="https://github.com/you/repo/blob/main/talk.md"'); expect(html).toContain(">Open</button>");
+    expect(html).toContain(tour); expect(html).toContain("Strata tour");
+    expect(html.includes("location.replace('design/strata.dc.html' + location.search)")).toBe(!dev);
+    expect(html.includes("New deck")).toBe(dev);
+  }
+});
+
+test("serves examples/ like decks/", async () => {
+  await Bun.write(join(root, "examples/t/t.md"), "# T\n");
+  const r = await get("/examples/t/t.md");
+  expect(r.status).toBe(200); expect(r.headers.get("cache-control")).toBe("no-store");
+  expect((await get("/examples/%2e%2e/server.ts")).status).toBe(404);
+});

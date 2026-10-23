@@ -1589,9 +1589,18 @@ test("warn: a hand edit of an unplaced block clears its warning, so the override
   c.reenrich(); expect(layerOf(c, "a", "md-body-3")).toMatchObject({ x: 40 }); expect(layerOf(c, "a", "md-body-3")._warn).toBeUndefined();
 });
 
-test("warn: claim on unmatched shape saves a layout and clears all same-shape warnings", async () => {
+test("warn: claim on unmatched shape in This slide mode makes an override; no layout, other slides still warn", async () => {
   await writeMd("talk", FIVE("A") + FIVE("B")); const { c } = await mount("?deck=talk"); await Bun.sleep(150);
-  c.setState({ cur: "a" }); const v = c.renderVals(); expect(v.warnBadges.length).toBe(5);
+  c.setState({ cur: "a" }); c.renderVals().warnBadges[2].onClick(); c.componentDidUpdate();
+  expect(c.state.layouts || {}).toEqual({}); expect(c.state.nodes.a.custom).toBe(true);
+  expect(layerOf(c, "a", "md-body-3")._warn).toBeUndefined(); expect(layerOf(c, "a", "md-body-1")._warn).toBe(true);
+  expect(c.layersOf("b").filter((l: any) => l._warn).length).toBe(5);
+  c.reenrich(); expect(layerOf(c, "a", "md-body-3")._warn).toBeUndefined();   // the override keeps it
+});
+
+test("warn: claim on unmatched shape in Layout mode saves a layout and clears all same-shape warnings", async () => {
+  await writeMd("talk", FIVE("A") + FIVE("B")); const { c } = await mount("?deck=talk"); await Bun.sleep(150);
+  c.setState({ cur: "a", applyTo: "layout" }); const v = c.renderVals(); expect(v.warnBadges.length).toBe(5);
   v.warnBadges[2].onClick(); c.componentDidUpdate();
   const L = Object.values<any>(c.state.layouts || {}); expect(L.length).toBe(1); expect(L[0].match).toEqual({ title: 1, body: 5 });
   for (const k of ["a", "b"]) { expect(c.layersOf(k).some((l: any) => l._warn)).toBe(false); expect(c.state.nodes[k].custom).toBeUndefined(); }

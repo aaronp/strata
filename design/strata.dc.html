@@ -1114,6 +1114,7 @@ function enrich(sections, layouts, opts = {}) {
   nodes.ROOT = { ...R, id: 'ROOT', children: sections.map(s => prefix + s.slug) };
   return { nodes, images, warnings };
 }
+const unwarn = ({ _warn: _w, ...l }) => l;   // a placed block
 const NOT_SAVED = ['id', 'title', 'body', 'children', 'childSrc', '_from', '_kept', '_line'];
 function layoutOf(nodes, deckFields = {}) {
   const deck = {}; for (const k of DECK_FIELDS) if (k in deckFields && !['nodes', 'title', 'source'].includes(k)) deck[k] = deckFields[k];
@@ -1520,17 +1521,20 @@ class Component extends DCLogic {
     const toLayout = S.applyTo === 'layout' && hits.find(k => !S.nodes[k].custom && this.framesOf(k).length === 1 && !this.hasExtras(k) && this.effectiveLayout(k));
     const nodes = { ...S.nodes }; let changed = false;
     for (const k of hits) { if (k === toLayout) continue; const n = S.nodes[k], old = new Set((prev[k].frames || []).flatMap(f => f.layers));
-      const frames = n.frames && n.frames.map(f => f.layers.some(l => l._warn && !old.has(l)) ? { ...f, layers: f.layers.map(l => { if (!l._warn || old.has(l)) return l; const { _warn: _w, ...o } = l; return o; }) } : f);
+      const frames = n.frames && n.frames.map(f => f.layers.some(l => l._warn && !old.has(l)) ? { ...f, layers: f.layers.map(l => l._warn && !old.has(l) ? unwarn(l) : l) } : f);
       const placed = frames && frames.some((f, i) => f !== n.frames[i]); if (n.custom && !placed) continue;
       nodes[k] = { ...n, ...(placed ? { frames } : {}), custom: true }; changed = true; }
     if (toLayout) this.updateLayoutFrom(toLayout, nodes); else if (changed) this.setState({ nodes });
   }
-  // ⚠️ click: an override records the block where it is; with no layout for the shape, this slide becomes its shape's layout.
+  // ⚠️ click places the block at its box. This slide: in the slide's override. Layout: in its shape's layout (made from this slide if there's none); an override keeps it too.
   claimBlock(id, lid) {
-    const n = this.state.nodes[id]; if (!n || n._from) return;
-    if (!n.custom) { if (this.saveAsLayout(id)) this.setState({}, () => this.reenrich()); return; }
-    const nodes = { ...this.state.nodes, [id]: { ...n, frames: n.frames.map(f => ({ ...f, layers: f.layers.map(l => { if (l.id !== lid) return l; const { _warn: _w, ...o } = l; return o; }) })) } };
-    this.allowLayout(nodes); this.setState({ nodes });
+    const S = this.state, n = S.nodes[id]; if (!n || n._from) return;
+    const own = { ...n, frames: n.frames.map(f => ({ ...f, layers: f.layers.map(l => l.id === lid ? unwarn(l) : l) })), custom: true };
+    const keep = () => this.setState(s => { const nodes = { ...s.nodes, [id]: own }; this.allowLayout(nodes); return { nodes }; });
+    if (S.applyTo !== 'layout') { keep(); return; }
+    const L = this.effectiveLayout(id), made = !L && this.saveAsLayout(id); if (L) this.updateLayoutFrom(id);   // both lay this slide out as a default one
+    if (n.custom) keep();
+    if (made) this.setState({}, () => this.reenrich());
   }
   flash(msg, ms = 4000) { clearTimeout(this._nt); this.setState({ note: msg }); this._nt = setTimeout(() => this.setState({ note: null }), ms); }
   async loadDeck() {

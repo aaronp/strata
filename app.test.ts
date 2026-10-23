@@ -1606,3 +1606,82 @@ test("warn: claim on unmatched shape in Layout mode saves a layout and clears al
   for (const k of ["a", "b"]) { expect(c.layersOf(k).some((l: any) => l._warn)).toBe(false); expect(c.state.nodes[k].custom).toBeUndefined(); }
   expect(c.renderVals().warnBadges).toEqual([]);
 });
+
+// ---- linked children ----
+const HOST = "# A\nslug: a\n<!-- children: ./team.md -->\n\nHost body.\n\n# B\nslug: b\n<!-- children: ./missing.md -->\n\n# C\nslug: c\n<!-- children: ./page.md -->\n";
+const TEAM = "# Costs\nslug: costs\n\nSee [link:plan][Plan] or [link:a][Home].\n\n# Plan\nslug: plan\n";
+const titleAt = (x: number) => ({ custom: true, frames: [{ id: "f1", layers: [{ id: "md-title", type: "text", block: "title", x, y: 2, w: 50, h: 10 }] }] });
+async function linked(team = TEAM, hostLayout: any = null) {
+  const hits: Record<string, number> = {};
+  const files: Record<string, () => Response> = { "https://h/host.md": () => reply(HOST, "text/markdown"), "https://h/team.md": () => reply(team, "text/markdown"),
+    "https://h/team-layout.json": () => reply(JSON.stringify({ version: 1, deck: {}, slides: { costs: titleAt(20), plan: titleAt(21) } }), "application/json"),
+    "https://h/page.md": () => reply("<!doctype html><p>hi</p>", "text/html") };
+  if (hostLayout) files["https://h/host-layout.json"] = () => reply(JSON.stringify(hostLayout), "application/json");
+  const { c } = await mount("?src=https://h/host.md", { fetch: u => { if (!u.startsWith("https://")) return undefined; hits[u] = (hits[u] || 0) + 1; return files[u] ? files[u]() : reply("", "text/plain", 404); } });
+  return { c, hits };
+}
+const down = async (c: any, from: string) => { c.setState({ cur: from }); c.go("down"); await until(() => c.state.cur !== from && !c.state.loading); c.componentDidUpdate(); };
+
+test("linked: not loaded until navigating down", async () => {
+  const { c, hits } = await linked();
+  expect(hits["https://h/team.md"]).toBeUndefined(); expect(c.state.nodes["a.costs"]).toBeUndefined();
+  expect(c.renderVals().treeNodes.find((n: any) => n.title === "A").toggleLabel).toBe("▸ more");
+  await down(c, "a");
+  expect(hits["https://h/team.md"]).toBe(1);
+  expect(c.state.cur).toBe("a.costs"); expect(c.state.nodes.a.children).toEqual(["a.costs", "a.plan"]);
+  expect(c.renderVals().treeNodes.find((n: any) => n.title === "A").toggleLabel).not.toBe("▸ more");
+  c.setState({ cur: "a" }); c.go("down"); expect(c.state.cur).toBe("a.costs"); expect(hits["https://h/team.md"]).toBe(1);   // cached
+});
+
+test("linked: ids namespaced and _from set", async () => {
+  const { c } = await linked(); await down(c, "a");
+  expect(c.state.nodes["a.costs"]._from).toBe("https://h/team.md"); expect(c.state.nodes["a.plan"]._from).toBe("https://h/team.md");
+  expect(c.state.nodes.a._from).toBeUndefined();
+  expect(layerOf(c, "a.costs", "md-body-1").text).toBe("See [Plan]{link=a.plan} or [Home]{link=a}.");
+  expect(layerOf(c, "a.plan", "md-title").x).toBe(21);   // the linked file's own override
+  const v = c.renderVals(); expect(v.fromDeck).toBe("https://h/team.md"); expect(v.fromHref).toBe("?src=" + encodeURIComponent("https://h/team.md"));
+});
+
+test("linked: host override beats linked layout file", async () => {
+  const { c } = await linked(TEAM, { version: 1, deck: {}, slides: { "a.costs": titleAt(33) } }); await down(c, "a");
+  expect(layerOf(c, "a.costs", "md-title").x).toBe(33);
+  expect(c.constructor.md.layoutOf(c.state.nodes, c.state, c._linkedOv).slides["a.costs"].frames[0].layers[0].x).toBe(33);   // saving keeps it
+});
+
+test("linked: loop shows error slide", async () => {
+  const { c } = await linked("# Costs\nslug: costs\n<!-- children: ./host.md -->\n");
+  await down(c, "a"); await down(c, "a.costs");
+  const e = c.state.nodes["a.costs.!error"];
+  expect(c.state.cur).toBe("a.costs.!error"); expect(e.title).toBe("Can't link https://h/host.md"); expect(e.body).toMatch(/loop/); expect(e._from).toBe("https://h/host.md");
+});
+
+test("linked: 404 shows error slide titled \"Can't link https://h/missing.md\"", async () => {
+  const { c } = await linked(); await down(c, "b");
+  expect(c.state.nodes["b.!error"]).toMatchObject({ title: "Can't link https://h/missing.md", body: "HTTP 404" });
+  await down(c, "c"); expect(c.state.nodes["c.!error"]).toMatchObject({ title: "Can't link https://h/page.md", body: "not a markdown file" });
+  expect(c.state.nodes.a.children).toEqual([]);   // the rest of the deck is untouched
+});
+
+test("linked: link into unloaded file loads it", async () => {
+  const { c, hits } = await linked();
+  c.nav("a.plan", "jump"); await until(() => c.state.cur === "a.plan");
+  expect(hits["https://h/team.md"]).toBe(1);
+  c.nav("a.nope", "jump"); await Bun.sleep(20); expect(c.state.cur).toBe("a.plan");   // still missing: nothing happens
+});
+
+test("linked: survives host markdown edit", async () => {
+  const { c, hits } = await linked(); await down(c, "a");
+  c.setMd(HOST.replace("Host body.", "Edited.") + "\n# D\nslug: d\n"); c.reenrich(); c.componentDidUpdate();
+  expect(c.state.nodes.d).toBeDefined(); expect(c.state.nodes.a.children).toEqual(["a.costs", "a.plan"]);
+  expect(c.state.nodes["a.costs"]._from).toBe("https://h/team.md"); expect(c.state.cur).toBe("a.costs");
+  expect(hits["https://h/team.md"]).toBe(1);
+});
+
+test("linked: read-only", async () => {
+  const { c } = await linked(); await down(c, "a");
+  const x0 = layerOf(c, "a.costs", "md-title").x;
+  nudge(c, "a.costs", "md-title", 5);
+  expect(layerOf(c, "a.costs", "md-title").x).toBe(x0);
+  expect(c.state.note).toBe("This slide comes from https://h/team.md: open it to edit");
+  expect(c.constructor.md.layoutOf(c.state.nodes, c.state).slides["a.costs"]).toBeUndefined();
+});

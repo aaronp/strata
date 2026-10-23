@@ -368,7 +368,7 @@ input,textarea,button{font:inherit;color:inherit}
         <div style="flex:1;min-height:0;overflow:auto;padding:14px 14px 24px;display:flex;flex-direction:column;gap:16px">
           <sc-if value="{{ tabSlide }}">
             <sc-if value="{{ fromDeck }}">
-              <div style="padding:8px 10px;border:1px solid #d6e2ef;border-radius:8px;background:#eef3f9;font-size:12.5px;line-height:1.45;color:#1f4f80">From <b>{{ fromDeck }}</b>: read-only here. <a href="{{ fromHref }}">Open it →</a> to edit or export.</div>
+              <div style="padding:8px 10px;border:1px solid #d6e2ef;border-radius:8px;background:#eef3f9;font-size:12.5px;line-height:1.45;color:#1f4f80">From <b>{{ fromDeck }}</b>: read-only here. <a href="{{ fromHref }}">Open</a> it to edit or export.</div>
             </sc-if>
             <sc-if value="{{ ownSlide }}">
             <label style="display:flex;flex-direction:column;gap:5px">
@@ -1116,10 +1116,10 @@ function enrich(sections, layouts, opts = {}) {
 }
 const unwarn = ({ _warn: _w, ...l }) => l;   // a placed block
 const NOT_SAVED = ['id', 'title', 'body', 'children', 'childSrc', '_from', '_kept', '_line'];
-function layoutOf(nodes, deckFields = {}) {
+function layoutOf(nodes, deckFields = {}, linkedOv = {}) {   // linkedOv: the host's overrides for linked slides (dotted ids), kept as loaded
   const deck = {}; for (const k of DECK_FIELDS) if (k in deckFields && !['nodes', 'title', 'source'].includes(k)) deck[k] = deckFields[k];
   if (deck.images) deck.images = Object.fromEntries(Object.entries(deck.images).filter(([k]) => !k.startsWith('md:')));
-  const slides = nodes.ROOT ? { ROOT: nodes.ROOT } : {};
+  const slides = { ...linkedOv, ...(nodes.ROOT ? { ROOT: nodes.ROOT } : {}) };
   for (const id in nodes) { const n = nodes[id]; if (id === 'ROOT' || n.custom !== true || n._from) continue;
     const o = Object.fromEntries(Object.entries(n).filter(([k]) => !NOT_SAVED.includes(k)));
     if (n.frames) o.frames = n.frames.map(f => ({ ...f, layers: f.layers.filter(l => !(isMd(l) && l._warn))   // an unclaimed block isn't part of the override yet
@@ -1421,6 +1421,7 @@ class Component extends DCLogic {
     query: '', bg: 'balloons', customBg: null, customAspect: 1, opacity: 1, base: '#0b1220', offset: 0,
     tAll: { ease: false, dur: false, delay: false }, tdef: {}, dAll: { ease: false, dur: false, delay: false }, secOpen: { layout: true, frames: true, layers: true, tdef: false }, collapsed: {}, rowGap: -0.7, gap: -0.7, tone: 'light', editMode: 'rich', speed: 900, lastChild: {}, navW: 280, rightW: 340, mdOpen: true, mdW: 380, images: {}, layerSel: null, editing: null, guides: {},
   };
+  _linked = {};
   treeRef = React.createRef(); mdRef = React.createRef(); titleRef = React.createRef(); searchRef = React.createRef(); stageRef = React.createRef(); editRef = React.createRef(); wysRef = React.createRef(); imgInputRef = React.createRef();
 
   componentDidMount() {
@@ -1488,11 +1489,54 @@ class Component extends DCLogic {
   isDirty() { const S = this.state; return !this._savedRefs || SAVED.some((k, i) => S[k] !== this._savedRefs[i]); }
   // Markdown + a layout file → the deck's nodes, its markdown images (md: keys) and the parser's issues.
   enrichMd(md, L) {
-    const p = MD.parseMarkdown(md), e = enrich(p.sections, [L || {}], { src: SRC && new URL(SRC, srcBase()).href });
-    return { nodes: e.nodes, mdImages: e.images, mdIssues: [...p.errors, ...p.warnings].sort((a, b) => a.line - b.line) };
+    const p = MD.parseMarkdown(md), e = enrich(p.sections, [L || {}], { src: SRC && new URL(SRC, srcBase()).href }), lk = this.linkInto(e.nodes, L || {});
+    return { nodes: lk.nodes, mdImages: { ...e.images, ...lk.images }, mdIssues: [...p.errors, ...p.warnings].sort((a, b) => a.line - b.line) };
+  }
+  // Linked children: a slide's `children:` files, fetched the first time a viewer goes below it, cached for the session (this._linked, by the
+  // linking slide's full id) and re-applied on every enrich, so host edits keep them. Their slides are namespaced id + '.' and carry _from.
+  sourceOfNode(id) { const n = this.state.nodes[id]; return (n && n._from) || new URL(SRC || '', srcBase()).href; }
+  unloadedAbove(id) { return String(id).split('.').map((_, i, a) => a.slice(0, i).join('.')).reverse().find(x => this.unloaded(x)); }   // longest such prefix of an id
+  unloaded(id) { const n = this.state.nodes[id]; return !!(n && n.childSrc && n.childSrc.length && !this._linked[id]); }
+  async loadChildren(id) {
+    if (!this.unloaded(id)) return;
+    const N = this.state.nodes, up = {}; for (const k in N) for (const c of N[k].children || []) up[c] = k;
+    const chain = [new URL(SRC || '', srcBase()).href]; for (let x = id; x; x = up[x]) if (N[x] && N[x]._from) chain.push(N[x]._from);
+    this._linked[id] = { status: 'loading', files: [] }; this.setState({ loading: id });
+    const files = await Promise.all(N[id].childSrc.map(async u => {
+      let src = u; try { src = new URL(u, this.sourceOfNode(id)).href;
+        if (chain.includes(src)) throw new Error('loop: ' + src + ' is already above this slide');
+        const r = await fetch(src, { cache: 'no-store' }); if (!r.ok) throw new Error('HTTP ' + r.status);
+        const md = await r.text();
+        if (/text\/html/i.test((r.headers && r.headers.get('content-type')) || '') || /^\s*<(!doctype|html)/i.test(md)) throw new Error('not a markdown file');
+        let layout = null; const lr = await fetch(layoutUrl(src), { cache: 'no-store' }).catch(() => null);   // missing or invalid: the built-ins
+        if (lr && lr.ok) try { layout = JSON.parse(await lr.text()); } catch (e) {}
+        return { src, md, layout };
+      } catch (e) { return { src, error: e.message }; }
+    }));
+    this._linked[id] = { status: files.every(f => f.error) ? 'error' : 'ok', files };
+    const clean = !this.isDirty(); this.reenrich(); this.setState({ loading: null }, () => { if (clean) this.markSaved(); });   // loading isn't an edit
+  }
+  // Host nodes + every loaded linked file → nodes. A failed file is one error slide, id + '.!error', from that url (read-only like the rest).
+  linkInto(nodes, L) {
+    nodes = { ...nodes }; const images = {};
+    for (const id in this._linked) { const e = this._linked[id]; if (e.status === 'loading' || !nodes[id]) continue;
+      const up = {}; for (const k in nodes) for (const c of nodes[k].children || []) up[c] = k;
+      let depth = 1; for (let x = id; up[x] && up[x] !== 'ROOT'; x = up[x]) depth++;
+      const tops = [];
+      e.files.forEach((f, k) => {
+        const p = f.error ? MD.parseMarkdown('# Can\'t link ' + f.src + '\n\n' + f.error) : MD.parseMarkdown(f.md);
+        if (f.error) p.sections[0].slug = '!error' + (k ? '-' + k : '');
+        const r = enrich(p.sections, [L, f.layout || {}], { prefix: id + '.', depth0: depth + 1, from: f.src, src: f.src });
+        if (f.error) Object.assign(r.nodes[id + '.' + p.sections[0].slug], { title: "Can't link " + f.src, body: f.error });
+        const { ROOT, ...rest } = r.nodes; Object.assign(nodes, rest); Object.assign(images, r.images); tops.push(...ROOT.children);
+      });
+      nodes[id] = { ...nodes[id], children: [...nodes[id].children, ...tops] };
+    }
+    return { nodes, images };
   }
   // A loaded markdown + layout file pair becomes the deck: not an undo step, and nothing to save.
   adopt(md, L, then) {
+    this._linked = {}; this._linkedOv = Object.fromEntries(Object.entries((L && L.slides) || {}).filter(([k]) => k.includes('.')));   // linked slides are read-only: their host overrides stay as loaded
     const d = (L && L.deck) || {}, r = this.enrichMd(md, L), pick = Object.fromEntries(DECK_FIELDS.filter(k => k in d).map(k => [k, d[k]]));
     this._lastNodes = r.nodes;
     this.setState({ ...pick, md, nodes: r.nodes, mdIssues: r.mdIssues, images: { ...mapImgs(d.images, absUrl), ...r.mdImages }, customBg: d.customBg ? absUrl(d.customBg) : null,
@@ -1503,7 +1547,7 @@ class Component extends DCLogic {
   // A current slide that's gone moves to its nearest surviving ancestor, else the first slide.
   reenrich(baseNodes = this.state.nodes, deck = {}) {   // deck: layouts/layoutDefaults about to be set (undo), not yet in state
     clearTimeout(this._mdT);
-    const S = this.state, r = this.enrichMd(S.md, layoutOf(baseNodes, { ...S, ...deck })), nodes = r.nodes, up = {};
+    const S = this.state, r = this.enrichMd(S.md, layoutOf(baseNodes, { ...S, ...deck }, this._linkedOv)), nodes = r.nodes, up = {};
     for (const k in S.nodes) for (const c of S.nodes[k].children || []) up[c] = k;
     let cur = S.cur; while (cur && cur !== 'ROOT' && !nodes[cur]) cur = up[cur] || cur.slice(0, Math.max(0, cur.lastIndexOf('.')));
     if (!cur || (cur === 'ROOT' && !S.titlePage)) cur = nodes.ROOT.children[0];
@@ -1517,7 +1561,10 @@ class Component extends DCLogic {
     const S = this.state, prev = this._lastNodes;
     if (!prev || S.nodes === prev) return;
     if (this._layoutNodes && S.nodes === this._layoutNodes) { this._layoutNodes = null; return; }
-    const hits = Object.keys(S.nodes).filter(k => { const n = S.nodes[k], p = prev[k]; return k !== 'ROOT' && p && n !== p && !n._from && n.frames !== p.frames; });
+    const ro = Object.keys(S.nodes).find(k => { const n = S.nodes[k], p = prev[k]; return p && n._from && n.frames !== p.frames; });
+    if (ro) { const nodes = { ...S.nodes }; for (const k in nodes) if (nodes[k]._from && prev[k]) nodes[k] = prev[k];   // linked slides are read-only: put them back
+      this.flash('This slide comes from ' + S.nodes[ro]._from + ': open it to edit'); this._lastNodes = nodes; this.setState({ nodes }); return; }   // and no undo step
+    const hits = Object.keys(S.nodes).filter(k => { const n = S.nodes[k], p = prev[k]; return k !== 'ROOT' && p && n !== p && n.frames !== p.frames; });
     const toLayout = S.applyTo === 'layout' && hits.find(k => !S.nodes[k].custom && this.framesOf(k).length === 1 && !this.hasExtras(k) && this.effectiveLayout(k));
     const nodes = { ...S.nodes }; let changed = false;
     for (const k of hits) { if (k === toLayout) continue; const n = S.nodes[k], old = new Set((prev[k].frames || []).flatMap(f => f.layers));
@@ -1554,7 +1601,7 @@ class Component extends DCLogic {
   }
   async save() {
     if (!DECK || STATIC || this.state.saving || !this._loaded) return;   // never overwrite a deck we failed (or haven't finished) loading
-    const S = this.state, layout = layoutOf(S.nodes, { ...S, images: mapImgs(S.images, relUrl), customBg: S.customBg ? relUrl(S.customBg) : null });
+    const S = this.state, layout = layoutOf(S.nodes, { ...S, images: mapImgs(S.images, relUrl), customBg: S.customBg ? relUrl(S.customBg) : null }, this._linkedOv);
     this.setState({ saving: true, saveMsg: null });
     try {
       const r = await fetch('/api/decks/' + DECK, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ md: S.md, layout }) });
@@ -1597,7 +1644,7 @@ class Component extends DCLogic {
     const S = this.state;
     if (!SRC) {   // scratch deck: markdown + layout in the browser
       const refs = SAVED.map(k => S[k]);
-      if (!this._sr || refs.some((v, i) => v !== this._sr[i])) { this._sr = refs; try { localStorage.setItem(KEY, JSON.stringify({ md: S.md, layout: layoutOf(S.nodes, S) })); } catch (e) {} }
+      if (!this._sr || refs.some((v, i) => v !== this._sr[i])) { this._sr = refs; try { localStorage.setItem(KEY, JSON.stringify({ md: S.md, layout: layoutOf(S.nodes, S, this._linkedOv) })); } catch (e) {} }
     }
     if (!STATIC) {
       const u = JSON.stringify({ navW: S.navW, rightW: S.rightW, mdW: S.mdW, mdOpen: S.mdOpen, secOpen: S.secOpen, stab: S.stab, presentFit: S.presentFit, showCrumbs: S.showCrumbs, crumbFade: S.crumbFade, view: S.view, rtab: S.rtab, collapsed: S.collapsed, treeZoom: S.treeZoom, treeFocus: S.treeFocus, applyTo: S.applyTo });
@@ -1692,7 +1739,7 @@ class Component extends DCLogic {
     const st = l.style ? look(l.style) : null, r = { ...l };
     if (st) for (const k of STYLE_KEYS) if (r[k] === undefined && st[k] !== undefined) r[k] = st[k];
     const N = this.state.nodes;   // display-only runs; never saved. A link to a missing slide is marked broken.
-    r._lines = String(r.text ?? '').split('\n').map(line => parseRich(line, look).map(run => run.link && !N[run.link] ? { ...run, broken: true } : run));
+    r._lines = String(r.text ?? '').split('\n').map(line => parseRich(line, look).map(run => run.link && !N[run.link] && !this.unloadedAbove(run.link) ? { ...run, broken: true } : run));
     return r;
   }
 
@@ -1972,7 +2019,7 @@ class Component extends DCLogic {
   }
   // An inline link: a slide (if it exists) or a web page in a new tab.
   followInline(ds) {
-    if (ds.link) { if (this.state.nodes[ds.link]) this.nav(ds.link, 'jump'); }
+    if (ds.link) this.nav(ds.link, 'jump');
     else if (ds.href && typeof window !== 'undefined' && window.open) window.open(ds.href, '_blank', 'noopener');
   }
   activeEl() { return typeof document !== 'undefined' ? document.activeElement : null; }
@@ -2144,7 +2191,9 @@ class Component extends DCLogic {
     return dir === 'left' ? sibs[i - 1] : dir === 'right' ? sibs[i + 1] : undefined;
   }
   nav(id, dir) {
-    const S = this.state; if (!id || id === S.cur || !S.nodes[id] || (id === 'ROOT' && !S.titlePage)) return;
+    const S = this.state;
+    if (id && !S.nodes[id]) { const p = this.unloadedAbove(id); if (p) this.loadChildren(p).then(() => this.nav(id, dir)); return; }
+    if (!id || id === S.cur || !S.nodes[id] || (id === 'ROOT' && !S.titlePage)) return;
     if (S.layerSel || S.editing) this.setState({ layerSel: null, editing: null });
     const D = this.derive(); const lastChild = { ...S.lastChild }; let x = id; while (D.parent[x]) { lastChild[D.parent[x]] = x; x = D.parent[x]; }
     clearTimeout(this.t);
@@ -2155,7 +2204,8 @@ class Component extends DCLogic {
     requestAnimationFrame(() => requestAnimationFrame(() => this.setState({ phase: 'run' })));
     this.t = setTimeout(() => this.setState({ prev: null, phase: 'idle' }), S.speed + 60);
   }
-  go(dir) { if ((dir === 'right' && this.stepFrame(1)) || (dir === 'left' && this.stepFrame(-1))) return; const D = this.derive(); this.nav(this.neighbour(this.state.cur, dir, D), dir); }
+  go(dir) { if (dir === 'down' && this.unloaded(this.state.cur)) { this.loadChildren(this.state.cur).then(() => this.go('down')); return; }
+    if ((dir === 'right' && this.stepFrame(1)) || (dir === 'left' && this.stepFrame(-1))) return; const D = this.derive(); this.nav(this.neighbour(this.state.cur, dir, D), dir); }
   step(delta) {
     if (this.stepFrame(delta)) return; const D = this.derive(), cur = this.curId();
     const order = this.state.titlePage ? ['ROOT', ...D.order] : D.order, dep = x => x === 'ROOT' ? -1 : D.depth[x];
@@ -2251,9 +2301,9 @@ class Component extends DCLogic {
     if (r0) { const tk = TV.kids('ROOT'); tp.ROOT = { x: tk.length ? (tp[tk[0]].x + tp[tk[tk.length - 1]].x) / 2 : TPX, y: TPY }; }
     this._tpos = tp; this._treeW = TPX * 2 + Math.max(1, leaf) * COLW + 20;
     const treeNodes = (r0 ? ['ROOT'] : []).concat(TV.vis).map(id => ({ x: tp[id].x, y: tp[id].y, title: name(id),
-      hasKids: id !== 'ROOT' && N[id].children.length > 0, ring: N[id]._from ? '0 0 0 2px #9db8d3' : '0 1px 3px rgba(0,0,0,.18)', from: N[id]._from ? 'From ' + N[id]._from : name(id), toggleLabel: TV.kids(id).length ? '▾' : '▸ ' + countUnder(id), toggleTitle: TV.kids(id).length ? 'Collapse' : 'Expand',
+      hasKids: id !== 'ROOT' && (N[id].children.length > 0 || this.unloaded(id)), ring: N[id]._from ? '0 0 0 2px #9db8d3' : '0 1px 3px rgba(0,0,0,.18)', from: N[id]._from ? 'From ' + N[id]._from : name(id), toggleLabel: this.unloaded(id) ? '▸ more' : TV.kids(id).length ? '▾' : '▸ ' + countUnder(id), toggleTitle: this.unloaded(id) ? 'Load the linked slides' : TV.kids(id).length ? 'Collapse' : 'Expand',
       // A slide whose children are hidden only by Focus: clicking its toggle goes there instead of collapsing.
-      onToggle: e => { e.stopPropagation(); if (S.treeFocus && !TV.kids(id).length && TV.expanded(id)) this.nav(id, 'jump'); else this.toggleCollapse(id); },
+      onToggle: e => { e.stopPropagation(); if (this.unloaded(id)) this.loadChildren(id); else if (S.treeFocus && !TV.kids(id).length && TV.expanded(id)) this.nav(id, 'jump'); else this.toggleCollapse(id); },
       full: name(id), cam: camOf(id), layers: this.shown(id, this.layersOf(id)), selected: id === cur, outline: id === cur ? '2px solid #d9432b' : 'none',
       weight: id === cur ? 700 : 500, opacity: q && !match[id] ? 0.35 : 1,
       onClick: () => this.nav(id, 'jump') }));
@@ -2284,7 +2334,7 @@ class Component extends DCLogic {
       const rowSibs = pid ? N[D.parent[pid]].children : N.ROOT.children; const ix = rowSibs.indexOf(pid); const isCur = k === path0.length - 1; const off = k === 0 ? home : 0;
       const row = { indent, top: k * CP, opacity: isCur ? 1 : 0.92, hasLink: k > 0, linkX: indent + CD - 1, linkTop: k * CP - (CP - CRH),
         steps: (off ? [homeStep] : []).concat(rowSibs.map((sid, j) => { const done = j < ix, on = j === ix;
-          return { title: on ? short(name(sid), isCur ? 28 : 20) : '', pad: on ? '4px 11px 4px 4px' : '4px', full: name(sid), mark: done ? '✓' : String(j + 1), opacity: done || on ? 1 : 0.5,
+          return { title: (on ? short(name(sid), isCur ? 28 : 20) : '') + (this.unloaded(sid) ? ' ▸ more' : ''), pad: on ? '4px 11px 4px 4px' : '4px', full: name(sid), mark: done ? '✓' : String(j + 1), opacity: done || on ? 1 : 0.5,
             lineDisplay: j === 0 && !off ? 'none' : 'block', lineColor: j <= ix ? '#d9432b' : 'rgba(251,249,244,.9)',
             bg: on ? (isCur ? '#1d1b17' : '#fbf9f4') : 'rgba(251,249,244,.92)', color: on && isCur ? '#fbf9f4' : '#1d1b17',
             dotBg: done ? '#d9432b' : on ? (isCur ? '#fbf9f4' : '#1d1b17') : 'transparent', dotColor: done ? '#fff' : on && !isCur ? '#fbf9f4' : '#1d1b17', dotBorder: done || on ? '0' : '1.5px solid #1d1b17',
@@ -2572,7 +2622,7 @@ class Component extends DCLogic {
     return {
       ...(st => ({ stabBtns: [['layout', 'Layout'], ['frames', 'Frames'], ['layers', 'Layers']].map(([v, label]) => ({ label, ...tab(st === v), onClick: () => this.setState(v === 'frames' ? { stab: v } : { stab: v, transSel: null }) })),   // leaving Frames closes the transition view
         stabLayout: st === 'layout', stabFrames: st === 'frames', stabLayers: st === 'layers', layerPane: st === 'layers' || transVals.isTransView }))(S.stab || 'layers'),
-      fromDeck: curN._from || '', fromHref: '?deck=' + (curN._from || ''), ownSlide: !curN._from,
+      fromDeck: curN._from || '', fromHref: '?src=' + encodeURIComponent(curN._from || ''), ownSlide: !curN._from,
       styleOpts: [{ v: '', l: 'Custom' }].concat(Object.entries(this.styles()).filter(([, st]) => !st.deleted).map(([id, st]) => ({ v: id, l: st.name || id }))),
       lyStyle: styled ? ly.style : '', onLyStyle: e => ly && this.chooseStyle(cur, ly.id, e.target.value), lyStyled: styled,
       styleTargetBtns: styled ? [['layer', 'This layer'], ['style', (this.styles()[ly.style].name || ly.style) + ' style']].map(([v, label]) => ({ label, ...tab((S.styleTarget === 'style' ? 'style' : 'layer') === v), onClick: () => this.setState({ styleTarget: v }) })) : [],
@@ -2653,7 +2703,7 @@ class Component extends DCLogic {
       resetAllTrans: () => this.resetAllTrans(), defApply: { ease: () => this.resetTransKey('ease'), dur: () => this.resetTransKey('dur'), delay: () => this.resetTransKey('delay') },
       transCountText: (c => c ? `${c} slide${c === 1 ? ' has' : 's have'} custom transition settings. Undo restores them.` : 'No custom settings yet: every transition uses these defaults.')(Object.values(N).filter(n => n.ftrans && Object.values(n.ftrans).some(m => Object.keys(m || {}).length)).length),
       undo: () => this.undo(), redo: () => this.redo(), undoOp: this._past && this._past.length ? 1 : 0.4, redoOp: this._future && this._future.length ? 1 : 0.4,
-      deckTitle: (S.titlePage && N.ROOT.title) || (N.ROOT.children[0] ? name(N.ROOT.children[0]) : DECK || 'Untitled'), emptyMsg: N.ROOT.children.length ? '' : EMPTY_MSG,
+      deckTitle: (S.titlePage && N.ROOT.title) || (N.ROOT.children[0] ? name(N.ROOT.children[0]) : DECK || 'Untitled'), emptyMsg: !N.ROOT.children.length ? EMPTY_MSG : S.loading && S.loading === cur ? 'Loading…' : '',
       keyHint: S.saveMsg || S.note || (isPresent ? '← → ↑ ↓  ·  Space next  ·  / search' + (STATIC ? '' : '  ·  Esc') : ''),
       cardModes: [['none', 'None'], ['slide', 'Whole slide']].map(([m, label]) => ({ label, ...tab(cardCfg.mode === m), onClick: () => setCard({ mode: m }) })),
       cardOn: cardCfg.mode !== 'none', cardColor: cardCfg.color, onCardColor: e => setCard({ color: e.target.value }),
@@ -2665,7 +2715,7 @@ class Component extends DCLogic {
       mdW: Math.max(240, S.mdW), onMdResize: e => this.mdResize(e), mdRef: this.mdRef, mdText: S.md, onMdInput: e => this.setMd(e.target.value),
       mdIssuesText: S.mdIssues.map(i => 'line ' + i.line + ': ' + i.msg).join('\n'), hasMdIssues: S.mdIssues.length > 0,
       onCopyMd: () => navigator.clipboard.writeText(S.md).then(() => this.flash('Markdown copied'), e => this.flash('Clipboard blocked: ' + e.message)),
-      onDownload: () => { const n = DECK || (SRC && SRC.split('/').pop().replace(/\.md$/, '')) || 'deck'; this.download(n + '.md', S.md); this.download(n + '-layout.json', JSON.stringify(layoutOf(S.nodes, S), null, 2), 'application/json'); },
+      onDownload: () => { const n = DECK || (SRC && SRC.split('/').pop().replace(/\.md$/, '')) || 'deck'; this.download(n + '.md', S.md); this.download(n + '-layout.json', JSON.stringify(layoutOf(S.nodes, S, this._linkedOv), null, 2), 'application/json'); },
       isBuild: !isPresent, isPresent, slideCount: D.order.length, query: S.query, onQuery: e => this.setState({ query: e.target.value }),
       navW: Math.max(200, Math.min(S.navW, (typeof window !== 'undefined' ? window.innerWidth : 1400) - (this.state.rightW || 300) - 380)), onNavResize: e => this.navResize(e),
       treeZoom: S.treeZoom || 1, treeZoomLabel: Math.round((S.treeZoom || 1) * 100) + '%', treeZoomIn: () => this.treeZoomStep(1), treeZoomOut: () => this.treeZoomStep(-1),

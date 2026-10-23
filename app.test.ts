@@ -8,6 +8,11 @@ import { Window } from "happy-dom";
 
 const js = (await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text()).split('<script type="text/x-dc" data-dc-script>')[1].split("</script>")[0];
 class DCLogic { state: any; setState(u: any, cb?: () => void) { this.state = { ...this.state, ...(typeof u === "function" ? u(this.state) : u) }; cb?.(); } forceUpdate() {} }
+// Like React: setState calls in one tick are applied together, then componentDidUpdate, then their callbacks.
+class DCLogicBatched { state: any; _q: any[] = []; _cbs: any[] = [];
+  setState(u: any, cb?: () => void) { this._q.push(u); if (cb) this._cbs.push(cb); if (this._q.length === 1) queueMicrotask(() => this._flush()); }
+  _flush() { const q = this._q.splice(0), cbs = this._cbs.splice(0); for (const u of q) this.state = { ...this.state, ...(typeof u === "function" ? u(this.state) : u) }; (this as any).componentDidUpdate?.(); cbs.forEach(f => f()); }
+  forceUpdate() {} }
 
 let root: string;
 // Components from earlier tests keep timers (autosave); stop them writing into the next test's deck folder.
@@ -16,7 +21,7 @@ beforeEach(async () => { for (const m of mounted.splice(0)) { clearTimeout(m._as
 
 const until = async (ok: () => boolean, ms = 3000) => { const t0 = Date.now(); while (!ok()) { if (Date.now() - t0 > ms) throw new Error("timed out waiting for the app"); await Bun.sleep(5); } };
 
-async function mount(search: string, opts: { isStatic?: boolean; settle?: boolean; deckMode?: boolean; fetch?: (u: string) => Response | undefined; store?: Record<string, string> } = {}) {
+async function mount(search: string, opts: { batched?: boolean; isStatic?: boolean; settle?: boolean; deckMode?: boolean; fetch?: (u: string) => Response | undefined; store?: Record<string, string> } = {}) {
   opts = { deckMode: /(deck=[a-z0-9-]+|src=)/.test(search), ...opts };
   const store: Record<string, string> = opts.store ?? {}, listeners: Record<string, Function> = {};
   const g = {
@@ -25,7 +30,7 @@ async function mount(search: string, opts: { isStatic?: boolean; settle?: boolea
     fetch: async (u: string, o: RequestInit = {}) => opts.fetch?.(u) ?? handler(root)(new Request(new URL(u, "http://x/design/strata.dc.html"), o)),
     setTimeout, requestAnimationFrame: () => {},
   };
-  const C = new Function("DCLogic", "React", ...Object.keys(g), js + "\nreturn Component;")(DCLogic, { createRef: () => ({ current: null }) }, ...Object.values(g));
+  const C = new Function("DCLogic", "React", ...Object.keys(g), js + "\nreturn Component;")(opts.batched ? DCLogicBatched : DCLogic, { createRef: () => ({ current: null }) }, ...Object.values(g));
   const c = new C(); mounted.push(c); c.componentDidMount();
   // Wait for the deck load (and a new deck's first save) to finish rather than sleeping a fixed time.
   if (opts.settle !== false) await until(() => (!!c._loaded || !!c.state.saveMsg || !opts.deckMode) && !c.state.saving);
@@ -1143,9 +1148,10 @@ test("draft: build asks; use draft loads it; discard removes it", async () => {
   c2.renderVals().onDiscardDraft(); expect(c2.state.md).toBe(REMOTE); expect(c2.state.draftPrompt).toBe(false);
   expect(store["strata-draft:https://x/a.md"]).toBeUndefined();
   c2.componentDidUpdate(); expect(store["strata-draft:https://x/a.md"]).toBeUndefined();   // loading isn't an edit
+  const laid = c2.constructor.md.layoutOf(c2.state.nodes, c2.state, c2._linkedOv);   // the remote deck as the app writes it
   c2.setMd(REMOTE + "\nMore.\n"); c2.componentDidUpdate();   // edits autosave
   expect(JSON.parse(store["strata-draft:https://x/a.md"]).md).toBe(REMOTE + "\nMore.\n");
-  const { c: c3 } = await mount("?src=https://x/a.md", { fetch: remote, store: { "strata-draft:https://x/a.md": JSON.stringify({ md: REMOTE, layout: null }) } });
+  const { c: c3 } = await mount("?src=https://x/a.md", { fetch: remote, store: { "strata-draft:https://x/a.md": JSON.stringify({ md: REMOTE, layout: laid }) } });
   expect(c3.state.draftPrompt).toBeFalsy();   // same as remote: nothing to ask
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
   for (const h of ["You have local changes to this deck", "{{ onUseDraft }}", "{{ onDiscardDraft }}"]) expect(html).toContain(h);
@@ -1770,4 +1776,19 @@ test("a slide's override survives typing its slug a letter at a time", async () 
   expect(c.state.nodes.intro.custom).toBe(true);
   for (const s of ["slug: ", "slug: i", "slug: in", "slug: intro"]) { c.setMd(md.replace("slug: intro", s)); c.reenrich(); c.componentDidUpdate(); }
   expect(c.state.nodes.intro.custom).toBe(true); expect(layerOf(c, "intro", "md-title").x).toBe(x);
+});
+
+test("browsing into a linked child (batched setState) writes no draft, and reload doesn't ask", async () => {
+  const files: Record<string, string> = { "https://y/a.md": "# A\nslug: a\n<!--\nchildren:\n  ./kid.md\n-->\n\nHi.\n\n# B\nslug: b\n", "https://y/kid.md": "# K\nslug: k\n\nKid.\n" };
+  const fetch = (u: string) => files[u] ? reply(files[u], "text/markdown") : u.startsWith("https://") ? reply("", "text/plain", 404) : undefined;
+  const { c, store } = await mount("?src=https://y/a.md", { fetch, batched: true }); await Bun.sleep(5);
+  await c.loadChildren("a"); await Bun.sleep(5);
+  expect(c.state.nodes["a.k"]).toBeDefined(); expect(c.isDirty()).toBe(false);
+  expect(Object.keys(store).filter(k => k.startsWith("strata-draft"))).toEqual([]);
+  const { c: c1 } = await mount("?src=https://y/a.md", { fetch, batched: true, store }); await Bun.sleep(5);
+  expect(c1.state.draftPrompt).toBeFalsy();
+  c1.reenrich(); await Bun.sleep(5);   // same markdown, re-laid out: the draft the app writes equals the remote deck
+  expect(store["strata-draft:https://y/a.md"]).toBeDefined();
+  const { c: c2 } = await mount("?src=https://y/a.md", { fetch, batched: true, store }); await Bun.sleep(5);
+  expect(c2.state.draftPrompt).toBeFalsy();   // compared with the remote deck as laid out, not the raw layout file
 });

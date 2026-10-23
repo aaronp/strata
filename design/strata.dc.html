@@ -1523,7 +1523,8 @@ class Component extends DCLogic {
       } catch (e) { return { src, error: e.message }; }
     }));
     this._linked[id] = { status: files.every(f => f.error) ? 'error' : 'ok', files };
-    const clean = !this.isDirty(); this.reenrich(); this.setState({ loading: null }, () => { if (clean) this.markSaved(); });   // loading isn't an edit
+    const clean = !this.isDirty(); this._loadQuiet = clean; this.reenrich();   // loading isn't an edit: no draft for the commit (React runs componentDidUpdate before the callback)
+    this.setState({ loading: null }, () => { if (clean) { this._loadQuiet = false; this.markSaved(); } });
   }
   // Host nodes + every loaded linked file → nodes. A failed file is one error slide, id + '.!error', from that url (read-only like the rest).
   linkInto(nodes, L) {
@@ -1609,8 +1610,9 @@ class Component extends DCLogic {
       let L = null; const lr = await fetch(layoutUrl(SRC), { cache: 'no-store' }).catch(() => null);   // missing is fine; invalid is ignored, with a note
       if (lr && lr.ok) try { L = JSON.parse(await lr.text()); } catch (e) { this.flash('Layout file ignored: ' + e.message, 8000); }
       let dr = null; if (!DECK && this.state.mode !== 'present') try { dr = JSON.parse(localStorage.getItem(DRAFT_KEY(SRC)) || 'null'); } catch (e) {}   // present always shows the remote file
-      this._draft = dr && typeof dr.md === 'string' && (dr.md !== md || JSON.stringify(dr.layout) !== JSON.stringify(L)) ? dr : null;
-      this.adopt(md, L, () => this.setState({ draftPrompt: !!this._draft }));
+      this.adopt(md, L, () => { const S = this.state;   // compare with the remote deck as the app would write it, not the raw layout file
+        this._draft = dr && typeof dr.md === 'string' && (dr.md !== md || JSON.stringify(dr.layout) !== JSON.stringify(layoutOf(S.nodes, S, this._linkedOv))) ? dr : null;
+        this.setState({ draftPrompt: !!this._draft }); });
     } catch (e) { this.setState({ saveMsg: (DECK ? 'Could not load deck "' + DECK + '": ' : "Can't load " + SRC + ': ') + e.message }); }
   }
   async save() {
@@ -1656,7 +1658,7 @@ class Component extends DCLogic {
     if (!this.markCustom()) this.histTrack();
     const S = this.state;
     // Scratch deck: markdown + layout in the browser. Remote (?src=): edits since load are a draft, kept until downloaded or discarded.
-    const store = !SRC ? KEY : !DECK && S.mode === 'build' && this._loaded && !S.draftPrompt && this.isDirty() ? DRAFT_KEY(SRC) : null;
+    const store = !SRC ? KEY : !DECK && S.mode === 'build' && this._loaded && !S.draftPrompt && !this._loadQuiet && this.isDirty() ? DRAFT_KEY(SRC) : null;
     if (store) {
       const refs = SAVED.map(k => S[k]);
       if (!this._sr || refs.some((v, i) => v !== this._sr[i])) { this._sr = refs; try { localStorage.setItem(store, JSON.stringify({ md: S.md, layout: layoutOf(S.nodes, S, this._linkedOv) })); } catch (e) {} }

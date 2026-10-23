@@ -1056,7 +1056,7 @@ const backFirst = (layers, boxes) => { const full = l => { const b = boxes[l.id]
 const slotsOf = (layers, S) => { const out = {}, g = groupsOf(layers, S); for (const k in g) out[k] = g[k].map(l => ({ x: l.x, y: l.y, w: l.w, h: l.h, rot: l.rot || 0 })); return out; };
 // ---- Enrichment: markdown sections + layout files -> nodes (never saved), and layoutOf, its inverse (what the layout file keeps).
 // LayoutFile: { version: 1, deck: { deck fields but nodes/title/source }, slides: { [id]: node minus content } }; ROOT is stored whole.
-const MD_CONTENT = ['text', 'link', 'bullets', 'src', 'imgKey', 'alt'];   // what markdown owns on an md-* layer
+const MD_CONTENT = ['text', 'src', 'imgKey', 'alt'];   // what markdown owns on an md-* layer (a layer's link and bullets are the user's)
 const CHIP_BOX = { bg: '#ffffff', bgOpacity: 0.75, blur: 0, border: 0, borderColor: '#ffffff', radius: 12, pad: 12 };   // link chips draw their own container
 const bodySize = t => Math.max(22, Math.min(40, Math.round(40 - (t.length - 120) / 20)));
 const isMd = l => String(l.id).startsWith('md-');
@@ -1082,6 +1082,7 @@ function blockLayers(sec, depth, prefix = '', src = null, styles = BUILTIN_STYLE
 function mergeContent(stored, gen) {
   const u = { ...(stored.style ? Object.fromEntries(Object.entries(gen).filter(([k]) => !STYLE_KEYS.includes(k) || MD_CONTENT.includes(k))) : gen), ...stored };
   for (const k of MD_CONTENT) { if (k in gen) u[k] = gen[k]; else delete u[k]; }
+  if (gen.bullets && !('bullets' in stored)) u.bullets = gen.bullets;   // a list starts with bullets until the user picks others
   return u;
 }
 function enrich(sections, layouts, opts = {}) {

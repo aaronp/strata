@@ -1746,3 +1746,18 @@ test("linked: going down or stepping waits for the load, from the same slide", a
     delete c._linked.b; c.reenrich();
   }
 });
+
+// ---- final review fixes ----
+test("md layers keep their web link and list bullets through a markdown edit and a save/reload", async () => {
+  const md = "# A\nslug: a\n\n- x\n- y\n";
+  await writeMd("talk", md);
+  const { c } = await mount("?deck=talk"); c.setState({ cur: "a" });
+  expect(layerOf(c, "a", "md-list-1").bullets).toBe("disc");
+  c.setLayers("a", (ls: any[]) => ls.map(l => l.id === "md-title" ? { ...l, link: { type: "url", url: "https://e.com" } } : l.id === "md-list-1" ? { ...l, bullets: "none" } : l)); c.componentDidUpdate();
+  c.setMd(md + "\nMore.\n"); c.reenrich(); c.componentDidUpdate();
+  expect(layerOf(c, "a", "md-title").link).toEqual({ type: "url", url: "https://e.com" }); expect(layerOf(c, "a", "md-list-1").bullets).toBe("none");
+  await c.save();
+  const { c: c2 } = await mount("?deck=talk");
+  expect(layerOf(c2, "a", "md-title").link).toEqual({ type: "url", url: "https://e.com" }); expect(layerOf(c2, "a", "md-list-1").bullets).toBe("none");
+  expect(layerOf(c2, "a", "md-list-1").text).toBe("x\ny");
+});

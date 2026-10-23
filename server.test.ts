@@ -82,65 +82,9 @@ test("deckList prefers the deck's own title", async () => {
   expect(await deckList(root)).toEqual([{ slug: "talk", title: "Named Deck" }]);
 });
 
-const post = (slug: string, body: string) => handler(root)(new Request("http://x/api/import/" + slug, { method: "POST", body }));
-const MDX = (body: string) => `# Hello\nslug: hello\n\n${body}\n`;
-
-test("POST /api/import creates a deck from markdown", async () => {
-  const res = await post("fresh", MDX("Body text."));
-  expect(res.status).toBe(200);
-  expect(await res.json()).toMatchObject({ slug: "fresh", warnings: [] });
-  const d = await Bun.file(join(root, "decks/fresh/deck.json")).json();
-  expect(d.nodes.ROOT.children).toEqual(["hello"]);
-  expect(d.source).toBeUndefined();
-});
-
-test("POST /api/import reports markdown errors with line numbers and writes nothing", async () => {
-  const res = await post("broken", "# A\nslug: a\n\n[link:nope][X]\n");
-  expect(res.status).toBe(400);
-  expect((await res.json()).errors).toEqual([{ line: 4, msg: 'link target "nope" not found' }]);
-  expect(await Bun.file(join(root, "decks/broken/deck.json")).exists()).toBe(false);
-  expect((await post("Bad Slug", MDX("x"))).status).toBe(400);
-});
-
-test("POST /api/import re-import keeps layout edits and the recorded source", async () => {
-  await post("talk", MDX("Old."));
-  const p = join(root, "decks/talk/deck.json");
-  const d = await Bun.file(p).json();
-  d.nodes.hello.frames[0].layers[1].x = 42; d.source = "notes/talk.md";
-  await Bun.write(p, JSON.stringify(d));
-  await post("talk", MDX("New."));
-  const d2 = await Bun.file(p).json();
-  expect(d2.nodes.hello.frames[0].layers[1]).toMatchObject({ x: 42, text: "New." });
-  expect(d2.source).toBe("notes/talk.md");
-});
-
-test("dev index offers markdown import; the published index does not", async () => {
-  expect(await (await get("/")).text()).toContain('id="imp"');
-  expect(indexHtml([], false)).not.toContain('id="imp"');
-});
-
 test("writes from another origin (e.g. a sandboxed component, Origin: null) are refused", async () => {
   const req = (method: string, path: string, origin: string, body = "x") => handler(root)(new Request("http://x" + path, { method, body, headers: { origin } }));
-  expect((await req("POST", "/api/import/evil", "null", "# A\nslug: a\n")).status).toBe(403);
+  expect((await req("PUT", "/api/decks/talk", "null", JSON.stringify(deck()))).status).toBe(403);
   expect((await req("PUT", "/api/decks/talk", "http://elsewhere.example", JSON.stringify(deck()))).status).toBe(403);
   expect((await req("PUT", "/api/decks/talk", "http://x", JSON.stringify(deck()))).status).toBe(200);
-});
-
-test("POST /api/export turns a slide's subtree into markdown; bad requests get 400", async () => {
-  const nodes = { ROOT: { id: "ROOT", title: "", body: "", children: ["a"] }, a: { id: "a", title: "A", body: "Notes.", children: [] } };
-  const exp = (body: string) => handler(root)(new Request("http://x/api/export", { method: "POST", body }));
-  const res = await exp(JSON.stringify({ nodes, id: "a", deck: "talk" }));
-  expect(res.status).toBe(200);
-  expect(res.headers.get("content-type")).toContain("text/markdown");
-  expect(await res.text()).toContain("# A\nslug: a\n\nNotes.\n");
-  expect((await exp(JSON.stringify({ nodes, id: "nope", deck: "talk" }))).status).toBe(400);
-  expect((await exp("not json")).status).toBe(400);
-});
-
-test("POST /api/export refuses a grafted slide: it belongs to its own deck", async () => {
-  const nodes = { ROOT: { id: "ROOT", title: "", body: "", children: ["w"] }, w: { id: "w", title: "W", body: "", children: ["w.x"], include: "b" },
-    "w.x": { id: "w.x", title: "X", body: "", children: [], _from: "b" } };
-  const res = await handler(root)(new Request("http://x/api/export", { method: "POST", body: JSON.stringify({ nodes, id: "w.x", deck: "t" }) }));
-  expect(res.status).toBe(400);
-  expect(await res.text()).toContain('belongs to deck "b"');
 });

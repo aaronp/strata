@@ -1406,9 +1406,9 @@ test("layouts: multi-frame slides show status only; the full-bleed slot goes to 
   expect(html).toContain('<sc-if value="{{ layEditable }}">'); expect(html).toContain("{{ layNoTiles }}");
 });
 
-test("right panel: Slide and Canvas tabs; spacing settings are a Spacing section in Canvas; an old saved 'layout' tab opens Canvas", async () => {
+test("right panel: Content, Slide and Canvas tabs; spacing settings are a Spacing section in Canvas; an old saved 'layout' tab opens Canvas", async () => {
   await deckTalk(); const { c } = await mount("?deck=talk");
-  let v = c.renderVals(); expect(v.rTabs.map((t: any) => t.label)).toEqual(["Slide", "Canvas"]);
+  let v = c.renderVals(); expect(v.rTabs.map((t: any) => t.label)).toEqual(["Content", "Slide", "Canvas"]);
   c.setState({ rtab: "layout" }); v = c.renderVals(); expect(v.tabCanvas).toBe(true); expect(v.tabSlide).toBe(false);
   expect(v.sec.spacing.open).toBe(true); v.sec.spacing.toggle(); expect(c.renderVals().sec.spacing.open).toBe(false);
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
@@ -1537,7 +1537,25 @@ test("renameRegion stores names beside slots", async () => {
   expect(c.layouts()["stacked-1"].slots.body.length).toBe(1);
 });
 
-// ---- markdown pane ----
+// ---- Content tab (the markdown) ----
+test("content tab: first and the default; holds the textarea and issues; no separate pane; opening it scrolls to the slide", async () => {
+  await writeMd("talk", TALK);
+  const { c, store } = await mount("?deck=talk");
+  expect(c.state.rtab).toBe("content"); let v = c.renderVals();
+  expect(v.rTabs.map((t: any) => t.label)).toEqual(["Content", "Slide", "Canvas"]); expect(v.tabContent).toBe(true); expect(v.tabSlide).toBe(false);
+  for (const k of ["showMd", "mdW", "onMdResize", "onToggleMd", "mdBtnBg"]) expect(v[k]).toBeUndefined();
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  const tab = html.split('<sc-if value="{{ tabContent }}">')[1].split('<sc-if value="{{ tabSlide }}">')[0];
+  expect(tab).toContain('value="{{ mdText }}"'); expect(tab).toContain("{{ mdIssuesText }}");
+  expect(html.split('value="{{ mdText }}"').length).toBe(2); expect(html).not.toContain("{{ onToggleMd }}"); expect(html).not.toContain("{{ onMdResize }}");
+  c.componentDidUpdate(); expect(JSON.parse(store["strata-ui"]).mdOpen).toBeUndefined();
+  c.setState({ rtab: "slide" }); c.componentDidUpdate();
+  const ta: any = { scrollTop: 0 }; c.mdRef.current = ta; c.setState({ cur: "next" }); c.componentDidUpdate(); ta.scrollTop = 0;
+  v = c.renderVals(); v.rTabs[0].onClick(); c.componentDidUpdate();
+  expect(ta.scrollTop).toBe((c.state.nodes.next._line - 1) * 20);
+});
+
+// ---- markdown editing ----
 test("pane: input updates md and re-enriches", async () => {
   await writeMd("talk", TALK);
   const { c } = await mount("?deck=talk");

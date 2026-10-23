@@ -36,7 +36,6 @@ input,textarea,button{font:inherit;color:inherit}
       <div style="display:flex;gap:4px;flex:none">
         <button onClick="{{ undo }}" title="Undo (⌘Z)" style="height:30px;padding:0 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;white-space:nowrap;opacity:{{ undoOp }}" style-hover="background:#f5f1e8">↶ Undo</button>
         <button onClick="{{ redo }}" title="Redo (⇧⌘Z)" style="height:30px;padding:0 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;white-space:nowrap;opacity:{{ redoOp }}" style-hover="background:#f5f1e8">↷ Redo</button>
-          <button onClick="{{ onToggleMd }}" title="Show or hide the markdown" style="height:30px;padding:0 10px;border:1px solid #e0d9cb;border-radius:8px;background:{{ mdBtnBg }};cursor:pointer;font-size:13px;white-space:nowrap">Markdown</button>
           <button onClick="{{ onCopyMd }}" title="Copy the markdown" style="height:30px;padding:0 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;white-space:nowrap">Copy</button>
           <button onClick="{{ onDownload }}" title="Download the markdown and layout file" style="height:30px;padding:0 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;white-space:nowrap">Download</button>
         <sc-if value="{{ hasDeck }}">
@@ -133,14 +132,6 @@ input,textarea,button{font:inherit;color:inherit}
         <div style="flex:none;padding:8px 12px 10px;border-top:1px solid #e0d9cb;display:flex;flex-wrap:wrap;gap:4px 12px;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#6b6458">
           <span>Arrows move</span><span>Click jumps</span>
         </div>
-      </aside>
-    </sc-if>
-
-    <sc-if value="{{ showMd }}">
-      <aside style="position:relative;width:{{ mdW }}px;flex:none;min-height:0;display:flex;flex-direction:column;border-right:1px solid #e0d9cb;background:#fbf9f4">
-        <div onPointerDown="{{ onMdResize }}" title="Drag to resize" style="position:absolute;right:-4px;top:0;bottom:0;width:8px;cursor:col-resize;z-index:20" style-hover="background:rgba(217,67,43,.25)"></div>
-        <textarea ref="{{ mdRef }}" value="{{ mdText }}" onInput="{{ onMdInput }}" spellcheck="false" data-role="md" style="flex:1;min-height:0;resize:none;border:0;outline:none;padding:12px;background:#fbf9f4;color:#1d1b17;font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:20px;white-space:pre;overflow:auto"></textarea>
-        <sc-if value="{{ hasMdIssues }}"><pre data-role="md-issues" style="flex:none;margin:0;max-height:96px;overflow:auto;padding:6px 12px;border-top:1px solid #e0d9cb;background:#fff6e0;color:#8a5a00;font-family:'JetBrains Mono',monospace;font-size:11px">{{ mdIssuesText }}</pre></sc-if>
       </aside>
     </sc-if>
 
@@ -373,6 +364,12 @@ input,textarea,button{font:inherit;color:inherit}
           </sc-for>
         </div>
         <div style="flex:1;min-height:0;overflow:auto;padding:14px 14px 24px;display:flex;flex-direction:column;gap:16px">
+          <sc-if value="{{ tabContent }}">
+            <div style="flex:1;min-height:0;display:flex;flex-direction:column;border:1px solid #e0d9cb;border-radius:10px;overflow:hidden;background:#fff">
+              <textarea ref="{{ mdRef }}" value="{{ mdText }}" onInput="{{ onMdInput }}" spellcheck="false" data-role="md" style="flex:1;min-height:0;resize:none;border:0;outline:none;padding:12px;background:#fff;color:#1d1b17;font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:20px;white-space:pre;overflow:auto"></textarea>
+              <sc-if value="{{ hasMdIssues }}"><pre data-role="md-issues" style="flex:none;margin:0;max-height:96px;overflow:auto;padding:6px 12px;border-top:1px solid #e0d9cb;background:#fff6e0;color:#8a5a00;font-family:'JetBrains Mono',monospace;font-size:11px">{{ mdIssuesText }}</pre></sc-if>
+            </div>
+          </sc-if>
           <sc-if value="{{ tabSlide }}">
             <sc-if value="{{ fromDeck }}">
               <div style="padding:8px 10px;border:1px solid #d6e2ef;border-radius:8px;background:#eef3f9;font-size:12.5px;line-height:1.45;color:#1f4f80">From <b>{{ fromDeck }}</b>: read-only here. <a href="{{ fromHref }}">Open</a> it to edit or export.</div>
@@ -1428,9 +1425,9 @@ class Component extends DCLogic {
   static md = { enrich, layoutOf, blockLayers };
   static rich = { parseRich, plainText, applyFormat, runsToMarkup, linesOf, textOf, toPlain, lineLen, locate, setAttr, toggleAttr, clearRange, insertBreak, insertPlain, deleteRange, linkAt, buildEditor, getOffsets, setOffsets, readLines, wysBefore };
   state = {
-    md: SEED, mdIssues: [], nodes: enrich(MD.parseMarkdown(SEED).sections, []).nodes, cur: 'a', prev: null, phase: 'idle', dx: 0, dy: 0, type: 'swipe', mode: STATIC ? 'present' : 'build', view: 'slide', rtab: 'slide', applyTo: 'slide',
+    md: SEED, mdIssues: [], nodes: enrich(MD.parseMarkdown(SEED).sections, []).nodes, cur: 'a', prev: null, phase: 'idle', dx: 0, dy: 0, type: 'swipe', mode: STATIC ? 'present' : 'build', view: 'slide', rtab: 'content', applyTo: 'slide',
     query: '', bg: 'balloons', customBg: null, customAspect: 1, opacity: 1, base: '#0b1220', offset: 0,
-    tAll: { ease: false, dur: false, delay: false }, tdef: {}, dAll: { ease: false, dur: false, delay: false }, secOpen: { layout: true, frames: true, layers: true, tdef: false }, collapsed: {}, rowGap: -0.7, gap: -0.7, tone: 'light', editMode: 'rich', speed: 900, lastChild: {}, navW: 280, rightW: 340, mdOpen: true, mdW: 380, images: {}, layerSel: null, editing: null, guides: {},
+    tAll: { ease: false, dur: false, delay: false }, tdef: {}, dAll: { ease: false, dur: false, delay: false }, secOpen: { layout: true, frames: true, layers: true, tdef: false }, collapsed: {}, rowGap: -0.7, gap: -0.7, tone: 'light', editMode: 'rich', speed: 900, lastChild: {}, navW: 280, rightW: 340, images: {}, layerSel: null, editing: null, guides: {},
   };
   _linked = {};
   treeRef = React.createRef(); mdRef = React.createRef(); titleRef = React.createRef(); searchRef = React.createRef(); stageRef = React.createRef(); editRef = React.createRef(); wysRef = React.createRef(); imgInputRef = React.createRef();
@@ -1668,10 +1665,11 @@ class Component extends DCLogic {
       if (!this._sr || refs.some((v, i) => v !== this._sr[i])) { this._sr = refs; try { localStorage.setItem(store, JSON.stringify({ md: S.md, layout: layoutOf(S.nodes, S, this._linkedOv) })); } catch (e) {} }
     }
     if (!STATIC) {
-      const u = JSON.stringify({ navW: S.navW, rightW: S.rightW, mdW: S.mdW, mdOpen: S.mdOpen, secOpen: S.secOpen, stab: S.stab, presentFit: S.presentFit, showCrumbs: S.showCrumbs, crumbFade: S.crumbFade, view: S.view, rtab: S.rtab, collapsed: S.collapsed, treeZoom: S.treeZoom, treeFocus: S.treeFocus, applyTo: S.applyTo });
+      const u = JSON.stringify({ navW: S.navW, rightW: S.rightW, secOpen: S.secOpen, stab: S.stab, presentFit: S.presentFit, showCrumbs: S.showCrumbs, crumbFade: S.crumbFade, view: S.view, rtab: S.rtab, collapsed: S.collapsed, treeZoom: S.treeZoom, treeFocus: S.treeFocus, applyTo: S.applyTo });
       if (u !== this._u) { this._u = u; try { localStorage.setItem(UIKEY, u); } catch (e) {} }
     }
     if (S.cur !== this._lastCur) { this._lastCur = S.cur; this.scrollTree(); this.scrollMd(); if (S.showCrumbs === 'fade') this.litCrumbs(); }
+    if (S.rtab !== this._lastRtab) { this._lastRtab = S.rtab; this.scrollMd(); }   // the Content tab's textarea is new each time it opens
     if (this.measureStage()) this.forceUpdate();
     const ck = this.curId(), cf = this.fiFor(ck);
     if (ck !== this._compCur) { this._compCur = ck; this._compFi = cf; this._claims = {}; this._fwd = null; }
@@ -1833,14 +1831,8 @@ class Component extends DCLogic {
     if (closing && cur !== id && this.isUnder(cur, id)) this.nav(id, 'jump');   // collapsing above the current slide: select the collapsed slide so it actually closes
   }
   isUnder(id, anc) { const D = this.derive(); for (let x = id; x; x = D.parent[x]) if (x === anc) return true; return false; }
-  // The markdown pane: the slide's heading line goes to the top of the textarea (20px lines).
+  // The Content tab: the slide's heading line goes to the top of the textarea (20px lines).
   scrollMd() { const t = this.mdRef.current, n = this.state.nodes[this.state.cur]; if (t && n && n._line && !n._from) t.scrollTop = (n._line - 1) * 20; }
-  mdResize(ev) {
-    ev.preventDefault(); const sx = ev.clientX, w0 = this.state.mdW;
-    const move = e => this.setState({ mdW: Math.max(240, Math.min(w0 + e.clientX - sx, window.innerWidth - this.state.navW - 380)) });
-    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
-    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
-  }
   // Browser download seam (tests replace it).
   download(name, text, type = 'text/plain') {
     const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; a.click(); URL.revokeObjectURL(a.href);
@@ -2736,8 +2728,7 @@ class Component extends DCLogic {
       onUseDraft: () => { const d = this._draft; this._draft = null; if (d) this.adopt(d.md, d.layout, () => this.setState({ draftPrompt: false })); },
       onDiscardDraft: () => { this._draft = null; try { localStorage.removeItem(DRAFT_KEY(SRC)); } catch (e) {} this.setState({ draftPrompt: false }); }, save: () => this.save(), saveLabel: S.saving ? 'Saving…' : S.saveMsg ? '⚠ Save' : this.isDirty() ? '● Unsaved' : '✓ Saved',
       modeTabs: STATIC ? [] : [{ label: 'Build', ...tab(!isPresent), onClick: () => this.setState({ mode: 'build' }) }, { label: 'Present', ...tab(isPresent), onClick: () => this.setState({ mode: 'present', query: '' }) }],
-      showMd: !isPresent && S.mdOpen !== false, mdBtnBg: S.mdOpen !== false ? '#ece6d9' : '#fff', onToggleMd: () => this.setState(s => ({ mdOpen: s.mdOpen === false })),
-      mdW: Math.max(240, S.mdW), onMdResize: e => this.mdResize(e), mdRef: this.mdRef, mdText: S.md, onMdInput: e => this.setMd(e.target.value),
+      mdRef: this.mdRef, mdText: S.md, onMdInput: e => this.setMd(e.target.value),
       mdIssuesText: S.mdIssues.map(i => 'line ' + i.line + ': ' + i.msg).join('\n'), hasMdIssues: S.mdIssues.length > 0,
       onCopyMd: () => navigator.clipboard.writeText(S.md).then(() => this.flash('Markdown copied'), e => this.flash('Clipboard blocked: ' + e.message)),
       onDownload: () => { const n = DECK || (SRC && SRC.split('/').pop().replace(/\.md$/, '')) || 'deck'; this.download(n + '.md', S.md); this.download(n + '-layout.json', JSON.stringify(layoutOf(S.nodes, S, this._linkedOv), null, 2), 'application/json'); },
@@ -2767,8 +2758,8 @@ class Component extends DCLogic {
 
       canvasRatio: f3(CW / H), wireRects, titleFrame, wireLines: wireLinesSafe.map(([x1, y1, x2, y2]) => ({ x1: f3(x1) + '%', y1: f3(y1) + '%', x2: f3(x2) + '%', y2: f3(y2) + '%' })),
 
-      rTabs: [['slide', 'Slide'], ['canvas', 'Canvas']].map(([id, label]) => ({ label, ...tab((S.rtab === 'layout' ? 'canvas' : S.rtab) === id), onClick: () => this.setState({ rtab: id }) })),   // an old saved 'layout' tab opens Canvas
-      tabSlide: S.rtab === 'slide', tabCanvas: S.rtab === 'canvas' || S.rtab === 'layout',
+      rTabs: [['content', 'Content'], ['slide', 'Slide'], ['canvas', 'Canvas']].map(([id, label]) => ({ label, ...tab((S.rtab === 'layout' ? 'canvas' : S.rtab) === id), onClick: () => this.setState({ rtab: id }) })),   // an old saved 'layout' tab opens Canvas
+      tabContent: S.rtab === 'content', tabSlide: S.rtab === 'slide', tabCanvas: S.rtab === 'canvas' || S.rtab === 'layout',
       titleRef: this.titleRef, onTitle: e => this.setNode(cur, { title: e.target.value }), onBody: e => this.setNode(cur, { body: e.target.value }),
       toneBtns: [['light', 'Light'], ['dark', 'Dark']].map(([id, l]) => ({ label: l, ...tab(S.tone === id), onClick: () => this.setState({ tone: id }) })),
       rowStep: L.rowStep, rowStepLabel: Math.round(L.rowStep * 100) + '% of a slide', onRowStep: e => this.setState({ rowGap: +e.target.value - 1 }),   // stored as rowGap = step − 1

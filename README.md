@@ -32,7 +32,7 @@ A deck is `<name>.md` plus an optional `<name>-layout.json`. The markdown is the
 
 **`?src=<url>`** (e.g. `design/strata.dc.html?src=https://raw.githubusercontent.com/…/talk.md`) loads a markdown file and its sibling `<name>-layout.json`, if there is one. The URL must be `https:` or same-origin. There's no saving: in build mode your edits are kept in the browser as a draft for that URL until you download them. Present mode always shows the remote file; opening build mode with a draft that differs asks **You have local changes to this deck: Use my draft / Discard**.
 
-**Editing:** the **Markdown** pane sits beside the slide (toggle and resize it); typing updates the slides live and it scrolls to the current slide. Layout edits (boxes, styles, frames, extras) go to the layout file. In the Slide tab, **This slide / Layout** chooses where they go: a per-slide override, or the shared layout for every slide of that shape without one. Content no layout region claims still shows, with a ⚠️ badge; click it to add a region for it (following the same choice). **Copy** copies the markdown; **Download** saves `<name>.md` and `<name>-layout.json`.
+**Editing:** the markdown is in the right panel's **Content** tab (with any parse issues below it); typing updates the slides live and it scrolls to the current slide. Layout edits (boxes, styles, frames, extras) go to the layout file. In the Slide tab, **This slide / Layout** chooses where they go: a per-slide override, or the shared layout for every slide of that shape without one. Content no layout region claims still shows, with a ⚠️ badge; click it to add a region for it (following the same choice). **Copy** copies the markdown; **Download** saves `<name>.md` and `<name>-layout.json`.
 
 
 ## Overview
@@ -113,7 +113,7 @@ A layer keeps the **same `id`** across frames; that's how it's matched for tween
 ### Build mode
 - **Left panel (resizable):** the deck as a read-only tree of thumbnails; click to go to a slide. Structure is edited in the markdown.
 - **Centre:** the slide editor. Select / drag / resize (8 handles) / rotate layers, double-click to edit text, drop images, and Ctrl/⌘+V to paste an image (replaces the selected image layer, or adds a new one). There is also a wireframe view showing every slide rectangle over the background.
-- **Right panel (resizable), tabs: Slide / Canvas** (Canvas holds the title page, Spacing — row/column step, Even steps vs Fit subtrees, transition time — text styles, background and readability).
+- **Right panel (resizable), tabs: Content / Slide / Canvas** (Content holds the markdown; Canvas holds the title page, Spacing — row/column step, Even steps vs Fit subtrees, transition time — text styles, background and readability).
   - **Layout section (collapsible):** preset layouts (Title, Title + list, Side by side, …) that rebuild the frame's layers from the slide's content.
   - **Frames section (collapsible):** a left-to-right strip of frame thumbnails with a → between each pair.
     - Buttons: ▶ Preview / ■ Stop (steps through the frames with → / Space; Esc stops), ⧉ Duplicate, Delete. Header checkbox: Progress.

@@ -166,3 +166,17 @@ test("a paragraph that is only an inline slide link counts as a chip too", () =>
   const r = parseMarkdown("# Top\nslug: top\n\n[Go to A]{link=a}\n\n[B]{link=a}\n\n## A\nslug: a\n");
   expect(r.sections[0].links.map((l: any) => l.label)).toEqual(["Go to A", "B"]); expect(r.sections[0].blocks.map(b => b.key)).toEqual(["links"]);
 });
+
+test("headings inside a multi-line comment are not slides", () => {
+  const { sections } = parseMarkdown("# A\nslug: a\n\n<!--\n# Old slide\nDraft.\n-->\n\nKept.");
+  expect(sections.map(s => s.slug)).toEqual(["a"]);
+  expect(sections[0].children).toEqual([]);
+  expect(sections[0].blocks.map(b => b.text)).toEqual(["Kept."]);
+});
+
+test("an empty slug line falls back to the generated slug", () => {
+  const { sections, warnings, errors } = parseMarkdown("# Hello World\nslug: \n\nHi.");
+  expect(sections[0].slug).toBe("hello-world");
+  expect(warnings).toEqual([{ line: 1, msg: 'no slug line; using "hello-world"' }]);
+  expect(errors).toEqual([]);
+});

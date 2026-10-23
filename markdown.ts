@@ -109,21 +109,26 @@ export function parseMarkdown(md: string): { sections: Section[]; errors: Issue[
 
   type Raw = { level: number; title: string; slug: string; line: number; body: Line[]; childSrc: string[] };
   const raws: Raw[] = [];
+  const inComment = (t: string, c: boolean) => { for (;;) { const k = t.indexOf(c ? "-->" : "<!--"); if (k < 0) return c; t = t.slice(k + (c ? 3 : 4)); c = !c; } };
+  let inC = false;   // a heading inside an HTML comment is commented out
   for (; i < lines.length; i++) {
-    const h = HEADING.exec(lines[i]);
+    const h = inC ? null : HEADING.exec(lines[i]);
     if (h) {
       const r: Raw = { level: h[1].length, title: h[2], slug: "", line: i + 1, body: [], childSrc: [] };
       const s = SLUG_LINE.exec(lines[i + 1] ?? "");
-      if (s) { i++; r.slug = s[1]; if (!SLUG_RE.test(s[1])) errors.push({ line: i + 1, msg: `invalid slug "${s[1]}" (use a-z, 0-9 and -)` }); }
-      else { r.slug = slugify(plainText(r.title)) || `section-${r.line}`; warnings.push({ line: r.line, msg: `no slug line; using "${r.slug}"` }); }
+      if (s?.[1]) { i++; r.slug = s[1]; if (!SLUG_RE.test(s[1])) errors.push({ line: i + 1, msg: `invalid slug "${s[1]}" (use a-z, 0-9 and -)` }); }
+      else { if (s) i++; r.slug = slugify(plainText(r.title)) || `section-${r.line}`; warnings.push({ line: r.line, msg: `no slug line; using "${r.slug}"` }); }
       if (lines[i + 1]?.trimStart().startsWith("<!--")) {   // a comment right under the heading may list the child decks
         let j = i + 1; while (j < lines.length - 1 && !lines[j].includes("-->")) j++;
         const c = /<!--\s*children:([\s\S]*?)-->/.exec(lines.slice(i + 1, j + 1).join("\n"));
         if (c) { r.childSrc = c[1].split("\n").map(u => u.trim()).filter(Boolean); i = j; }
       }
       raws.push(r);
-    } else if (raws.length) raws[raws.length - 1].body.push({ text: lines[i], line: i + 1 });
+      continue;
+    }
+    if (raws.length) raws[raws.length - 1].body.push({ text: lines[i], line: i + 1 });
     else if (lines[i].trim()) warnings.push({ line: i + 1, msg: "text before the first heading is ignored" });
+    inC = inComment(lines[i], inC);
   }
   if (!raws.length) return { sections: [], errors: [{ line: 1, msg: "no headings found" }], warnings: [] };
 

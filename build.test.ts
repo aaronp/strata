@@ -7,18 +7,21 @@ import { build } from "./build";
 test("build copies app + decks, writes index, injects static flag", async () => {
   const root = await mkdtemp(join(tmpdir(), "strata-b-"));
   await Bun.write(join(root, "design/strata.dc.html"), '<head>\n<script src="./support.js"></script>\n</head>');
-  await Bun.write(join(root, "decks/talk/deck.json"), JSON.stringify({ nodes: { ROOT: { children: ["a"] }, a: { title: "T" } } }));
+  await Bun.write(join(root, "markdown.ts"), Bun.file("markdown.ts"));
+  await Bun.write(join(root, "decks/talk/talk.md"), "# T\n");
   await Bun.write(join(root, "decks/talk/img/x.png"), "png");
+  await Bun.write(join(root, "markdown.ts"), Bun.file("markdown.ts"));
   const out = join(root, "dist");
   await build(root, out);
   const app = await Bun.file(join(out, "design/strata.dc.html")).text();
+  expect(await Bun.file(join(out, "design/md.js")).exists()).toBe(true);
   expect(app).toContain('<script>window.STRATA_STATIC=true</script>\n<script src="./support.js">');
   expect(await Bun.file(join(out, "decks/talk/img/x.png")).text()).toBe("png");
   expect(await Bun.file(join(out, "decks/index.json")).json()).toEqual([{ slug: "talk", title: "T" }]);
   const index = await Bun.file(join(out, "index.html")).text();
   expect(index).toContain('href="design/strata.dc.html?deck=talk"');
   expect(index).not.toMatch(/href="\//);
-  expect(index).not.toContain("<form");
+  expect(index).not.toContain("New deck"); expect(index).toContain(">Open</button>");
 });
 
 test("build fails loudly if the static-flag injection point is missing", async () => {
@@ -27,30 +30,28 @@ test("build fails loudly if the static-flag injection point is missing", async (
   await expect(build(root, join(root, "dist"))).rejects.toThrow("support.js");
 });
 
-test("build with a deck publishes only that deck and opens it from the site root", async () => {
+test("build: copies all decks and md.js; deck arg redirects", async () => {
   const root = await mkdtemp(join(tmpdir(), "strata-b-"));
   await Bun.write(join(root, "design/strata.dc.html"), '<head>\n<script src="./support.js"></script>\n</head>');
-  for (const s of ["talk", "scratch"]) await Bun.write(join(root, `decks/${s}/deck.json`), JSON.stringify({ title: s, nodes: { ROOT: { children: [] } } }));
+  await Bun.write(join(root, "markdown.ts"), Bun.file("markdown.ts"));
+  for (const s of ["talk", "scratch"]) await Bun.write(join(root, `decks/${s}/${s}.md`), `# ${s}\n`);
   const out = join(root, "dist");
   await build(root, out, "talk");
-  expect(await Bun.file(join(out, "decks/talk/deck.json")).exists()).toBe(true);
-  expect(await Bun.file(join(out, "decks/scratch/deck.json")).exists()).toBe(false);
-  expect(await Bun.file(join(out, "decks/index.json")).json()).toEqual([{ slug: "talk", title: "talk" }]);
+  expect(await Bun.file(join(out, "decks/talk/talk.md")).exists()).toBe(true);
+  expect(await Bun.file(join(out, "decks/scratch/scratch.md")).exists()).toBe(true);   // children: links may point at sibling decks
+  expect(await Bun.file(join(out, "design/md.js")).exists()).toBe(true);
   const index = await Bun.file(join(out, "index.html")).text();
   expect(index).toContain('<meta http-equiv="refresh" content="0; url=design/strata.dc.html?deck=talk">');
   await expect(build(root, out, "missing")).rejects.toThrow('no deck "missing"');
 });
 
-test("publishing a deck also publishes the decks it links to, through chains and loops; a missing link fails", async () => {
+test("build with no decks/ (CI) writes the landing page", async () => {
   const root = await mkdtemp(join(tmpdir(), "strata-b-"));
   await Bun.write(join(root, "design/strata.dc.html"), '<head>\n<script src="./support.js"></script>\n</head>');
-  const deck = (s: string, inc?: string) => Bun.write(join(root, `decks/${s}/deck.json`),
-    JSON.stringify({ title: s, nodes: { ROOT: { children: inc ? ["l"] : [] }, ...(inc ? { l: { id: "l", title: "L", include: inc, children: [] } } : {}) } }));
-  await deck("talk", "dw"); await deck("dw", "df"); await deck("df", "dw"); await deck("other");
+  await Bun.write(join(root, "markdown.ts"), Bun.file("markdown.ts"));
   const out = join(root, "dist");
-  await build(root, out, "talk");
-  expect((await Bun.file(join(out, "decks/index.json")).json()).map((d: any) => d.slug).sort()).toEqual(["df", "dw", "talk"]);
-  expect(await Bun.file(join(out, "decks/other/deck.json")).exists()).toBe(false);
-  await deck("broken", "nope");
-  await expect(build(root, out, "broken")).rejects.toThrow(`deck "broken" links to "nope", which isn't in decks/`);
+  await build(root, out);
+  expect(await Bun.file(join(out, "decks/index.json")).json()).toEqual([]);
+  const index = await Bun.file(join(out, "index.html")).text();
+  expect(index).toContain("No decks yet."); expect(index).toContain("location.replace(");
 });

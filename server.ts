@@ -1,8 +1,7 @@
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
-import { importMarkdown } from "./importer";
-import { toMarkdown } from "./markdown";
+import { parseMarkdown, plainText } from "./markdown";
 
 export const SLUG = /^[a-z0-9-]+$/;
 export type DeckInfo = { slug: string; title: string };
@@ -13,39 +12,28 @@ export async function deckList(root: string): Promise<DeckInfo[]> {
   const out: DeckInfo[] = [];
   for (const e of ents) {
     if (!e.isDirectory() || !SLUG.test(e.name)) continue;
-    const f = Bun.file(join(dir, e.name, "deck.json"));
+    const f = Bun.file(join(dir, e.name, e.name + ".md"));
     if (!(await f.exists())) continue;
-    const d = await f.json().catch(() => null);
-    const first = d?.nodes?.[d?.nodes?.ROOT?.children?.[0]];
-    out.push({ slug: e.name, title: d?.title || first?.title || e.name });
+    const h = parseMarkdown(await f.text()).sections[0];
+    out.push({ slug: e.name, title: (h && plainText(h.title)) || e.name });
   }
   return out.sort((a, b) => a.slug.localeCompare(b.slug));
 }
 
 const esc = (s: string) => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 
+const TOUR = "https://github.com/aaronp/strata/blob/master/examples/strata-tour/strata-tour.md";
+
 export function indexHtml(decks: DeckInfo[], dev: boolean): string {
   const items = decks.map(d => `<li><a href="design/strata.dc.html?deck=${d.slug}">${esc(d.title)}</a> <code>${d.slug}</code></li>`).join("\n");
-  const form = dev ? `<form action="design/strata.dc.html"><input name="deck" required pattern="[a-z0-9-]+" placeholder="new-deck-slug"> <button>New deck</button></form>
-<h2>Import markdown</h2>
-<form id="imp"><input type="file" name="md" accept=".md,text/markdown" required> <input name="slug" required pattern="[a-z0-9-]+" placeholder="deck-slug"> <button>Import</button></form>
-<pre id="imperr" style="color:#a8301d;white-space:pre-wrap"></pre>
-<script>
-const DECKS = ${JSON.stringify(decks.map(d => d.slug))}, f = document.getElementById("imp"), err = document.getElementById("imperr");
-f.md.onchange = () => { const n = (f.md.files[0] || {}).name || ""; f.slug.value = n.replace(/\\.md$/i, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, ""); };
-f.onsubmit = async e => {
-  e.preventDefault(); err.textContent = "";
-  const slug = f.slug.value;
-  if (DECKS.includes(slug) && !confirm('Update deck "' + slug + '" from this file? Layout edits are kept; slides not in the file are removed.')) return;
-  const r = await fetch("api/import/" + slug, { method: "POST", body: await f.md.files[0].text() });
-  const j = await r.json().catch(() => ({ errors: [{ line: 0, msg: "HTTP " + r.status }] }));
-  if (!r.ok) { err.textContent = j.errors.map(x => "line " + x.line + ": " + x.msg).join("\\n"); return; }
-  location.href = "design/strata.dc.html?deck=" + slug;
-};
-</script>` : "";
-  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Strata decks</title>
-<style>body{font:16px system-ui,sans-serif;background:#f2eee5;color:#1d1b17;max-width:640px;margin:48px auto;padding:0 16px}a{color:#d9432b}code{color:#6b6458;font-size:12px}li{margin:8px 0}</style></head>
-<body><h1>Strata</h1><ul>${items || "<li>No decks yet.</li>"}</ul>${form}</body></html>`;
+  const form = dev ? `<form action="design/strata.dc.html"><input name="deck" required pattern="[a-z0-9-]+" placeholder="new-deck-slug"> <button>New deck</button></form>` : "";
+  // Static (GitHub Pages): /?src=…&slide=… presents straight away.
+  const redirect = dev ? "" : `<script>if (/[?&]src=/.test(location.search)) location.replace('design/strata.dc.html' + location.search)</script>`;
+  const open = `<h2>Open from a URL</h2><form action="design/strata.dc.html"><input name="src" type="url" required size="40" placeholder="https://github.com/you/repo/blob/main/talk.md"> <button>Open</button></form>
+<p>Example: <a href="design/strata.dc.html?src=${encodeURIComponent(TOUR)}">Strata tour</a></p>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Strata decks</title>${redirect}
+<style>body{font:16px system-ui,sans-serif;background:#f2eee5;color:#1d1b17;max-width:640px;margin:48px auto;padding:0 16px}a{color:#d9432b}code{color:#6b6458;font-size:12px}li{margin:8px 0}input{max-width:100%}</style></head>
+<body><h1>Strata</h1><ul>${items || "<li>No decks yet.</li>"}</ul>${form}${open}</body></html>`;
 }
 
 const EXT: Record<string, string> = { "image/png": "png", "image/jpeg": "jpg", "image/gif": "gif", "image/webp": "webp", "image/svg+xml": "svg", "image/avif": "avif" };
@@ -60,13 +48,25 @@ async function extract(url: unknown, imgDir: string): Promise<unknown> {
   return "img/" + name;
 }
 
-export async function saveDeck(root: string, slug: string, deck: any) {
-  const dir = join(root, "decks", slug), imgDir = join(dir, "img");
+export async function saveDeck(root: string, slug: string, { md, layout }: { md: string; layout: any }) {
+  const dir = join(root, "decks", slug), imgDir = join(dir, "img"), d = layout?.deck ?? {};
   const images: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(deck.images ?? {})) images[k] = await extract(v, imgDir);
-  const out = { ...deck, images, customBg: deck.customBg ? await extract(deck.customBg, imgDir) : null };
-  await Bun.write(join(dir, "deck.json"), JSON.stringify(out, null, 2) + "\n");
-  return out;
+  for (const [k, v] of Object.entries(d.images ?? {})) images[k] = await extract(v, imgDir);
+  const out = { ...layout, deck: { ...d, images, customBg: d.customBg ? await extract(d.customBg, imgDir) : null } };
+  await Bun.write(join(dir, slug + ".md"), md);
+  await Bun.write(join(dir, slug + "-layout.json"), JSON.stringify(out, null, 2) + "\n");
+  return { layout: out };
+}
+
+// The parser as a classic script: window.StrataMd = { parseMarkdown, plainText }.
+export async function mdBundle(root: string): Promise<string> {
+  const entry = join(root, "md-entry.ts");
+  const r = await Bun.build({
+    entrypoints: [entry], format: "iife", minify: false,
+    files: { [entry]: `import { parseMarkdown, plainText } from "./markdown"; window.StrataMd = { parseMarkdown, plainText };` },
+  });
+  if (!r.success) throw new Error("md.js: " + r.logs.join("\n"));
+  return await r.outputs[0].text();
 }
 
 export function handler(root: string) {
@@ -80,23 +80,13 @@ export function handler(root: string) {
     const m = /^\/api\/decks\/(.+)$/.exec(p);
     if (m && req.method === "PUT") {
       if (!SLUG.test(m[1])) return new Response("bad slug", { status: 400 });
-      const deck = await req.json().catch(() => null);
-      if (!deck?.nodes?.ROOT) return new Response("bad deck: expected { nodes: { ROOT } }", { status: 400 });
-      return Response.json(await saveDeck(root, m[1], deck));
-    }
-    if (p === "/api/export" && req.method === "POST") {
-      const b = await req.json().catch(() => null);
-      if (!b?.nodes?.[b.id]) return new Response("bad export: expected { nodes, id, deck }", { status: 400 });
-      try { return new Response(toMarkdown(b.nodes, b.id, { deck: String(b.deck ?? ""), date: new Date().toISOString().slice(0, 10) }), { headers: { "content-type": "text/markdown; charset=utf-8" } }); }
-      catch (e: any) { return new Response(e.message, { status: 400 }); }
-    }
-    const im = /^\/api\/import\/(.+)$/.exec(p);
-    if (im && req.method === "POST") {
-      const r = await importMarkdown(root, im[1], await req.text());
-      return r.deck ? Response.json({ slug: r.slug, warnings: r.warnings }) : Response.json({ errors: r.errors }, { status: 400 });
+      const body = await req.json().catch(() => null);
+      if (typeof body?.md !== "string") return new Response("bad deck: expected { md, layout }", { status: 400 });
+      return Response.json(await saveDeck(root, m[1], body));
     }
     if (p === "/" || p === "/index.html") return new Response(indexHtml(await deckList(root), true), { headers: { "content-type": "text/html; charset=utf-8" } });
-    if ((p.startsWith("/design/") || p.startsWith("/decks/")) && !p.includes("..")) {
+    if (p === "/design/md.js") return new Response(await mdBundle(root), { headers: { "content-type": "text/javascript; charset=utf-8", "cache-control": "no-store" } });
+    if ((p.startsWith("/design/") || p.startsWith("/decks/") || p.startsWith("/examples/")) && !p.includes("..")) {
       const f = Bun.file(join(root, p));
       if (await f.exists()) return new Response(f, { headers: { "cache-control": "no-store" } });
     }

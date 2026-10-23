@@ -1358,7 +1358,8 @@ function applyFormat(text, start, end, op) {
   return { text, start, end };
 }
 const deckUrl = (slug, v) => typeof v === 'string' && v && !/^(data:|blob:|https?:|\/)/.test(v) ? '../decks/' + slug + '/' + v : v;
-const absUrl = v => DECK ? deckUrl(DECK, v) : v;
+// A layout file's relative image path: against the deck folder, or for ?src= against the markdown file.
+const absUrl = v => DECK ? deckUrl(DECK, v) : SRC && typeof v === 'string' && v && !/^([a-z][a-z0-9+.-]*:|\/)/i.test(v) ? new URL(v, new URL(SRC, srcBase())).href : v;
 const relUrl = v => typeof v === 'string' && DECK_BASE && v.startsWith(DECK_BASE) ? v.slice(DECK_BASE.length) : v;
 // Layout presets rearrange plain text and images; linked layers, shapes and icons stay exactly where they are.
 // Multi-select geometry, all in % of the slide.
@@ -1433,7 +1434,7 @@ class Component extends DCLogic {
     if (SRC) this.loadDeck();
     else try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && typeof s.md === 'string') this.adopt(s.md, s.layout); } catch (e) {}   // scratch deck
     if (STATIC) this.setState({ mode: 'present' });
-    this._past = []; this._future = []; setTimeout(() => { this._lastNodes = this.state.nodes; this._histReady = true; }, 120);
+    this._past = []; this._future = []; setTimeout(() => { this._lastNodes = this.state.nodes; this._lastDeck = this.histDeck(); this._histReady = true; }, 120);
     this.onKey = this.onKey.bind(this); window.addEventListener('keydown', this.onKey);
     this.onResize = () => this.forceUpdate(); window.addEventListener('resize', this.onResize);
     this.onPaste = this.onPaste.bind(this); window.addEventListener('paste', this.onPaste);
@@ -1506,9 +1507,9 @@ class Component extends DCLogic {
   setMd(md) { this.setState({ md }); clearTimeout(this._mdT); this._mdT = setTimeout(() => this.reenrich(), 200); }
   // Rebuild nodes from the markdown, keeping baseNodes' layout (overrides, ROOT). Neither an undo step nor a hand edit.
   // A current slide that's gone moves to its nearest surviving ancestor, else the first slide.
-  reenrich(baseNodes = this.state.nodes) {
+  reenrich(baseNodes = this.state.nodes, deck = {}) {   // deck: layouts/layoutDefaults about to be set (undo), not yet in state
     clearTimeout(this._mdT);
-    const S = this.state, r = this.enrichMd(S.md, layoutOf(baseNodes, S)), nodes = r.nodes, up = {};
+    const S = this.state, r = this.enrichMd(S.md, layoutOf(baseNodes, { ...S, ...deck })), nodes = r.nodes, up = {};
     for (const k in S.nodes) for (const c of S.nodes[k].children || []) up[c] = k;
     let cur = S.cur; while (cur && cur !== 'ROOT' && !nodes[cur]) cur = up[cur] || cur.slice(0, Math.max(0, cur.lastIndexOf('.')));
     if (!cur || (cur === 'ROOT' && !S.titlePage)) cur = nodes.ROOT.children[0];
@@ -1845,21 +1846,24 @@ class Component extends DCLogic {
     const S = this.state;
     if (S.nodes !== this._lastNodes) {
       if (this._histReady && this._lastNodes) {
-        if (!this._burst) { this._past.push(this._lastNodes); if (this._past.length > 100) this._past.shift(); this._future = []; }
+        if (!this._burst) { this._past.push({ nodes: this._lastNodes, ...this._lastDeck }); if (this._past.length > 100) this._past.shift(); this._future = []; }
         this._burst = true; clearTimeout(this._bt); this._bt = setTimeout(() => { this._burst = false; }, 450);
       }
       this._lastNodes = S.nodes;
     }
+    this._lastDeck = this.histDeck();
     const hc = this._past.length + ':' + this._future.length; if (hc !== S.hist) this.setState({ hist: hc });
   }
-  restore(nodes) {
+  // History entries: nodes plus the shared layouts, so undoing a layout action brings both back (enrich lays slides out by them).
+  histDeck() { return { layoutDefaults: this.state.layoutDefaults, layouts: this.state.layouts }; }
+  restore({ nodes, ...deck }) {
     this._burst = false;
     const keep = (s, n) => s.editing && n && this.framesOfNode(n).some(f => f.layers.some(l => l.id === s.editing)) ? s.editing : null;   // undo while editing keeps the editor open
-    this.setState(s => ({ layerSel: null, editing: keep(s, nodes[s.cur]), prev: null, phase: 'idle' }));
-    this.reenrich(nodes);   // the layout comes back; the markdown stays as it is now
+    this.setState(s => ({ ...deck, layerSel: null, editing: keep(s, nodes[s.cur]), prev: null, phase: 'idle' }));
+    this.reenrich(nodes, deck);   // the layout comes back; the markdown stays as it is now
   }
-  undo() { if (!this._past.length) return; this._future.push(this.state.nodes); this.restore(this._past.pop()); }
-  redo() { if (!this._future.length) return; this._past.push(this.state.nodes); this.restore(this._future.pop()); }
+  undo() { if (!this._past.length) return; this._future.push({ nodes: this.state.nodes, ...this.histDeck() }); this.restore(this._past.pop()); }
+  redo() { if (!this._future.length) return; this._past.push({ nodes: this.state.nodes, ...this.histDeck() }); this.restore(this._future.pop()); }
 
   // A layout applied to one node: its single frame's counted boxes; layout recorded, custom cleared. Null for multi-frame / linked-in slides.
   layoutPatch(n, L) { const fr = this.framesOfNode(n); if (!L || n._from || fr.length !== 1) return null;

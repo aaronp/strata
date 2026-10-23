@@ -115,7 +115,7 @@ This extends today's layouts (`docs/superpowers/specs/2026-10-09-layouts-design.
 - **Existing decks, `importer.ts`'s re-import merge, `make import`, "Copy deck here" and deck-based `include`** are removed. Markdown linking replaces them.
 
 ## Security
-- Remote markdown is data. Raw HTML is never rendered (see Markdown format). Only `https:` link targets are clickable.
+- Remote markdown is data. Raw HTML is never rendered (see Markdown format). Only `http(s):` link targets are clickable.
 - Iframes, scripts and other embeds can come only from a layout file. A linked doc's `-layout.json` is used for boxes and styles only; any iframe/embed layers in it are dropped. Only the host's own layout file can embed.
 
 ## Left to the builder

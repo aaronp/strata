@@ -969,9 +969,11 @@ const KEY = 'strata-v8', VA = 16 / 9, H = 100;
 const DECK = (s => s && /^[a-z0-9-]+$/.test(s) ? s : null)(new URLSearchParams(location.search).get('deck'));
 const DECK_BASE = DECK ? '../decks/' + DECK + '/' : '';
 const STATIC = !!window.STRATA_STATIC;
-// The deck's markdown file: the local deck's, else ?src= when it's https: or same-origin. Its layout file sits beside it.
-const SRC = DECK ? '../decks/' + DECK + '/' + DECK + '.md' : (s => { try { const u = new URL(s, location.href); return u.protocol === 'https:' || u.origin === location.origin ? s : null; } catch (e) { return null; } })(new URLSearchParams(location.search).get('src'));
-const layoutUrl = src => src.replace(/\.md(\?.*)?$/i, '-layout.json$1');
+// The deck's markdown file: the local deck's, else ?src= when it's https: or same-origin (linked children too). A .md file's layout file sits beside it.
+const okUrl = (s, base) => { try { const u = new URL(s, base || location.href); return u.protocol === 'https:' || u.origin === new URL(location.href || 'http://localhost/').origin; } catch (e) { return false; } };
+const SRC_ARG = new URLSearchParams(location.search).get('src');
+const SRC = DECK ? '../decks/' + DECK + '/' + DECK + '.md' : SRC_ARG && okUrl(SRC_ARG) ? SRC_ARG : null;
+const layoutUrl = src => /\.md(\?.*)?$/i.test(src) ? src.replace(/\.md(\?.*)?$/i, '-layout.json$1') : null;
 const RO_MSG = 'Linked slides are read-only here: change them in their own markdown file';
 const EMPTY_MSG = 'Add a # heading to make a slide';
 const MD = window.StrataMd;
@@ -1436,6 +1438,7 @@ class Component extends DCLogic {
   componentDidMount() {
     if (!STATIC) try { const ui = JSON.parse(localStorage.getItem(UIKEY) || 'null'); if (ui) this.setState(ui); } catch (e) {}
     if (SRC) this.loadDeck();
+    else if (SRC_ARG) this.setState({ saveMsg: "Can't load " + SRC_ARG + ': must be https:' });
     else try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && typeof s.md === 'string') this.adopt(s.md, s.layout); } catch (e) {}   // scratch deck
     if (STATIC) this.setState({ mode: 'present' });
     this._past = []; this._future = []; setTimeout(() => { this._lastNodes = this.state.nodes; this._lastDeck = this.histDeck(); this._histReady = true; }, 120);
@@ -1513,11 +1516,12 @@ class Component extends DCLogic {
     this._linked[id] = { status: 'loading', files: [] }; this.setState({ loading: id });
     const files = await Promise.all(N[id].childSrc.map(async u => {
       let src = u; try { src = new URL(u, this.sourceOfNode(id)).href;
+        if (!okUrl(src)) throw new Error('must be https:');
         if (chain.includes(src)) throw new Error('loop: ' + src + ' is already above this slide');
         const r = await fetch(src, { cache: 'no-store' }); if (!r.ok) throw new Error('HTTP ' + r.status);
         const md = await r.text();
         if (/text\/html/i.test((r.headers && r.headers.get('content-type')) || '') || /^\s*<(!doctype|html)/i.test(md)) throw new Error('not a markdown file');
-        let layout = null; const lr = await fetch(layoutUrl(src), { cache: 'no-store' }).catch(() => null);   // missing or invalid: the built-ins
+        let layout = null; const lr = layoutUrl(src) && await fetch(layoutUrl(src), { cache: 'no-store' }).catch(() => null);   // missing or invalid: the built-ins
         if (lr && lr.ok) try { layout = JSON.parse(await lr.text()); } catch (e) {}
         return { src, md, layout };
       } catch (e) { return { src, error: e.message }; }
@@ -1607,7 +1611,7 @@ class Component extends DCLogic {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       const md = await r.text();
       if (/text\/html/i.test((r.headers && r.headers.get('content-type')) || '') || /^\s*<(!doctype|html)/i.test(md)) throw new Error('not a markdown file');
-      let L = null; const lr = await fetch(layoutUrl(SRC), { cache: 'no-store' }).catch(() => null);   // missing is fine; invalid is ignored, with a note
+      let L = null; const lr = layoutUrl(SRC) && await fetch(layoutUrl(SRC), { cache: 'no-store' }).catch(() => null);   // missing is fine; invalid is ignored, with a note
       if (lr && lr.ok) try { L = JSON.parse(await lr.text()); } catch (e) { this.flash('Layout file ignored: ' + e.message, 8000); }
       let dr = null; if (!DECK && this.state.mode !== 'present') try { dr = JSON.parse(localStorage.getItem(DRAFT_KEY(SRC)) || 'null'); } catch (e) {}   // present always shows the remote file
       this.adopt(md, L, () => { const S = this.state;   // compare with the remote deck as the app would write it, not the raw layout file
@@ -1658,7 +1662,7 @@ class Component extends DCLogic {
     if (!this.markCustom()) this.histTrack();
     const S = this.state;
     // Scratch deck: markdown + layout in the browser. Remote (?src=): edits since load are a draft, kept until downloaded or discarded.
-    const store = !SRC ? KEY : !DECK && S.mode === 'build' && this._loaded && !S.draftPrompt && !this._loadQuiet && this.isDirty() ? DRAFT_KEY(SRC) : null;
+    const store = !SRC ? (SRC_ARG ? null : KEY) : !DECK && S.mode === 'build' && this._loaded && !S.draftPrompt && !this._loadQuiet && this.isDirty() ? DRAFT_KEY(SRC) : null;
     if (store) {
       const refs = SAVED.map(k => S[k]);
       if (!this._sr || refs.some((v, i) => v !== this._sr[i])) { this._sr = refs; try { localStorage.setItem(store, JSON.stringify({ md: S.md, layout: layoutOf(S.nodes, S, this._linkedOv) })); } catch (e) {} }
@@ -1830,7 +1834,7 @@ class Component extends DCLogic {
   }
   isUnder(id, anc) { const D = this.derive(); for (let x = id; x; x = D.parent[x]) if (x === anc) return true; return false; }
   // The markdown pane: the slide's heading line goes to the top of the textarea (20px lines).
-  scrollMd() { const t = this.mdRef.current, n = this.state.nodes[this.state.cur]; if (t && n && n._line) t.scrollTop = (n._line - 1) * 20; }
+  scrollMd() { const t = this.mdRef.current, n = this.state.nodes[this.state.cur]; if (t && n && n._line && !n._from) t.scrollTop = (n._line - 1) * 20; }
   mdResize(ev) {
     ev.preventDefault(); const sx = ev.clientX, w0 = this.state.mdW;
     const move = e => this.setState({ mdW: Math.max(240, Math.min(w0 + e.clientX - sx, window.innerWidth - this.state.navW - 380)) });

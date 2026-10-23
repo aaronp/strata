@@ -1792,3 +1792,26 @@ test("browsing into a linked child (batched setState) writes no draft, and reloa
   const { c: c2 } = await mount("?src=https://y/a.md", { fetch, batched: true, store }); await Bun.sleep(5);
   expect(c2.state.draftPrompt).toBeFalsy();   // compared with the remote deck as laid out, not the raw layout file
 });
+
+test("linked slides don't scroll the markdown (their lines are another file's)", async () => {
+  const { c } = await linked(); const ta: any = { scrollTop: 0 }; c.mdRef.current = ta;
+  await down(c, "a"); const top = ta.scrollTop;   // the host's slide a scrolled it
+  c.nav("a.plan", "jump"); c.componentDidUpdate();
+  expect(c.state.cur).toBe("a.plan"); expect(ta.scrollTop).toBe(top);
+});
+
+test("src: a url not ending in .md has no layout file; a non-https url is refused", async () => {
+  const got: string[] = [];
+  const { c } = await mount("?src=https://x/deck", { fetch: u => { got.push(u); return u === "https://x/deck" ? reply("# Hi\nslug: hi\n", "text/plain") : reply("", "text/plain", 404); } });
+  expect(got).toEqual(["https://x/deck"]); expect(c.state.note).toBeFalsy(); expect(c.state.nodes.hi).toBeDefined();
+  const store = { "strata-v8": JSON.stringify({ md: "# Mine\nslug: mine\n", layout: null }) };
+  const { c: c2 } = await mount("?src=http://x/a.md", { store, deckMode: false });
+  expect(c2.state.saveMsg).toBe("Can't load http://x/a.md: must be https:"); expect(c2.state.nodes.mine).toBeUndefined();
+  c2.componentDidUpdate(); expect(JSON.parse(store["strata-v8"]).md).toBe("# Mine\nslug: mine\n");   // the scratch deck is left alone
+});
+
+test("linked: a child url that isn't https is an error slide", async () => {
+  const { c } = await linked("# Costs\nslug: costs\n<!-- children: http://e/x.md -->\n");
+  await down(c, "a"); await down(c, "a.costs");
+  expect(c.state.nodes["a.costs.!error"]).toMatchObject({ title: "Can't link http://e/x.md", body: "must be https:" });
+});

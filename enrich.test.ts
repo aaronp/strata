@@ -23,6 +23,9 @@ test("enrich: heading styles by depth", () => {
   const { nodes } = run("# A\nslug: a\n## B\nslug: b\n### C\nslug: c\n#### D\nslug: d");
   expect(["a", "b", "c", "d"].map(k => layer(nodes[k], "md-title").style)).toEqual(["h1", "h2", "h3", "h3"]);
   expect(nodes.a.children).toEqual(["b"]);
+  const h4 = { h4: { name: "H4", size: 24 } };
+  expect(layer(run("# A\nslug: a\n## B\nslug: b\n### C\nslug: c\n#### D\nslug: d", [], { styles: { h1: {}, h2: {}, h3: {}, ...h4 } }).nodes.d, "md-title").style).toBe("h4");
+  expect(layer(run("# A\nslug: a\n## B\nslug: b\n### C\nslug: c\n#### D\nslug: d", [{ version: 1, deck: { styles: h4 }, slides: {} }]).nodes.d, "md-title").style).toBe("h4");   // the host's deck styles
 });
 
 test("enrich: override wins and new block warns", () => {
@@ -73,6 +76,10 @@ test("enrich: shape layouts from the layout file, defaults first", () => {
   expect(run(md, [LF({}, { layouts: { mine } })]).nodes.t.layout).toBe("mine");
   expect(run(md, [LF({}, { layouts: { mine }, layoutDefaults: { "body:2,title:1": "cols-2" } })]).nodes.t.layout).toBe("cols-2");
   expect(run(md, [LF(), LF({}, { layouts: { mine } })]).nodes.t.layout).toBe("mine");
+  const ov = { frames: [{ id: "f1", layers: [{ id: "md-title", type: "text", block: "title", x: 20, y: 6, w: 50, h: 14 }] }] };
+  const host = run(md, [LF({}, { layouts: { mine } }), LF({ t: ov })], { prefix: "a." }).nodes["a.t"];   // a host layout beats a linked override
+  expect(host.layout).toBe("mine"); expect(host.custom).toBeUndefined();
+  expect(run(md, [LF(), LF({ t: ov })], { prefix: "a." }).nodes["a.t"].custom).toBe(true);   // a linked override beats the built-ins
 });
 
 test("enrich: linked component layers dropped", () => {

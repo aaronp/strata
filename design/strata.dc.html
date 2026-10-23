@@ -1079,11 +1079,12 @@ const CHIP_BOX = { bg: '#ffffff', bgOpacity: 0.75, blur: 0, border: 0, borderCol
 const bodySize = t => Math.max(22, Math.min(40, Math.round(40 - (t.length - 120) / 20)));
 const isMd = l => String(l.id).startsWith('md-');
 const srcBase = src => src || (typeof location !== 'undefined' && location.href) || 'http://localhost/';
-function blockLayers(sec, depth, prefix = '', src = null) {
+function blockLayers(sec, depth, prefix = '', src = null, styles = BUILTIN_STYLES) {
+  let h = depth; while (h > 1 && !(styles['h' + h] && !styles['h' + h].deleted)) h--;   // the deepest heading style the deck has
   const own = new Set((sec.inline || []).map(c => c.target).filter(Boolean));   // in-file targets get the namespace; unresolved refs stay as written
   const pre = t => prefix ? t.replace(/\]\{([^}]*)\}/g, (m, a) => ']{' + a.split(/\s+/).map(k => { const v = /^link=(\S+)$/.exec(k); return v && own.has(v[1]) ? 'link=' + prefix + v[1] : k; }).join(' ') + '}') : t;
   const esc = t => t.replace(/[\\*[\]{}]/g, c => '\\' + c), n = {};
-  const L = [{ id: 'md-title', type: 'text', block: 'title', style: 'h' + Math.min(depth, 3), text: pre(sec.title), ...HEAD[0], opacity: 1 }];
+  const L = [{ id: 'md-title', type: 'text', block: 'title', style: 'h' + h, text: pre(sec.title), ...HEAD[0], opacity: 1 }];
   for (const b of sec.blocks) {
     const i = n[b.key] = (n[b.key] || 0) + 1, id = 'md-' + b.key + '-' + i;
     if (b.key === 'body' || b.key === 'list') L.push({ id, type: 'text', block: b.key, style: 'body', text: pre(b.text), ...B(6, 24, sec.links.length ? 56 : 88, 60), opacity: 1, size: bodySize(b.text), ...(b.key === 'list' ? { bullets: 'disc' } : {}) });
@@ -1103,17 +1104,18 @@ function mergeContent(stored, gen) {
 }
 function enrich(sections, layouts, opts = {}) {
   const { prefix = '', depth0 = 1, from = null, root = null, src = null } = opts, nodes = {}, images = {}, warnings = [];
-  const shapeLayout = sig => {
-    for (const F of layouts) { const own = (F.deck || {}).layouts || {}, get = k => own[k] || BUILTIN_LAYOUTS[k], fits = x => x && sigKey(x.match) === sig;
-      const d = ((F.deck || {}).layoutDefaults || {})[sig]; if (fits(get(d))) return { id: d, ...get(d) };
-      const k = Object.keys(own).find(k => fits(own[k])); if (k) return { id: k, ...own[k] }; }
-    const k = Object.keys(BUILTIN_LAYOUTS).find(k => sigKey(BUILTIN_LAYOUTS[k].match) === sig); return k ? { id: k, ...BUILTIN_LAYOUTS[k] } : null;
-  };
+  const styles = opts.styles || mergeStyles(((layouts[0] || {}).deck || {}).styles);
+  const shapeIn = (F, sig) => { const own = (F.deck || {}).layouts || {}, get = k => own[k] || BUILTIN_LAYOUTS[k], fits = x => x && sigKey(x.match) === sig;
+    const d = ((F.deck || {}).layoutDefaults || {})[sig]; if (fits(get(d))) return { id: d, ...get(d) };
+    const k = Object.keys(own).find(k => fits(own[k])); return k ? { id: k, ...own[k] } : null; };
   const add = (sec, depth) => {
-    const id = prefix + sec.slug, gen = blockLayers(sec, depth, prefix, src);
+    const id = prefix + sec.slug, gen = blockLayers(sec, depth, prefix, src, styles), sig = sigKey(sigOf(gen));
     for (const l of gen) if (l.imgKey) images[l.imgKey] = l.imgKey.slice(3);
     // The host's override is keyed by full id; a linked doc's own layout file by its local slug. Only the host may embed components.
-    const i = layouts.findIndex((F, i) => ((F.slides || {})[i ? sec.slug : id])), ov = i < 0 ? null : layouts[i].slides[i ? sec.slug : id];
+    // Per file, in order: its override for the slide, then its layout for the shape; then the built-ins.
+    let i = -1, ov = null, lay = null;
+    for (const [j, F] of layouts.entries()) { ov = (F.slides || {})[j ? sec.slug : id] || null; if (ov) { i = j; break; } if ((lay = shapeIn(F, sig))) break; }
+    if (!ov && !lay) { const k = Object.keys(BUILTIN_LAYOUTS).find(k => sigKey(BUILTIN_LAYOUTS[k].match) === sig); lay = k ? { id: k, ...BUILTIN_LAYOUTS[k] } : null; }
     let extra;
     if (ov) {
       const byId = new Map(gen.map(g => [g.id, g])), kept = {};
@@ -1125,7 +1127,6 @@ function enrich(sections, layouts, opts = {}) {
       });
       const { _kept: _k, ...rest } = ov; extra = { ...rest, frames, custom: true, ...(Object.keys(kept).length ? { _kept: kept } : {}) };
     } else {
-      const lay = shapeLayout(sigKey(sigOf(gen)));
       if (lay) { const boxes = fillSlots(gen, lay); extra = { frames: [{ id: 'f1', layers: backFirst(gen.map(l => boxes[l.id] ? { ...l, ...boxes[l.id] } : l), boxes) }], layout: lay.id }; }
       else { const rest = gen.filter(l => counted(l) && l.block !== 'title'), st = stackOf(rest.length, [24, 88]);   // no match: stack the blocks, and flag them
         extra = { frames: [{ id: 'f1', layers: gen.map(l => { const k = rest.indexOf(l); return k < 0 ? l : { ...l, ...st[k], _warn: true }; }) }] }; }

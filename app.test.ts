@@ -371,103 +371,14 @@ test("collapsing a slide hides its subtree, except the path to the current slide
   expect(c.state.collapsed.a).toBe(false);
 });
 
-test("moving a slide: before, after, inside, across levels, carrying its subtree", async () => {
-  const c = await treeDeck();
-  c.moveNode("a2", "a1", "before");
-  expect(kids(c, "a")).toEqual(["a2", "a1"]);
-  c.moveNode("a1", "b", "after");
-  expect(kids(c, "ROOT")).toEqual(["a", "b", "a1"]);
-  expect(kids(c, "a1")).toEqual(["a1x"]);
-  c.setState({ collapsed: { b: true } });
-  c.moveNode("a2", "b", "child");
-  expect(kids(c, "b")).toEqual(["a2"]);
-  expect(kids(c, "a")).toEqual([]);
-  expect(c.state.collapsed.b).toBe(false);                    // dropping inside expands the target
-});
-
-test("refused move: a slide can't go into its own subtree", async () => {
-  const c = await treeDeck();
-  const before = c.state.nodes;
-  c.moveNode("a", "a1x", "child");
-  expect(c.state.nodes).toBe(before);
-});
-
-test("a move is one undo step", async () => {
-  const c = await treeDeck();
-  await Bun.sleep(150);
-  c.moveNode("b", "a", "before"); c.componentDidUpdate();
-  expect(kids(c, "ROOT")).toEqual(["b", "a"]);
-  c.undo(); c.componentDidUpdate();
-  expect(kids(c, "ROOT")).toEqual(["a", "b"]);
-});
-
-test("drop zones: left third before, middle inside, right third after; invalid targets give nothing", async () => {
-  const c = await treeDeck();
-  c._tpos = { a: { x: 16, y: 18 }, a1: { x: 16, y: 110 }, b: { x: 112, y: 18 } };
-  expect(c.treeDropAt(16 + 5, 30, "b")).toEqual({ id: "a", where: "before" });
-  expect(c.treeDropAt(16 + 38, 30, "b")).toEqual({ id: "a", where: "child" });
-  expect(c.treeDropAt(16 + 70, 30, "b")).toEqual({ id: "a", where: "after" });
-  expect(c.treeDropAt(100, 300, "b")).toBeNull();
-  expect(c.treeDropAt(112 + 38, 30, "b")).toBeNull();         // onto itself
-  expect(c.treeDropAt(16 + 38, 120, "a")).toBeNull();         // into its own subtree
-});
-
-test("tree template has collapse toggles, drag start, and the drop marker", async () => {
+test("tree template has collapse toggles", async () => {
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
-  expect(html).toContain('onPointerDown="{{ n.onDragStart }}"');
   expect(html).toContain('<sc-if value="{{ n.hasKids }}">');
-  expect(html).toContain('<sc-if value="{{ tdMark.show }}">');
-});
-
-test("pressing a tree node blocks the browser's own text-selection drag (which cancels pointer events)", async () => {
-  const c = await treeDeck();
-  c.treeRef.current = { scrollLeft: 0, scrollTop: 0, getBoundingClientRect: () => ({ left: 0, top: 0 }) };
-  let prevented = false;
-  c.startTreeDrag({ clientX: 0, clientY: 0, button: 0, preventDefault() { prevented = true; } }, "a");
-  expect(prevented).toBe(true);
-  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
-  expect(html).toMatch(/top:\{\{ n\.y \}\}px;width:76px;opacity:\{\{ n\.opacity \}\};user-select:none/);
 });
 
 
 
 // ---- delete dialog ----
-test("deleting a slide without children happens immediately", async () => {
-  const c = await treeDeck();
-  c.remove("b");
-  expect(c.state.nodes.b).toBeUndefined();
-  expect(c.state.confirmDel ?? null).toBeNull();
-});
-
-test("deleting a slide with children asks first: delete all, keep children, or cancel", async () => {
-  let c = await treeDeck();
-  c.remove("a");
-  expect(c.state.confirmDel).toEqual({ id: "a", count: 3 });
-  expect(c.state.nodes.a).toBeDefined();
-  c.confirmDelete("cancel");
-  expect(c.state.confirmDel).toBeNull();
-  expect(c.state.nodes.a).toBeDefined();
-
-  c.remove("a"); c.confirmDelete("all");
-  expect(Object.keys(c.state.nodes).sort()).toEqual(["ROOT", "b"]);
-
-  c = await treeDeck();
-  c.remove("a"); c.confirmDelete("keep");
-  expect(c.state.nodes.a).toBeUndefined();
-  expect(c.state.nodes.ROOT.children).toEqual(["a1", "a2", "b"]);
-  expect(c.state.nodes.a1.children).toEqual(["a1x"]);
-
-  c.remove("a1"); key(c, "Escape");
-  expect(c.state.confirmDel).toBeNull();
-  expect(c.state.nodes.a1).toBeDefined();
-});
-
-test("delete dialog is in the template", async () => {
-  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
-  expect(html).toContain('<sc-if value="{{ delDlg.show }}">');
-  expect(html).toContain('<div onClick="{{ stopProp }}" role="dialog"');   // clicks inside the box don't reach the cancelling backdrop
-});
-
 test("every {{ name }} the app template uses is provided by renderVals", async () => {
   const { c } = await mount("?deck=talk");
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
@@ -530,17 +441,6 @@ test("tree zoom: steps, limits and fit-to-width", async () => {
   c.setTreeZoom(0.01); expect(c.state.treeZoom).toBe(0.3);
   c._treeW = 1000; c.treeRef.current = { clientWidth: 408 };
   c.treeZoomFit(); expect(c.state.treeZoom).toBe(0.4);
-});
-
-test("dragging in a zoomed tree hit-tests in unzoomed tree coordinates", async () => {
-  await writeDeck("talk", { ROOT: slideNode("ROOT", "", ["a", "b"]), a: slideNode("a", "A"), b: slideNode("b", "B") });
-  const { c, listeners } = await mount("?deck=talk");
-  c.setState({ treeZoom: 0.5 });
-  c._tpos = { a: { x: 16, y: 18 }, b: { x: 112, y: 18 } };
-  c.treeRef.current = { scrollLeft: 0, scrollTop: 0, getBoundingClientRect: () => ({ left: 0, top: 0 }) };
-  c.startTreeDrag({ clientX: 70, clientY: 15, button: 0, preventDefault() {} }, "b");
-  listeners.pointermove({ clientX: (16 + 5) * 0.5, clientY: 15 });
-  expect(c.state.treeDrag.drop).toEqual({ id: "a", where: "before" });
 });
 
 test("tree panel has zoom controls, a zoom wrapper and the Focus toggle", async () => {
@@ -721,11 +621,10 @@ test("a repeated error doesn't re-render; Interact only applies while the compon
   expect((html.match(/cards="true"/g) || []).length).toBe(4);   // tree, layout previews, frame strip, present tree view
 });
 
-test("regression: every tree node carries its selection, drag, thumbnail framing and layers", async () => {
+test("regression: every tree node carries its selection, thumbnail framing and layers", async () => {
   const c = await treeDeck();
   const n = c.renderVals().treeNodes.find((t: any) => t.title === "A");
-  expect(n).toMatchObject({ selected: true, outline: "2px solid #d9432b", full: "A", dragOp: 1 });
-  expect(typeof n.onDragStart).toBe("function");
+  expect(n).toMatchObject({ selected: true, outline: "2px solid #d9432b", full: "A" });
   expect(typeof n.cam).toBe("string");
   expect(Array.isArray(n.layers)).toBe(true);
 });
@@ -790,14 +689,6 @@ test("turning the title page on seeds its title once and goes there; off keeps i
   c.setTitlePage(true); expect(c.state.nodes.ROOT.title).toBe("Renamed");
 });
 
-test("ROOT can't be deleted, given a sibling, outdented, or dropped beside", async () => {
-  const c = await titleDeck(); const before = c.state.nodes;
-  c.addPeer("ROOT"); c.remove("ROOT"); c.outdent("ROOT");
-  expect(c.state.nodes).toBe(before);
-  c._tpos = { ROOT: { x: 0, y: 0 } }; expect(c.treeDropAt(10, 10, "a")).toBeNull();
-  c.addChild("ROOT"); expect(c.state.nodes.ROOT.children.length).toBe(3); // "+ below" adds a top-level slide
-});
-
 test("titlePage and titleView are saved and reloaded", async () => {
   const c = await titleDeck();
   c.setState({ titleView: { zoom: 2, x: 0.3, y: 0.6 } }); await c.save();
@@ -854,17 +745,15 @@ test("on the title page the crumbs show the top row with nothing current; elsewh
   expect(off.renderVals().crumbRows[0].steps[0].mark).not.toBe("⌂");
 });
 
-test("tree: the title page sits centred above the top row, joined to it, with no sibling/delete/collapse", async () => {
+test("tree: the title page sits centred above the top row, joined to it, with no collapse", async () => {
   const c = await titleDeck();
   const v = c.renderVals(), at = (t: string) => v.treeNodes.find((n: any) => n.full === t);
   const r = at("Big picture"), a = at("A"), b = at("B");
-  expect(r.canPeer).toBe(false); expect(r.hasKids).toBe(false); expect(a.canPeer).toBe(true);
+  expect(r.hasKids).toBe(false);
   expect(a.y).toBeGreaterThan(r.y); expect(r.x).toBeCloseTo((a.x + b.x) / 2);
   expect(v.treeEdges.length).toBe(4);                              // ROOT→a, ROOT→b, a→a1, a→a2
   expect(v.slideOptions[0].id).toBe("ROOT");
   expect(v.treeH).toBeGreaterThan((await titleDeck({})).renderVals().treeH);
-  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
-  expect(html).toContain("{{ n.canPeer }}");
 });
 
 test("Title view controls set zoom/Fit/Cover/pan; the Canvas tab toggles the title page", async () => {
@@ -1536,15 +1425,6 @@ test("present View menu: layout (Slides / Tree / Radial), breadcrumbs, max size;
   for (const h of ["{{ onViewMenu }}", "{{ viewItems }}", "{{ mapCards }}", "{{ mapEdges }}", "{{ onMapZoomIn }}", "{{ onCrumbMode }}", '<sc-if value="{{ crumbsOn }}">']) expect(html).toContain(h);
 });
 
-test("tree: + before adds a sibling to the left (button and Shift+Enter), e.g. a new first slide", async () => {
-  const c = await treeDeck(); c.setState({ cur: "a" });
-  c.renderVals().treeNodes.find((n: any) => n.full === "A").onBefore({ stopPropagation() {} });
-  expect(c.state.nodes.ROOT.children.length).toBe(3); expect(c.state.nodes.ROOT.children.slice(1)).toEqual(["a", "b"]); expect(c.state.cur).toBe(c.state.nodes.ROOT.children[0]);
-  c.setState({ cur: "a2" }); c.onKey({ key: "Enter", shiftKey: true, target: {}, preventDefault() {} });
-  expect(c.state.nodes.a.children.slice(0, 1)).toEqual(["a1"]); expect(c.state.nodes.a.children[2]).toBe("a2"); expect(c.state.cur).toBe(c.state.nodes.a.children[1]);
-  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text(); expect(html).toContain("{{ n.onBefore }}");
-});
-
 test("defaults: 30% row and column steps; H1 centred vertically; Body has a container on", async () => {
   const c = await treeDeck(); const v = c.renderVals();
   expect(v.rowStepLabel).toBe("30% of a slide"); expect(v.gapLabel).toBe("30% of a slide");
@@ -1609,4 +1489,58 @@ test("renameRegion stores names beside slots", async () => {
   c.renameRegion("stacked-1", "body", 0, "Main");
   expect(c.layouts()["stacked-1"].names).toEqual({ body: ["Main"] });
   expect(c.layouts()["stacked-1"].slots.body.length).toBe(1);
+});
+
+// ---- markdown pane ----
+test("pane: input updates md and re-enriches", async () => {
+  await writeMd("talk", TALK);
+  const { c } = await mount("?deck=talk");
+  const v = c.renderVals(); expect(v.mdText).toBe(TALK);
+  v.onMdInput({ target: { value: TALK + "\n# Last\nslug: last\n" } });
+  await Bun.sleep(250); expect(c.state.nodes.last.title).toBe("Last");
+  expect(c.renderVals().mdText).toContain("# Last");
+});
+
+test("pane: copy", async () => {
+  await writeMd("talk", TALK);
+  const { c } = await mount("?deck=talk"); let got = "";
+  Object.defineProperty(globalThis.navigator, "clipboard", { configurable: true, value: { writeText: async (t: string) => { got = t; } } });
+  c.renderVals().onCopyMd(); await Bun.sleep(5);
+  expect(got).toBe(TALK); expect(c.state.note).toBe("Markdown copied");
+});
+
+test("pane: download names", async () => {
+  await writeMd("talk", TALK);
+  const { c } = await mount("?deck=talk"); const got: string[] = [];
+  c.download = (name: string) => got.push(name);
+  c.renderVals().onDownload();
+  expect(got).toEqual(["talk.md", "talk-layout.json"]);
+});
+
+test("pane: issues text, one line per issue; slide change scrolls the textarea to its heading", async () => {
+  await writeMd("talk", TALK);
+  const { c } = await mount("?deck=talk");
+  c.setState({ mdIssues: [{ line: 3, msg: "bad" }, { line: 7, msg: "worse" }] });
+  expect(c.renderVals().mdIssuesText).toBe("line 3: bad\nline 7: worse");
+  const ta: any = { scrollTop: 0 }; c.mdRef.current = ta;
+  c.nav("next", "jump"); c.componentDidUpdate();
+  expect(ta.scrollTop).toBe((c.state.nodes.next._line - 1) * 20);
+  expect(c.state.nodes.next._line).toBeGreaterThan(1);
+});
+
+test("tree: no add/delete controls; Enter in build mode doesn't change nodes", async () => {
+  await writeMd("talk", TALK);
+  const { c } = await mount("?deck=talk");
+  const n = c.renderVals().treeNodes[0]; expect(n.onBefore).toBeUndefined(); expect(n.onDelete).toBeUndefined();
+  const before = c.state.nodes;
+  for (const k of ["Enter", "Tab", "Backspace"]) key(c, k);
+  expect(c.state.nodes).toBe(before);
+});
+
+test("md layer not editable on slide; an extra text layer still is", async () => {
+  await writeMd("talk", TALK);
+  const { c } = await mount("?deck=talk");
+  c.startEdit("md-title"); expect(c.state.editing ?? null).toBeNull();
+  c.setLayers("intro", (ls: any[]) => [...ls, { id: "x1", type: "text", text: "hi", x: 0, y: 0, w: 10, h: 10 }]);
+  c.startEdit("x1"); expect(c.state.editing).toBe("x1");
 });

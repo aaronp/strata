@@ -21,19 +21,6 @@ input,textarea,button{font:inherit;color:inherit}
 </helmet>
 <div style="position:relative;height:100vh;display:flex;flex-direction:column;font-family:'Bricolage Grotesque',sans-serif;font-size:14px;background:#f2eee5;color:#1d1b17">
   <input type="file" accept="image/*,.svg" ref="{{ imgInputRef }}" onChange="{{ onImgFile }}" style="display:none">
-  <sc-if value="{{ delDlg.show }}">
-    <div onClick="{{ delDlg.onCancel }}" style="position:fixed;inset:0;z-index:1000;display:grid;place-items:center;background:rgba(29,27,23,.35)">
-      <div onClick="{{ stopProp }}" role="dialog" aria-modal="true" style="width:min(420px,calc(100vw - 32px));padding:18px 20px;border-radius:12px;background:#fbf9f4;box-shadow:0 20px 60px rgba(0,0,0,.25);display:flex;flex-direction:column;gap:10px">
-        <div style="font-weight:700;font-size:16px">Delete “{{ delDlg.title }}”?</div>
-        <div style="color:#6b6458">It has {{ delDlg.count }} slides under it.</div>
-        <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:6px">
-          <button onClick="{{ delDlg.onCancel }}" style="padding:7px 12px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer">Cancel</button>
-          <button onClick="{{ delDlg.onKeep }}" style="padding:7px 12px;border:1px solid #1d1b17;border-radius:8px;background:#fff;cursor:pointer">Keep children</button>
-          <button onClick="{{ delDlg.onAll }}" style="padding:7px 12px;border:0;border-radius:8px;background:#a8301d;color:#fff;cursor:pointer">{{ delDlg.allLabel }}</button>
-        </div>
-      </div>
-    </div>
-  </sc-if>
   <sc-if value="{{ isPresent }}"><div onMouseEnter="{{ onHdrEnter }}" style="position:fixed;left:0;right:0;top:0;height:10px;z-index:49"></div></sc-if>
   <header onMouseEnter="{{ onHdrEnter }}" onMouseLeave="{{ onHdrLeave }}" style="height:52px;flex:none;display:flex;align-items:center;gap:14px;padding:0 16px;border-bottom:1px solid #e0d9cb;background:#fbf9f4;{{ hdrStyle }}">
     <div style="display:flex;align-items:center;gap:10px;min-width:0">
@@ -49,6 +36,9 @@ input,textarea,button{font:inherit;color:inherit}
       <div style="display:flex;gap:4px;flex:none">
         <button onClick="{{ undo }}" title="Undo (⌘Z)" style="height:30px;padding:0 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;white-space:nowrap;opacity:{{ undoOp }}" style-hover="background:#f5f1e8">↶ Undo</button>
         <button onClick="{{ redo }}" title="Redo (⇧⌘Z)" style="height:30px;padding:0 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;white-space:nowrap;opacity:{{ redoOp }}" style-hover="background:#f5f1e8">↷ Redo</button>
+          <button onClick="{{ onToggleMd }}" title="Show or hide the markdown" style="height:30px;padding:0 10px;border:1px solid #e0d9cb;border-radius:8px;background:{{ mdBtnBg }};cursor:pointer;font-size:13px;white-space:nowrap">Markdown</button>
+          <button onClick="{{ onCopyMd }}" title="Copy the markdown" style="height:30px;padding:0 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;white-space:nowrap">Copy</button>
+          <button onClick="{{ onDownload }}" title="Download the markdown and layout file" style="height:30px;padding:0 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;white-space:nowrap">Download</button>
         <sc-if value="{{ hasDeck }}">
           <button onClick="{{ save }}" title="Save to decks/ (⌘S)" style="height:30px;padding:0 12px;border:1px solid #1d1b17;border-radius:8px;background:#1d1b17;color:#fbf9f4;cursor:pointer;font-size:13px;white-space:nowrap" style-hover="background:#3a362f">{{ saveLabel }}</button>
         </sc-if>
@@ -95,7 +85,6 @@ input,textarea,button{font:inherit;color:inherit}
         <div style="padding:12px 12px 8px;display:flex;flex-direction:column;gap:8px">
           <div style="display:flex;align-items:center;justify-content:space-between">
             <span style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#6b6458">Slide tree · {{ slideCount }}</span>
-            <button onClick="{{ addTop }}" style="padding:3px 8px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer;font-size:12px;white-space:nowrap" style-hover="background:#f5f1e8">+ Top level</button>
           </div>
           <input value="{{ query }}" onChange="{{ onQuery }}" placeholder="Filter…  (Enter jumps to first match)" data-role="filter" style="width:100%;padding:7px 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;outline:none">
           <div style="display:flex;align-items:center;gap:4px">
@@ -117,7 +106,7 @@ input,textarea,button{font:inherit;color:inherit}
             </svg>
             <sc-for list="{{ treeNodes }}" as="n" hint-placeholder-count="6">
               <div style="position:absolute;left:{{ n.x }}px;top:{{ n.y }}px;width:76px;opacity:{{ n.opacity }};user-select:none">
-                <div onPointerDown="{{ n.onDragStart }}" onClick="{{ n.onClick }}" onDoubleClick="{{ n.onRename }}" title="{{ n.from }}" style="position:relative;width:76px;height:43px;border-radius:5px;overflow:hidden;background:{{ base }};cursor:pointer;outline:{{ n.outline }};outline-offset:1px;box-shadow:{{ n.ring }}">
+                <div onClick="{{ n.onClick }}" title="{{ n.from }}" style="position:relative;width:76px;height:43px;border-radius:5px;overflow:hidden;background:{{ base }};cursor:pointer;outline:{{ n.outline }};outline-offset:1px;box-shadow:{{ n.ring }}">
                   <div style="position:absolute;left:0;top:0;width:{{ cam.w }}%;height:{{ cam.h }}%;transform:{{ n.cam }};transform-origin:0 0">
                     <sc-for list="{{ tiles }}" as="tl" hint-placeholder-count="0">
                       <div style="position:absolute;top:{{ tl.t }}%;height:{{ tl.h }}%;left:{{ tl.l }}%;width:calc({{ tl.w }}% + 2px);background:{{ bgCss }};opacity:{{ opacity }}"></div>
@@ -125,30 +114,26 @@ input,textarea,button{font:inherit;color:inherit}
                   </div>
                   <dc-import name="Layers" card="{{ deckCard }}" cards="true" layers="{{ n.layers }}" images="{{ images }}" ink="{{ ink }}" shadow="{{ inkShadow }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
                 </div>
-                <div style="margin-top:3px;display:flex;align-items:center;gap:2px;opacity:{{ n.dragOp }}">
+                <div style="margin-top:3px;display:flex;align-items:center;gap:2px">
                   <sc-if value="{{ n.hasKids }}"><button onClick="{{ n.onToggle }}" title="{{ n.toggleTitle }}" style="flex:none;min-width:18px;height:16px;padding:0 4px;border:1px solid #cfc6b4;border-radius:5px;background:#fff;color:#1d1b17;cursor:pointer;font-size:11px;line-height:14px;font-weight:700;white-space:nowrap">{{ n.toggleLabel }}</button></sc-if>
                   <div style="flex:1;min-width:0;font-size:10.5px;line-height:1.1;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:{{ n.weight }}">{{ n.title }}</div>
                 </div>
-                <sc-if value="{{ n.selected }}">
-                  <sc-if value="{{ n.canPeer }}"><button onClick="{{ n.onBefore }}" title="Add slide before (⇧Enter)" style="position:absolute;left:-24px;top:12px;width:20px;height:20px;padding:0;border:0;border-radius:50%;background:#1d1b17;color:#fbf9f4;cursor:pointer;font-size:13px;line-height:20px">+</button></sc-if>
-                  <sc-if value="{{ n.canPeer }}"><button onClick="{{ n.onPeer }}" title="Add slide after (Enter)" style="position:absolute;left:80px;top:12px;width:20px;height:20px;padding:0;border:0;border-radius:50%;background:#1d1b17;color:#fbf9f4;cursor:pointer;font-size:13px;line-height:20px">+</button></sc-if>
-                  <sc-if value="{{ n.canAdd }}"><button onClick="{{ n.onChild }}" title="Add slide below (Tab)" style="position:absolute;left:28px;top:62px;width:20px;height:20px;padding:0;border:0;border-radius:50%;background:#1d1b17;color:#fbf9f4;cursor:pointer;font-size:13px;line-height:20px">+</button></sc-if>
-                  <sc-if value="{{ n.canPeer }}"><button onClick="{{ n.onDelete }}" title="Delete slide and everything below it" style="position:absolute;right:-7px;top:-7px;width:17px;height:17px;padding:0;border:0;border-radius:50%;background:#fff;color:#a8301d;box-shadow:0 1px 3px rgba(0,0,0,.25);cursor:pointer;font-size:9px;line-height:17px;opacity:{{ n.delOpacity }}">✕</button></sc-if>
-                </sc-if>
               </div>
             </sc-for>
-            <sc-if value="{{ tdMark.show }}">
-              <div style="position:absolute;left:{{ tdMark.l }}px;top:{{ tdMark.t }}px;width:{{ tdMark.w }}px;height:{{ tdMark.h }}px;border:{{ tdMark.border }};border-radius:6px;background:{{ tdMark.bg }};box-sizing:border-box;pointer-events:none"></div>
-            </sc-if>
-            <sc-if value="{{ tdGhost.show }}">
-              <div style="position:absolute;left:{{ tdGhost.l }}px;top:{{ tdGhost.t }}px;max-width:140px;padding:3px 8px;border-radius:6px;background:#1d1b17;color:#fbf9f4;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;z-index:10">{{ tdGhost.title }}</div>
-            </sc-if>
           </div>
           </div>
         </div>
         <div style="flex:none;padding:8px 12px 10px;border-top:1px solid #e0d9cb;display:flex;flex-wrap:wrap;gap:4px 12px;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#6b6458">
-          <span>Enter after</span><span>Tab below</span><span>⌫ delete</span><span>Arrows move</span><span>Dbl-click rename</span>
+          <span>Arrows move</span><span>Click jumps</span>
         </div>
+      </aside>
+    </sc-if>
+
+    <sc-if value="{{ showMd }}">
+      <aside style="position:relative;width:{{ mdW }}px;flex:none;min-height:0;display:flex;flex-direction:column;border-right:1px solid #e0d9cb;background:#fbf9f4">
+        <div onPointerDown="{{ onMdResize }}" title="Drag to resize" style="position:absolute;right:-4px;top:0;bottom:0;width:8px;cursor:col-resize;z-index:20" style-hover="background:rgba(217,67,43,.25)"></div>
+        <textarea ref="{{ mdRef }}" value="{{ mdText }}" onInput="{{ onMdInput }}" spellcheck="false" data-role="md" style="flex:1;min-height:0;resize:none;border:0;outline:none;padding:12px;background:#fbf9f4;color:#1d1b17;font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:20px;white-space:pre;overflow:auto"></textarea>
+        <sc-if value="{{ hasMdIssues }}"><pre data-role="md-issues" style="flex:none;margin:0;max-height:96px;overflow:auto;padding:6px 12px;border-top:1px solid #e0d9cb;background:#fff6e0;color:#8a5a00;font-family:'JetBrains Mono',monospace;font-size:11px">{{ mdIssuesText }}</pre></sc-if>
       </aside>
     </sc-if>
 
@@ -1113,7 +1098,7 @@ function enrich(sections, layouts, opts = {}) {
         extra = { frames: [{ id: 'f1', layers: gen.map(l => { const k = rest.indexOf(l); return k < 0 ? l : { ...l, ...st[k], _warn: true }; }) }] }; }
     }
     for (const f of extra.frames.slice(0, 1)) for (const l of f.layers) if (l._warn) warnings.push({ id, block: l.id.slice(3) });
-    nodes[id] = { ...extra, id, title: plainText(sec.title), body: sec.body, children: sec.children.map(c => prefix + c.slug), childSrc: sec.childSrc || [], ...(from ? { _from: from } : {}) };
+    nodes[id] = { ...extra, id, title: plainText(sec.title), _line: sec.line, body: sec.body, children: sec.children.map(c => prefix + c.slug), childSrc: sec.childSrc || [], ...(from ? { _from: from } : {}) };
     sec.children.forEach(c => add(c, depth + 1));
   };
   sections.forEach(s => add(s, depth0));
@@ -1121,7 +1106,7 @@ function enrich(sections, layouts, opts = {}) {
   nodes.ROOT = { ...R, id: 'ROOT', children: sections.map(s => prefix + s.slug) };
   return { nodes, images, warnings };
 }
-const NOT_SAVED = ['id', 'title', 'body', 'children', 'childSrc', '_from', '_kept'];
+const NOT_SAVED = ['id', 'title', 'body', 'children', 'childSrc', '_from', '_kept', '_line'];
 function layoutOf(nodes, deckFields = {}) {
   const deck = {}; for (const k of DECK_FIELDS) if (k in deckFields && !['nodes', 'title', 'source'].includes(k)) deck[k] = deckFields[k];
   if (deck.images) deck.images = Object.fromEntries(Object.entries(deck.images).filter(([k]) => !k.startsWith('md:')));
@@ -1425,9 +1410,9 @@ class Component extends DCLogic {
   state = {
     md: SEED, mdIssues: [], nodes: enrich(MD.parseMarkdown(SEED).sections, []).nodes, cur: 'a', prev: null, phase: 'idle', dx: 0, dy: 0, type: 'swipe', mode: STATIC ? 'present' : 'build', view: 'slide', rtab: 'slide',
     query: '', bg: 'balloons', customBg: null, customAspect: 1, opacity: 1, base: '#0b1220', offset: 0,
-    tAll: { ease: false, dur: false, delay: false }, tdef: {}, dAll: { ease: false, dur: false, delay: false }, secOpen: { layout: true, frames: true, layers: true, tdef: false }, collapsed: {}, rowGap: -0.7, gap: -0.7, tone: 'light', editMode: 'rich', speed: 900, lastChild: {}, navW: 280, rightW: 340, images: {}, layerSel: null, editing: null, guides: {},
+    tAll: { ease: false, dur: false, delay: false }, tdef: {}, dAll: { ease: false, dur: false, delay: false }, secOpen: { layout: true, frames: true, layers: true, tdef: false }, collapsed: {}, rowGap: -0.7, gap: -0.7, tone: 'light', editMode: 'rich', speed: 900, lastChild: {}, navW: 280, rightW: 340, mdOpen: true, mdW: 380, images: {}, layerSel: null, editing: null, guides: {},
   };
-  treeRef = React.createRef(); titleRef = React.createRef(); searchRef = React.createRef(); stageRef = React.createRef(); editRef = React.createRef(); wysRef = React.createRef(); imgInputRef = React.createRef();
+  treeRef = React.createRef(); mdRef = React.createRef(); titleRef = React.createRef(); searchRef = React.createRef(); stageRef = React.createRef(); editRef = React.createRef(); wysRef = React.createRef(); imgInputRef = React.createRef();
 
   componentDidMount() {
     if (!STATIC) try { const ui = JSON.parse(localStorage.getItem(UIKEY) || 'null'); if (ui) this.setState(ui); } catch (e) {}
@@ -1589,10 +1574,10 @@ class Component extends DCLogic {
       if (!this._sr || refs.some((v, i) => v !== this._sr[i])) { this._sr = refs; try { localStorage.setItem(KEY, JSON.stringify({ md: S.md, layout: layoutOf(S.nodes, S) })); } catch (e) {} }
     }
     if (!STATIC) {
-      const u = JSON.stringify({ navW: S.navW, rightW: S.rightW, secOpen: S.secOpen, stab: S.stab, presentFit: S.presentFit, showCrumbs: S.showCrumbs, crumbFade: S.crumbFade, view: S.view, rtab: S.rtab, collapsed: S.collapsed, treeZoom: S.treeZoom, treeFocus: S.treeFocus });
+      const u = JSON.stringify({ navW: S.navW, rightW: S.rightW, mdW: S.mdW, mdOpen: S.mdOpen, secOpen: S.secOpen, stab: S.stab, presentFit: S.presentFit, showCrumbs: S.showCrumbs, crumbFade: S.crumbFade, view: S.view, rtab: S.rtab, collapsed: S.collapsed, treeZoom: S.treeZoom, treeFocus: S.treeFocus });
       if (u !== this._u) { this._u = u; try { localStorage.setItem(UIKEY, u); } catch (e) {} }
     }
-    if (S.cur !== this._lastCur) { this._lastCur = S.cur; this.scrollTree(); if (S.showCrumbs === 'fade') this.litCrumbs(); }
+    if (S.cur !== this._lastCur) { this._lastCur = S.cur; this.scrollTree(); this.scrollMd(); if (S.showCrumbs === 'fade') this.litCrumbs(); }
     if (this.measureStage()) this.forceUpdate();
     const ck = this.curId(), cf = this.fiFor(ck);
     if (ck !== this._compCur) { this._compCur = ck; this._compFi = cf; this._claims = {}; this._fwd = null; }
@@ -1726,7 +1711,6 @@ class Component extends DCLogic {
     this.setState({ titlePage: on, ...seed, ...(go ? { ...go, prev: null, phase: 'idle', fi: 0, layerSel: null, editing: null, tween: null, transSel: null, fprev: false, confirmDup: null } : {}) });
   }
   setNode(id, patch) { this.setState(s => ({ nodes: { ...s.nodes, [id]: { ...s.nodes[id], ...patch } } })); }
-  focusTitle() { setTimeout(() => { const el = this.titleRef.current; if (el) { el.focus(); el.select(); } }, 40); }
   // Nav tree zoom (view preference): 30%–150%, stepped, or fit to the panel's width.
   setTreeZoom(z) { this.setState({ treeZoom: Math.round(Math.max(0.3, Math.min(1.5, z)) * 100) / 100 }); }
   treeZoomStep(dir) {
@@ -1755,85 +1739,17 @@ class Component extends DCLogic {
     if (closing && cur !== id && this.isUnder(cur, id)) this.nav(id, 'jump');   // collapsing above the current slide: select the collapsed slide so it actually closes
   }
   isUnder(id, anc) { const D = this.derive(); for (let x = id; x; x = D.parent[x]) if (x === anc) return true; return false; }
-  // Move a slide (with its subtree) before/after a slide, or inside it as its last child.
-  moveNode(id, tid, where) {
-    const N = this.state.nodes, D = this.derive(), T = N[tid];
-    if (!N[id] || !T || id === tid || this.isUnder(tid, id)) return;
-    if (N[id]._from || T._from) { this.flash(RO_MSG); return; }
-    const nodes = { ...N }, pid = D.parent[id];
-    nodes[pid] = { ...N[pid], children: N[pid].children.filter(k => k !== id) };
-    if (where === 'child') nodes[tid] = { ...nodes[tid], children: [...nodes[tid].children, id] };
-    else { const tp = D.parent[tid], ks = [...nodes[tp].children]; ks.splice(ks.indexOf(tid) + (where === 'after' ? 1 : 0), 0, id); nodes[tp] = { ...nodes[tp], children: ks }; }
-    this.setState(s => ({ nodes, ...(where === 'child' && (s.collapsed || {})[tid] ? { collapsed: { ...s.collapsed, [tid]: false } } : {}) }));
-  }
-  // Drop target under a point in tree coordinates: left third = before, middle = inside, right third = after.
-  treeDropAt(x, y, dragId) {
-    const tp = this._tpos || {};
-    for (const id in tp) {
-      if (id === 'ROOT') continue; const p = tp[id]; if (x < p.x || x > p.x + TW || y < p.y - 4 || y > p.y + 60) continue;
-      if (id === dragId || this.isUnder(id, dragId)) return null;
-      if (this.state.nodes[id]._from) return null;
-      const r = (x - p.x) / TW, where = r < 1 / 3 ? 'before' : r > 2 / 3 ? 'after' : 'child';
-      return { id, where };
-    }
-    return null;
-  }
-  startTreeDrag(ev, id) {
-    if (ev.button) return;
-    ev.preventDefault();   // else the browser starts a text-selection drag, which cancels our pointer events
-    const el = this.treeRef.current; if (!el) return;
-    const z = this.state.treeZoom || 1;   // _tpos is in unzoomed tree coordinates
-    const at = e => { const r = el.getBoundingClientRect(); return { x: (e.clientX - r.left + el.scrollLeft) / z, y: (e.clientY - r.top + el.scrollTop) / z }; };
-    let dragging = false; this._treeDragCancel = false;
-    const move = e => {
-      if (this._treeDragCancel) return;
-      if (!dragging && Math.abs(e.clientX - ev.clientX) + Math.abs(e.clientY - ev.clientY) < 5) return; dragging = true;
-      if (this.state.nodes[id]._from) { up(); this.flash(RO_MSG, 6000); return; }
-      const p = at(e); this.setState({ treeDrag: { id, x: p.x, y: p.y, drop: this.treeDropAt(p.x, p.y, id) } });
-    };
-    const up = () => {
-      window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up);
-      const d = this.state.treeDrag;
-      // Swallow only the click that immediately follows this drag (if it lands on a slide at all).
-      if (dragging) { this._suppressClick = true; setTimeout(() => { this._suppressClick = false; }, 0); if (d && d.drop && !this._treeDragCancel) this.moveNode(id, d.drop.id, d.drop.where); }
-      this.setState({ treeDrag: null });
-    };
+  // The markdown pane: the slide's heading line goes to the top of the textarea (20px lines).
+  scrollMd() { const t = this.mdRef.current, n = this.state.nodes[this.state.cur]; if (t && n && n._line) t.scrollTop = (n._line - 1) * 20; }
+  mdResize(ev) {
+    ev.preventDefault(); const sx = ev.clientX, w0 = this.state.mdW;
+    const move = e => this.setState({ mdW: Math.max(240, Math.min(w0 + e.clientX - sx, window.innerWidth - this.state.navW - 380)) });
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
     window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
   }
-  insert(pid, index) {
-    if (this.state.nodes[pid]._from) { this.flash(RO_MSG); return; }
-    const S = this.state; const id = uid(); const p = S.nodes[pid]; const kids = [...p.children]; kids.splice(index, 0, id);
-    this.setState({ nodes: { ...S.nodes, [id]: { id, title: 'New slide', body: '', children: [] }, [pid]: { ...p, children: kids } }, cur: id, prev: null, phase: 'idle', query: '', rtab: 'slide', fi: 0, transSel: null });
-    this.focusTitle();
-  }
-  addPeer(id, before) { if (id === 'ROOT') return; if (this.state.nodes[id]._from) { this.flash(RO_MSG); return; } const D = this.derive(); const pid = D.parent[id]; this.insert(pid, this.state.nodes[pid].children.indexOf(id) + (before ? 0 : 1)); }
-  addChild(id) { this.insert(id, this.state.nodes[id].children.length); }
-  // Deleting a slide with children asks first: delete them too, or move them up into its place.
-  remove(id) {
-    const N = this.state.nodes; if (!N[id] || id === 'ROOT') return;
-    if (N[id]._from) { this.flash(RO_MSG); return; }
-    const count = (function c(x) { return N[x].children.reduce((n, k) => n + 1 + c(k), 0); })(id);
-    if (count) this.setState({ confirmDel: { id, count } }); else this.removeNode(id, false);
-  }
-  confirmDelete(choice) {
-    const c = this.state.confirmDel; this.setState({ confirmDel: null });
-    if (c && choice !== 'cancel') this.removeNode(c.id, choice === 'keep');
-  }
-  removeNode(id, keepKids) {
-    const D = this.derive(), N = this.state.nodes, pid = D.parent[id];
-    const nodes = { ...N }; const kill = x => { nodes[x].children.forEach(kill); delete nodes[x]; };
-    const kids = N[pid].children, i = kids.indexOf(id), moved = keepKids ? N[id].children : [];
-    if (keepKids) delete nodes[id]; else kill(id);
-    if (Object.keys(nodes).length <= 1) return;   // never delete the last slide
-    nodes[pid] = { ...N[pid], children: [...kids.slice(0, i), ...moved, ...kids.slice(i + 1)] };
-    const next = moved[0] || kids[i - 1] || kids[i + 1] || (pid !== 'ROOT' ? pid : null);
-    this.setState({ nodes, cur: next || nodes.ROOT.children[0], prev: null, phase: 'idle', fi: 0, transSel: null });
-  }
-  outdent(id) {
-    if (id === 'ROOT') return; if (this.state.nodes[id]._from) { this.flash(RO_MSG); return; }
-    const D = this.derive(); const pid = D.parent[id]; if (pid === 'ROOT') return; const gid = D.parent[pid]; const N = this.state.nodes;
-    const g = [...N[gid].children]; g.splice(g.indexOf(pid) + 1, 0, id);
-    this.setState({ nodes: { ...N, [pid]: { ...N[pid], children: N[pid].children.filter(k => k !== id) }, [gid]: { ...N[gid], children: g } } });
+  // Browser download seam (tests replace it).
+  download(name, text, type = 'text/plain') {
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; a.click(); URL.revokeObjectURL(a.href);
   }
   rightResize(ev) {
     ev.preventDefault(); const sx = ev.clientX; const w0 = this.state.rightW;
@@ -2162,7 +2078,7 @@ class Component extends DCLogic {
     window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
   }
   startEdit(lid) {
-    const l = this.layersOf(this.curId()).find(x => x.id === lid); if (!l) return;
+    const l = this.layersOf(this.curId()).find(x => x.id === lid); if (!l || isMd(l)) return;   // markdown owns its layers' content
     if (l.type === 'text') { this.setState({ editing: lid, layerSel: lid }); setTimeout(() => { const t = this.editRef.current; if (t) { t.focus(); t.select(); } }, 40); }
     else if (l.type === 'image') this.chooseImage(lid);
   }
@@ -2223,8 +2139,6 @@ class Component extends DCLogic {
   onKey(e) {
     const t = e.target; const typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || !!t.isContentEditable || !!(t.closest && t.closest('[data-role="fmtbar"]'))); const k = e.key; const S = this.state;
     if ((e.metaKey || e.ctrlKey) && (k === 's' || k === 'S')) { e.preventDefault(); this.save(); return; }
-    if (S.confirmDel) { if (k === 'Escape') { e.preventDefault(); this.confirmDelete('cancel'); } return; }
-    if (k === 'Escape' && S.treeDrag) { this._treeDragCancel = true; this.setState({ treeDrag: null }); return; }
     if (typing) {
       if ((t === this.editRef.current || t.isContentEditable) && (e.metaKey || e.ctrlKey) && /^[bi]$/i.test(k)) { e.preventDefault(); this.formatSel(k.toLowerCase() === 'b' ? { bold: true } : { italic: true }); return; }
       if ((e.metaKey || e.ctrlKey) && (k === 'z' || k === 'Z' || k === 'y' || k === 'Y') && t.isContentEditable) { e.preventDefault(); if (k === 'y' || k === 'Y' || e.shiftKey) this.redo(); else this.undo(); return; }   // the app's undo, not the browser's
@@ -2275,10 +2189,6 @@ class Component extends DCLogic {
       else if (k === 'Escape' && S.viewMenu) this.setState({ viewMenu: false });
       else if (k === 'Escape' && (S.presentView === 'tree' || S.presentView === 'radial')) this.setState({ presentView: 'slides' });
       else if (k === 'Escape' && !STATIC) this.setState({ mode: 'build' });
-    } else {
-      if (k === 'Enter') { e.preventDefault(); this.addPeer(S.cur, e.shiftKey); }
-      else if (k === 'Tab') { e.preventDefault(); if (e.shiftKey) this.outdent(S.cur); else this.addChild(S.cur); }
-      else if (k === 'Backspace' || k === 'Delete') { e.preventDefault(); this.remove(S.cur); }
     }
   }
   onUpload(ev) {
@@ -2314,15 +2224,13 @@ class Component extends DCLogic {
     const r0 = S.titlePage ? 1 : 0; TV.kids('ROOT').forEach(k => lay(k, r0));
     if (r0) { const tk = TV.kids('ROOT'); tp.ROOT = { x: tk.length ? (tp[tk[0]].x + tp[tk[tk.length - 1]].x) / 2 : TPX, y: TPY }; }
     this._tpos = tp; this._treeW = TPX * 2 + Math.max(1, leaf) * COLW + 20;
-    const td = S.treeDrag;
     const treeNodes = (r0 ? ['ROOT'] : []).concat(TV.vis).map(id => ({ x: tp[id].x, y: tp[id].y, title: name(id),
-      hasKids: id !== 'ROOT' && N[id].children.length > 0, canPeer: id !== 'ROOT' && !N[id]._from, canAdd: id === 'ROOT' || !N[id]._from, ring: N[id]._from ? '0 0 0 2px #9db8d3' : '0 1px 3px rgba(0,0,0,.18)', from: N[id]._from ? 'From ' + N[id]._from : name(id), toggleLabel: TV.kids(id).length ? '▾' : '▸ ' + countUnder(id), toggleTitle: TV.kids(id).length ? 'Collapse' : 'Expand',
+      hasKids: id !== 'ROOT' && N[id].children.length > 0, ring: N[id]._from ? '0 0 0 2px #9db8d3' : '0 1px 3px rgba(0,0,0,.18)', from: N[id]._from ? 'From ' + N[id]._from : name(id), toggleLabel: TV.kids(id).length ? '▾' : '▸ ' + countUnder(id), toggleTitle: TV.kids(id).length ? 'Collapse' : 'Expand',
       // A slide whose children are hidden only by Focus: clicking its toggle goes there instead of collapsing.
       onToggle: e => { e.stopPropagation(); if (S.treeFocus && !TV.kids(id).length && TV.expanded(id)) this.nav(id, 'jump'); else this.toggleCollapse(id); },
-      onDragStart: ev => { if (id !== 'ROOT') this.startTreeDrag(ev, id); }, dragOp: td && td.id === id ? 0.35 : 1, full: name(id), cam: camOf(id), layers: this.shown(id, this.layersOf(id)), selected: id === cur, outline: id === cur ? '2px solid #d9432b' : 'none',
-      weight: id === cur ? 700 : 500, opacity: q && !match[id] ? 0.35 : 1, delOpacity: D.order.length > 1 ? 1 : 0.4,
-      onClick: () => { if (this._suppressClick) { this._suppressClick = false; return; } this.nav(id, 'jump'); }, onRename: () => { this.nav(id, 'jump'); this.setState({ rtab: 'slide' }); this.focusTitle(); },
-      onPeer: e => { e.stopPropagation(); this.addPeer(id); }, onBefore: e => { e.stopPropagation(); this.addPeer(id, true); }, onChild: e => { e.stopPropagation(); this.addChild(id); }, onDelete: e => { e.stopPropagation(); this.remove(id); } }));
+      full: name(id), cam: camOf(id), layers: this.shown(id, this.layersOf(id)), selected: id === cur, outline: id === cur ? '2px solid #d9432b' : 'none',
+      weight: id === cur ? 700 : 500, opacity: q && !match[id] ? 0.35 : 1,
+      onClick: () => this.nav(id, 'jump') }));
     const treeEdges = TV.vis.filter(id => tp[D.parent[id]]).map(id => { const a = tp[D.parent[id]], b = tp[id]; const x1 = a.x + TW / 2, y1 = a.y + 60, x2 = b.x + TW / 2, y2 = b.y - 2; return { d: `M${x1} ${y1}V${y1 + 12}H${x2}V${y2}` }; });
     // The top-row connector joins only the top-level slides the tree lays out (Focus hides the rest).
     const tops = TV.kids('ROOT'); const topEdge = !r0 && tops.length > 1 ? [{ d: `M${tp[tops[0]].x + TW / 2} ${TPY - 8}H${tp[tops[tops.length - 1]].x + TW / 2}` }].concat(tops.map(t => ({ d: `M${tp[t].x + TW / 2} ${TPY - 8}V${TPY - 2}` }))) : [];
@@ -2723,16 +2631,15 @@ class Component extends DCLogic {
       cardOn: cardCfg.mode !== 'none', cardColor: cardCfg.color, onCardColor: e => setCard({ color: e.target.value }),
       cardOp: cardCfg.opacity, cardOpLabel: Math.round(cardCfg.opacity * 100) + '%', onCardOp: e => setCard({ opacity: +e.target.value }),
       cardBlur: cardCfg.blur, cardBlurLabel: cardCfg.blur + ' px', onCardBlur: e => setCard({ blur: +e.target.value }), deckCard: S.card || null,
-      delDlg: S.confirmDel && N[S.confirmDel.id] ? { show: true, title: name(S.confirmDel.id), count: S.confirmDel.count, allLabel: 'Delete all ' + (S.confirmDel.count + 1),
-        onAll: () => this.confirmDelete('all'), onKeep: () => this.confirmDelete('keep'), onCancel: () => this.confirmDelete('cancel') } : { show: false, title: '', count: 0, allLabel: '' },
       hasDeck: !!DECK && !STATIC, save: () => this.save(), saveLabel: S.saving ? 'Saving…' : S.saveMsg ? '⚠ Save' : this.isDirty() ? '● Unsaved' : '✓ Saved',
       modeTabs: STATIC ? [] : [{ label: 'Build', ...tab(!isPresent), onClick: () => this.setState({ mode: 'build' }) }, { label: 'Present', ...tab(isPresent), onClick: () => this.setState({ mode: 'present', query: '' }) }],
+      showMd: !isPresent && S.mdOpen !== false, mdBtnBg: S.mdOpen !== false ? '#ece6d9' : '#fff', onToggleMd: () => this.setState(s => ({ mdOpen: s.mdOpen === false })),
+      mdW: Math.max(240, S.mdW), onMdResize: e => this.mdResize(e), mdRef: this.mdRef, mdText: S.md, onMdInput: e => this.setMd(e.target.value),
+      mdIssuesText: S.mdIssues.map(i => 'line ' + i.line + ': ' + i.msg).join('\n'), hasMdIssues: S.mdIssues.length > 0,
+      onCopyMd: () => navigator.clipboard.writeText(S.md).then(() => this.flash('Markdown copied'), e => this.flash('Clipboard blocked: ' + e.message)),
+      onDownload: () => { const n = DECK || (SRC && SRC.split('/').pop().replace(/\.md$/, '')) || 'deck'; this.download(n + '.md', S.md); this.download(n + '-layout.json', JSON.stringify(layoutOf(S.nodes, S), null, 2), 'application/json'); },
       isBuild: !isPresent, isPresent, slideCount: D.order.length, query: S.query, onQuery: e => this.setState({ query: e.target.value }),
-      addTop: () => this.insert('ROOT', N.ROOT.children.length),
       navW: Math.max(200, Math.min(S.navW, (typeof window !== 'undefined' ? window.innerWidth : 1400) - (this.state.rightW || 300) - 380)), onNavResize: e => this.navResize(e),
-      tdMark: (() => { const d = td && td.drop, p = d && tp[d.id]; if (!p) return { show: false, l: 0, t: 0, w: 0, h: 0, border: 'none', bg: 'none' };
-        return d.where === 'child' ? { show: true, l: p.x - 4, t: p.y - 4, w: TW + 8, h: 51, border: '2px dashed #1f6fb8', bg: 'rgba(31,111,184,.12)' } : { show: true, l: d.where === 'before' ? p.x - 7 : p.x + TW + 4, t: p.y - 2, w: 3, h: 47, border: 'none', bg: '#1f6fb8' }; })(),
-      tdGhost: td ? { show: true, l: td.x + 10, t: td.y + 10, title: name(td.id) } : { show: false, l: 0, t: 0, title: '' },
       treeZoom: S.treeZoom || 1, treeZoomLabel: Math.round((S.treeZoom || 1) * 100) + '%', treeZoomIn: () => this.treeZoomStep(1), treeZoomOut: () => this.treeZoomStep(-1),
       treeZoomReset: () => this.setTreeZoom(1), treeZoomFit: () => this.treeZoomFit(), toggleFocus: () => this.setState(s => ({ treeFocus: !s.treeFocus })),
       focusBg: S.treeFocus ? '#1d1b17' : '#fff', focusColor: S.treeFocus ? '#fbf9f4' : '#1d1b17',

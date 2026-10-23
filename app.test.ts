@@ -1774,3 +1774,32 @@ test("split lines into layers: one layer per non-empty line, stacked in the box,
   expect(c.selIds()).toEqual(ls.slice(0, 3).map((l: any) => l.id));   // ready for Add as sequence
   c.setSelection(["b"]); expect(c.renderVals().canSplit).toBe(false);
 });
+
+// ---- layouts by markdown block ----
+const BL = (id: string, block: string, extra: object = {}) => ({ id, type: "text", text: id, x: 0, y: 0, w: 10, h: 10, block, ...extra });
+
+test("shape: sources and layers without a block don't count", async () => {
+  const { sigOf, sigKey } = await lay();
+  expect(sigKey(sigOf([BL("t", "title"), BL("b", "body"), BL("s", "sources")], {}))).toBe("body:1,title:1");
+  expect(sigKey(sigOf([BL("t", "title"), LTX("x", "h1", 0, 0), BL("h", "body", { hidden: true })], {}))).toBe("title:1");
+});
+
+test("layouts: stacked-2 is the first match for body:2; list built-ins", async () => {
+  const { BUILTIN_LAYOUTS, sigKey } = await lay();
+  expect(Object.values<any>(BUILTIN_LAYOUTS).find(L => sigKey(L.match) === "body:2,title:1").name).toBe("Stacked 2");
+  expect(BUILTIN_LAYOUTS["text-list"].slots.list[0]).toMatchObject({ x: 52, y: 24, w: 42, h: 66 });
+});
+
+test("fillSlots: sources default box, and a layout's own sources region wins", async () => {
+  const { BUILTIN_LAYOUTS, fillSlots } = await lay();
+  const s = BL("s", "sources");
+  expect(fillSlots([BL("t", "title"), s], BUILTIN_LAYOUTS.title, {}).s).toEqual({ x: 6, y: 89, w: 88, h: 5, rot: 0 });
+  expect(fillSlots([s], { slots: { sources: [{ x: 1, y: 2, w: 3, h: 4 }] } }, {}).s).toMatchObject({ x: 1, y: 2 });
+});
+
+test("renameRegion stores names beside slots", async () => {
+  const c = await layDeck({ a: [BL("t", "title"), BL("b", "body")] });
+  c.renameRegion("stacked-1", "body", 0, "Main");
+  expect(c.layouts()["stacked-1"].names).toEqual({ body: ["Main"] });
+  expect(c.layouts()["stacked-1"].slots.body.length).toBe(1);
+});

@@ -467,7 +467,7 @@ input,textarea,button{font:inherit;color:inherit}
                         <button onClick="{{ lt.onApplyAll }}" title="Make this the default for this type and update every slide of the type that isn't custom" style="flex:1;padding:3px 0;border:0;border-radius:6px;background:#1d1b17;color:#fbf9f4;cursor:pointer;font-size:11.5px">Apply to all</button>
                       </div>
                       <button onClick="{{ lt.onToggle }}" style="align-self:flex-start;padding:0;border:0;background:none;color:#1f4f80;cursor:pointer;font-size:11.5px">{{ lt.count }}</button>
-                      <sc-if value="{{ lt.open }}"><div style="display:flex;flex-direction:column;gap:2px"><sc-for list="{{ lt.slides }}" as="ls" hint-placeholder-count="2"><button onClick="{{ ls.onClick }}" style="padding:0;border:0;background:none;text-align:left;color:#1d1b17;cursor:pointer;font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">→ {{ ls.name }}</button></sc-for></div></sc-if>
+                      <sc-if value="{{ lt.open }}"><sc-for list="{{ lt.regions }}" as="rg" hint-placeholder-count="2"><input value="{{ rg.value }}" onChange="{{ rg.onChange }}" title="Region name ({{ rg.label }})" style="min-width:0;height:20px;padding:0 4px;border:1px solid #e0d9cb;border-radius:4px;font-size:11px"></sc-for><div style="display:flex;flex-direction:column;gap:2px"><sc-for list="{{ lt.slides }}" as="ls" hint-placeholder-count="2"><button onClick="{{ ls.onClick }}" style="padding:0;border:0;background:none;text-align:left;color:#1d1b17;cursor:pointer;font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">→ {{ ls.name }}</button></sc-for></div></sc-if>
                     </div>
                   </sc-for>
                 </div>
@@ -1012,28 +1012,38 @@ const mergeStyles = own => { const out = {}; for (const k in BUILTIN_STYLES) out
 // ---- Layouts: arrangements matched to a slide's signature (its counted content, by style); slots are boxes in % of the slide.
 const B = (x, y, w, h) => ({ x, y, w, h, rot: 0 });
 const HEAD = [B(6, 6, 88, 14)];
+const BODY_Y = [24, 90];
+const stackOf = n => { const h = (BODY_Y[1] - BODY_Y[0] - 2 * (n - 1)) / n; return Array.from({ length: n }, (_, i) => B(6, +(BODY_Y[0] + i * (h + 2)).toFixed(2), 88, +h.toFixed(2))); };
 const BUILTIN_LAYOUTS = {
-  title: { name: 'Title', match: { h1: 1 }, slots: { h1: [B(8, 38, 84, 22)] } },
-  stacked: { name: 'Title + text', match: { h1: 1, body: 1 }, slots: { h1: HEAD, body: [B(6, 24, 88, 66)] } },
-  'text-links': { name: 'Text + links', match: { h1: 1, body: 1, bullets: 1 }, slots: { h1: HEAD, body: [B(6, 24, 56, 66)], bullets: [B(66, 24, 28, 60)] } },
-  links: { name: 'Title + links', match: { h1: 1, bullets: 1 }, slots: { h1: HEAD, bullets: [B(6, 24, 60, 66)] } },
-  'cols-2': { name: 'Two columns', match: { h1: 1, body: 2 }, slots: { h1: HEAD, body: [B(6, 24, 42, 66), B(52, 24, 42, 66)] } },
-  'stack-2': { name: 'Two stacked', match: { h1: 1, body: 2 }, slots: { h1: HEAD, body: [B(6, 24, 88, 31), B(6, 59, 88, 31)] } },
-  'cols-3': { name: 'Three columns', match: { h1: 1, body: 3 }, slots: { h1: HEAD, body: [B(6, 24, 27.3, 66), B(36.3, 24, 27.3, 66), B(66.6, 24, 27.3, 66)] } },
-  'grid-4': { name: 'Grid of four', match: { h1: 1, body: 4 }, slots: { h1: HEAD, body: [B(6, 24, 42, 31), B(52, 24, 42, 31), B(6, 59, 42, 31), B(52, 59, 42, 31)] } },
-  'image-right': { name: 'Image right', match: { h1: 1, body: 1, image: 1 }, slots: { h1: HEAD, body: [B(6, 24, 42, 66)], image: [B(52, 24, 42, 66)] } },
-  'image-full': { name: 'Full image', match: { h1: 1, image: 1 }, slots: { image: [B(0, 0, 100, 100)], h1: [B(6, 72, 88, 18)] } },
+  'stacked-1': { name: 'Stacked', match: { title: 1, body: 1 }, slots: { title: HEAD, body: stackOf(1) } },
+  'stacked-2': { name: 'Stacked 2', match: { title: 1, body: 2 }, slots: { title: HEAD, body: stackOf(2) } },
+  'stacked-3': { name: 'Stacked 3', match: { title: 1, body: 3 }, slots: { title: HEAD, body: stackOf(3) } },
+  'stacked-4': { name: 'Stacked 4', match: { title: 1, body: 4 }, slots: { title: HEAD, body: stackOf(4) } },
+  title: { name: 'Title', match: { title: 1 }, slots: { title: [B(8, 38, 84, 22)] } },
+  list: { name: 'Title + list', match: { title: 1, list: 1 }, slots: { title: HEAD, list: [B(6, 24, 88, 66)] } },
+  'text-list': { name: 'Text + list', match: { title: 1, body: 1, list: 1 }, slots: { title: HEAD, body: [B(6, 24, 42, 66)], list: [B(52, 24, 42, 66)] } },
+  'text-links': { name: 'Text + links', match: { title: 1, body: 1, links: 1 }, slots: { title: HEAD, body: [B(6, 24, 56, 66)], links: [B(66, 24, 28, 60)] } },
+  links: { name: 'Title + links', match: { title: 1, links: 1 }, slots: { title: HEAD, links: [B(6, 24, 60, 66)] } },
+  'cols-2': { name: 'Two columns', match: { title: 1, body: 2 }, slots: { title: HEAD, body: [B(6, 24, 42, 66), B(52, 24, 42, 66)] } },
+  'cols-3': { name: 'Three columns', match: { title: 1, body: 3 }, slots: { title: HEAD, body: [B(6, 24, 27.3, 66), B(36.3, 24, 27.3, 66), B(66.6, 24, 27.3, 66)] } },
+  'grid-4': { name: 'Grid of four', match: { title: 1, body: 4 }, slots: { title: HEAD, body: [B(6, 24, 42, 31), B(52, 24, 42, 31), B(6, 59, 42, 31), B(52, 59, 42, 31)] } },
+  'image-right': { name: 'Image right', match: { title: 1, body: 1, image: 1 }, slots: { title: HEAD, body: [B(6, 24, 42, 66)], image: [B(52, 24, 42, 66)] } },
+  'image-full': { name: 'Full image', match: { title: 1, image: 1 }, slots: { image: [B(0, 0, 100, 100)], title: [B(6, 72, 88, 18)] } },
   'body-1': { name: 'Text', match: { body: 1 }, slots: { body: [B(8, 10, 84, 80)] } },
   'body-2': { name: 'Two texts', match: { body: 2 }, slots: { body: [B(6, 10, 42, 80), B(52, 10, 42, 80)] } },
   'body-3': { name: 'Three texts', match: { body: 3 }, slots: { body: [B(6, 10, 27.3, 80), B(36.3, 10, 27.3, 80), B(66.6, 10, 27.3, 80)] } },
 };
-const counted = l => !l.hidden && ((l.type === 'text' && !l.link) || l.type === 'image');
-const keyOf = (l, S) => (l.type === 'image' ? 'image' : l.style && S && S[l.style] && !S[l.style].deleted ? l.style : 'text');
-const sigOf = (layers, S) => { const m = {}; for (const l of layers || []) if (counted(l)) { const k = keyOf(l, S); m[k] = (m[k] || 0) + 1; } return m; };
+const SOURCES_BOX = B(6, 89, 88, 5);
+// Markdown layers carry block: title|body|list|links|sources|image. Sources never count toward the shape; layers without a block (extras) don't either. The styles arg is vestigial.
+const counted = l => !l.hidden && !!l.block && l.block !== 'sources';
+const keyOf = l => l.block;
+const sigOf = layers => { const m = {}; for (const l of layers || []) if (counted(l)) { const k = keyOf(l); m[k] = (m[k] || 0) + 1; } return m; };
 const sigKey = m => Object.keys(m || {}).filter(k => m[k] > 0).sort().map(k => k + ':' + m[k]).join(',');
-const groupsOf = (layers, S) => { const g = {}; for (const l of layers || []) if (counted(l)) (g[keyOf(l, S)] = g[keyOf(l, S)] || []).push(l); for (const k in g) g[k].sort((a, b) => a.y - b.y || a.x - b.x); return g; };
-const fillSlots = (layers, layout, S) => { const out = {}, g = groupsOf(layers, S);
-  for (const k in g) g[k].forEach((l, i) => { const b = ((layout.slots || {})[k] || [])[i]; if (b) out[l.id] = { x: b.x, y: b.y, w: b.w, h: b.h, rot: b.rot || 0 }; }); return out; };
+const groupsOf = layers => { const g = {}; for (const l of layers || []) if (counted(l)) (g[keyOf(l)] = g[keyOf(l)] || []).push(l); for (const k in g) g[k].sort((a, b) => a.y - b.y || a.x - b.x); return g; };
+const fillSlots = (layers, layout) => { const out = {}, g = groupsOf(layers);
+  for (const k in g) g[k].forEach((l, i) => { const b = ((layout.slots || {})[k] || [])[i]; if (b) out[l.id] = { x: b.x, y: b.y, w: b.w, h: b.h, rot: b.rot || 0 }; });
+  for (const l of layers || []) if (!l.hidden && l.block === 'sources') { const b = ((layout.slots || {}).sources || [])[0] || SOURCES_BOX; out[l.id] = { x: b.x, y: b.y, w: b.w, h: b.h, rot: b.rot || 0 }; }
+  return out; };
 // A slide's counted boxes, by key, in reading order (what Save as layout / Update layout record).
 // A layer given a full-slide slot goes to the back (stable), so e.g. Full image doesn't cover its title.
 // ---- Present map views: the deck as a navigation tree (parents centred over children) or a radial layout (levels on rings,
@@ -1961,6 +1971,8 @@ class Component extends DCLogic {
     this.allowLayout(nodes); this.setState({ nodes });
   }
   renameLayout(lid, name) { const L = this.layouts()[lid]; if (!L) return; const { id: _i, ...stored } = L; this.setState(s => ({ layouts: { ...(s.layouts || {}), [lid]: { ...stored, name } } })); }
+  renameRegion(lid, key, i, name) { const L = this.layouts()[lid]; if (!L) return; const { id: _i, ...stored } = L, ns = [...((stored.names || {})[key] || [])]; ns[i] = name;
+    this.setState(s => ({ layouts: { ...(s.layouts || {}), [lid]: { ...stored, names: { ...(stored.names || {}), [key]: ns } } } })); }
   deleteLayout(lid) {
     if (BUILTIN_LAYOUTS[lid] || !(this.state.layouts || {})[lid]) return;
     const N = this.state.nodes, nodes = { ...N }; for (const k in N) if (!N[k]._from && N[k].layout === lid) { const { layout: _l, ...rest } = N[k]; nodes[k] = { ...rest, custom: true }; }
@@ -2670,13 +2682,14 @@ class Component extends DCLogic {
     // ---- Layout panel. ponytail: effectiveLayout for every node per render; fine for hundreds of slides, memoise on nodes if it shows in a profile.
     const LAY = this.layouts(), STY = this.styles(), curFr0 = (this.framesOf(cur)[0] || { layers: [] }).layers;
     const sigM = sigOf(curFr0, STY), sigK = sigKey(sigM), effL = sigK ? this.effectiveLayout(cur) : null, animated = this.framesOf(cur).length > 1;
-    const keyName = k => (k === 'text' ? 'Text' : k === 'image' ? 'Image' : (STY[k] && STY[k].name) || k), chipsOf = m => Object.keys(m).sort().map(k => keyName(k) + ' ×' + m[k]);
+    const keyName = k => k[0].toUpperCase() + k.slice(1), chipsOf = m => Object.keys(m).sort().map(k => keyName(k) + ' ×' + m[k]);
     const users = {}; for (const k of this.ownSlideIds()) { const e = this.effectiveLayout(k); if (e) (users[e.id] = users[e.id] || []).push(k); }
     const defId = (S.layoutDefaults || {})[sigK], firstFit = Object.values(LAY).find(x => sigKey(x.match) === sigK);
     const listOf = lid => (users[lid] || []).map(k => ({ name: name(k), onClick: () => { this.nav(k, 'jump'); this.setState({ rtab: 'slide', stab: 'layout' }); } }));
     const tileOf = L => ({ id: L.id, name: L.name, star: L.id === (LAY[defId] && sigKey(LAY[defId].match) === sigK ? defId : firstFit && firstFit.id), count: (users[L.id] || []).length + ' slides',
       open: S.layOpen === L.id, slides: listOf(L.id), onToggle: () => this.setState({ layOpen: S.layOpen === L.id ? null : L.id }),
       onApply: () => this.applyLayout(cur, L.id), onApplyAll: () => this.applyToAll(L.id), onName: e => this.renameLayout(L.id, e.target.value),
+      regions: Object.keys(L.slots || {}).flatMap(k => (L.slots[k] || []).map((_, i) => ({ label: k + '-' + (i + 1), value: ((L.names || {})[k] || [])[i] || k + '-' + (i + 1), onChange: e => this.renameRegion(L.id, k, i, e.target.value) }))),
       canDelete: !BUILTIN_LAYOUTS[L.id], onDelete: () => this.deleteLayout(L.id), chips: chipsOf(L.match),
       layers: (b => this.shown(cur, curFr0.map(l => (b[l.id] ? { ...l, ...b[l.id] } : l))))(fillSlots(curFr0, L, STY)) });
     // ---- Present map (Tree / Radial). ponytail: every slide's thumbnail is rendered; fine for hundreds of slides.

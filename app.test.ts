@@ -1833,3 +1833,38 @@ test("linked: a child url that isn't https is an error slide", async () => {
   await down(c, "a"); await down(c, "a.costs");
   expect(c.state.nodes["a.costs.!error"]).toMatchObject({ title: "Can't link http://e/x.md", body: "must be https:" });
 });
+
+// ---- sharing: github links, start slide ----
+test("src: a github blob url is fetched raw (markdown and layout file)", async () => {
+  const got: string[] = [];
+  const { c } = await mount("?src=https://github.com/o/r/blob/main/d/a.md", { fetch: u => { got.push(u); return u.endsWith(".md") ? reply("# Hi\nslug: hi\n", "text/plain") : reply("", "text/plain", 404); } });
+  expect(got).toEqual(["https://raw.githubusercontent.com/o/r/main/d/a.md", "https://raw.githubusercontent.com/o/r/main/d/a-layout.json"]);
+  expect(c.state.nodes.hi).toBeDefined();
+});
+
+test("linked: a github blob children: url is fetched raw", async () => {
+  const got: string[] = [];
+  const files: Record<string, string> = { "https://h/host.md": "# A\nslug: a\n<!-- children: https://github.com/o/r/blob/main/k.md -->\n", "https://raw.githubusercontent.com/o/r/main/k.md": "# K\nslug: k\n" };
+  const { c } = await mount("?src=https://h/host.md", { fetch: u => { got.push(u); return files[u] ? reply(files[u], "text/markdown") : reply("", "text/plain", 404); } });
+  await down(c, "a");
+  expect(got).toContain("https://raw.githubusercontent.com/o/r/main/k.md"); expect(c.state.cur).toBe("a.k");
+  expect(c.state.nodes["a.k"]._from).toBe("https://raw.githubusercontent.com/o/r/main/k.md");
+});
+
+const SHARE: Record<string, string> = { "https://s/a.md": "# A\nslug: a\n<!-- children: ./kid.md -->\n\n# B\nslug: b\n", "https://s/kid.md": "# K\nslug: k\n\n# L\nslug: l\n" };
+const shareFetch = (u: string) => SHARE[u] ? reply(SHARE[u], "text/markdown") : reply("", "text/plain", 404);
+test("src: &slide= opens on that slide", async () => {
+  const { c } = await mount("?src=https://s/a.md&slide=b", { fetch: shareFetch });
+  await until(() => c.state.cur === "b");
+});
+
+test("src: &slide= into a linked file loads it and opens there", async () => {
+  const { c } = await mount("?src=https://s/a.md&slide=a.l", { fetch: shareFetch });
+  await until(() => c.state.cur === "a.l"); expect(c.state.nodes.a.children).toEqual(["a.k", "a.l"]);
+});
+
+test("src: an unknown &slide= stays on the first slide with a note", async () => {
+  const { c } = await mount("?src=https://s/a.md&slide=a.nope", { fetch: shareFetch });
+  await until(() => !!c.state.note);
+  expect(c.state.note).toBe('No slide "a.nope"'); expect(c.state.cur).toBe("a");
+});

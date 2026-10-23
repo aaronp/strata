@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./md.js"></script>
 <script src="./support.js"></script>
 </head>
 <body>
@@ -993,6 +994,7 @@ const KEY = 'strata-v7', BGKEY = 'strata-v6-bg', IKEY = 'strata-v7-img', VA = 16
 const DECK = (s => s && /^[a-z0-9-]+$/.test(s) ? s : null)(new URLSearchParams(location.search).get('deck'));
 const DECK_BASE = DECK ? '../decks/' + DECK + '/' : '';
 const STATIC = !!window.STRATA_STATIC;
+const MD = window.StrataMd;
 const UIKEY = 'strata-ui';
 const AUTOSAVE_MS = 800;
 const DECK_FIELDS = ['title', 'source', 'card', 'nodes', 'bg', 'customBg', 'customAspect', 'bgScale', 'bgRepeat', 'bgY', 'opacity', 'base', 'offset', 'gap', 'tone', 'speed', 'tdef', 'titlePage', 'titleView', 'spacing', 'rowGap', 'styles', 'layouts', 'layoutDefaults', 'images'];

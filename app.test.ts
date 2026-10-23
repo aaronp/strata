@@ -20,7 +20,7 @@ async function mount(search: string, opts: { isStatic?: boolean; settle?: boolea
   opts = { deckMode: /deck=[a-z0-9-]+/.test(search), ...opts };
   const store: Record<string, string> = {}, listeners: Record<string, Function> = {};
   const g = {
-    location: { search }, window: { STRATA_STATIC: !!opts.isStatic, addEventListener: (t: string, f: Function) => (listeners[t] = f), removeEventListener() {} },
+    location: { search }, window: { StrataMd: await import("./markdown"), STRATA_STATIC: !!opts.isStatic, addEventListener: (t: string, f: Function) => (listeners[t] = f), removeEventListener() {} },
     localStorage: { getItem: (k: string) => store[k] ?? null, setItem: (k: string, v: string) => (store[k] = v) },
     fetch: (u: string, o: RequestInit = {}) => handler(root)(new Request(new URL(u, "http://x/design/strata.dc.html"), o)),
     setTimeout, requestAnimationFrame: () => {},

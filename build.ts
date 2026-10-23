@@ -1,7 +1,7 @@
 import { cp, rm } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { deckList, indexHtml } from "./server";
+import { deckList, indexHtml, mdBundle } from "./server";
 
 const HOOK = '<script src="./support.js">';
 
@@ -23,6 +23,7 @@ export async function build(root: string, out: string, deck?: string) {
   const app = join(out, "design/strata.dc.html");
   const html = await Bun.file(app).text();
   if (!html.includes(HOOK)) throw new Error(`build: ${HOOK} not found in strata.dc.html; cannot inject STRATA_STATIC`);
+  await Bun.write(join(out, "design/md.js"), await mdBundle(root));
   await Bun.write(app, html.replace(HOOK, "<script>window.STRATA_STATIC=true</script>\n" + HOOK));
   const decks = await deckList(out);
   await Bun.write(join(out, "decks/index.json"), JSON.stringify(decks, null, 2) + "\n");

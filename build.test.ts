@@ -7,11 +7,14 @@ import { build } from "./build";
 test("build copies app + decks, writes index, injects static flag", async () => {
   const root = await mkdtemp(join(tmpdir(), "strata-b-"));
   await Bun.write(join(root, "design/strata.dc.html"), '<head>\n<script src="./support.js"></script>\n</head>');
+  await Bun.write(join(root, "markdown.ts"), Bun.file("markdown.ts"));
   await Bun.write(join(root, "decks/talk/deck.json"), JSON.stringify({ nodes: { ROOT: { children: ["a"] }, a: { title: "T" } } }));
   await Bun.write(join(root, "decks/talk/img/x.png"), "png");
+  await Bun.write(join(root, "markdown.ts"), Bun.file("markdown.ts"));
   const out = join(root, "dist");
   await build(root, out);
   const app = await Bun.file(join(out, "design/strata.dc.html")).text();
+  expect(await Bun.file(join(out, "design/md.js")).exists()).toBe(true);
   expect(app).toContain('<script>window.STRATA_STATIC=true</script>\n<script src="./support.js">');
   expect(await Bun.file(join(out, "decks/talk/img/x.png")).text()).toBe("png");
   expect(await Bun.file(join(out, "decks/index.json")).json()).toEqual([{ slug: "talk", title: "T" }]);
@@ -30,6 +33,7 @@ test("build fails loudly if the static-flag injection point is missing", async (
 test("build with a deck publishes only that deck and opens it from the site root", async () => {
   const root = await mkdtemp(join(tmpdir(), "strata-b-"));
   await Bun.write(join(root, "design/strata.dc.html"), '<head>\n<script src="./support.js"></script>\n</head>');
+  await Bun.write(join(root, "markdown.ts"), Bun.file("markdown.ts"));
   for (const s of ["talk", "scratch"]) await Bun.write(join(root, `decks/${s}/deck.json`), JSON.stringify({ title: s, nodes: { ROOT: { children: [] } } }));
   const out = join(root, "dist");
   await build(root, out, "talk");
@@ -44,6 +48,7 @@ test("build with a deck publishes only that deck and opens it from the site root
 test("publishing a deck also publishes the decks it links to, through chains and loops; a missing link fails", async () => {
   const root = await mkdtemp(join(tmpdir(), "strata-b-"));
   await Bun.write(join(root, "design/strata.dc.html"), '<head>\n<script src="./support.js"></script>\n</head>');
+  await Bun.write(join(root, "markdown.ts"), Bun.file("markdown.ts"));
   const deck = (s: string, inc?: string) => Bun.write(join(root, `decks/${s}/deck.json`),
     JSON.stringify({ title: s, nodes: { ROOT: { children: inc ? ["l"] : [] }, ...(inc ? { l: { id: "l", title: "L", include: inc, children: [] } } : {}) } }));
   await deck("talk", "dw"); await deck("dw", "df"); await deck("df", "dw"); await deck("other");

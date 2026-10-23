@@ -51,6 +51,17 @@ export async function saveDeck(root: string, slug: string, deck: any) {
   return out;
 }
 
+// The parser as a classic script: window.StrataMd = { parseMarkdown, plainText }.
+export async function mdBundle(root: string): Promise<string> {
+  const entry = join(root, "md-entry.ts");
+  const r = await Bun.build({
+    entrypoints: [entry], format: "iife", minify: false,
+    files: { [entry]: `import { parseMarkdown, plainText } from "./markdown"; window.StrataMd = { parseMarkdown, plainText };` },
+  });
+  if (!r.success) throw new Error("md.js: " + r.logs.join("\n"));
+  return await r.outputs[0].text();
+}
+
 export function handler(root: string) {
   return async (req: Request): Promise<Response> => {
     let p: string;
@@ -67,6 +78,7 @@ export function handler(root: string) {
       return Response.json(await saveDeck(root, m[1], deck));
     }
     if (p === "/" || p === "/index.html") return new Response(indexHtml(await deckList(root), true), { headers: { "content-type": "text/html; charset=utf-8" } });
+    if (p === "/design/md.js") return new Response(await mdBundle(root), { headers: { "content-type": "text/javascript; charset=utf-8", "cache-control": "no-store" } });
     if ((p.startsWith("/design/") || p.startsWith("/decks/")) && !p.includes("..")) {
       const f = Bun.file(join(root, p));
       if (await f.exists()) return new Response(f, { headers: { "cache-control": "no-store" } });

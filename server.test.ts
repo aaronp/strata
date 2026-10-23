@@ -12,6 +12,7 @@ beforeEach(async () => {
   await mkdir(join(root, "design"));
   await Bun.write(join(root, "design/strata.dc.html"), "<x-dc>app</x-dc>");
   await Bun.write(join(root, "server.ts"), "secret");
+  await Bun.write(join(root, "markdown.ts"), Bun.file("markdown.ts"));
   await Bun.write(join(root, "decks/talk/deck.json"), JSON.stringify(deck("My Talk")));
 });
 
@@ -87,4 +88,13 @@ test("writes from another origin (e.g. a sandboxed component, Origin: null) are 
   expect((await req("PUT", "/api/decks/talk", "null", JSON.stringify(deck()))).status).toBe(403);
   expect((await req("PUT", "/api/decks/talk", "http://elsewhere.example", JSON.stringify(deck()))).status).toBe(403);
   expect((await req("PUT", "/api/decks/talk", "http://x", JSON.stringify(deck()))).status).toBe(200);
+});
+
+test("md.js is served and defines StrataMd", async () => {
+  const r = await get("/design/md.js");
+  expect(r.status).toBe(200);
+  expect(r.headers.get("content-type")).toContain("javascript");
+  const w: any = {};
+  new Function("window", await r.text())(w);
+  expect(typeof w.StrataMd.parseMarkdown).toBe("function");
 });

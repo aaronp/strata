@@ -41,8 +41,7 @@ input,textarea,button{font:inherit;color:inherit}
         <div style="position:relative;width:22px;height:16px;flex:none;border:2px solid currentColor;border-radius:3px"><div style="position:absolute;left:3px;top:3px;width:8px;height:6px;background:#d9432b;border-radius:1px"></div></div>
         <div style="font-weight:800;font-size:18px;letter-spacing:-.02em">Strata</div>
       </a>
-      <sc-if value="{{ showTitle }}"><div style="color:#6b6458;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">/ {{ deckTitle }}</div></sc-if>
-      <sc-if value="{{ editTitle }}"><span style="color:#6b6458">/</span><input value="{{ titleVal }}" onChange="{{ onTitle }}" placeholder="{{ deckTitle }}" title="Deck title (shown in the deck list)" style="min-width:0;width:260px;height:28px;padding:0 8px;border:1px solid transparent;border-radius:6px;background:transparent;color:#1d1b17" style-hover="border-color:#e0d9cb"></sc-if>
+      <div style="color:#6b6458;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">/ {{ deckTitle }}</div>
     </div>
     <div style="flex:1"></div>
     <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#6b6458;white-space:nowrap">{{ keyHint }}</span>
@@ -179,6 +178,7 @@ input,textarea,button{font:inherit;color:inherit}
                   <dc-import name="Layers" card="{{ deckCard }}" layers="{{ prevLayers }}" images="{{ images }}" ink="{{ ink }}" shadow="{{ inkShadow }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
                 </div>
               </sc-if>
+              <sc-if value="{{ emptyMsg }}"><div style="position:absolute;inset:0;z-index:2;display:grid;place-items:center;background:{{ base }};color:#6b6458;font-size:15px">{{ emptyMsg }}</div></sc-if>
               <div data-stage="main" onClick="{{ onStageLinkClick }}" style="position:absolute;inset:0;transform:{{ planeB.t }};opacity:{{ planeB.o }};transition:{{ planeTr }}">
                 <dc-import name="Layers" card="{{ deckCard }}" live="{{ cur }}" links="{{ isPresent }}" layers="{{ stageLayers }}" images="{{ images }}" ink="{{ ink }}" shadow="{{ inkShadow }}" editing-id="{{ editingId }}" show-empty="{{ editable }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
               </div>
@@ -382,16 +382,11 @@ input,textarea,button{font:inherit;color:inherit}
             <sc-if value="{{ fromDeck }}">
               <div style="padding:8px 10px;border:1px solid #d6e2ef;border-radius:8px;background:#eef3f9;font-size:12.5px;line-height:1.45;color:#1f4f80">From <b>{{ fromDeck }}</b>: read-only here. <a href="{{ fromHref }}">Open it →</a> to edit or export.</div>
             </sc-if>
-            <sc-if value="{{ linkedDeck }}">
-              <div style="padding:8px 10px;border:1px solid #d6e2ef;border-radius:8px;background:#eef3f9;font-size:12.5px;line-height:1.45;color:#1f4f80">Linked deck: <b>{{ linkedDeck }}</b> · <code>{{ cur.id }}</code> · <a href="{{ linkedHref }}">Open it →</a></div>
-            </sc-if>
             <sc-if value="{{ ownSlide }}">
             <label style="display:flex;flex-direction:column;gap:5px">
               <span style="font-size:12px;color:#6b6458">Slide name · tree and breadcrumbs</span>
               <div style="display:flex;gap:6px;align-items:center">
                 <input ref="{{ titleRef }}" value="{{ cur.title }}" onChange="{{ onTitle }}" placeholder="Slide name" style="flex:1;min-width:0;padding:8px 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;font-weight:600;outline:none">
-                <sc-if value="{{ exportShow }}"><button onClick="{{ onExportMd }}" title="Export markdown: download this slide and everything below it (with slug lines), ready to import as a new deck" style="flex:none;width:36px;height:36px;padding:0;border:1px solid #e0d9cb;border-radius:8px;cursor:pointer;font-size:16px;line-height:1;background:#fff">⤓</button></sc-if>
-                <sc-if value="{{ copyShow }}"><button onClick="{{ onInsertToggle }}" title="Insert deck: copy or link another deck's slides here" style="flex:none;width:36px;height:36px;padding:0;border:1px solid #e0d9cb;border-radius:8px;cursor:pointer;font-size:16px;line-height:1;background:{{ insertBg }}">⊕</button></sc-if>
               </div>
             </label>
             <sc-if value="{{ isTitlePage }}">
@@ -414,25 +409,6 @@ input,textarea,button{font:inherit;color:inherit}
                   <input type="range" min="0" max="1" step="0.01" value="{{ tvY }}" onChange="{{ onTvY }}" style="accent-color:#1d1b17;width:100%;min-width:0">
                 </label>
                 <span style="font-size:12px;line-height:1.45;color:#6b6458">{{ tvHint }}</span>
-              </div>
-            </sc-if>
-            <sc-if value="{{ insertOpen }}">
-              <div style="display:flex;flex-direction:column;gap:6px;padding:10px;border:1px solid #e0d9cb;border-radius:10px;background:#fff">
-                    <span style="font-size:12px;line-height:1.45;color:#6b6458">{{ insertHint }}</span>
-                    <div style="display:flex;gap:2px;padding:3px;border-radius:9px;background:#ece6d9">
-                      <sc-for list="{{ copyModes }}" as="cm" hint-placeholder-count="2">
-                        <button onClick="{{ cm.onClick }}" style="flex:1;padding:5px 6px;border:0;border-radius:7px;cursor:pointer;background:{{ cm.bg }};color:{{ cm.color }};box-shadow:{{ cm.shadow }};font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ cm.label }}</button>
-                      </sc-for>
-                    </div>
-                    <select value="" onChange="{{ onCopyDeck }}" style="padding:7px 8px;border:1px solid #e0d9cb;border-radius:7px;background:#fff;outline:none;font-size:13px">
-                      <sc-for list="{{ copyOpts }}" as="o" hint-placeholder-count="2"><option value="{{ o.v }}">{{ o.l }}</option></sc-for>
-                    </select>
-                    <sc-if value="{{ isLinkMode }}">
-                      <div style="display:flex;gap:6px;align-items:center">
-                        <input value="{{ linkSlug }}" onChange="{{ onLinkSlug }}" placeholder="slug" title="The linked slide's slug: its slides become slug.slide" style="flex:1;min-width:0;padding:6px 8px;border:1px solid #e0d9cb;border-radius:7px;background:#fff;outline:none;font-family:'JetBrains Mono',monospace;font-size:12px">
-                        <button onClick="{{ onLink }}" disabled="{{ linkOff }}" style="flex:none;padding:6px 12px;border:0;border-radius:7px;background:#1d1b17;color:#fbf9f4;cursor:pointer;font-size:12.5px;white-space:nowrap">{{ linkLabel }}</button>
-                      </div>
-                    </sc-if>
               </div>
             </sc-if>
             <div style="display:flex;gap:2px;padding:3px;border-radius:9px;background:#ece6d9">
@@ -646,7 +622,6 @@ input,textarea,button{font:inherit;color:inherit}
                       <sc-for list="{{ styleOpts }}" as="o" hint-placeholder-count="5"><option value="{{ o.v }}">{{ o.l }}</option></sc-for>
                     </select>
                   </div>
-                  <sc-if value="{{ canSplit }}"><button onClick="{{ onSplitLines }}" title="One layer per line, e.g. to reveal a list item by item with Add as sequence (Frames)" style="align-self:flex-start;padding:3px 8px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer;font-size:11.5px">Split lines into layers</button></sc-if>
                   <sc-if value="{{ lyStyled }}">
                     <div style="display:flex;align-items:center;gap:6px">
                       <span style="font-size:12px;color:#6b6458;flex:none">Edits apply to</span>
@@ -990,14 +965,20 @@ const BGS = {
 };
 const BASES = ['#0b1220', '#1d1b17', '#f4f0e7', '#ffffff'];
 const DIRS = { left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1], jump: [0, 0] };
-const KEY = 'strata-v7', BGKEY = 'strata-v6-bg', IKEY = 'strata-v7-img', VA = 16 / 9, H = 100;
+const KEY = 'strata-v8', VA = 16 / 9, H = 100;
 const DECK = (s => s && /^[a-z0-9-]+$/.test(s) ? s : null)(new URLSearchParams(location.search).get('deck'));
 const DECK_BASE = DECK ? '../decks/' + DECK + '/' : '';
 const STATIC = !!window.STRATA_STATIC;
+// The deck's markdown file: the local deck's, else ?src= when it's https: or same-origin. Its layout file sits beside it.
+const SRC = DECK ? '../decks/' + DECK + '/' + DECK + '.md' : (s => { try { const u = new URL(s, location.href); return u.protocol === 'https:' || u.origin === location.origin ? s : null; } catch (e) { return null; } })(new URLSearchParams(location.search).get('src'));
+const layoutUrl = src => src.replace(/\.md(\?.*)?$/i, '-layout.json$1');
+const RO_MSG = 'Linked slides are read-only here: change them in their own markdown file';
+const EMPTY_MSG = 'Add a # heading to make a slide';
 const MD = window.StrataMd;
 const UIKEY = 'strata-ui';
 const AUTOSAVE_MS = 800;
 const DECK_FIELDS = ['title', 'source', 'card', 'nodes', 'bg', 'customBg', 'customAspect', 'bgScale', 'bgRepeat', 'bgY', 'opacity', 'base', 'offset', 'gap', 'tone', 'speed', 'tdef', 'titlePage', 'titleView', 'spacing', 'rowGap', 'styles', 'layouts', 'layoutDefaults', 'images'];
+const SAVED = [...DECK_FIELDS, 'md'];   // what save writes (markdown + layout file); dirty tracking compares these
 // Named text styles: built-ins live here; deck.styles holds only their differences and added styles. A styled layer's own STYLE_KEYS are overrides.
 const STYLE_KEYS = ['font', 'size', 'weight', 'color', 'align', 'valign', 'lh', 'ls', 'bullets', 'gap', 'card', 'box'];
 const STYLE_BASE = { font: 'grot', color: null, ls: 0, align: 'left', bullets: 'none', gap: 0.15 };
@@ -1385,22 +1366,6 @@ const rectsTouch = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b
 const groupBox = ls => { const x = Math.min(...ls.map(l => l.x)), y = Math.min(...ls.map(l => l.y)); return { x, y, w: Math.max(...ls.map(l => l.x + l.w)) - x, h: Math.max(...ls.map(l => l.y + l.h)) - y }; };
 const scaleLayers = (ls, from, to) => ls.map(l => ({ ...l, x: rd(to.x + (l.x - from.x) * to.w / from.w), y: rd(to.y + (l.y - from.y) * to.h / from.h), w: rd(l.w * to.w / from.w), h: rd(l.h * to.h / from.h) }));
 const mapImgs = (im, f) => Object.fromEntries(Object.entries(im || {}).map(([k, v]) => [k, f(v)]));
-// Linked decks: a node with include: B gets B's slides grafted under it in memory, ids "<linked node id>.<B's id>", marked _from: B; saves strip them.
-const prefixLayer = (l, p) => ({ ...l, ...(l.link && l.link.type === 'slide' ? { link: { ...l.link, id: p + l.link.id } } : {}), ...(l.imgKey ? { imgKey: p + l.imgKey } : {}) });
-const prefixNode = (n, k, p, from) => ({ ...n, id: p + k, _from: from, children: (n.children || []).map(c => p + c),
-  ...(n.frames ? { frames: n.frames.map(f => ({ ...f, layers: f.layers.map(l => prefixLayer(l, p)) })) } : {}),
-  ...(n.layers ? { layers: n.layers.map(l => prefixLayer(l, p)) } : {}) });
-const stripGrafts = N => { const o = {}; for (const k in N) { const v = N[k]; if (v._from) continue; o[k] = v.include ? { ...v, children: [] } : v; } return o; };
-const ownImages = im => Object.fromEntries(Object.entries(im || {}).filter(([k]) => !k.includes('.')));
-const graftImages = im => Object.fromEntries(Object.entries(im || {}).filter(([k]) => k.includes('.')));
-// Inline an image URL as a data URL (copied slides must not point into another deck's folder).
-const toDataUrl = async u => {
-  if (typeof u !== 'string' || !u || /^data:/.test(u)) return u;
-  const r = await fetch(u); if (!r.ok) throw new Error('image ' + u + ': HTTP ' + r.status);
-  const b = await r.blob(), a = new Uint8Array(await b.arrayBuffer()); let bin = '';
-  for (let i = 0; i < a.length; i += 0x8000) bin += String.fromCharCode.apply(null, a.subarray(i, i + 0x8000));
-  return 'data:' + (b.type || 'application/octet-stream') + ';base64,' + btoa(bin);
-};
 const TW = 76, COLW = 96, ROWH = 92, TPX = 28, TPY = 18;   // TPX leaves room for the + before button (24px left of a card)
 const FONT_LIST = [['grot', 'Grotesk', "'Bricolage Grotesque',sans-serif"], ['serif', 'Serif', "'DM Serif Display',serif"], ['news', 'Book', "'Newsreader',serif"], ['mono', 'Mono', "'JetBrains Mono',monospace"], ['hand', 'Hand', "'Caveat',cursive"]];
 const FONT_CSS = Object.fromEntries(FONT_LIST.map(f => [f[0], f[2]]));
@@ -1448,39 +1413,25 @@ let _n = 0; const uid = () => 's' + Date.now().toString(36) + (++_n).toString(36
 const f3 = v => (Math.round(v * 1000) / 1000).toString();
 
 function seed() {
-  const n = { ROOT: { id: 'ROOT', title: '', body: '', children: [] } };
-  const add = (id, p, title, body) => { n[id] = { id, title, body: body || '', children: [] }; n[p].children.push(id); };
-  add('a', 'ROOT', 'Where we are', 'Up in the balloons: the top-level story.');
-  add('b', 'ROOT', "Where we're going");
-  add('c', 'ROOT', 'How we get there');
-  add('a1', 'a', 'The market'); add('a2', 'a', 'Our customers');
-  add('a1a', 'a1', 'Segment sizes'); add('a1a1', 'a1a', 'How we sized it', 'The deepest level sets every slide’s height.');
-  add('b1', 'b', 'Year one'); add('b2', 'b', 'Year two'); add('b3', 'b', 'Year three');
-  add('c1', 'c', 'Platform'); add('c1a', 'c1', 'Architecture');
-  return n;
+  return "# Where we are\nslug: a\n\nUp in the balloons: the top-level story.\n\n## The market\nslug: a1\n\n# Where we're going\nslug: b\n\n# How we get there\nslug: c\n";
 }
+const SEED = seed();
 
 class Component extends DCLogic {
   static lay = { BUILTIN_LAYOUTS, sigOf, sigKey, fillSlots, slotsOf };
   static md = { enrich, layoutOf, blockLayers };
   static rich = { parseRich, plainText, applyFormat, runsToMarkup, linesOf, textOf, toPlain, lineLen, locate, setAttr, toggleAttr, clearRange, insertBreak, insertPlain, deleteRange, linkAt, buildEditor, getOffsets, setOffsets, readLines, wysBefore };
   state = {
-    nodes: seed(), cur: 'a', prev: null, phase: 'idle', dx: 0, dy: 0, type: 'swipe', mode: STATIC ? 'present' : 'build', view: 'slide', rtab: 'slide',
+    md: SEED, mdIssues: [], nodes: enrich(MD.parseMarkdown(SEED).sections, []).nodes, cur: 'a', prev: null, phase: 'idle', dx: 0, dy: 0, type: 'swipe', mode: STATIC ? 'present' : 'build', view: 'slide', rtab: 'slide',
     query: '', bg: 'balloons', customBg: null, customAspect: 1, opacity: 1, base: '#0b1220', offset: 0,
     tAll: { ease: false, dur: false, delay: false }, tdef: {}, dAll: { ease: false, dur: false, delay: false }, secOpen: { layout: true, frames: true, layers: true, tdef: false }, collapsed: {}, rowGap: -0.7, gap: -0.7, tone: 'light', editMode: 'rich', speed: 900, lastChild: {}, navW: 280, rightW: 340, images: {}, layerSel: null, editing: null, guides: {},
   };
   treeRef = React.createRef(); titleRef = React.createRef(); searchRef = React.createRef(); stageRef = React.createRef(); editRef = React.createRef(); wysRef = React.createRef(); imgInputRef = React.createRef();
 
   componentDidMount() {
-    if (DECK) {
-      try { const ui = JSON.parse(localStorage.getItem(UIKEY) || 'null'); if (ui) this.setState(ui); } catch (e) {}
-      this.loadDeck();
-    } else try {
-      const s = JSON.parse(localStorage.getItem(KEY) || localStorage.getItem('strata-v6') || 'null');
-      try { const im = JSON.parse(localStorage.getItem(IKEY) || 'null'); if (im) this.setState({ images: im }); } catch (e) {}
-      if (s && s.nodes && s.nodes.ROOT) this.setState({ ...s, cur: s.nodes[s.cur] ? s.cur : s.nodes.ROOT.children[0], prev: null, phase: 'idle', customBg: localStorage.getItem(BGKEY) || null });
-      if (s && s.nodes && s.nodes.ROOT) this.graft(s.nodes).then(g => { this._lastNodes = g.nodes; this.allowGraft(g.nodes); this.setState(st => ({ nodes: g.nodes, images: { ...ownImages(st.images), ...g.images } })); });
-    } catch (e) {}
+    if (!STATIC) try { const ui = JSON.parse(localStorage.getItem(UIKEY) || 'null'); if (ui) this.setState(ui); } catch (e) {}
+    if (SRC) this.loadDeck();
+    else try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && typeof s.md === 'string') this.adopt(s.md, s.layout); } catch (e) {}   // scratch deck
     if (STATIC) this.setState({ mode: 'present' });
     this._past = []; this._future = []; setTimeout(() => { this._lastNodes = this.state.nodes; this._histReady = true; }, 120);
     this.onKey = this.onKey.bind(this); window.addEventListener('keydown', this.onKey);
@@ -1538,159 +1489,67 @@ class Component extends DCLogic {
     const key = JSON.stringify(mh); if (key === this._mhKey) return false;
     this._mhKey = key; this._mh = mh; return true;
   }
-  markSaved() { this._savedRefs = DECK_FIELDS.map(k => this.state[k]); this.forceUpdate(); }
-  isDirty() { const S = this.state; return !this._savedRefs || DECK_FIELDS.some((k, i) => S[k] !== this._savedRefs[i]); }
-  async fetchDeck(slug) {
-    const r = await fetch('../decks/' + slug + '/deck.json', { cache: 'no-store' });
-    if (!r.ok) throw new Error(r.status === 404 ? 'no deck called "' + slug + '"' : 'HTTP ' + r.status);
-    const d = await r.json(); if (!d.nodes || !d.nodes.ROOT) throw new Error('not a deck'); return d;
+  markSaved() { this._savedRefs = SAVED.map(k => this.state[k]); this.forceUpdate(); }
+  isDirty() { const S = this.state; return !this._savedRefs || SAVED.some((k, i) => S[k] !== this._savedRefs[i]); }
+  // Markdown + a layout file → the deck's nodes, its markdown images (md: keys) and the parser's issues.
+  enrichMd(md, L) {
+    const p = MD.parseMarkdown(md), e = enrich(p.sections, [L || {}], { src: SRC && new URL(SRC, srcBase()).href });
+    return { nodes: e.nodes, mdImages: e.images, mdIssues: [...p.errors, ...p.warnings].sort((a, b) => a.line - b.line) };
   }
-  // Rebuild every graft from the decks' saved files. Loops (the chain includes B) and missing decks become one error slide.
-  async graft(nodes) {
-    const out = stripGrafts(nodes), images = {}, gs = {};
-    const walk = async (id, chain) => {
-      const n = out[id];
-      if (n.include) {
-        const B = n.include, p = id + '.';
-        try {
-          if (chain.includes(B)) throw new Error('link loop ' + chain.concat(B).join(' → '));
-          const d = await this.fetchDeck(B); gs[B] = mergeStyles(d.styles);
-          for (const k in d.nodes) if (k !== 'ROOT') out[p + k] = prefixNode(d.nodes[k], k, p, B);
-          for (const k in d.images || {}) images[p + k] = deckUrl(B, d.images[k]);
-          out[id] = { ...n, children: d.nodes.ROOT.children.map(c => p + c) };
-          for (const k of out[id].children) await walk(k, chain.concat(B));
-        } catch (e) { out[p + '!error'] = { id: p + '!error', title: "Can't link " + B, body: e.message, children: [], _from: B }; out[id] = { ...n, children: [p + '!error'] }; }
-        return;
-      }
-      for (const c of n.children) await walk(c, chain);
-    };
-    await walk('ROOT', DECK ? [DECK] : []);
-    this._graftStyles = gs;
-    return { nodes: out, images };
+  // A loaded markdown + layout file pair becomes the deck: not an undo step, and nothing to save.
+  adopt(md, L, then) {
+    const d = (L && L.deck) || {}, r = this.enrichMd(md, L), pick = Object.fromEntries(DECK_FIELDS.filter(k => k in d).map(k => [k, d[k]]));
+    this._lastNodes = r.nodes;
+    this.setState({ ...pick, md, nodes: r.nodes, mdIssues: r.mdIssues, images: { ...mapImgs(d.images, absUrl), ...r.mdImages }, customBg: d.customBg ? absUrl(d.customBg) : null,
+      cur: d.titlePage ? 'ROOT' : r.nodes.ROOT.children[0], prev: null, phase: 'idle' }, () => { this._loaded = true; this.markSaved(); if (then) then(); });
   }
-  freeId(base, taken = []) { const N = this.state.nodes; let s = base, i = 2; while (N[s] || taken.includes(s)) s = base + '-' + i++; return s; }
-  // The read-only message, naming the linked node that holds a grafted slide (that's what you can move or delete).
-  graftMsg(id) {
-    const N = this.state.nodes, D = this.derive(), n = N[id] || {};
-    if (!n._from) return 'Its slides come from "' + n.include + '": open ' + n.include + ' to change them';
-    let h = id; while (h && N[h] && N[h]._from) h = D.parent[h];
-    return 'Slides from "' + n._from + '" can\'t be changed here: open ' + n._from + ', or move/delete "' + ((N[h] && N[h].title) || h) + '"';
+  setMd(md) { this.setState({ md }); clearTimeout(this._mdT); this._mdT = setTimeout(() => this.reenrich(), 200); }
+  // Rebuild nodes from the markdown, keeping baseNodes' layout (overrides, ROOT). Neither an undo step nor a hand edit.
+  // A current slide that's gone moves to its nearest surviving ancestor, else the first slide.
+  reenrich(baseNodes = this.state.nodes) {
+    clearTimeout(this._mdT);
+    const S = this.state, r = this.enrichMd(S.md, layoutOf(baseNodes, S)), nodes = r.nodes, up = {};
+    for (const k in S.nodes) for (const c of S.nodes[k].children || []) up[c] = k;
+    let cur = S.cur; while (cur && cur !== 'ROOT' && !nodes[cur]) cur = up[cur] || cur.slice(0, Math.max(0, cur.lastIndexOf('.')));
+    if (!cur || (cur === 'ROOT' && !S.titlePage)) cur = nodes.ROOT.children[0];
+    this._lastNodes = nodes; this.allowLayout(nodes);
+    this.setState(s => ({ nodes, mdIssues: r.mdIssues, images: { ...Object.fromEntries(Object.entries(s.images || {}).filter(([k]) => !k.startsWith('md:'))), ...r.mdImages }, cur }));
   }
-  // Grafted slides are read-only: revert any nodes change that alters one, or a linked node's children. A fresh graft is let through by allowGraft.
   allowLayout(nodes) { this._layoutNodes = nodes; }   // tags the one nodes object a layout action commits, so it doesn't count as a hand edit
-  // A hand edit to a counted element's box (x/y/w/h/rot of a kept layer) marks the slide custom. Layout commits, undo/redo and loads don't.
+  // Any hand edit to a slide's frames (boxes, extras added or removed, frames) makes it a per-slide override. Layout and enrich commits, undo/redo and loads don't.
   markCustom() {
     const S = this.state, prev = this._lastNodes;
-    if (!prev || S.nodes === prev || this._restoring) return;
+    if (!prev || S.nodes === prev) return;
     if (this._layoutNodes && S.nodes === this._layoutNodes) { this._layoutNodes = null; return; }
-    const geo = l => [l.x, l.y, l.w, l.h, l.rot || 0].join(), hits = [];
-    for (const k in S.nodes) { const n = S.nodes[k], p = prev[k];
-      if (!p || n === p || n._from || n.custom) continue;
-      const fn = this.framesOfNode(n), fp = this.framesOfNode(p); if (fn.length !== 1 || fp.length !== 1) continue;
-      const before = new Map(fp[0].layers.map(l => [l.id, l]));
-      if (fn[0].layers.some(l => counted(l) && before.has(l.id) && geo(before.get(l.id)) !== geo(l))) hits.push(k); }
+    const hits = Object.keys(S.nodes).filter(k => { const n = S.nodes[k], p = prev[k]; return k !== 'ROOT' && p && n !== p && !n._from && !n.custom && n.frames !== p.frames; });
     if (hits.length) this.setState(s => { const nodes = { ...s.nodes }; hits.forEach(k => { nodes[k] = { ...nodes[k], custom: true }; }); return { nodes }; });
-  }
-  allowGraft(nodes) { this._graftNodes = nodes; }   // tags the one nodes object a fresh graft will commit, so no other update slips past the guard
-  guardGrafts() {
-    const S = this.state, prev = this._lastNodes;
-    if (this._graftNodes && S.nodes === this._graftNodes) { this._graftNodes = null; return false; }   // exactly the graft allowGraft named
-    if (!prev || S.nodes === prev || this._restoring) return false;
-    for (const k in prev) {
-      const v = prev[k], cur = S.nodes[k]; if (!cur) continue;   // deleted along with its linked node
-      if ((v._from && cur !== v) || (v.include && String(cur.children) !== String(v.children))) {
-        this.setState(s => ({ nodes: prev, layerSel: null, editing: null, cur: prev[s.cur] ? s.cur : prev.ROOT.children[0] }));
-        this.flash(this.graftMsg(k)); return true;
-      }
-    }
-    return false;
-  }
-  // Live link: a new linked node (readable slug id) as the last child of tid, with deck B grafted under it. One undo step.
-  async createLink(tid, B, slug) {
-    const N = this.state.nodes;
-    if (!B) return false;
-    if (!/^[a-z0-9-]+$/.test(slug || '') || N[slug]) { this.flash('Slug "' + (slug || '') + '" is ' + (N[slug] ? 'taken' : 'not valid (use a-z, 0-9 and -)')); return false; }
-    if (N[tid]._from || N[tid].include) { this.flash(this.graftMsg(tid)); return false; }
-    let d; try { d = await this.fetchDeck(B); } catch (e) { this.flash('Couldn\'t link "' + B + '": ' + e.message); return false; }
-    const first = d.nodes[d.nodes.ROOT.children[0]];
-    const own = { ...N, [slug]: { id: slug, title: d.title || (first && first.title) || B, body: '', children: [], include: B }, [tid]: { ...N[tid], children: [...N[tid].children, slug] } };
-    const g = await this.graft(own); this.allowGraft(g.nodes);
-    this.setState(s => ({ nodes: g.nodes, images: { ...ownImages(s.images), ...g.images }, cur: slug, prev: null, phase: 'idle', fi: 0, linkDeck: null, layerSel: null }));
-    return true;
-  }
-  // Copy another deck's slides as ordinary slides: fresh ids, slide links remapped, images inlined. Linked nodes stay live links.
-  async copyDeck(slug, chain = []) {
-    if (chain.includes(slug)) throw new Error('copy loop ' + [...chain, slug].join(' → '));
-    const d = await this.fetchDeck(slug);
-    const map = {}, imap = {}, images = {};
-    for (const k in d.nodes) if (k !== 'ROOT') map[k] = d.nodes[k].include ? this.freeId(k, Object.values(map)) : 's' + uid();   // linked nodes keep their readable slug
-    for (const k in d.images || {}) { imap[k] = 'im' + uid(); images[imap[k]] = await toDataUrl(deckUrl(slug, d.images[k])); }
-    const remap = id => map[id] || (id.includes('.') && map[id.split('.')[0]] ? [map[id.split('.')[0]], ...id.split('.').slice(1)].join('.') : null);   // a renamed linked node renames links into its graft
-    // A copied styled layer keeps its look: it stays linked only if this deck's style of that id gives the same values, else it becomes Custom.
-    const srcStyles = mergeStyles(d.styles), hostStyles = this.styles();
-    const restyle = l => { const src = l.type === 'text' && l.style && srcStyles[l.style]; if (!src) return l; const host = hostStyles[l.style];
-      if (host && !host.deleted && STYLE_KEYS.every(k => JSON.stringify(src[k]) === JSON.stringify(host[k]))) return l;
-      const o = { ...l, style: '' }; STYLE_KEYS.forEach(k => { if (o[k] === undefined && src[k] !== undefined) o[k] = src[k]; }); return o; };
-    const relayer = l0 => { const l = restyle(l0); return { ...l, ...(l.link && l.link.type === 'slide' && remap(l.link.id) ? { link: { ...l.link, id: remap(l.link.id) } } : {}), ...(l.imgKey && imap[l.imgKey] ? { imgKey: imap[l.imgKey] } : {}) }; };
-    const nodes = {};
-    for (const k in map) { const n = d.nodes[k]; nodes[map[k]] = { ...n, id: map[k], children: (n.children || []).map(c => map[c]),
-      ...(n.frames ? { frames: n.frames.map(f => ({ ...f, layers: f.layers.map(relayer) })) } : {}), ...(n.layers ? { layers: n.layers.map(relayer) } : {}) }; }
-    return { nodes, images, tops: d.nodes.ROOT.children.map(c => map[c]) };
-  }
-  // mode 'child': copies go under slide tid; 'replace': they take tid's place and tid (with its subtree) is removed.
-  async copyDeckHere(tid, slug, mode = 'child') {
-    if (tid === 'ROOT') mode = 'child';
-    if (this.state.nodes[tid]._from || this.state.nodes[tid].include) { this.flash(this.graftMsg(tid)); return; }
-    try {
-      const c = await this.copyDeck(slug, DECK ? [DECK] : []);
-      if (!c.tops.length) { this.flash('"' + slug + '" has no slides to copy'); return; }
-      const S = this.state; let nodes, extra;
-      if (mode === 'replace') {
-        const pid = this.derive().parent[tid];
-        nodes = { ...S.nodes, ...c.nodes }; const kill = x => { nodes[x].children.forEach(kill); delete nodes[x]; }; kill(tid);
-        const ks = S.nodes[pid].children, i = ks.indexOf(tid);
-        nodes[pid] = { ...S.nodes[pid], children: [...ks.slice(0, i), ...c.tops, ...ks.slice(i + 1)] };
-        extra = { cur: c.tops[0], prev: null, phase: 'idle', fi: 0, layerSel: null, transSel: null };
-      } else {
-        nodes = { ...S.nodes, ...c.nodes, [tid]: { ...S.nodes[tid], children: [...S.nodes[tid].children, ...c.tops] } };
-        extra = { collapsed: { ...(S.collapsed || {}), [tid]: false } };
-      }
-      const g = await this.graft(nodes); this.allowGraft(g.nodes);
-      this.setState(s => ({ nodes: g.nodes, images: { ...ownImages(s.images), ...c.images, ...g.images }, ...extra }));
-      this.flash('Copied ' + Object.keys(c.nodes).length + ' slides from "' + slug + '"');
-    } catch (e) { this.flash('Couldn\'t copy "' + slug + '": ' + e.message); }
   }
   flash(msg, ms = 4000) { clearTimeout(this._nt); this.setState({ note: msg }); this._nt = setTimeout(() => this.setState({ note: null }), ms); }
   async loadDeck() {
     try {
-      if (!STATIC) fetch('/api/decks').then(r => r.json()).then(decks => this.setState({ decks })).catch(() => {});
-      const r = await fetch(DECK_BASE + 'deck.json', { cache: 'no-store' });
-      if (r.status === 404 && !STATIC) {   // new deck: one blank slide named after the slug, written straight away so it shows in the deck list
-        const t = DECK.replace(/-+/g, ' '), id = 's' + uid();
-        const nodes = { ROOT: { id: 'ROOT', title: '', body: '', children: [id] }, [id]: { id, title: t[0].toUpperCase() + t.slice(1), body: '', children: [] } };
-        this._lastNodes = nodes; this._loaded = true;
-        this.setState({ nodes, cur: id, prev: null, phase: 'idle' }, () => this.save()); return;
+      const r = await fetch(SRC, { cache: 'no-store' });
+      if (r.status === 404 && DECK && !STATIC) {   // new deck: one slide named after the slug, written straight away so it shows in the deck list
+        const t = DECK.replace(/-+/g, ' ');
+        this.adopt('# ' + t[0].toUpperCase() + t.slice(1) + '\n', null, () => this.save()); return;
       }
       if (!r.ok) throw new Error('HTTP ' + r.status);
-      const d = await r.json(); if (!d.nodes || !d.nodes.ROOT) throw new Error('not a deck');
-      const pick = Object.fromEntries(DECK_FIELDS.filter(k => k in d).map(k => [k, d[k]]));
-      const g = await this.graft(d.nodes);
-      this._lastNodes = g.nodes;                               // don't record the load (or its grafts) as an undo step
-      this.setState({ ...pick, nodes: g.nodes, images: { ...mapImgs(d.images, absUrl), ...g.images }, customBg: d.customBg ? absUrl(d.customBg) : null,
-        cur: d.titlePage ? 'ROOT' : d.nodes.ROOT.children[0], prev: null, phase: 'idle' }, () => { this._loaded = true; this.markSaved(); });
-    } catch (e) { this.setState({ saveMsg: 'Could not load deck "' + DECK + '": ' + e.message }); }
+      const md = await r.text();
+      if (/text\/html/i.test((r.headers && r.headers.get('content-type')) || '') || /^\s*<(!doctype|html)/i.test(md)) throw new Error('not a markdown file');
+      let L = null; const lr = await fetch(layoutUrl(SRC), { cache: 'no-store' }).catch(() => null);   // missing is fine; invalid is ignored, with a note
+      if (lr && lr.ok) try { L = JSON.parse(await lr.text()); } catch (e) { this.flash('Layout file ignored: ' + e.message, 8000); }
+      this.adopt(md, L);
+    } catch (e) { this.setState({ saveMsg: (DECK ? 'Could not load deck "' + DECK + '": ' : "Can't load " + SRC + ': ') + e.message }); }
   }
   async save() {
     if (!DECK || STATIC || this.state.saving || !this._loaded) return;   // never overwrite a deck we failed (or haven't finished) loading
-    const S = this.state; const body = Object.fromEntries(DECK_FIELDS.map(k => [k, S[k]]));
-    body.nodes = stripGrafts(S.nodes); body.images = mapImgs(ownImages(S.images), relUrl); body.customBg = S.customBg ? relUrl(S.customBg) : null;
+    const S = this.state, layout = layoutOf(S.nodes, { ...S, images: mapImgs(S.images, relUrl), customBg: S.customBg ? relUrl(S.customBg) : null });
     this.setState({ saving: true, saveMsg: null });
     try {
-      const r = await fetch('/api/decks/' + DECK, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+      const r = await fetch('/api/decks/' + DECK, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ md: S.md, layout }) });
       if (!r.ok) throw new Error('HTTP ' + r.status + ' ' + (await r.text()));
-      const d = await r.json();
+      const d = (await r.json()).layout.deck;
       // Only adopt the server's image paths if nothing changed while saving; otherwise stay dirty and let the next save catch up.
-      if (DECK_FIELDS.every(k => this.state[k] === S[k])) this.setState({ saving: false, images: { ...graftImages(S.images), ...mapImgs(d.images, absUrl) }, customBg: d.customBg ? absUrl(d.customBg) : null }, () => this.markSaved());
+      if (SAVED.every(k => this.state[k] === S[k])) this.setState({ saving: false, images: { ...S.images, ...mapImgs(d.images, absUrl) }, customBg: d.customBg ? absUrl(d.customBg) : null }, () => this.markSaved());
       else this.setState({ saving: false });
     } catch (e) { this.setState({ saving: false, saveMsg: 'Save failed: ' + e.message }); }
   }
@@ -1715,22 +1574,20 @@ class Component extends DCLogic {
     } catch (e) { this.setState({ clipMsg: 'Clipboard blocked here: select the layer and press Ctrl/⌘+V' }); }
     clearTimeout(this.cmT); this.cmT = setTimeout(() => this.setState({ clipMsg: null }), 3500);
   }
-  componentWillUnmount() { window.removeEventListener('message', this.onMsg); clearTimeout(this._as); clearTimeout(this._nt); window.removeEventListener('beforeunload', this.onUnload); window.removeEventListener('paste', this.onPaste); window.removeEventListener('focus', this.onFocusWin); window.removeEventListener('keydown', this.onKey); window.removeEventListener('resize', this.onResize); clearTimeout(this.t); clearTimeout(this._crT); }
+  componentWillUnmount() { window.removeEventListener('message', this.onMsg); clearTimeout(this._as); clearTimeout(this._mdT); clearTimeout(this._nt); window.removeEventListener('beforeunload', this.onUnload); window.removeEventListener('paste', this.onPaste); window.removeEventListener('focus', this.onFocusWin); window.removeEventListener('keydown', this.onKey); window.removeEventListener('resize', this.onResize); clearTimeout(this.t); clearTimeout(this._crT); }
   litCrumbs() {   // fade mode: show the breadcrumbs on a transition, then fade them out after crumbFade seconds
     clearTimeout(this._crT); if (!this.state.crumbLit) this.setState({ crumbLit: true });
     this._crT = setTimeout(() => this.setState({ crumbLit: false }), (this.state.crumbFade || 2) * 1000);
   }
   componentDidUpdate() {
-    if (this.guardGrafts()) return;
     this.markCustom();
     this.histTrack();
     const S = this.state;
-    if (!DECK) {
-      const d = JSON.stringify({ nodes: stripGrafts(S.nodes), cur: S.cur, mode: S.mode, view: S.view, rtab: S.rtab, bg: S.bg, customAspect: S.customAspect, bgScale: S.bgScale, bgRepeat: S.bgRepeat, bgY: S.bgY, opacity: S.opacity, base: S.base, offset: S.offset, gap: S.gap, tone: S.tone, speed: S.speed, navW: S.navW, rightW: S.rightW, tdef: S.tdef, titlePage: S.titlePage, titleView: S.titleView, spacing: S.spacing, rowGap: S.rowGap, styles: S.styles, layouts: S.layouts, layoutDefaults: S.layoutDefaults, presentFit: S.presentFit, showCrumbs: S.showCrumbs, crumbFade: S.crumbFade, secOpen: S.secOpen, stab: S.stab, collapsed: S.collapsed, treeZoom: S.treeZoom, treeFocus: S.treeFocus });
-      if (d !== this._d) { this._d = d; try { localStorage.setItem(KEY, d); } catch (e) {} }
-      if (S.images !== this._im) { this._im = S.images; try { localStorage.setItem(IKEY, JSON.stringify(S.images)); } catch (e) {} }
-      if (S.customBg !== this._bg) { this._bg = S.customBg; try { if (S.customBg) localStorage.setItem(BGKEY, S.customBg); } catch (e) {} }
-    } else if (!STATIC) {
+    if (!SRC) {   // scratch deck: markdown + layout in the browser
+      const refs = SAVED.map(k => S[k]);
+      if (!this._sr || refs.some((v, i) => v !== this._sr[i])) { this._sr = refs; try { localStorage.setItem(KEY, JSON.stringify({ md: S.md, layout: layoutOf(S.nodes, S) })); } catch (e) {} }
+    }
+    if (!STATIC) {
       const u = JSON.stringify({ navW: S.navW, rightW: S.rightW, secOpen: S.secOpen, stab: S.stab, presentFit: S.presentFit, showCrumbs: S.showCrumbs, crumbFade: S.crumbFade, view: S.view, rtab: S.rtab, collapsed: S.collapsed, treeZoom: S.treeZoom, treeFocus: S.treeFocus });
       if (u !== this._u) { this._u = u; try { localStorage.setItem(UIKEY, u); } catch (e) {} }
     }
@@ -1810,13 +1667,10 @@ class Component extends DCLogic {
       for (const k in BUILTIN_LAYOUTS) o[k] = { id: k, ...BUILTIN_LAYOUTS[k] }; for (const k in this.state.layouts || {}) o[k] = { id: k, ...this.state.layouts[k] }; this._layouts = o; }
     return this._layouts; }
   slideSig(id) { const fr = this.framesOf(id); return sigKey(sigOf(fr[0] ? fr[0].layers : [], this.styles())); }
-  // The slide's own layout if it still matches, else the deck default for its signature, else the first match, else none.
+  // The slide's own layout if it still matches, else its shape's (shapeLayout), else none.
   effectiveLayout(id) {
     const n = this.state.nodes[id]; if (!n) return null; const sig = this.slideSig(id); if (!sig) return null;
-    const L = this.layouts(), fits = x => x && sigKey(x.match) === sig;
-    if (fits(L[n.layout])) return L[n.layout];
-    const d = L[(this.state.layoutDefaults || {})[sig]]; if (fits(d)) return d;
-    return Object.values(L).find(fits) || null;
+    const L = this.layouts()[n.layout]; return L && sigKey(L.match) === sig ? L : this.shapeLayout(sig);
   }
   isCustom(id) { const n = this.state.nodes[id]; return !!(n && (n.custom || this.framesOf(id).length > 1)); }
   // A styled text layer over its style: the host's style of that id, else (for a linked-in slide) its own deck's. Display and comparison only.
@@ -1870,16 +1724,6 @@ class Component extends DCLogic {
     const go = on ? { cur: 'ROOT' } : S.cur === 'ROOT' ? { cur: first } : null;
     this.setState({ titlePage: on, ...seed, ...(go ? { ...go, prev: null, phase: 'idle', fi: 0, layerSel: null, editing: null, tween: null, transSel: null, fprev: false, confirmDup: null } : {}) });
   }
-  // A slide's branch as markdown (POSTs the live, possibly unsaved nodes; the server shares the importer's format code).
-  async exportMarkdown(id) {
-    const r = await fetch('/api/export', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ nodes: Object.fromEntries(Object.entries(this.state.nodes).map(([k, n]) => [k, n.frames ? { ...n, frames: n.frames.map(f => ({ ...f, layers: this.shown(k, f.layers) })) } : n])), id, deck: DECK || 'scratch' }) });
-    const t = await r.text(); if (!r.ok) throw new Error(t || 'HTTP ' + r.status); return t;
-  }
-  async downloadMarkdown(id) {
-    try { const md = await this.exportMarkdown(id); const a = document.createElement('a');
-      a.href = URL.createObjectURL(new Blob([md], { type: 'text/markdown' })); a.download = (id === 'ROOT' ? DECK || 'deck' : id) + '.md'; a.click(); URL.revokeObjectURL(a.href); }
-    catch (e) { this.flash('Couldn\'t export markdown: ' + e.message, 6000); }
-  }
   setNode(id, patch) { this.setState(s => ({ nodes: { ...s.nodes, [id]: { ...s.nodes[id], ...patch } } })); }
   focusTitle() { setTimeout(() => { const el = this.titleRef.current; if (el) { el.focus(); el.select(); } }, 40); }
   // Nav tree zoom (view preference): 30%–150%, stepped, or fit to the panel's width.
@@ -1914,8 +1758,7 @@ class Component extends DCLogic {
   moveNode(id, tid, where) {
     const N = this.state.nodes, D = this.derive(), T = N[tid];
     if (!N[id] || !T || id === tid || this.isUnder(tid, id)) return;
-    if (N[id]._from || T._from) { this.flash(this.graftMsg(N[id]._from ? id : tid)); return; }
-    if (where === 'child' && T.include) { this.flash(this.graftMsg(tid)); return; }
+    if (N[id]._from || T._from) { this.flash(RO_MSG); return; }
     const nodes = { ...N }, pid = D.parent[id];
     nodes[pid] = { ...N[pid], children: N[pid].children.filter(k => k !== id) };
     if (where === 'child') nodes[tid] = { ...nodes[tid], children: [...nodes[tid].children, id] };
@@ -1930,7 +1773,7 @@ class Component extends DCLogic {
       if (id === dragId || this.isUnder(id, dragId)) return null;
       if (this.state.nodes[id]._from) return null;
       const r = (x - p.x) / TW, where = r < 1 / 3 ? 'before' : r > 2 / 3 ? 'after' : 'child';
-      return where === 'child' && this.state.nodes[id].include ? null : { id, where };
+      return { id, where };
     }
     return null;
   }
@@ -1944,7 +1787,7 @@ class Component extends DCLogic {
     const move = e => {
       if (this._treeDragCancel) return;
       if (!dragging && Math.abs(e.clientX - ev.clientX) + Math.abs(e.clientY - ev.clientY) < 5) return; dragging = true;
-      if (this.state.nodes[id]._from) { up(); this.flash(this.graftMsg(id), 6000); return; }
+      if (this.state.nodes[id]._from) { up(); this.flash(RO_MSG, 6000); return; }
       const p = at(e); this.setState({ treeDrag: { id, x: p.x, y: p.y, drop: this.treeDropAt(p.x, p.y, id) } });
     };
     const up = () => {
@@ -1957,18 +1800,17 @@ class Component extends DCLogic {
     window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
   }
   insert(pid, index) {
-    if (this.state.nodes[pid]._from || this.state.nodes[pid].include) { this.flash(this.graftMsg(pid)); return; }
+    if (this.state.nodes[pid]._from) { this.flash(RO_MSG); return; }
     const S = this.state; const id = uid(); const p = S.nodes[pid]; const kids = [...p.children]; kids.splice(index, 0, id);
     this.setState({ nodes: { ...S.nodes, [id]: { id, title: 'New slide', body: '', children: [] }, [pid]: { ...p, children: kids } }, cur: id, prev: null, phase: 'idle', query: '', rtab: 'slide', fi: 0, transSel: null });
     this.focusTitle();
   }
-  addPeer(id, before) { if (id === 'ROOT') return; if (this.state.nodes[id]._from) { this.flash(this.graftMsg(id)); return; } const D = this.derive(); const pid = D.parent[id]; this.insert(pid, this.state.nodes[pid].children.indexOf(id) + (before ? 0 : 1)); }
+  addPeer(id, before) { if (id === 'ROOT') return; if (this.state.nodes[id]._from) { this.flash(RO_MSG); return; } const D = this.derive(); const pid = D.parent[id]; this.insert(pid, this.state.nodes[pid].children.indexOf(id) + (before ? 0 : 1)); }
   addChild(id) { this.insert(id, this.state.nodes[id].children.length); }
   // Deleting a slide with children asks first: delete them too, or move them up into its place.
   remove(id) {
     const N = this.state.nodes; if (!N[id] || id === 'ROOT') return;
-    if (N[id]._from) { this.flash(this.graftMsg(id)); return; }
-    if (N[id].include) { this.removeNode(id, false); this.flash('Removed link to "' + N[id].include + '"'); return; }   // its children are the graft, not yours
+    if (N[id]._from) { this.flash(RO_MSG); return; }
     const count = (function c(x) { return N[x].children.reduce((n, k) => n + 1 + c(k), 0); })(id);
     if (count) this.setState({ confirmDel: { id, count } }); else this.removeNode(id, false);
   }
@@ -1987,7 +1829,7 @@ class Component extends DCLogic {
     this.setState({ nodes, cur: next || nodes.ROOT.children[0], prev: null, phase: 'idle', fi: 0, transSel: null });
   }
   outdent(id) {
-    if (id === 'ROOT') return; if (this.state.nodes[id]._from) { this.flash(this.graftMsg(id)); return; }
+    if (id === 'ROOT') return; if (this.state.nodes[id]._from) { this.flash(RO_MSG); return; }
     const D = this.derive(); const pid = D.parent[id]; if (pid === 'ROOT') return; const gid = D.parent[pid]; const N = this.state.nodes;
     const g = [...N[gid].children]; g.splice(g.indexOf(pid) + 1, 0, id);
     this.setState({ nodes: { ...N, [pid]: { ...N[pid], children: N[pid].children.filter(k => k !== id) }, [gid]: { ...N[gid], children: g } } });
@@ -2001,18 +1843,20 @@ class Component extends DCLogic {
   }
   histTrack() {
     const S = this.state;
-    if (S.nodes === this._lastNodes) return;
-    if (this._histReady && this._lastNodes && !this._restoring) {
-      if (!this._burst) { this._past.push(this._lastNodes); if (this._past.length > 100) this._past.shift(); this._future = []; }
-      this._burst = true; clearTimeout(this._bt); this._bt = setTimeout(() => { this._burst = false; }, 450);
+    if (S.nodes !== this._lastNodes) {
+      if (this._histReady && this._lastNodes) {
+        if (!this._burst) { this._past.push(this._lastNodes); if (this._past.length > 100) this._past.shift(); this._future = []; }
+        this._burst = true; clearTimeout(this._bt); this._bt = setTimeout(() => { this._burst = false; }, 450);
+      }
+      this._lastNodes = S.nodes;
     }
-    this._restoring = false; this._lastNodes = S.nodes;
     const hc = this._past.length + ':' + this._future.length; if (hc !== S.hist) this.setState({ hist: hc });
   }
   restore(nodes) {
-    this._restoring = true; this._burst = false;
+    this._burst = false;
     const keep = (s, n) => s.editing && n && this.framesOfNode(n).some(f => f.layers.some(l => l.id === s.editing)) ? s.editing : null;   // undo while editing keeps the editor open
-    this.setState(s => ({ nodes, layerSel: null, editing: keep(s, nodes[s.cur]), cur: nodes[s.cur] ? s.cur : nodes.ROOT.children[0], prev: null, phase: 'idle' }));
+    this.setState(s => ({ layerSel: null, editing: keep(s, nodes[s.cur]), prev: null, phase: 'idle' }));
+    this.reenrich(nodes);   // the layout comes back; the markdown stays as it is now
   }
   undo() { if (!this._past.length) return; this._future.push(this.state.nodes); this.restore(this._past.pop()); }
   redo() { if (!this._future.length) return; this._past.push(this.state.nodes); this.restore(this._future.pop()); }
@@ -2021,7 +1865,14 @@ class Component extends DCLogic {
   layoutPatch(n, L) { const fr = this.framesOfNode(n); if (!L || n._from || fr.length !== 1) return null;
     const boxes = fillSlots(fr[0].layers, L, this.styles()), { custom: _c, layers: _l, ...rest } = n;
     return { ...rest, frames: [{ ...fr[0], layers: backFirst(fr[0].layers.map(l => (boxes[l.id] ? { ...l, ...boxes[l.id] } : l)), boxes) }], layout: L.id }; }
-  applyLayout(id, lid) { const p = this.layoutPatch(this.state.nodes[id], this.layouts()[lid]); if (!p) return; const nodes = { ...this.state.nodes, [id]: p }; this.allowLayout(nodes); this.setState({ nodes }); }
+  // Extras (layers not from the markdown) live only in a per-slide override.
+  hasExtras(id) { return this.framesOf(id).some(f => f.layers.some(l => !isMd(l))); }
+  // The layout enrich gives a shape with no override: the deck default, else the deck's first match, else the built-in.
+  shapeLayout(sig) { const own = this.state.layouts || {}, L = this.layouts(), fits = x => x && sigKey(x.match) === sig, d = (this.state.layoutDefaults || {})[sig];
+    return fits(L[d]) ? L[d] : L[Object.keys(own).find(k => fits(own[k]))] || Object.values(L).find(fits) || null; }
+  // A slide given a layout other than its shape's (or with extras) becomes an override, else the next enrich would undo it.
+  applyLayout(id, lid) { const p = this.layoutPatch(this.state.nodes[id], this.layouts()[lid]); if (!p) return;
+    const own = this.hasExtras(id) || (this.shapeLayout(this.slideSig(id)) || {}).id !== lid, nodes = { ...this.state.nodes, [id]: own ? { ...p, custom: true } : p }; this.allowLayout(nodes); this.setState({ nodes }); }
   ownSlideIds() { return Object.keys(this.state.nodes).filter(k => !this.state.nodes[k]._from && (k !== 'ROOT' || this.state.titlePage)); }
   // Make L the default for its type and lay out every default (non-custom, single-frame) slide of that type.
   applyToAll(lid) {
@@ -2030,15 +1881,14 @@ class Component extends DCLogic {
     this.allowLayout(nodes); this.setState(s => ({ nodes, layoutDefaults: { ...(s.layoutDefaults || {}), [sig]: lid } }));
     this.flash('Updated ' + updated + ' slide' + (updated === 1 ? '' : 's') + ' · kept ' + kept + ' custom');
   }
-  resetToDefault(id) { const sig = this.slideSig(id), L = this.layouts(), fits = x => x && sigKey(x.match) === sig;
-    const d = fits(L[(this.state.layoutDefaults || {})[sig]]) ? L[(this.state.layoutDefaults || {})[sig]] : Object.values(L).find(fits); if (d) this.applyLayout(id, d.id); }
+  resetToDefault(id) { const d = this.shapeLayout(this.slideSig(id)); if (d) this.applyLayout(id, d.id); }
   saveAsLayout(id) {
     if (!this.state.nodes[id] || this.state.nodes[id]._from) return null;   // linked-in slides belong to their own deck
     const fr = this.framesOf(id), layers = fr[0] ? fr[0].layers : [], match = sigOf(layers, this.styles()); if (!sigKey(match)) { this.flash('Nothing on this slide to lay out'); return null; }
     const L = this.layouts(), names = Object.values(L).map(x => x.name); let n = 1; while (names.includes('Layout ' + n)) n++;
     const name = 'Layout ' + n; let lid = 'layout-' + n, i = 2; while (L[lid]) lid = 'layout-' + n + '-' + i++;
     this.setState(s => ({ layouts: { ...(s.layouts || {}), [lid]: { name, match, slots: slotsOf(layers, this.styles()) } } }));
-    const { custom: _c, ...rest } = this.state.nodes[id], nodes = { ...this.state.nodes, [id]: { ...rest, layout: lid } }; this.allowLayout(nodes); this.setState({ nodes });
+    const { custom: _c, ...rest } = this.state.nodes[id], nodes = { ...this.state.nodes, [id]: { ...rest, layout: lid, ...(this.hasExtras(id) ? { custom: true } : {}) } }; this.allowLayout(nodes); this.setState({ nodes });
     return lid;
   }
   // The slide's effective layout takes this slide's boxes; every default slide using it follows. Uses the new layout object directly (no read-after-setState).
@@ -2061,7 +1911,7 @@ class Component extends DCLogic {
     this.allowLayout(nodes); this.setState({ nodes, layouts, layoutDefaults });
   }
 
-  curId() { const N = this.state.nodes, c = this.state.cur; return N[c] && (c !== 'ROOT' || this.state.titlePage) ? c : N.ROOT.children[0]; }
+  curId() { const N = this.state.nodes, c = this.state.cur; return N[c] && (c !== 'ROOT' || this.state.titlePage) ? c : N.ROOT.children[0] || 'ROOT'; }   // no slides: ROOT, under the empty message
   defaultLayers(n) {
     const L = [{ id: 't-' + n.id, type: 'text', style: 'h1', x: 8, y: n.body ? 30 : 38, w: 84, h: 22, text: n.title || 'Untitled', font: 'grot', size: 104, weight: 800, color: null, align: 'center', valign: 'middle', lh: 1, bullets: 'none', gap: 0.15 }];
     if (n.body) L.push({ id: 'b-' + n.id, type: 'text', style: 'body', x: 14, y: 56, w: 72, h: 16, text: n.body, font: 'grot', size: 36, weight: 400, color: null, align: 'center', valign: 'top', lh: 1.35, bullets: 'none', gap: 0.15 });
@@ -2087,7 +1937,7 @@ class Component extends DCLogic {
   // per layer (reading order) reveals it, easing out. kind: fade | up | left | cascade (start at the previous layer's spot).
   addSequence(kind) {
     const id = this.curId(), n = this.state.nodes[id], fr = this.framesOfNode(n), i = this.fiFor(id), F = fr[i], ids = this.selIds();
-    if (n._from) { this.flash(this.graftMsg(id)); return; }
+    if (n._from) { this.flash(RO_MSG); return; }
     const items = F.layers.filter(l => ids.includes(l.id)).sort((a, b) => a.y - b.y || a.x - b.x); if (items.length < 2) return;
     const start = items.map((l, k) => kind === 'up' ? { x: l.x, y: rd(l.y + 6) } : kind === 'left' ? { x: rd(l.x - 6), y: l.y } : kind === 'cascade' && k ? { x: items[k - 1].x, y: items[k - 1].y } : { x: l.x, y: l.y });
     const frameAt = shown => ({ layers: F.layers.map(l => { const k = items.indexOf(l); return k < 0 || k < shown ? l : { ...l, ...start[k], opacity: 0 }; }) });
@@ -2097,15 +1947,6 @@ class Component extends DCLogic {
     if (ft[F.id] && i < fr.length - 1) { ft[added[added.length - 1].id] = ft[F.id]; delete ft[F.id]; }   // F → next keeps its settings as last new → next
     [F, ...added.slice(0, -1)].forEach((A, k) => { ft[A.id] = { ...(ft[A.id] || {}), [items[k].id]: { move: { ease: 'out', dur: (td.move || {}).dur ?? 500 }, fade: { ease: 'out', dur: (td.fade || {}).dur ?? 500 } } }; });
     this.setFrames(id, nf, ft, { transSel: null });
-  }
-  // Split lines into layers: a multi-line text layer becomes one layer per non-empty line, stacked in its box, in every frame (same ids across frames).
-  splitLines(lid) {
-    const id = this.curId(), n = this.state.nodes[id]; if (n._from) { this.flash(this.graftMsg(id)); return; }
-    const src = this.layersOf(id).find(l => l.id === lid), lines = src ? String(src.text || '').split('\n').filter(t => t.trim()) : [];
-    if (lines.length < 2) return; const nids = lines.map((_, k) => k ? 'l' + uid() : lid);
-    this.setFrames(id, this.framesOfNode(n).map(f => ({ ...f, layers: f.layers.flatMap(l => { if (l.id !== lid) return [l];
-      const ls = String(l.text || '').split('\n').filter(t => t.trim()), h = rd(l.h / ls.length);
-      return ls.map((t, k) => ({ ...l, id: nids[k] || 'l' + uid(), text: t, y: rd(l.y + k * l.h / ls.length), h })); }) })), null, { layerSel: nids[nids.length - 1], layerSet: nids, editing: null });
   }
   delFrame(i) {
     const id = this.curId(); const n = this.state.nodes[id]; const fr = this.framesOfNode(n); if (fr.length < 2) return;
@@ -2470,8 +2311,8 @@ class Component extends DCLogic {
     if (r0) { const tk = TV.kids('ROOT'); tp.ROOT = { x: tk.length ? (tp[tk[0]].x + tp[tk[tk.length - 1]].x) / 2 : TPX, y: TPY }; }
     this._tpos = tp; this._treeW = TPX * 2 + Math.max(1, leaf) * COLW + 20;
     const td = S.treeDrag;
-    const treeNodes = (r0 ? ['ROOT'] : []).concat(TV.vis).map(id => ({ x: tp[id].x, y: tp[id].y, title: (N[id].include ? '⛓ ' : '') + name(id),
-      hasKids: id !== 'ROOT' && N[id].children.length > 0, canPeer: id !== 'ROOT' && !N[id]._from, canAdd: id === 'ROOT' || (!N[id]._from && !N[id].include), ring: N[id]._from ? '0 0 0 2px #9db8d3' : '0 1px 3px rgba(0,0,0,.18)', from: N[id]._from ? 'From ' + N[id]._from : name(id), toggleLabel: TV.kids(id).length ? '▾' : '▸ ' + countUnder(id), toggleTitle: TV.kids(id).length ? 'Collapse' : 'Expand',
+    const treeNodes = (r0 ? ['ROOT'] : []).concat(TV.vis).map(id => ({ x: tp[id].x, y: tp[id].y, title: name(id),
+      hasKids: id !== 'ROOT' && N[id].children.length > 0, canPeer: id !== 'ROOT' && !N[id]._from, canAdd: id === 'ROOT' || !N[id]._from, ring: N[id]._from ? '0 0 0 2px #9db8d3' : '0 1px 3px rgba(0,0,0,.18)', from: N[id]._from ? 'From ' + N[id]._from : name(id), toggleLabel: TV.kids(id).length ? '▾' : '▸ ' + countUnder(id), toggleTitle: TV.kids(id).length ? 'Collapse' : 'Expand',
       // A slide whose children are hidden only by Focus: clicking its toggle goes there instead of collapsing.
       onToggle: e => { e.stopPropagation(); if (S.treeFocus && !TV.kids(id).length && TV.expanded(id)) this.nav(id, 'jump'); else this.toggleCollapse(id); },
       onDragStart: ev => { if (id !== 'ROOT') this.startTreeDrag(ev, id); }, dragOp: td && td.id === id ? 0.35 : 1, full: name(id), cam: camOf(id), layers: this.shown(id, this.layersOf(id)), selected: id === cur, outline: id === cur ? '2px solid #d9432b' : 'none',
@@ -2793,13 +2634,10 @@ class Component extends DCLogic {
     return {
       ...(st => ({ stabBtns: [['layout', 'Layout'], ['frames', 'Frames'], ['layers', 'Layers']].map(([v, label]) => ({ label, ...tab(st === v), onClick: () => this.setState(v === 'frames' ? { stab: v } : { stab: v, transSel: null }) })),   // leaving Frames closes the transition view
         stabLayout: st === 'layout', stabFrames: st === 'frames', stabLayers: st === 'layers', layerPane: st === 'layers' || transVals.isTransView }))(S.stab || 'layers'),
-      insertOpen: !!DECK && !STATIC && !!(S.secOpen || {}).insert, insertBg: (S.secOpen || {}).insert ? '#ece6d9' : '#fff',
-      onInsertToggle: () => this.setState(st => ({ secOpen: { ...st.secOpen, insert: !(st.secOpen || {}).insert } })),
-      fromDeck: curN._from || '', fromHref: '?deck=' + (curN._from || ''), ownSlide: !curN._from, linkedDeck: curN.include || '', linkedHref: '?deck=' + (curN.include || ''),
+      fromDeck: curN._from || '', fromHref: '?deck=' + (curN._from || ''), ownSlide: !curN._from,
       styleOpts: [{ v: '', l: 'Custom' }].concat(Object.entries(this.styles()).filter(([, st]) => !st.deleted).map(([id, st]) => ({ v: id, l: st.name || id }))),
       lyStyle: styled ? ly.style : '', onLyStyle: e => ly && this.chooseStyle(cur, ly.id, e.target.value), lyStyled: styled,
       styleTargetBtns: styled ? [['layer', 'This layer'], ['style', (this.styles()[ly.style].name || ly.style) + ' style']].map(([v, label]) => ({ label, ...tab((S.styleTarget === 'style' ? 'style' : 'layer') === v), onClick: () => this.setState({ styleTarget: v }) })) : [],
-      canSplit: !!ly && ly.type === 'text' && String(ly.text || '').split('\n').filter(t => t.trim()).length > 1, onSplitLines: () => ly && this.splitLines(ly.id),
       lyHasOverrides: styled && STYLE_KEYS.some(over), onClearOverrides: () => ly && this.clearKeys(cur, ly.id, STYLE_KEYS),
       colorLabel: 'Colour' + (over('color') ? ' •' : ''), colorOver: over('color'), onColorReset: () => ly && this.clearKeys(cur, ly.id, ['color']),
       boxOver: over('card') || over('box'), onBoxReset: e => { e && e.stopPropagation && e.stopPropagation(); ly && this.clearKeys(cur, ly.id, ['card', 'box']); },
@@ -2855,7 +2693,6 @@ class Component extends DCLogic {
       onHdrEnter: () => { clearTimeout(this._hdrT); if (!S.hdrShow) this.setState({ hdrShow: true }); },
       onHdrLeave: () => { clearTimeout(this._hdrT); this._hdrT = setTimeout(() => this.setState({ hdrShow: false }), 300); },
       onSearchFocus: () => this.setState({ searchFocus: true }), onSearchBlur: () => this.setState({ searchFocus: false }),
-      exportShow: !STATIC, onExportMd: () => this.downloadMarkdown(cur),
       isTitlePage: cur === 'ROOT', titlePage: !!S.titlePage, onTitlePage: e => this.setTitlePage(!!e.target.checked),
       tvZoom: tvw.zoom, tvZoomMax: Math.max(8, Math.ceil(this.titleCover(L))), tvZoomLabel: tvw.zoom.toFixed(2) + '×', onTvZoom: e => setTv({ zoom: +e.target.value }),
       tvFit: () => setTv({ zoom: 1 }), tvCover: () => setTv({ zoom: this.titleCover(L) }),
@@ -2876,19 +2713,12 @@ class Component extends DCLogic {
       resetAllTrans: () => this.resetAllTrans(), defApply: { ease: () => this.resetTransKey('ease'), dur: () => this.resetTransKey('dur'), delay: () => this.resetTransKey('delay') },
       transCountText: (c => c ? `${c} slide${c === 1 ? ' has' : 's have'} custom transition settings. Undo restores them.` : 'No custom settings yet: every transition uses these defaults.')(Object.values(N).filter(n => n.ftrans && Object.values(n.ftrans).some(m => Object.keys(m || {}).length)).length),
       undo: () => this.undo(), redo: () => this.redo(), undoOp: this._past && this._past.length ? 1 : 0.4, redoOp: this._future && this._future.length ? 1 : 0.4,
-      deckTitle: S.title || (S.titlePage && N.ROOT.title) || name(N.ROOT.children[0]), editTitle: !!DECK && !STATIC && !isPresent, showTitle: !(DECK && !STATIC && !isPresent),
-      titleVal: S.title || '', onTitle: e => this.setState({ title: e.target.value }), keyHint: S.saveMsg || S.note || (isPresent ? '← → ↑ ↓  ·  Space next  ·  / search' + (STATIC ? '' : '  ·  Esc') : ''),
+      deckTitle: (S.titlePage && N.ROOT.title) || (N.ROOT.children[0] ? name(N.ROOT.children[0]) : DECK || 'Untitled'), emptyMsg: N.ROOT.children.length ? '' : EMPTY_MSG,
+      keyHint: S.saveMsg || S.note || (isPresent ? '← → ↑ ↓  ·  Space next  ·  / search' + (STATIC ? '' : '  ·  Esc') : ''),
       cardModes: [['none', 'None'], ['slide', 'Whole slide']].map(([m, label]) => ({ label, ...tab(cardCfg.mode === m), onClick: () => setCard({ mode: m }) })),
       cardOn: cardCfg.mode !== 'none', cardColor: cardCfg.color, onCardColor: e => setCard({ color: e.target.value }),
       cardOp: cardCfg.opacity, cardOpLabel: Math.round(cardCfg.opacity * 100) + '%', onCardOp: e => setCard({ opacity: +e.target.value }),
       cardBlur: cardCfg.blur, cardBlurLabel: cardCfg.blur + ' px', onCardBlur: e => setCard({ blur: +e.target.value }), deckCard: S.card || null,
-      copyShow: !!DECK && !STATIC, onCopyDeck: e => { const v = e.target.value; if (!v) return; if ((S.copyMode || 'child') === 'link') this.setState({ linkDeck: v, linkSlug: this.freeId(v) }); else this.copyDeckHere(this.curId(), v, S.copyMode || 'child'); },
-      isLinkMode: (S.copyMode || 'child') === 'link', linkSlug: S.linkSlug || '', onLinkSlug: e => this.setState({ linkSlug: e.target.value }),
-      linkLabel: S.linkDeck ? 'Link ' + S.linkDeck : 'Choose a deck above', linkOff: !S.linkDeck, onLink: () => this.createLink(this.curId(), S.linkDeck, S.linkSlug),
-      insertHint: (S.copyMode || 'child') === 'link' ? 'Shows another deck\'s slides under a new linked slide here, live and read-only: edits to that deck show when this one is reopened.' : 'Copies another deck\'s slides into this one as ordinary, editable slides.',
-      copyModes: [['child', 'As children'], ['replace', 'Replace this slide' + (nCur && nCur.children.length ? ' (+' + (function c(x) { return N[x].children.reduce((n, k) => n + 1 + c(k), 0); })(this.curId()) + ' below)' : '')], ['link', 'Link (live)']]
-        .map(([m, label]) => ({ label, ...tab((S.copyMode || 'child') === m), onClick: () => this.setState({ copyMode: m }) })),
-      copyOpts: [{ v: '', l: 'Choose a deck to insert…' }].concat((S.decks || []).filter(d => d.slug !== DECK).map(d => ({ v: d.slug, l: d.title + ' (' + d.slug + ')' }))),
       delDlg: S.confirmDel && N[S.confirmDel.id] ? { show: true, title: name(S.confirmDel.id), count: S.confirmDel.count, allLabel: 'Delete all ' + (S.confirmDel.count + 1),
         onAll: () => this.confirmDelete('all'), onKeep: () => this.confirmDelete('keep'), onCancel: () => this.confirmDelete('cancel') } : { show: false, title: '', count: 0, allLabel: '' },
       hasDeck: !!DECK && !STATIC, save: () => this.save(), saveLabel: S.saving ? 'Saving…' : S.saveMsg ? '⚠ Save' : this.isDirty() ? '● Unsaved' : '✓ Saved',

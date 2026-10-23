@@ -208,6 +208,9 @@ input,textarea,button{font:inherit;color:inherit}
                       </sc-if>
                     </div>
                   </sc-for>
+                  <sc-for list="{{ warnBadges }}" as="wb" hint-placeholder-count="0">
+                    <button onPointerDown="{{ wb.onDown }}" onClick="{{ wb.onClick }}" title="{{ wb.title }}" style="position:absolute;left:{{ wb.x }}%;top:{{ wb.y }}%;z-index:950;margin:-10px 0 0 -10px;width:22px;height:22px;padding:0;border:0;border-radius:999px;background:#fbf9f4;box-shadow:0 1px 4px rgba(0,0,0,.35);cursor:pointer;font-size:12px;line-height:22px">⚠️</button>
+                  </sc-for>
                   <sc-if value="{{ hasGroup }}">
                     <div style="position:absolute;left:{{ grp.l }}%;top:{{ grp.t }}%;width:{{ grp.w }}%;height:{{ grp.h }}%;outline:1.5px dashed #1f6fb8;outline-offset:3px;pointer-events:none;z-index:900">
                       <div style="position:absolute;left:-2px;bottom:calc(100% + 8px);padding:2px 6px;border-radius:4px;background:#1f6fb8;color:#fff;font-family:'JetBrains Mono',monospace;font-size:10px;white-space:nowrap">{{ grp.label }}</div>
@@ -411,6 +414,11 @@ input,textarea,button{font:inherit;color:inherit}
                   <sc-if value="{{ layCustom }}"><button onClick="{{ onLayReset }}" style="padding:3px 8px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer;font-size:12px">↺ Reset to default</button></sc-if>
                 </div>
                 <sc-if value="{{ layEditable }}">
+                <div title="Where hand edits go: this slide's own override, or the shared layout every slide of this type follows" style="display:flex;gap:2px;padding:3px;border-radius:9px;background:#ece6d9">
+                  <sc-for list="{{ applyItems }}" as="ap" hint-placeholder-count="2">
+                    <button onClick="{{ ap.onClick }}" style="flex:1;padding:4px 0;border:0;border-radius:7px;cursor:pointer;background:{{ ap.bg }};color:{{ ap.color }};box-shadow:{{ ap.shadow }};font-size:12px;font-weight:600">{{ ap.label }}</button>
+                  </sc-for>
+                </div>
                 <sc-if value="{{ layNoTiles }}"><span style="font-size:12px;line-height:1.45;color:#6b6458">No layout for this type yet: arrange this slide and press Save as layout.</span></sc-if>
                 <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px">
                   <sc-for list="{{ layTiles }}" as="lt" hint-placeholder-count="2">
@@ -1408,7 +1416,7 @@ class Component extends DCLogic {
   static md = { enrich, layoutOf, blockLayers };
   static rich = { parseRich, plainText, applyFormat, runsToMarkup, linesOf, textOf, toPlain, lineLen, locate, setAttr, toggleAttr, clearRange, insertBreak, insertPlain, deleteRange, linkAt, buildEditor, getOffsets, setOffsets, readLines, wysBefore };
   state = {
-    md: SEED, mdIssues: [], nodes: enrich(MD.parseMarkdown(SEED).sections, []).nodes, cur: 'a', prev: null, phase: 'idle', dx: 0, dy: 0, type: 'swipe', mode: STATIC ? 'present' : 'build', view: 'slide', rtab: 'slide',
+    md: SEED, mdIssues: [], nodes: enrich(MD.parseMarkdown(SEED).sections, []).nodes, cur: 'a', prev: null, phase: 'idle', dx: 0, dy: 0, type: 'swipe', mode: STATIC ? 'present' : 'build', view: 'slide', rtab: 'slide', applyTo: 'slide',
     query: '', bg: 'balloons', customBg: null, customAspect: 1, opacity: 1, base: '#0b1220', offset: 0,
     tAll: { ease: false, dur: false, delay: false }, tdef: {}, dAll: { ease: false, dur: false, delay: false }, secOpen: { layout: true, frames: true, layers: true, tdef: false }, collapsed: {}, rowGap: -0.7, gap: -0.7, tone: 'light', editMode: 'rich', speed: 900, lastChild: {}, navW: 280, rightW: 340, mdOpen: true, mdW: 380, images: {}, layerSel: null, editing: null, guides: {},
   };
@@ -1503,12 +1511,26 @@ class Component extends DCLogic {
   }
   allowLayout(nodes) { this._layoutNodes = nodes; }   // tags the one nodes object a layout action commits, so it doesn't count as a hand edit
   // Any hand edit to a slide's frames (boxes, extras added or removed, frames) makes it a per-slide override. Layout and enrich commits, undo/redo and loads don't.
+  // Apply to Layout: a single-frame slide with no extras and a layout updates that layout instead. A hand-edited unplaced (_warn) block is placed: the override keeps it.
   markCustom() {
     const S = this.state, prev = this._lastNodes;
     if (!prev || S.nodes === prev) return;
     if (this._layoutNodes && S.nodes === this._layoutNodes) { this._layoutNodes = null; return; }
-    const hits = Object.keys(S.nodes).filter(k => { const n = S.nodes[k], p = prev[k]; return k !== 'ROOT' && p && n !== p && !n._from && !n.custom && n.frames !== p.frames; });
-    if (hits.length) this.setState(s => { const nodes = { ...s.nodes }; hits.forEach(k => { nodes[k] = { ...nodes[k], custom: true }; }); return { nodes }; });
+    const hits = Object.keys(S.nodes).filter(k => { const n = S.nodes[k], p = prev[k]; return k !== 'ROOT' && p && n !== p && !n._from && n.frames !== p.frames; });
+    const toLayout = S.applyTo === 'layout' && hits.find(k => !S.nodes[k].custom && this.framesOf(k).length === 1 && !this.hasExtras(k) && this.effectiveLayout(k));
+    const nodes = { ...S.nodes }; let changed = false;
+    for (const k of hits) { if (k === toLayout) continue; const n = S.nodes[k], old = new Set((prev[k].frames || []).flatMap(f => f.layers));
+      const frames = n.frames && n.frames.map(f => f.layers.some(l => l._warn && !old.has(l)) ? { ...f, layers: f.layers.map(l => { if (!l._warn || old.has(l)) return l; const { _warn: _w, ...o } = l; return o; }) } : f);
+      const placed = frames && frames.some((f, i) => f !== n.frames[i]); if (n.custom && !placed) continue;
+      nodes[k] = { ...n, ...(placed ? { frames } : {}), custom: true }; changed = true; }
+    if (toLayout) this.updateLayoutFrom(toLayout, nodes); else if (changed) this.setState({ nodes });
+  }
+  // ⚠️ click: an override records the block where it is; with no layout for the shape, this slide becomes its shape's layout.
+  claimBlock(id, lid) {
+    const n = this.state.nodes[id]; if (!n || n._from) return;
+    if (!n.custom) { if (this.saveAsLayout(id)) this.setState({}, () => this.reenrich()); return; }
+    const nodes = { ...this.state.nodes, [id]: { ...n, frames: n.frames.map(f => ({ ...f, layers: f.layers.map(l => { if (l.id !== lid) return l; const { _warn: _w, ...o } = l; return o; }) })) } };
+    this.allowLayout(nodes); this.setState({ nodes });
   }
   flash(msg, ms = 4000) { clearTimeout(this._nt); this.setState({ note: msg }); this._nt = setTimeout(() => this.setState({ note: null }), ms); }
   async loadDeck() {
@@ -1574,7 +1596,7 @@ class Component extends DCLogic {
       if (!this._sr || refs.some((v, i) => v !== this._sr[i])) { this._sr = refs; try { localStorage.setItem(KEY, JSON.stringify({ md: S.md, layout: layoutOf(S.nodes, S) })); } catch (e) {} }
     }
     if (!STATIC) {
-      const u = JSON.stringify({ navW: S.navW, rightW: S.rightW, mdW: S.mdW, mdOpen: S.mdOpen, secOpen: S.secOpen, stab: S.stab, presentFit: S.presentFit, showCrumbs: S.showCrumbs, crumbFade: S.crumbFade, view: S.view, rtab: S.rtab, collapsed: S.collapsed, treeZoom: S.treeZoom, treeFocus: S.treeFocus });
+      const u = JSON.stringify({ navW: S.navW, rightW: S.rightW, mdW: S.mdW, mdOpen: S.mdOpen, secOpen: S.secOpen, stab: S.stab, presentFit: S.presentFit, showCrumbs: S.showCrumbs, crumbFade: S.crumbFade, view: S.view, rtab: S.rtab, collapsed: S.collapsed, treeZoom: S.treeZoom, treeFocus: S.treeFocus, applyTo: S.applyTo });
       if (u !== this._u) { this._u = u; try { localStorage.setItem(UIKEY, u); } catch (e) {} }
     }
     if (S.cur !== this._lastCur) { this._lastCur = S.cur; this.scrollTree(); this.scrollMd(); if (S.showCrumbs === 'fade') this.litCrumbs(); }
@@ -1812,12 +1834,12 @@ class Component extends DCLogic {
     return lid;
   }
   // The slide's effective layout takes this slide's boxes; every default slide using it follows. Uses the new layout object directly (no read-after-setState).
-  updateLayoutFrom(id) {
+  updateLayoutFrom(id, N = this.state.nodes) {
     if (!this.state.nodes[id] || this.state.nodes[id]._from) return;
     const L0 = this.effectiveLayout(id); if (!L0 || this.framesOf(id).length !== 1) return;
     const { id: lid, ...stored } = { ...L0, slots: slotsOf(this.framesOf(id)[0].layers, this.styles()) }, L = { id: lid, ...stored };
     this.setState(s => ({ layouts: { ...(s.layouts || {}), [lid]: stored } }));
-    const N = this.state.nodes, nodes = { ...N };
+    const nodes = { ...N };
     for (const k of this.ownSlideIds()) { if (k !== id && (this.isCustom(k) || (this.effectiveLayout(k) || {}).id !== lid)) continue; const p = this.layoutPatch(N[k], L); if (p) nodes[k] = p; }
     this.allowLayout(nodes); this.setState({ nodes });
   }
@@ -2582,8 +2604,10 @@ class Component extends DCLogic {
         if (v === '@url') { this._linkTarget = r; this.setState({ fmtUrl: true, fmtUrlVal: '' }); return; }
         this.formatRange(r.start, r.end, { attrs: v === '-' ? { link: null, href: null } : { link: v, href: null } }); this.setState({ linkPick: false }); },
       layChips: chipsOf(sigM), layMulti: animated, layEditable: !(curN && curN._from) && !animated, layCustom: !!(curN && curN.custom) && !animated && !curN._from && !!effL,
-      layStatus: animated ? 'Animated (' + this.framesOf(cur).length + ' frames) · layouts don\'t apply' : !sigK ? 'Nothing on this slide to lay out' : !effL ? 'No layout for this type yet' : curN.custom ? 'Custom (' + effL.name + ')' : 'Default · ' + effL.name,
+      layStatus: animated ? 'Animated (' + this.framesOf(cur).length + ' frames) · layouts don\'t apply' : !sigK ? 'Nothing on this slide to lay out' : !effL ? 'No layout for this type yet' : curN.custom ? 'This slide · ' + effL.name : 'Default · ' + effL.name,
       onLayReset: () => this.resetToDefault(cur),
+      applyItems: [['slide', 'This slide'], ['layout', 'Layout']].map(([v, label]) => ({ label, ...tab((S.applyTo || 'slide') === v), onClick: () => this.setState({ applyTo: v }) })),
+      warnBadges: isPresent ? [] : curLayers.filter(l => l._warn && !l.hidden).map(l => ({ x: l.x, y: l.y, title: 'Not placed by this slide\'s layout — click to add a region for it', onClick: () => this.claimBlock(cur, l.id), onDown: e => e.stopPropagation() })),
       layTiles: animated || !sigK ? [] : Object.values(LAY).filter(L => sigKey(L.match) === sigK).map(tileOf), layNoTiles: !animated && !!sigK && !firstFit,
       onLaySave: () => this.saveAsLayout(cur), layCanUpdate: !!effL && !animated, layUpdateLabel: effL ? 'Update “' + effL.name + '” from this slide' : '', onLayUpdate: () => this.updateLayoutFrom(cur),
       layAll: Object.values(LAY).map(L => ({ ...tileOf(L), layers: [] })), layAllOpen: !!S.layAllOpen, onLayAllToggle: () => this.setState({ layAllOpen: !S.layAllOpen }),

@@ -1342,7 +1342,7 @@ test("Layout panel: shape chips, status, matching tiles with default star, count
   expect(v.layTiles[1].layers.find((l: any) => l.id === "md-body-2")).toMatchObject({ x: 52, _lines: expect.anything() });   // preview: this slide's content, resolved
   v.layTiles[1].onToggle(); v = c.renderVals(); expect(v.layTiles[1].slides.map((s: any) => s.name)).toEqual(["A", "B"]);
   v.layTiles[1].slides[1].onClick(); expect(c.state.cur).toBe("b"); expect(c.state.stab).toBe("layout");
-  c.setNode("b", { custom: true }); c.setState({ cur: "b" }); v = c.renderVals(); expect(v.layStatus).toBe("Custom (Two columns)"); expect(v.layCustom).toBe(true);
+  c.setNode("b", { custom: true }); c.setState({ cur: "b" }); v = c.renderVals(); expect(v.layStatus).toBe("This slide · Two columns"); expect(v.layCustom).toBe(true);
   v.layTiles[0].onApplyAll(); expect(c.state.layoutDefaults["body:2,title:1"]).toBe("stacked-2");
   expect(c.renderVals().layAll.length).toBeGreaterThanOrEqual(13); expect(c.renderVals().layCanUpdate).toBe(true);
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
@@ -1543,4 +1543,57 @@ test("md layer not editable on slide; an extra text layer still is", async () =>
   c.startEdit("md-title"); expect(c.state.editing ?? null).toBeNull();
   c.setLayers("intro", (ls: any[]) => [...ls, { id: "x1", type: "text", text: "hi", x: 0, y: 0, w: 10, h: 10 }]);
   c.startEdit("x1"); expect(c.state.editing).toBe("x1");
+});
+
+// ---- apply choice and warning badges ----
+const WARN = "Not placed by this slide's layout — click to add a region for it";
+const FIVE = (t: string) => `# ${t}\nslug: ${t.toLowerCase()}\n\n` + [1, 2, 3, 4, 5].map(i => `P${i} ${t}.\n\n`).join("");   // no layout fits body ×5
+
+test("apply: layout mode updates shared layout", async () => {
+  await writeMd("talk", TWO("A") + TWO("B")); const { c } = await mount("?deck=talk"); await Bun.sleep(150);
+  c.setState({ cur: "a" }); c.renderVals().applyItems[1].onClick(); expect(c.state.applyTo).toBe("layout");
+  c.updLayer("a", "md-body-2", { x: 70 }); c.componentDidUpdate(); c.componentDidUpdate();
+  expect(c.layouts()["stacked-2"].slots.body[1].x).toBe(70); expect(layerOf(c, "b", "md-body-2").x).toBe(70);
+  expect(c.state.nodes.a.custom).toBeUndefined(); expect(c.state.nodes.b.custom).toBeUndefined();
+  c.undo(); c.componentDidUpdate(); expect(layerOf(c, "b", "md-body-2").x).toBe(6); expect(c.state.layouts?.["stacked-2"]).toBeUndefined();   // one undo step
+});
+
+test("apply: slide mode makes an override", async () => {
+  await writeMd("talk", TWO("A") + TWO("B")); const { c } = await mount("?deck=talk"); await Bun.sleep(150);
+  c.setState({ cur: "a", stab: "layout" }); let v = c.renderVals();
+  expect(v.applyItems.map((b: any) => b.label)).toEqual(["This slide", "Layout"]); expect(c.state.applyTo).toBe("slide");
+  c.updLayer("a", "md-body-2", { x: 70 }); c.componentDidUpdate(); c.componentDidUpdate();
+  expect(c.state.nodes.a.custom).toBe(true); expect(layerOf(c, "b", "md-body-2").x).toBe(6); expect(c.state.layouts?.["stacked-2"]).toBeUndefined();
+  expect(c.renderVals().layStatus).toBe("This slide · Stacked 2");
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  for (const h of ["{{ applyItems }}", "{{ warnBadges }}"]) expect(html).toContain(h);
+});
+
+test("warn: badge shown and claim on custom slide clears it", async () => {
+  const T = (x: number) => ({ id: "md-title", type: "text", block: "title", x, y: 6, w: 88, h: 14 });
+  await writeMd("talk", "# A\nslug: a\n\nOne.\n\nTwo.\n", { version: 1, deck: {}, slides: { a: { custom: true, frames: [{ id: "f1", layers: [T(6), { id: "md-body-1", type: "text", block: "body", x: 50, y: 30, w: 40, h: 40 }] }] } } });
+  const { c } = await mount("?deck=talk"); c.setState({ cur: "a" });
+  const b2 = layerOf(c, "a", "md-body-2"); let v = c.renderVals();
+  expect(v.warnBadges.length).toBe(1); expect(v.warnBadges[0]).toMatchObject({ x: b2.x, y: b2.y, title: WARN });
+  c.setState({ mode: "present" }); expect(c.renderVals().warnBadges).toEqual([]); c.setState({ mode: "build" });
+  v.warnBadges[0].onClick();
+  expect(layerOf(c, "a", "md-body-2")._warn).toBeUndefined(); expect(c.renderVals().warnBadges).toEqual([]);
+  expect(c.constructor.md.layoutOf(c.state.nodes).slides.a.frames[0].layers.map((l: any) => l.id)).toContain("md-body-2");   // the override records it
+});
+
+test("warn: a hand edit of an unplaced block clears its warning, so the override keeps it", async () => {
+  await writeMd("talk", FIVE("A")); const { c } = await mount("?deck=talk"); await Bun.sleep(150);
+  c.setState({ cur: "a" }); expect(c.renderVals().warnBadges.length).toBe(5);
+  c.updLayer("a", "md-body-3", { x: 40 }); c.componentDidUpdate(); c.componentDidUpdate();
+  expect(c.state.nodes.a.custom).toBe(true); expect(layerOf(c, "a", "md-body-3")._warn).toBeUndefined(); expect(layerOf(c, "a", "md-body-1")._warn).toBe(true);
+  c.reenrich(); expect(layerOf(c, "a", "md-body-3")).toMatchObject({ x: 40 }); expect(layerOf(c, "a", "md-body-3")._warn).toBeUndefined();
+});
+
+test("warn: claim on unmatched shape saves a layout and clears all same-shape warnings", async () => {
+  await writeMd("talk", FIVE("A") + FIVE("B")); const { c } = await mount("?deck=talk"); await Bun.sleep(150);
+  c.setState({ cur: "a" }); const v = c.renderVals(); expect(v.warnBadges.length).toBe(5);
+  v.warnBadges[2].onClick(); c.componentDidUpdate();
+  const L = Object.values<any>(c.state.layouts || {}); expect(L.length).toBe(1); expect(L[0].match).toEqual({ title: 1, body: 5 });
+  for (const k of ["a", "b"]) { expect(c.layersOf(k).some((l: any) => l._warn)).toBe(false); expect(c.state.nodes[k].custom).toBeUndefined(); }
+  expect(c.renderVals().warnBadges).toEqual([]);
 });

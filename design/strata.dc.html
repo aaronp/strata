@@ -1545,7 +1545,7 @@ class Component extends DCLogic {
   }
   // A loaded markdown + layout file pair becomes the deck: not an undo step, and nothing to save.
   adopt(md, L, then) {
-    this._linked = {}; this._linkedOv = Object.fromEntries(Object.entries((L && L.slides) || {}).filter(([k]) => k.includes('.')));   // linked slides are read-only: their host overrides stay as loaded
+    this._linked = {}; this._goneOv = {}; this._linkedOv = Object.fromEntries(Object.entries((L && L.slides) || {}).filter(([k]) => k.includes('.')));   // linked slides are read-only: their host overrides stay as loaded
     const d = (L && L.deck) || {}, r = this.enrichMd(md, L), pick = Object.fromEntries(DECK_FIELDS.filter(k => k in d).map(k => [k, d[k]]));
     this._lastNodes = r.nodes;
     this.setState({ ...pick, md, nodes: r.nodes, mdIssues: r.mdIssues, images: { ...mapImgs(d.images, absUrl), ...r.mdImages }, customBg: d.customBg ? absUrl(d.customBg) : null,
@@ -1556,7 +1556,10 @@ class Component extends DCLogic {
   // A current slide that's gone moves to its nearest surviving ancestor, else the first slide.
   reenrich(baseNodes = this.state.nodes, deck = {}) {   // deck: layouts/layoutDefaults about to be set (undo), not yet in state
     clearTimeout(this._mdT);
-    const S = this.state, r = this.enrichMd(S.md, layoutOf(baseNodes, { ...S, ...deck }, this._linkedOv)), nodes = r.nodes, up = {};
+    const S = this.state, L = layoutOf(baseNodes, { ...S, ...deck }, this._linkedOv);
+    L.slides = { ...this._goneOv, ...L.slides };   // an override whose slide is gone (an id mid-edit) comes back with the id, for the session
+    const r = this.enrichMd(S.md, L), nodes = r.nodes, up = {};
+    this._goneOv = Object.fromEntries(Object.entries(L.slides).filter(([k]) => k !== 'ROOT' && !nodes[k]));
     for (const k in S.nodes) for (const c of S.nodes[k].children || []) up[c] = k;
     let cur = S.cur; while (cur && cur !== 'ROOT' && !nodes[cur]) cur = up[cur] || cur.slice(0, Math.max(0, cur.lastIndexOf('.')));
     if (!cur || (cur === 'ROOT' && !S.titlePage)) cur = nodes.ROOT.children[0];

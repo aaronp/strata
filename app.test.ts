@@ -1761,3 +1761,13 @@ test("md layers keep their web link and list bullets through a markdown edit and
   expect(layerOf(c2, "a", "md-title").link).toEqual({ type: "url", url: "https://e.com" }); expect(layerOf(c2, "a", "md-list-1").bullets).toBe("none");
   expect(layerOf(c2, "a", "md-list-1").text).toBe("x\ny");
 });
+
+test("a slide's override survives typing its slug a letter at a time", async () => {
+  const md = "# Intro\nslug: intro\n\nHello.\n\n# B\nslug: b\n";
+  await writeMd("talk", md);
+  const { c } = await mount("?deck=talk"); c.setState({ cur: "intro" });
+  nudge(c, "intro", "md-title", 7); const x = layerOf(c, "intro", "md-title").x;
+  expect(c.state.nodes.intro.custom).toBe(true);
+  for (const s of ["slug: ", "slug: i", "slug: in", "slug: intro"]) { c.setMd(md.replace("slug: intro", s)); c.reenrich(); c.componentDidUpdate(); }
+  expect(c.state.nodes.intro.custom).toBe(true); expect(layerOf(c, "intro", "md-title").x).toBe(x);
+});

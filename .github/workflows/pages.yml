@@ -7,8 +7,6 @@ permissions:
   contents: read
   pages: write
   id-token: write
-env:
-  DECK: digital-wallets   # the published deck: the site root opens it (it must be committed: git add -f decks/<slug>)
 concurrency:
   group: pages
   cancel-in-progress: true
@@ -23,7 +21,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - run: bun test
-      - run: make build DECK=$DECK
+      - run: make build   # the landing page: open any deck by URL (?src=)
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

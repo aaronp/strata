@@ -9,13 +9,23 @@ Requires [bun](https://bun.sh).
 | `make dev` | Local editor at http://127.0.0.1:3067/ (pick or create a deck, ⌘S saves to `decks/<slug>/`) |
 | `bun install` | Once, to fetch the test dependency (happy-dom) |
 | `make test` | Run the tests |
-| `make build [DECK=slug]` | Present-only static site in `dist/` with every deck (with `DECK`: the site root opens that deck; a missing deck fails the build) |
+| `make build [DECK=slug]` | Present-only static site in `dist/`: the landing page (open a deck by URL) and every local deck (with `DECK`: the site root opens that deck; a missing deck fails the build) |
 | `make preview` | Build, then serve `dist/` locally |
 
-Publish a deck: set `DECK:` in `.github/workflows/pages.yml`, commit the deck (`decks/` is git-ignored, so `git add -f decks/<slug>`), and push to `master`. In the repo's **Settings → Pages**, set **Source: GitHub Actions** once. Or skip publishing: any hosted Strata presents a markdown file straight from a URL with `?src=` (below).
+Pushing to `master` publishes the app to GitHub Pages (`.github/workflows/pages.yml` runs the tests, then `make build`); in the repo's **Settings → Pages**, set **Source: GitHub Actions** once. Decks aren't published with it: share them by URL.
+
+### Share a deck
+Put the markdown (and its `-layout.json`) anywhere public, e.g. a GitHub repo, and share:
+
+`https://aaronp.github.io/strata/?src=<markdown url>[&slide=<id>]`
+
+- GitHub `blob` links work (`https://github.com/you/repo/blob/main/talk.md`): Strata fetches the raw file; `children:` links too.
+- `&slide=<id>` opens on that slide; an id inside a linked file (`stitching.joining`) loads it on the way. An unknown id opens the first slide with a note.
+- The published site is present-only. Its landing page has an **Open from a URL** box and the [Strata tour](https://aaronp.github.io/strata/?src=https://github.com/aaronp/strata/blob/master/examples/strata-tour/strata-tour.md), a deck about Strata in `examples/strata-tour/`.
+- Locally, `make dev` serves `examples/` too: http://127.0.0.1:3067/design/strata.dc.html?src=/examples/strata-tour/strata-tour.md (or paste any URL into the landing page's box).
 
 ### Decks are markdown
-A deck is `<name>.md` plus an optional `<name>-layout.json`. The markdown is the content and the only place text is edited; the layout file holds everything else (layouts, per-slide overrides, styles, frames, extras, images, canvas settings). The deck is rebuilt from the two on every load and edit. Locally they live in `decks/<slug>/<slug>.md` and `decks/<slug>/<slug>-layout.json`; opening the app without `?deck=` or `?src=` keeps both in browser storage (scratch mode). See `examples/current-situation.md`.
+A deck is `<name>.md` plus an optional `<name>-layout.json`. The markdown is the content and the only place text is edited; the layout file holds everything else (layouts, per-slide overrides, styles, frames, extras, images, canvas settings). The deck is rebuilt from the two on every load and edit. Locally they live in `decks/<slug>/<slug>.md` and `decks/<slug>/<slug>-layout.json`; opening the app without `?deck=` or `?src=` keeps both in browser storage (scratch mode). See `examples/strata-tour/` and `examples/current-situation.md`.
 
 - **Headings are slides** (`#` top level, `##` below it, …, relative to the shallowest heading), styled H1, H2, …. Put `slug: <id>` on the line after a heading to fix its id (otherwise it comes from the heading text, and renaming the heading loses that slide's layout).
 - **Blocks:** each paragraph is a `body` block, each `- `/`* ` list a `list`, each `![alt](url)` an `image` (relative to the markdown file); `[link:<slug>][Label]` lines make one `links` block of chips that jump to that slide; lines of only `[text](url)` links make one `sources` block. Wrap several paragraphs/lists in `<!-- block -->` … `<!-- /block -->` to make them one `body` block. A slide's **shape** is its block count per key (e.g. `title + body ×2`), and layouts match by shape.

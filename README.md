@@ -93,7 +93,7 @@ A layer keeps the **same `id`** across frames; that's how it's matched for tween
 - The header hides itself while presenting; move the mouse to the top edge to show it. **Jump to** (**/**) lives in the header.
 - **View ▾** in the header:
   - **Slides · Tree · Radial** (or **T** to cycle). Tree draws the deck like the navigation tree, with parents centred over their children. Radial puts the title page (when on) at the centre and each level on a ring. In both, the current slide is outlined in red and its path in amber. Click a slide to jump there; Esc returns to Slides. **− / Fit / +** zooms, and the view scrolls when zoomed in.
-  - **Breadcrumbs** (or **B**) shows or hides the top-left breadcrumbs.
+  - **Breadcrumbs:** Off · 1s–5s · On for the top-left breadcrumbs. A time shows them on each transition, then fades them out after that many seconds. **B** toggles them off and on.
   - **Max size** (or **F**) makes the slide fill the whole area; crumbs and arrows float over it.
   - Breadcrumbs and Max size are remembered in the browser.
 

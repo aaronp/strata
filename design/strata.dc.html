@@ -76,6 +76,7 @@ input,textarea,button{font:inherit;color:inherit}
           <div onClick="{{ onViewMenuClose }}" style="position:fixed;inset:0;z-index:70"></div>
           <div style="position:absolute;right:0;top:calc(100% + 6px);z-index:71;min-width:180px;padding:6px;border-radius:10px;background:#fbf9f4;box-shadow:0 12px 40px -12px rgba(0,0,0,.4)">
             <sc-for list="{{ viewItems }}" as="vi" hint-placeholder-count="5"><button onClick="{{ vi.onClick }}" style="display:flex;align-items:center;gap:8px;width:100%;padding:6px 8px;border:0;border-top:{{ vi.sep }};border-radius:6px;background:none;text-align:left;cursor:pointer;font-size:13px"><span style="width:14px;flex:none;color:#d9432b">{{ vi.mark }}</span>{{ vi.label }}</button></sc-for>
+            <label title="Off, fade out after 1–5s (shown on each transition), or always on (B toggles)" style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-top:1px solid #e0d9cb;font-size:13px"><span style="width:14px;flex:none"></span>Breadcrumbs<select value="{{ crumbMode }}" onChange="{{ onCrumbMode }}" style="margin-left:auto;height:24px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;font-size:12px;cursor:pointer"><sc-for list="{{ crumbModes }}" as="o" hint-placeholder-count="7"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select></label>
           </div>
         </sc-if>
       </div>
@@ -275,7 +276,7 @@ input,textarea,button{font:inherit;color:inherit}
           </div>
 
           <sc-if value="{{ crumbsOn }}">
-          <nav style="position:absolute;left:14px;top:12px;right:{{ navRight }};height:{{ crumbH }}px;overflow:hidden;z-index:4;pointer-events:none;transition:height 350ms ease">
+          <nav style="position:absolute;left:14px;top:12px;right:{{ navRight }};height:{{ crumbH }}px;overflow:hidden;z-index:4;pointer-events:none;{{ crumbFadeCss }}">
             <div style="position:absolute;left:0;top:0;transform:translate({{ crumbTx }}px, {{ crumbTy }}px);transition:transform 450ms cubic-bezier(.65,0,.25,1)">
               <sc-for list="{{ crumbRows }}" as="row" hint-placeholder-count="1">
                 <div style="position:absolute;left:{{ row.indent }}px;top:{{ row.top }}px;display:flex;align-items:center;padding:3px;border-radius:999px;background:{{ stepsBg }};pointer-events:auto;opacity:{{ row.opacity }};transition:opacity 300ms">
@@ -1621,22 +1622,26 @@ class Component extends DCLogic {
     } catch (e) { this.setState({ clipMsg: 'Clipboard blocked here: select the layer and press Ctrl/⌘+V' }); }
     clearTimeout(this.cmT); this.cmT = setTimeout(() => this.setState({ clipMsg: null }), 3500);
   }
-  componentWillUnmount() { window.removeEventListener('message', this.onMsg); clearTimeout(this._as); clearTimeout(this._nt); window.removeEventListener('beforeunload', this.onUnload); window.removeEventListener('paste', this.onPaste); window.removeEventListener('focus', this.onFocusWin); window.removeEventListener('keydown', this.onKey); window.removeEventListener('resize', this.onResize); clearTimeout(this.t); }
+  componentWillUnmount() { window.removeEventListener('message', this.onMsg); clearTimeout(this._as); clearTimeout(this._nt); window.removeEventListener('beforeunload', this.onUnload); window.removeEventListener('paste', this.onPaste); window.removeEventListener('focus', this.onFocusWin); window.removeEventListener('keydown', this.onKey); window.removeEventListener('resize', this.onResize); clearTimeout(this.t); clearTimeout(this._crT); }
+  litCrumbs() {   // fade mode: show the breadcrumbs on a transition, then fade them out after crumbFade seconds
+    clearTimeout(this._crT); if (!this.state.crumbLit) this.setState({ crumbLit: true });
+    this._crT = setTimeout(() => this.setState({ crumbLit: false }), (this.state.crumbFade || 2) * 1000);
+  }
   componentDidUpdate() {
     if (this.guardGrafts()) return;
     this.markCustom();
     this.histTrack();
     const S = this.state;
     if (!DECK) {
-      const d = JSON.stringify({ nodes: stripGrafts(S.nodes), cur: S.cur, mode: S.mode, view: S.view, rtab: S.rtab, bg: S.bg, customAspect: S.customAspect, bgScale: S.bgScale, bgRepeat: S.bgRepeat, bgY: S.bgY, opacity: S.opacity, base: S.base, offset: S.offset, gap: S.gap, tone: S.tone, speed: S.speed, navW: S.navW, rightW: S.rightW, tdef: S.tdef, titlePage: S.titlePage, titleView: S.titleView, spacing: S.spacing, rowGap: S.rowGap, styles: S.styles, layouts: S.layouts, layoutDefaults: S.layoutDefaults, presentFit: S.presentFit, showCrumbs: S.showCrumbs, secOpen: S.secOpen, stab: S.stab, collapsed: S.collapsed, treeZoom: S.treeZoom, treeFocus: S.treeFocus });
+      const d = JSON.stringify({ nodes: stripGrafts(S.nodes), cur: S.cur, mode: S.mode, view: S.view, rtab: S.rtab, bg: S.bg, customAspect: S.customAspect, bgScale: S.bgScale, bgRepeat: S.bgRepeat, bgY: S.bgY, opacity: S.opacity, base: S.base, offset: S.offset, gap: S.gap, tone: S.tone, speed: S.speed, navW: S.navW, rightW: S.rightW, tdef: S.tdef, titlePage: S.titlePage, titleView: S.titleView, spacing: S.spacing, rowGap: S.rowGap, styles: S.styles, layouts: S.layouts, layoutDefaults: S.layoutDefaults, presentFit: S.presentFit, showCrumbs: S.showCrumbs, crumbFade: S.crumbFade, secOpen: S.secOpen, stab: S.stab, collapsed: S.collapsed, treeZoom: S.treeZoom, treeFocus: S.treeFocus });
       if (d !== this._d) { this._d = d; try { localStorage.setItem(KEY, d); } catch (e) {} }
       if (S.images !== this._im) { this._im = S.images; try { localStorage.setItem(IKEY, JSON.stringify(S.images)); } catch (e) {} }
       if (S.customBg !== this._bg) { this._bg = S.customBg; try { if (S.customBg) localStorage.setItem(BGKEY, S.customBg); } catch (e) {} }
     } else if (!STATIC) {
-      const u = JSON.stringify({ navW: S.navW, rightW: S.rightW, secOpen: S.secOpen, stab: S.stab, presentFit: S.presentFit, showCrumbs: S.showCrumbs, view: S.view, rtab: S.rtab, collapsed: S.collapsed, treeZoom: S.treeZoom, treeFocus: S.treeFocus });
+      const u = JSON.stringify({ navW: S.navW, rightW: S.rightW, secOpen: S.secOpen, stab: S.stab, presentFit: S.presentFit, showCrumbs: S.showCrumbs, crumbFade: S.crumbFade, view: S.view, rtab: S.rtab, collapsed: S.collapsed, treeZoom: S.treeZoom, treeFocus: S.treeFocus });
       if (u !== this._u) { this._u = u; try { localStorage.setItem(UIKEY, u); } catch (e) {} }
     }
-    if (S.cur !== this._lastCur) { this._lastCur = S.cur; this.scrollTree(); }
+    if (S.cur !== this._lastCur) { this._lastCur = S.cur; this.scrollTree(); if (S.showCrumbs === 'fade') this.litCrumbs(); }
     if (this.measureStage()) this.forceUpdate();
     const ck = this.curId(), cf = this.fiFor(ck);
     if (ck !== this._compCur) { this._compCur = ck; this._compFi = cf; this._claims = {}; this._fwd = null; }
@@ -2740,9 +2745,12 @@ class Component extends DCLogic {
       onMapZoomIn: () => this.setState({ mapZoom: Math.min(3, mapZ * 1.25) }), onMapZoomOut: () => this.setState({ mapZoom: Math.max(0.02, mapZ / 1.25) }), onMapFit: () => this.setState({ mapZoom: null }),
       viewMenuOpen: !!S.viewMenu, onViewMenu: () => this.setState({ viewMenu: !S.viewMenu }), onViewMenuClose: () => this.setState(closeMenu),
       viewItems: [['slides', 'Slides'], ['tree', 'Tree'], ['radial', 'Radial']].map(([v, label]) => ({ label, on: pv === v, mark: pv === v ? '●' : '', sep: 'none', onClick: () => this.setState({ presentView: v, mapZoom: null, ...closeMenu }) }))
-        .concat([{ label: 'Breadcrumbs', on: S.showCrumbs !== false, mark: S.showCrumbs !== false ? '✓' : '', sep: '1px solid #e0d9cb', onClick: () => this.setState({ showCrumbs: S.showCrumbs === false }) },
-          { label: 'Max size', on: S.presentFit === 'max', mark: S.presentFit === 'max' ? '✓' : '', sep: 'none', onClick: () => this.setState({ presentFit: S.presentFit === 'max' ? 'fit' : 'max' }) }]),
+        .concat([{ label: 'Max size', on: S.presentFit === 'max', mark: S.presentFit === 'max' ? '✓' : '', sep: '1px solid #e0d9cb', onClick: () => this.setState({ presentFit: S.presentFit === 'max' ? 'fit' : 'max' }) }]),
+      crumbMode: S.showCrumbs === false ? 'off' : S.showCrumbs === 'fade' ? String(S.crumbFade || 2) : 'on',   // fade = show on a transition, hide after Ns
+      crumbModes: ['off', '1', '2', '3', '4', '5', 'on'].map(v => ({ v, l: v === 'off' ? 'Off' : v === 'on' ? 'On' : v + 's' })),
+      onCrumbMode: e => { const v = e.target.value; if (v === 'off' || v === 'on') this.setState({ showCrumbs: v === 'on' }); else { this.setState({ showCrumbs: 'fade', crumbFade: +v }); this.litCrumbs(); } },
       crumbsOn: S.showCrumbs !== false,
+      crumbFadeCss: S.showCrumbs !== 'fade' || S.crumbLit ? 'opacity:1;visibility:visible;transition:height 350ms ease,opacity 200ms' : 'opacity:0;visibility:hidden;transition:height 350ms ease,opacity 700ms,visibility 700ms',
       isMax: isPresent && S.presentFit === 'max',
       stagePad: isPresent && S.presentFit === 'max' ? '0' : '136px 66px 60px', stageRadius: isPresent && S.presentFit === 'max' ? '0' : '12px',
       stageW: isPresent && S.presentFit === 'max' ? 'min(100cqw, 100cqh * 16 / 9)' : 'min(100cqw - 132px, (100cqh - 196px) * 16 / 9)',

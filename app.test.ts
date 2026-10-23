@@ -1668,7 +1668,7 @@ test("present: Max/Fit sizing (button and F), Jump to lives in the header, heade
   let v = c.renderVals(); expect(v.hdrShown).toBe(true);                                   // build mode: always shown
   c.setState({ mode: "present" }); v = c.renderVals();
   expect(v.hdrShown).toBe(false); expect(v.isMax).toBe(false); expect(v.stagePad).toBe("136px 66px 60px");
-  v.viewItems[4].onClick(); v = c.renderVals(); expect(v.isMax).toBe(true); expect(v.stagePad).toBe("0");
+  v.viewItems.find((i: any) => i.label === "Max size").onClick(); v = c.renderVals(); expect(v.isMax).toBe(true); expect(v.stagePad).toBe("0");
   c.onKey({ key: "f", target: {}, preventDefault() {} }); expect(c.renderVals().isMax).toBe(false);
   c.renderVals().onHdrEnter(); expect(c.renderVals().hdrShown).toBe(true);
   c.renderVals().onHdrLeave(); await Bun.sleep(450); expect(c.renderVals().hdrShown).toBe(false);
@@ -1684,10 +1684,16 @@ test("present: Max/Fit sizing (button and F), Jump to lives in the header, heade
 test("present View menu: layout (Slides / Tree / Radial), breadcrumbs, max size; keys T/B/F; map views jump on click; zoom", async () => {
   const c = await treeDeck(); c.setState({ mode: "present", cur: "a1" });
   let v = c.renderVals(); v.onViewMenu(); v = c.renderVals(); expect(v.viewMenuOpen).toBe(true);
-  expect(v.viewItems.map((i: any) => i.label)).toEqual(["Slides", "Tree", "Radial", "Breadcrumbs", "Max size"]);
-  expect(v.viewItems.map((i: any) => i.on)).toEqual([true, false, false, true, false]);
-  v.viewItems[3].onClick(); expect(c.renderVals().crumbsOn).toBe(false);
-  c.renderVals().viewItems[4].onClick(); expect(c.renderVals().isMax).toBe(true);
+  expect(v.viewItems.map((i: any) => i.label)).toEqual(["Slides", "Tree", "Radial", "Max size"]);
+  expect(v.viewItems.map((i: any) => i.on)).toEqual([true, false, false, false]);
+  expect(v.crumbModes.map((o: any) => o.l)).toEqual(["Off", "1s", "2s", "3s", "4s", "5s", "On"]); expect(v.crumbMode).toBe("on");
+  v.onCrumbMode({ target: { value: "off" } }); expect(c.renderVals().crumbsOn).toBe(false);
+  c.renderVals().onCrumbMode({ target: { value: "3" } }); v = c.renderVals();
+  expect([v.crumbMode, c.state.crumbFade]).toEqual(["3", 3]); expect(v.crumbFadeCss).toContain("opacity:1");   // fade: shown on change, then hidden
+  c.setState({ crumbLit: false }); expect(c.renderVals().crumbFadeCss).toContain("opacity:0");
+  c.setState({ cur: "a2" }); c.componentDidUpdate(); expect(c.state.crumbLit).toBe(true); c.setState({ cur: "a1" });
+  c.renderVals().viewItems[3].onClick(); expect(c.renderVals().isMax).toBe(true);
+  c.onKey({ key: "b", target: {}, preventDefault() {} }); expect(c.renderVals().crumbsOn).toBe(false);   // B: fade → off
   c.onKey({ key: "b", target: {}, preventDefault() {} }); c.onKey({ key: "f", target: {}, preventDefault() {} });
   v = c.renderVals(); expect([v.crumbsOn, v.isMax]).toEqual([true, false]);
   c.onKey({ key: "Escape", target: {}, preventDefault() {} }); expect(c.renderVals().viewMenuOpen).toBe(false); expect(c.state.mode).toBe("present");
@@ -1709,7 +1715,7 @@ test("present View menu: layout (Slides / Tree / Radial), breadcrumbs, max size;
   at("B").onClick(); expect(c.state.cur).toBe("b"); expect(c.renderVals().showMap).toBe(false);
   c.setState({ presentView: "tree" }); c.onKey({ key: "Escape", target: {}, preventDefault() {} }); expect(c.renderVals().showMap).toBe(false);
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
-  for (const h of ["{{ onViewMenu }}", "{{ viewItems }}", "{{ mapCards }}", "{{ mapEdges }}", "{{ onMapZoomIn }}", '<sc-if value="{{ crumbsOn }}">']) expect(html).toContain(h);
+  for (const h of ["{{ onViewMenu }}", "{{ viewItems }}", "{{ mapCards }}", "{{ mapEdges }}", "{{ onMapZoomIn }}", "{{ onCrumbMode }}", '<sc-if value="{{ crumbsOn }}">']) expect(html).toContain(h);
 });
 
 test("tree: + before adds a sibling to the left (button and Shift+Enter), e.g. a new first slide", async () => {

@@ -22,6 +22,8 @@ Put the markdown (and its `-layout.json`) anywhere public, e.g. a GitHub repo, a
 - GitHub `blob` links work (`https://github.com/you/repo/blob/main/talk.md`): Strata fetches the raw file; `children:` links too.
 - `&slide=<id>` opens on that slide; an id inside a linked file (`stitching.joining`) loads it on the way. An unknown id opens the first slide with a note.
 - The published site is present-only. Its landing page has an **Open from a URL** box and the [Strata tour](https://aaronp.github.io/strata/?src=https://github.com/aaronp/strata/blob/master/examples/strata-tour/strata-tour.md), a deck about Strata in `examples/strata-tour/`.
+- **Open a file:** drop a `.md` (with its `-layout.json`) on the landing page or anywhere in the app, or use the app's **Open…** button. It becomes the scratch deck, kept in this browser. A layout file on its own restyles the open deck. Relative images in a local `.md` don't load (there's no URL to resolve them against), so use absolute URLs or publish the deck.
+- **Your own deck repo:** `examples/my-deck/` is a template repo (deck, layout, a redirecting `index.html` and a Pages workflow). From that folder, `make clone REPO=you/your-deck` (or `./clone.sh`, which prompts) copies it to `../your-deck` as a fresh repo, points its README at `https://you.github.io/your-deck/` and sets `origin`. Push it, then set **Settings → Pages → Source: GitHub Actions**: the site redirects to Strata with `?src=` pointing at your `deck.md`.
 - Locally, `make dev` serves `examples/` too: http://127.0.0.1:3067/design/strata.dc.html?src=/examples/strata-tour/strata-tour.md (or paste any URL into the landing page's box).
 
 ### Decks are markdown

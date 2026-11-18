@@ -1,0 +1,11 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Strata deck</title>
+<script>
+  // The app lives in its own repo; this repo only holds the deck (deck.md + deck-layout.json).
+  // Extra query params are passed through, e.g. ?slide=detail.
+  const VIEWER = 'https://aaronp.github.io/strata/';
+  const src = new URL('deck.md', location.href).href;
+  location.replace(VIEWER + '?src=' + encodeURIComponent(src) + location.search.replace(/^\?/, '&') + location.hash);
+</script>
+<a href="deck.md">deck.md</a>

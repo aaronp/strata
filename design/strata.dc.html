@@ -21,6 +21,7 @@ input,textarea,button{font:inherit;color:inherit}
 </helmet>
 <div style="position:relative;height:100vh;display:flex;flex-direction:column;font-family:'Bricolage Grotesque',sans-serif;font-size:14px;background:#f2eee5;color:#1d1b17">
   <input type="file" accept="image/*,.svg" ref="{{ imgInputRef }}" onChange="{{ onImgFile }}" style="display:none">
+  <input type="file" multiple accept=".md,.markdown,.txt,.json" ref="{{ openInputRef }}" onChange="{{ onOpenFile }}" style="display:none">
   <sc-if value="{{ isPresent }}"><div onMouseEnter="{{ onHdrEnter }}" style="position:fixed;left:0;right:0;top:0;height:10px;z-index:49"></div></sc-if>
   <header onMouseEnter="{{ onHdrEnter }}" onMouseLeave="{{ onHdrLeave }}" style="height:52px;flex:none;display:flex;align-items:center;gap:14px;padding:0 16px;border-bottom:1px solid #e0d9cb;background:#fbf9f4;{{ hdrStyle }}">
     <div style="display:flex;align-items:center;gap:10px;min-width:0">
@@ -32,6 +33,7 @@ input,textarea,button{font:inherit;color:inherit}
     </div>
     <div style="flex:1"></div>
     <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#6b6458;white-space:nowrap">{{ keyHint }}</span>
+    <button onClick="{{ onOpenPick }}" title="Open a .md file and/or its -layout.json (or drop them anywhere)" style="height:30px;padding:0 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;white-space:nowrap;flex:none" style-hover="background:#f5f1e8">Open…</button>
     <sc-if value="{{ isBuild }}">
       <div style="display:flex;gap:4px;flex:none">
         <button onClick="{{ undo }}" title="Undo (⌘Z)" style="height:30px;padding:0 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;white-space:nowrap;opacity:{{ undoOp }}" style-hover="background:#f5f1e8">↶ Undo</button>
@@ -1433,7 +1435,7 @@ class Component extends DCLogic {
     tAll: { ease: false, dur: false, delay: false }, tdef: {}, dAll: { ease: false, dur: false, delay: false }, secOpen: { layout: true, frames: true, layers: true, tdef: false }, collapsed: {}, rowGap: -0.7, gap: -0.7, tone: 'light', editMode: 'rich', speed: 900, lastChild: {}, navW: 280, rightW: 340, images: {}, layerSel: null, editing: null, guides: {},
   };
   _linked = {};
-  treeRef = React.createRef(); mdRef = React.createRef(); titleRef = React.createRef(); searchRef = React.createRef(); stageRef = React.createRef(); editRef = React.createRef(); wysRef = React.createRef(); imgInputRef = React.createRef();
+  treeRef = React.createRef(); mdRef = React.createRef(); titleRef = React.createRef(); searchRef = React.createRef(); stageRef = React.createRef(); editRef = React.createRef(); wysRef = React.createRef(); imgInputRef = React.createRef(); openInputRef = React.createRef();
 
   componentDidMount() {
     if (!STATIC) try { const ui = JSON.parse(localStorage.getItem(UIKEY) || 'null'); if (ui) this.setState(ui); } catch (e) {}
@@ -1447,6 +1449,8 @@ class Component extends DCLogic {
     this.onPaste = this.onPaste.bind(this); window.addEventListener('paste', this.onPaste);
     this.onFocusWin = () => this.probeClip(); window.addEventListener('focus', this.onFocusWin);
     this.onMsg = e => this.onCompMessage(e); window.addEventListener('message', this.onMsg);
+    this.onDragOver = e => { if (e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files')) e.preventDefault(); }; window.addEventListener('dragover', this.onDragOver);
+    this.onDropWin = e => { if (e.defaultPrevented || !e.dataTransfer || !e.dataTransfer.files || !e.dataTransfer.files.length) return; e.preventDefault(); this.openFiles(e.dataTransfer.files); }; window.addEventListener('drop', this.onDropWin);
     this.onUnload = e => { if (DECK && !STATIC && this.isDirty()) { e.preventDefault(); e.returnValue = ''; } }; window.addEventListener('beforeunload', this.onUnload);
   }
   scheduleSave() {   // debounced autosave; retries slower after a failure
@@ -1619,6 +1623,16 @@ class Component extends DCLogic {
         this.setState({ draftPrompt: !!this._draft }); if (SLIDE) this.openAt(SLIDE); });
     } catch (e) { this.setState({ saveMsg: (DECK ? 'Could not load deck "' + DECK + '": ' : "Can't load " + SRC + ': ') + e.message }); }
   }
+  // Local files, picked or dropped anywhere: a .md (with its -layout.json, if given) becomes the scratch deck, kept in the browser; from a ?deck=/?src=
+  // page it's stored, then the page reopens without them. A lone layout file restyles the current markdown. A local .md's relative images can't load.
+  async openFiles(files) {
+    files = [...(files || [])]; const mdF = files.find(f => /\.(md|markdown|txt)$/i.test(f.name)), lF = files.find(f => /\.json$/i.test(f.name));
+    if (!mdF && !lF) return this.flash('Open a .md file and/or its -layout.json');
+    let L = null; if (lF) try { L = JSON.parse(await lF.text()); } catch (e) { this.flash('Layout file ignored: ' + e.message, 8000); if (!mdF) return; }
+    const md = mdF ? await mdF.text() : this.state.md;
+    if (SRC || SRC_ARG) try { localStorage.setItem(KEY, JSON.stringify({ md, layout: L })); location.href = location.pathname; return; } catch (e) {}   // no storage: open it here, unsaved
+    this.adopt(md, L);
+  }
   async openAt(id) {
     for (let p; !this.state.nodes[id] && (p = this.unloadedAbove(id));) await this.loadChildren(p);
     if (this.state.nodes[id] && id !== 'ROOT') this.setState({ cur: id }); else this.flash('No slide "' + id + '"');
@@ -1657,7 +1671,7 @@ class Component extends DCLogic {
     } catch (e) { this.setState({ clipMsg: 'Clipboard blocked here: select the layer and press Ctrl/⌘+V' }); }
     clearTimeout(this.cmT); this.cmT = setTimeout(() => this.setState({ clipMsg: null }), 3500);
   }
-  componentWillUnmount() { window.removeEventListener('message', this.onMsg); clearTimeout(this._as); clearTimeout(this._mdT); clearTimeout(this._nt); window.removeEventListener('beforeunload', this.onUnload); window.removeEventListener('paste', this.onPaste); window.removeEventListener('focus', this.onFocusWin); window.removeEventListener('keydown', this.onKey); window.removeEventListener('resize', this.onResize); clearTimeout(this.t); clearTimeout(this._crT); }
+  componentWillUnmount() { window.removeEventListener('message', this.onMsg); window.removeEventListener('dragover', this.onDragOver); window.removeEventListener('drop', this.onDropWin); clearTimeout(this._as); clearTimeout(this._mdT); clearTimeout(this._nt); window.removeEventListener('beforeunload', this.onUnload); window.removeEventListener('paste', this.onPaste); window.removeEventListener('focus', this.onFocusWin); window.removeEventListener('keydown', this.onKey); window.removeEventListener('resize', this.onResize); clearTimeout(this.t); clearTimeout(this._crT); }
   litCrumbs() {   // fade mode: show the breadcrumbs on a transition, then fade them out after crumbFade seconds
     clearTimeout(this._crT); if (!this.state.crumbLit) this.setState({ crumbLit: true });
     this._crT = setTimeout(() => this.setState({ crumbLit: false }), (this.state.crumbFade || 2) * 1000);
@@ -2188,7 +2202,8 @@ class Component extends DCLogic {
   setImage(sid, lid, url) { const key = 'im' + uid(); this.setState(s => ({ images: { ...s.images, [key]: url } })); this.updLayer(sid, lid, { imgKey: key }); }
   onImgFile(ev) { const f = ev.target.files && ev.target.files[0]; ev.target.value = ''; const t = this._imgTarget; if (!f || !t) return; this.readImage(f, url => this.setImage(t.sid, t.lid, url)); }
   dropOn(ev, lid) {
-    ev.preventDefault(); ev.stopPropagation(); const f = ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files[0]; if (!f || !/image/.test(f.type)) return;
+    const f = ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files[0]; if (!f || !/image/.test(f.type)) return;   // other files go on to openFiles
+    ev.preventDefault(); ev.stopPropagation();
     const sid = this.curId(); const l = lid && this.layersOf(sid).find(x => x.id === lid);
     if (l && l.type === 'image') { this.readImage(f, url => this.setImage(sid, lid, url)); this.setState({ layerSel: lid }); return; }
     const st = this.stageRef.current; const r = st.getBoundingClientRect(); const cx = (ev.clientX - r.left) / r.width * 100, cy = (ev.clientY - r.top) / r.height * 100;
@@ -2737,6 +2752,8 @@ class Component extends DCLogic {
       modeTabs: STATIC ? [] : [{ label: 'Build', ...tab(!isPresent), onClick: () => this.setState({ mode: 'build' }) }, { label: 'Present', ...tab(isPresent), onClick: () => this.setState({ mode: 'present', query: '' }) }],
       mdRef: this.mdRef, mdText: S.md, onMdInput: e => this.setMd(e.target.value),
       mdIssuesText: S.mdIssues.map(i => 'line ' + i.line + ': ' + i.msg).join('\n'), hasMdIssues: S.mdIssues.length > 0,
+      openInputRef: this.openInputRef, onOpenPick: () => { const i = this.openInputRef.current; if (i) i.click(); },
+      onOpenFile: e => { const fs = [...(e.target.files || [])]; e.target.value = ''; this.openFiles(fs); },
       onCopyMd: () => navigator.clipboard.writeText(S.md).then(() => this.flash('Markdown copied'), e => this.flash('Clipboard blocked: ' + e.message)),
       onDownload: () => { const n = DECK || (SRC && SRC.split('/').pop().replace(/\.md$/, '')) || 'deck'; this.download(n + '.md', S.md); this.download(n + '-layout.json', JSON.stringify(layoutOf(S.nodes, S, this._linkedOv), null, 2), 'application/json'); },
       isBuild: !isPresent, isPresent, slideCount: D.order.length, query: S.query, onQuery: e => this.setState({ query: e.target.value }),

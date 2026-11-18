@@ -1880,3 +1880,23 @@ test("example: the Strata tour loads from the dev server; going down chains thre
   expect(c.state.cur).toBe("stitching.joining.three-deep"); expect(c.state.nodes["stitching.joining.three-deep"]._from).toBe("http://x/examples/strata-tour/linked/deeper.md");
   expect(got).toContain("http://x/examples/strata-tour/linked/deeper.md");
 });
+
+test("opening local files: a .md with its layout becomes the scratch deck; a lone layout file restyles it", async () => {
+  const { c, listeners, store } = await mount("");
+  await c.openFiles([new File([TALK], "talk.md"), new File([JSON.stringify({ deck: { bg: "space" } })], "talk-layout.json")]);
+  expect(c.state.nodes.ROOT.children).toEqual(["intro", "next"]); expect(c.state.bg).toBe("space");
+  c.componentDidUpdate(); expect(JSON.parse(store["strata-v8"]).md).toBe(TALK);
+  await c.openFiles([new File([JSON.stringify({ deck: { bg: "forest" } })], "other-layout.json")]);
+  expect(c.state.md).toBe(TALK); expect(c.state.bg).toBe("forest");
+  await c.openFiles([new File(["x"], "pic.png")]); expect(c.state.note).toMatch(/\.md file/);
+  let prevented = false;   // a file dropped anywhere opens too
+  listeners.drop({ defaultPrevented: false, preventDefault: () => (prevented = true), dataTransfer: { files: [new File(["# Dropped\n"], "d.md")] } });
+  await until(() => c.state.md === "# Dropped\n"); expect(prevented).toBe(true);
+});
+
+test("the landing page opens dropped files through the app's scratch-deck key", async () => {
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  const key = /const KEY = '([^']+)'/.exec(html)![1];
+  const { indexHtml } = await import("./server");
+  expect(indexHtml([], false)).toContain(`localStorage.setItem('${key}'`);
+});

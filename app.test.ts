@@ -74,6 +74,18 @@ test("app: typing markdown updates slides after 200ms and is not an undo step", 
   expect(c._past.length).toBe(n);
 });
 
+test("app: + adds a slide after or below the current one, in the markdown, and goes to it", async () => {
+  await writeMd("talk", TALK);
+  const { c } = await mount("?deck=talk");
+  c.nav("intro", "jump"); c.addSlide("after");
+  expect(c.state.nodes.ROOT.children).toEqual(["intro", "new-slide", "next"]);
+  expect(c.state.cur).toBe("new-slide");
+  c.addSlide("below");
+  expect(c.state.nodes["new-slide"].children).toEqual(["new-slide-2"]);
+  expect(c.state.cur).toBe("new-slide-2");
+  expect(c.state.md).toContain("## New slide\nslug: new-slide-2");
+});
+
 test("app: layout edit then undo keeps current markdown", async () => {
   await writeMd("talk", TALK);
   const { c } = await mount("?deck=talk"); await Bun.sleep(150);
@@ -204,9 +216,18 @@ test("static mode presents and never saves", async () => {
   expect(await Bun.file(deckDir("talk") + "talk.md").text()).toBe("# Real\n");
 });
 
-test("header logo links home to the deck list", async () => {
-  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
-  expect(html.split("<header")[1].split("</header>")[0]).toMatch(/<a href="\.\.\/" title="← All decks"/);
+test("file menu: New/Open/Save/Download/Copy items; decks load on first open and link by slug, current one bold, plus the tour", async () => {
+  await writeMd("talk", TALK); await writeMd("other", "# Other\n");
+  const { c } = await mount("?deck=talk");
+  expect(c.renderVals().fileItems.map((m: any) => m.label)).toEqual(["New…", "Open file…", "Open URL…", "Save", "Download", "Copy markdown"]);
+  c.renderVals().toggleFileMenu(); expect(c.state.fileMenu).toBe(true);
+  await until(() => !!c.state.decks);
+  const ds = c.renderVals().deckItems;
+  expect(ds.map((d: any) => d.href)).toEqual(["?deck=other", "?deck=talk", expect.stringContaining("?src=https%3A%2F%2Fgithub.com")]);
+  expect(ds.find((d: any) => d.href === "?deck=talk").weight).toBe(700);
+  const got: string[] = []; c.download = (name: string) => got.push(name);
+  c.renderVals().fileItems.find((m: any) => m.label === "Download").pick();
+  expect(got).toEqual(["talk.md", "talk-layout.json"]); expect(c.state.fileMenu).toBe(false);
 });
 
 const onDisk = () => Bun.file(deckDir("talk") + "talk-layout.json").json(), mdOnDisk = () => Bun.file(deckDir("talk") + "talk.md").text();
@@ -1894,9 +1915,3 @@ test("opening local files: a .md with its layout becomes the scratch deck; a lon
   await until(() => c.state.md === "# Dropped\n"); expect(prevented).toBe(true);
 });
 
-test("the landing page opens dropped files through the app's scratch-deck key", async () => {
-  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
-  const key = /const KEY = '([^']+)'/.exec(html)![1];
-  const { indexHtml } = await import("./server");
-  expect(indexHtml([], false)).toContain(`localStorage.setItem('${key}'`);
-});

@@ -19,9 +19,7 @@ test("build copies app + decks, writes index, injects static flag", async () => 
   expect(await Bun.file(join(out, "decks/talk/img/x.png")).text()).toBe("png");
   expect(await Bun.file(join(out, "decks/index.json")).json()).toEqual([{ slug: "talk", title: "T" }]);
   const index = await Bun.file(join(out, "index.html")).text();
-  expect(index).toContain('href="design/strata.dc.html?deck=talk"');
-  expect(index).not.toMatch(/href="\//);
-  expect(index).not.toContain("New deck"); expect(index).toContain(">Open</button>");
+  expect(index).toContain("location.replace('design/strata.dc.html' + location.search)");   // the app's File menu lists decks/index.json
 });
 
 test("build fails loudly if the static-flag injection point is missing", async () => {
@@ -45,7 +43,7 @@ test("build: copies all decks and md.js; deck arg redirects", async () => {
   await expect(build(root, out, "missing")).rejects.toThrow('no deck "missing"');
 });
 
-test("build with no decks/ (CI) writes the landing page", async () => {
+test("build with no decks/ (CI) writes the redirecting index", async () => {
   const root = await mkdtemp(join(tmpdir(), "strata-b-"));
   await Bun.write(join(root, "design/strata.dc.html"), '<head>\n<script src="./support.js"></script>\n</head>');
   await Bun.write(join(root, "markdown.ts"), Bun.file("markdown.ts"));
@@ -53,5 +51,5 @@ test("build with no decks/ (CI) writes the landing page", async () => {
   await build(root, out);
   expect(await Bun.file(join(out, "decks/index.json")).json()).toEqual([]);
   const index = await Bun.file(join(out, "index.html")).text();
-  expect(index).toContain("No decks yet."); expect(index).toContain("location.replace(");
+  expect(index).toContain("location.replace(");
 });

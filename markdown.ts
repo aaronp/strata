@@ -173,3 +173,20 @@ export function parseMarkdown(md: string): { sections: Section[]; errors: Issue[
   errors.sort((a, b) => a.line - b.line);
   return { sections: top, errors, warnings };
 }
+
+// Inserts a new slide heading into md, after the slide whose heading is on `line` (its whole subtree) as a sibling, or as its last child ("below").
+// line 0 (no slide, e.g. the title page) appends a top-level slide. Returns the new md and the new slide's id.
+export function insertSlide(md: string, line: number, where: "after" | "below"): { md: string; slug: string } {
+  const flat: Section[] = [], walk = (ss: Section[]) => ss.forEach(s => { flat.push(s); walk(s.children); });
+  walk(parseMarkdown(md).sections);
+  const lines = md.split(/\r?\n/), at = flat.findIndex(s => s.line === line), cur = flat[at];
+  const level = (s: Section) => HEADING.exec(lines[s.line - 1])![1].length;
+  const end = cur ? flat.slice(at + 1).find(s => s.depth <= cur.depth) : undefined;   // first heading past the subtree
+  const hashes = cur ? Math.min(6, level(cur) + (where === "below" ? 1 : 0)) : flat.length ? Math.min(...flat.map(level)) : 1;
+  const taken = new Set(flat.map(s => s.slug)); let slug = "new-slide", n = 2;
+  while (taken.has(slug)) slug = `new-slide-${n++}`;
+  const block = ["#".repeat(hashes) + " New slide", `slug: ${slug}`, ""];
+  if (end) { lines.splice(end.line - 1, 0, ...block); return { md: lines.join("\n"), slug }; }
+  const body = md.replace(/\s*$/, "");
+  return { md: (body ? body + "\n\n" : "") + block.join("\n"), slug };
+}

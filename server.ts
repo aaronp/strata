@@ -20,35 +20,9 @@ export async function deckList(root: string): Promise<DeckInfo[]> {
   return out.sort((a, b) => a.slug.localeCompare(b.slug));
 }
 
-const esc = (s: string) => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
-
-const TOUR = "https://github.com/aaronp/strata/blob/master/examples/strata-tour/strata-tour.md";
-
-export function indexHtml(decks: DeckInfo[], dev: boolean): string {
-  const items = decks.map(d => `<li><a href="design/strata.dc.html?deck=${d.slug}">${esc(d.title)}</a> <code>${d.slug}</code></li>`).join("\n");
-  const form = dev ? `<form action="design/strata.dc.html"><input name="deck" required pattern="[a-z0-9-]+" placeholder="new-deck-slug"> <button>New deck</button></form>` : "";
-  // Static (GitHub Pages): /?src=…&slide=… presents straight away.
-  const redirect = dev ? "" : `<script>if (/[?&]src=/.test(location.search)) location.replace('design/strata.dc.html' + location.search)</script>`;
-  const open = `<h2>Open from a URL</h2><form action="design/strata.dc.html"><input name="src" type="url" required size="40" placeholder="https://github.com/you/repo/blob/main/talk.md"> <button>Open</button></form>
-<p>Example: <a href="design/strata.dc.html?src=${encodeURIComponent(TOUR)}">Strata tour</a></p>
-<h2>Open a file</h2><label id="drop" style="display:block;padding:24px;border:2px dashed #e0d9cb;border-radius:10px;text-align:center;cursor:pointer">Drop a <code>.md</code> (and its <code>-layout.json</code>) here, or click to choose
-<input id="files" type="file" multiple accept=".md,.markdown,.txt,.json" hidden></label><p id="err" style="color:#a8301d"></p>
-<script>
-// The file becomes the app's scratch deck (localStorage "strata-v8", the app's KEY), then the app opens it.
-async function openFiles(fs) {
-  fs = [...fs]; const md = fs.find(f => /\.(md|markdown|txt)$/i.test(f.name)), lf = fs.find(f => /\.json$/i.test(f.name));
-  if (!md) return err.textContent = 'Choose a .md file (a layout file alone needs a deck: drop it on the open deck).';
-  let layout = null; if (lf) try { layout = JSON.parse(await lf.text()); } catch (e) { return err.textContent = 'Bad layout file: ' + e.message; }
-  try { localStorage.setItem('strata-v8', JSON.stringify({ md: await md.text(), layout })); } catch (e) { return err.textContent = "Can't store the deck in this browser: " + e.message; }
-  location.href = 'design/strata.dc.html';
-}
-files.onchange = () => openFiles(files.files);
-addEventListener('dragover', e => e.preventDefault());
-addEventListener('drop', e => { e.preventDefault(); openFiles(e.dataTransfer.files); });
-</script>`;
-  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Strata decks</title>${redirect}
-<style>body{font:16px system-ui,sans-serif;background:#f2eee5;color:#1d1b17;max-width:640px;margin:48px auto;padding:0 16px}a{color:#d9432b}code{color:#6b6458;font-size:12px}li{margin:8px 0}input{max-width:100%}</style></head>
-<body><h1>Strata</h1><ul>${items || "<li>No decks yet.</li>"}</ul>${form}${open}</body></html>`;
+// The site root opens the app (keeping ?src=…&slide=…); its File menu does New / Open / Save / Download and lists the decks.
+export function indexHtml(): string {
+  return `<!doctype html><meta charset="utf-8"><title>Strata</title><script>location.replace('design/strata.dc.html' + location.search)</script><a href="design/strata.dc.html">Open Strata</a>\n`;
 }
 
 const EXT: Record<string, string> = { "image/png": "png", "image/jpeg": "jpg", "image/gif": "gif", "image/webp": "webp", "image/svg+xml": "svg", "image/avif": "avif" };
@@ -73,12 +47,12 @@ export async function saveDeck(root: string, slug: string, { md, layout }: { md:
   return { layout: out };
 }
 
-// The parser as a classic script: window.StrataMd = { parseMarkdown, plainText }.
+// The parser as a classic script: window.StrataMd = { parseMarkdown, plainText, insertSlide }.
 export async function mdBundle(root: string): Promise<string> {
   const entry = join(root, "md-entry.ts");
   const r = await Bun.build({
     entrypoints: [entry], format: "iife", minify: false,
-    files: { [entry]: `import { parseMarkdown, plainText } from "./markdown"; window.StrataMd = { parseMarkdown, plainText };` },
+    files: { [entry]: `import { parseMarkdown, plainText, insertSlide } from "./markdown"; window.StrataMd = { parseMarkdown, plainText, insertSlide };` },
   });
   if (!r.success) throw new Error("md.js: " + r.logs.join("\n"));
   return await r.outputs[0].text();
@@ -99,7 +73,7 @@ export function handler(root: string) {
       if (typeof body?.md !== "string") return new Response("bad deck: expected { md, layout }", { status: 400 });
       return Response.json(await saveDeck(root, m[1], body));
     }
-    if (p === "/" || p === "/index.html") return new Response(indexHtml(await deckList(root), true), { headers: { "content-type": "text/html; charset=utf-8" } });
+    if (p === "/" || p === "/index.html") return new Response(indexHtml(), { headers: { "content-type": "text/html; charset=utf-8" } });
     if (p === "/design/md.js") return new Response(await mdBundle(root), { headers: { "content-type": "text/javascript; charset=utf-8", "cache-control": "no-store" } });
     if ((p.startsWith("/design/") || p.startsWith("/decks/") || p.startsWith("/examples/")) && !p.includes("..")) {
       const f = Bun.file(join(root, p));

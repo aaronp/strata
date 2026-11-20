@@ -185,3 +185,18 @@ test("an empty slug line falls back to the generated slug", () => {
 test("example decks parse without errors", async () => {
   for (const f of new Bun.Glob("examples/**/*.md").scanSync(import.meta.dir)) expect([f, parseMarkdown(await Bun.file(join(import.meta.dir, f)).text()).errors]).toEqual([f, []]);
 });
+
+test("insertSlide adds a sibling after the subtree, or a last child below", async () => {
+  const { insertSlide } = await import("./markdown");
+  const md = "# A\nslug: a\n\n## A1\nslug: a1\n\n# B\nslug: b\n";
+  const tree = (m: string) => parseMarkdown(m).sections.map(s => s.slug + "(" + s.children.map(c => c.slug).join(",") + ")").join(" ");
+  const after = insertSlide(md, 1, "after");
+  expect(after.slug).toBe("new-slide");
+  expect(tree(after.md)).toBe("a(a1) new-slide() b()");
+  expect(tree(insertSlide(md, 1, "below").md)).toBe("a(a1,new-slide) b()");
+  expect(tree(insertSlide(md, 7, "after").md)).toBe("a(a1) b() new-slide()");
+  expect(tree(insertSlide(md, 0, "after").md)).toBe("a(a1) b() new-slide()");
+  const twice = insertSlide(after.md, 1, "after");
+  expect(twice.slug).toBe("new-slide-2");
+  expect(insertSlide("", 0, "below").md).toBe("# New slide\nslug: new-slide\n");
+});

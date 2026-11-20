@@ -5,7 +5,7 @@ import { deckList, indexHtml, mdBundle } from "./server";
 
 const HOOK = '<script src="./support.js">';
 
-// Every deck is published (children: links may point at sibling decks). With a deck, the site root opens it; without, it lists them.
+// Every deck is published (children: links may point at sibling decks). With a deck, the site root opens it; without, it opens the app.
 export async function build(root: string, out: string, deck?: string) {
   if (deck && !existsSync(join(root, "decks", deck, deck + ".md"))) throw new Error(`build: no deck "${deck}" in decks/`);
   await rm(out, { recursive: true, force: true });
@@ -19,7 +19,7 @@ export async function build(root: string, out: string, deck?: string) {
   const decks = await deckList(out);
   await Bun.write(join(out, "decks/index.json"), JSON.stringify(decks, null, 2) + "\n");
   const open = deck && `design/strata.dc.html?deck=${deck}`;
-  await Bun.write(join(out, "index.html"), open ? `<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=${open}"><a href="${open}">Open the presentation</a>\n` : indexHtml(decks, false));
+  await Bun.write(join(out, "index.html"), open ? `<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=${open}"><a href="${open}">Open the presentation</a>\n` : indexHtml());
 }
 
 if (import.meta.main) {

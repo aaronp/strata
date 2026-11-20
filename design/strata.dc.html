@@ -25,21 +25,33 @@ input,textarea,button{font:inherit;color:inherit}
   <sc-if value="{{ isPresent }}"><div onMouseEnter="{{ onHdrEnter }}" style="position:fixed;left:0;right:0;top:0;height:10px;z-index:49"></div></sc-if>
   <header onMouseEnter="{{ onHdrEnter }}" onMouseLeave="{{ onHdrLeave }}" style="height:52px;flex:none;display:flex;align-items:center;gap:14px;padding:0 16px;border-bottom:1px solid #e0d9cb;background:#fbf9f4;{{ hdrStyle }}">
     <div style="display:flex;align-items:center;gap:10px;min-width:0">
-      <a href="../" title="← All decks" style="display:flex;align-items:center;gap:10px;color:inherit;text-decoration:none" style-hover="color:#d9432b">
+      <div style="display:flex;align-items:center;gap:10px">
         <div style="position:relative;width:22px;height:16px;flex:none;border:2px solid currentColor;border-radius:3px"><div style="position:absolute;left:3px;top:3px;width:8px;height:6px;background:#d9432b;border-radius:1px"></div></div>
         <div style="font-weight:800;font-size:18px;letter-spacing:-.02em">Strata</div>
-      </a>
+      </div>
+      <div style="position:relative;flex:none">
+        <button onClick="{{ toggleFileMenu }}" aria-haspopup="menu" aria-expanded="{{ fileMenu }}" style="height:30px;padding:0 10px;border:0;border-radius:8px;background:transparent;cursor:pointer;font-size:13px;white-space:nowrap" style-hover="background:#ece6d9">File ▾</button>
+        <sc-if value="{{ fileMenu }}">
+          <div onClick="{{ closeFileMenu }}" style="position:fixed;inset:0;z-index:69"></div>
+          <div role="menu" style="position:absolute;z-index:70;top:calc(100% + 6px);left:0;min-width:240px;display:flex;flex-direction:column;padding:6px;border:1px solid #e0d9cb;border-radius:12px;background:#fbf9f4;box-shadow:0 20px 50px rgba(0,0,0,.22);max-height:70vh;overflow:auto">
+            <sc-for list="{{ fileItems }}" as="fi" hint-placeholder-count="6">
+              <button role="menuitem" onClick="{{ fi.pick }}" style="display:flex;align-items:baseline;justify-content:space-between;gap:16px;padding:7px 10px;border:0;border-radius:8px;background:transparent;cursor:pointer;text-align:left;font-size:13px" style-hover="background:#ece6d9"><span>{{ fi.label }}</span><small style="color:#6b6458;font-size:11px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ fi.hint }}</small></button>
+            </sc-for>
+            <hr style="border:0;border-top:1px solid #e0d9cb;margin:6px 4px;width:auto">
+            <sc-for list="{{ deckItems }}" as="di" hint-placeholder-count="3">
+              <a role="menuitem" href="{{ di.href }}" style="display:flex;align-items:baseline;justify-content:space-between;gap:16px;padding:7px 10px;border-radius:8px;color:inherit;text-decoration:none;font-size:13px;font-weight:{{ di.weight }}" style-hover="background:#ece6d9"><span>{{ di.label }}</span><small style="color:#6b6458;font-family:'JetBrains Mono',monospace;font-size:10px">{{ di.hint }}</small></a>
+            </sc-for>
+          </div>
+        </sc-if>
+      </div>
       <div style="color:#6b6458;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">/ {{ deckTitle }}</div>
     </div>
     <div style="flex:1"></div>
     <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#6b6458;white-space:nowrap">{{ keyHint }}</span>
-    <button onClick="{{ onOpenPick }}" title="Open a .md file and/or its -layout.json (or drop them anywhere)" style="height:30px;padding:0 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;white-space:nowrap;flex:none" style-hover="background:#f5f1e8">Open…</button>
     <sc-if value="{{ isBuild }}">
       <div style="display:flex;gap:4px;flex:none">
         <button onClick="{{ undo }}" title="Undo (⌘Z)" style="height:30px;padding:0 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;white-space:nowrap;opacity:{{ undoOp }}" style-hover="background:#f5f1e8">↶ Undo</button>
         <button onClick="{{ redo }}" title="Redo (⇧⌘Z)" style="height:30px;padding:0 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;white-space:nowrap;opacity:{{ redoOp }}" style-hover="background:#f5f1e8">↷ Redo</button>
-          <button onClick="{{ onCopyMd }}" title="Copy the markdown" style="height:30px;padding:0 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;white-space:nowrap">Copy</button>
-          <button onClick="{{ onDownload }}" title="Download the markdown and layout file" style="height:30px;padding:0 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;white-space:nowrap">Download</button>
         <sc-if value="{{ hasDeck }}">
           <button onClick="{{ save }}" title="Save to decks/ (⌘S)" style="height:30px;padding:0 12px;border:1px solid #1d1b17;border-radius:8px;background:#1d1b17;color:#fbf9f4;cursor:pointer;font-size:13px;white-space:nowrap" style-hover="background:#3a362f">{{ saveLabel }}</button>
         </sc-if>
@@ -208,6 +220,8 @@ input,textarea,button{font:inherit;color:inherit}
                       </sc-if>
                     </div>
                   </sc-for>
+                  <button onPointerDown="{{ stopProp }}" onClick="{{ onAddAfter }}" title="Add a slide after this one (→)" style="position:absolute;right:6px;top:calc(50% - 13px);z-index:960;width:26px;height:26px;padding:0;border:0;border-radius:999px;background:#fbf9f4;color:#1d1b17;box-shadow:0 1px 4px rgba(0,0,0,.35);cursor:pointer;font-size:17px;font-weight:700;line-height:26px;opacity:.55" style-hover="opacity:1">+</button>
+                  <button onPointerDown="{{ stopProp }}" onClick="{{ onAddBelow }}" title="Add a slide below this one (↓)" style="position:absolute;left:calc(50% - 13px);bottom:6px;z-index:960;width:26px;height:26px;padding:0;border:0;border-radius:999px;background:#fbf9f4;color:#1d1b17;box-shadow:0 1px 4px rgba(0,0,0,.35);cursor:pointer;font-size:17px;font-weight:700;line-height:26px;opacity:.55" style-hover="opacity:1">+</button>
                   <sc-for list="{{ warnBadges }}" as="wb" hint-placeholder-count="0">
                     <button onPointerDown="{{ wb.onDown }}" onClick="{{ wb.onClick }}" title="{{ wb.title }}" style="position:absolute;left:{{ wb.x }}%;top:{{ wb.y }}%;z-index:950;margin:-10px 0 0 -10px;width:22px;height:22px;padding:0;border:0;border-radius:999px;background:#fbf9f4;box-shadow:0 1px 4px rgba(0,0,0,.35);cursor:pointer;font-size:12px;line-height:22px">⚠️</button>
                   </sc-for>
@@ -979,6 +993,7 @@ const layoutUrl = src => /\.md(\?.*)?$/i.test(src) ? src.replace(/\.md(\?.*)?$/i
 const RO_MSG = 'Linked slides are read-only here: change them in their own markdown file';
 const EMPTY_MSG = 'Add a # heading to make a slide';
 const MD = window.StrataMd;
+const TOUR = 'https://github.com/aaronp/strata/blob/master/examples/strata-tour/strata-tour.md';
 const UIKEY = 'strata-ui', DRAFT_KEY = src => 'strata-draft:' + src;
 const webUrl = u => { u = String(u || '').trim(); if (u && !/^[a-z][a-z0-9+.-]*:/i.test(u)) u = 'https://' + u; return /^https?:\/\//i.test(u) ? u : null; };   // only http(s) targets open
 const AUTOSAVE_MS = 800;
@@ -1561,6 +1576,12 @@ class Component extends DCLogic {
       cur: d.titlePage ? 'ROOT' : r.nodes.ROOT.children[0], prev: null, phase: 'idle' }, () => { this._loaded = true; this.markSaved(); if (then) then(); });
   }
   setMd(md) { this.setState({ md }); clearTimeout(this._mdT); this._mdT = setTimeout(() => this.reenrich(), 200); }
+  // + on the slide: a new heading in the markdown, after this slide's subtree (sibling) or as its last child (below), then go to it.
+  addSlide(where) {
+    const S = this.state, n = S.nodes[S.cur]; if (n && n._from) return;
+    const r = MD.insertSlide(S.md, (n && n._line) || 0, where);
+    this.setState({ md: r.md }, () => { this.reenrich(); this.setState({}, () => { this.nav(r.slug, 'jump'); this.setState({ rtab: 'content' }, () => this.scrollMd()); }); });
+  }
   // Rebuild nodes from the markdown, keeping baseNodes' layout (overrides, ROOT). Neither an undo step nor a hand edit.
   // A current slide that's gone moves to its nearest surviving ancestor, else the first slide.
   reenrich(baseNodes = this.state.nodes, deck = {}) {   // deck: layouts/layoutDefaults about to be set (undo), not yet in state
@@ -1633,6 +1654,23 @@ class Component extends DCLogic {
     if (SRC || SRC_ARG) try { localStorage.setItem(KEY, JSON.stringify({ md, layout: L })); location.href = location.pathname; return; } catch (e) {}   // no storage: open it here, unsaved
     this.adopt(md, L);
   }
+  // File menu: the deck list (dev server's /api/decks, or the published decks/index.json) loads when it first opens.
+  toggleFileMenu() {
+    const open = !this.state.fileMenu; this.setState({ fileMenu: open });
+    if (open && !this.state.decks) fetch(STATIC ? '../decks/index.json' : '/api/decks', { cache: 'no-store' }).then(r => r.ok ? r.json() : []).catch(() => []).then(d => this.setState({ decks: Array.isArray(d) ? d : [] }));
+  }
+  newDeck() {
+    const name = window.prompt('New deck name'); if (!name) return;
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    if (slug) location.href = location.pathname + '?deck=' + slug; else this.flash('Use letters or digits in the name');
+  }
+  openUrl() {
+    const u = window.prompt('Markdown URL (a GitHub file link works)', 'https://'); if (!u || u === 'https://') return;
+    location.href = location.pathname + '?src=' + encodeURIComponent(u.trim());
+  }
+  openPick() { const i = this.openInputRef.current; if (i) i.click(); }
+  copyMd() { navigator.clipboard.writeText(this.state.md).then(() => this.flash('Markdown copied'), e => this.flash('Clipboard blocked: ' + e.message)); }
+  downloadDeck() { const S = this.state, n = DECK || (SRC && SRC.split('/').pop().replace(/\.md$/, '')) || 'deck'; this.download(n + '.md', S.md); this.download(n + '-layout.json', JSON.stringify(layoutOf(S.nodes, S, this._linkedOv), null, 2), 'application/json'); }
   async openAt(id) {
     for (let p; !this.state.nodes[id] && (p = this.unloadedAbove(id));) await this.loadChildren(p);
     if (this.state.nodes[id] && id !== 'ROOT') this.setState({ cur: id }); else this.flash('No slide "' + id + '"');
@@ -2252,6 +2290,7 @@ class Component extends DCLogic {
   onKey(e) {
     const t = e.target; const typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || !!t.isContentEditable || !!(t.closest && t.closest('[data-role="fmtbar"]'))); const k = e.key; const S = this.state;
     if ((e.metaKey || e.ctrlKey) && (k === 's' || k === 'S')) { e.preventDefault(); this.save(); return; }
+    if (k === 'Escape' && S.fileMenu) { this.setState({ fileMenu: false }); return; }
     if (typing) {
       if ((t === this.editRef.current || t.isContentEditable) && (e.metaKey || e.ctrlKey) && /^[bi]$/i.test(k)) { e.preventDefault(); this.formatSel(k.toLowerCase() === 'b' ? { bold: true } : { italic: true }); return; }
       if ((e.metaKey || e.ctrlKey) && (k === 'z' || k === 'Z' || k === 'y' || k === 'Y') && t.isContentEditable) { e.preventDefault(); if (k === 'y' || k === 'Y' || e.shiftKey) this.redo(); else this.undo(); return; }   // the app's undo, not the browser's
@@ -2750,12 +2789,22 @@ class Component extends DCLogic {
       onUseDraft: () => { const d = this._draft; this._draft = null; if (d) this.adopt(d.md, d.layout, () => this.setState({ draftPrompt: false })); },
       onDiscardDraft: () => { this._draft = null; try { localStorage.removeItem(DRAFT_KEY(SRC)); } catch (e) {} this.setState({ draftPrompt: false }); }, save: () => this.save(), saveLabel: S.saving ? 'Saving…' : S.saveMsg ? '⚠ Save' : this.isDirty() ? '● Unsaved' : '✓ Saved',
       modeTabs: STATIC ? [] : [{ label: 'Build', ...tab(!isPresent), onClick: () => this.setState({ mode: 'build' }) }, { label: 'Present', ...tab(isPresent), onClick: () => this.setState({ mode: 'present', query: '' }) }],
-      mdRef: this.mdRef, mdText: S.md, onMdInput: e => this.setMd(e.target.value),
+      mdRef: this.mdRef, mdText: S.md, onMdInput: e => this.setMd(e.target.value), onAddAfter: () => this.addSlide('after'), onAddBelow: () => this.addSlide('below'),
       mdIssuesText: S.mdIssues.map(i => 'line ' + i.line + ': ' + i.msg).join('\n'), hasMdIssues: S.mdIssues.length > 0,
-      openInputRef: this.openInputRef, onOpenPick: () => { const i = this.openInputRef.current; if (i) i.click(); },
+      openInputRef: this.openInputRef, onOpenPick: () => this.openPick(),
+      fileMenu: !!S.fileMenu, toggleFileMenu: () => this.toggleFileMenu(), closeFileMenu: () => this.setState({ fileMenu: false }),
+      fileItems: [
+        ...(STATIC ? [] : [{ label: 'New…', hint: 'A deck in decks/', run: () => this.newDeck() }]),
+        { label: 'Open file…', hint: '.md and its -layout.json', run: () => this.openPick() },
+        { label: 'Open URL…', hint: 'https or GitHub link', run: () => this.openUrl() },
+        ...(DECK && !STATIC ? [{ label: 'Save', hint: '⌘S', run: () => this.save() }] : []),
+        { label: 'Download', hint: '.md + -layout.json', run: () => this.downloadDeck() },
+        { label: 'Copy markdown', hint: '', run: () => this.copyMd() },
+      ].map(m => ({ label: m.label, hint: m.hint, pick: () => { this.setState({ fileMenu: false }); m.run(); } })),
+      deckItems: [...(S.decks || []).map(d => ({ label: d.title, hint: d.slug, href: '?deck=' + d.slug, weight: d.slug === DECK ? 700 : 400 })),
+        { label: 'Strata tour', hint: 'example', href: '?src=' + encodeURIComponent(TOUR), weight: 400 }],
       onOpenFile: e => { const fs = [...(e.target.files || [])]; e.target.value = ''; this.openFiles(fs); },
-      onCopyMd: () => navigator.clipboard.writeText(S.md).then(() => this.flash('Markdown copied'), e => this.flash('Clipboard blocked: ' + e.message)),
-      onDownload: () => { const n = DECK || (SRC && SRC.split('/').pop().replace(/\.md$/, '')) || 'deck'; this.download(n + '.md', S.md); this.download(n + '-layout.json', JSON.stringify(layoutOf(S.nodes, S, this._linkedOv), null, 2), 'application/json'); },
+      onCopyMd: () => this.copyMd(), onDownload: () => this.downloadDeck(),
       isBuild: !isPresent, isPresent, slideCount: D.order.length, query: S.query, onQuery: e => this.setState({ query: e.target.value }),
       navW: Math.max(200, Math.min(S.navW, (typeof window !== 'undefined' ? window.innerWidth : 1400) - (this.state.rightW || 300) - 380)), onNavResize: e => this.navResize(e),
       treeZoom: S.treeZoom || 1, treeZoomLabel: Math.round((S.treeZoom || 1) * 100) + '%', treeZoomIn: () => this.treeZoomStep(1), treeZoomOut: () => this.treeZoomStep(-1),

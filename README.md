@@ -9,7 +9,7 @@ Requires [bun](https://bun.sh).
 | `make dev` | Local editor at http://127.0.0.1:3067/ (pick or create a deck, ⌘S saves to `decks/<slug>/`) |
 | `bun install` | Once, to fetch the test dependency (happy-dom) |
 | `make test` | Run the tests |
-| `make build [DECK=slug]` | Present-only static site in `dist/`: the landing page (open a deck by URL) and every local deck (with `DECK`: the site root opens that deck; a missing deck fails the build) |
+| `make build [DECK=slug]` | Present-only static site in `dist/`: the app (its File menu opens a URL or any published deck) and every local deck (with `DECK`: the site root opens that deck; a missing deck fails the build) |
 | `make preview` | Build, then serve `dist/` locally |
 
 Pushing to `master` publishes the app to GitHub Pages (`.github/workflows/pages.yml` runs the tests, then `make build`); in the repo's **Settings → Pages**, set **Source: GitHub Actions** once. Decks aren't published with it: share them by URL.
@@ -21,10 +21,10 @@ Put the markdown (and its `-layout.json`) anywhere public, e.g. a GitHub repo, a
 
 - GitHub `blob` links work (`https://github.com/you/repo/blob/main/talk.md`): Strata fetches the raw file; `children:` links too.
 - `&slide=<id>` opens on that slide; an id inside a linked file (`stitching.joining`) loads it on the way. An unknown id opens the first slide with a note.
-- The published site is present-only. Its landing page has an **Open from a URL** box and the [Strata tour](https://aaronp.github.io/strata/?src=https://github.com/aaronp/strata/blob/master/examples/strata-tour/strata-tour.md), a deck about Strata in `examples/strata-tour/`.
-- **Open a file:** drop a `.md` (with its `-layout.json`) on the landing page or anywhere in the app, or use the app's **Open…** button. It becomes the scratch deck, kept in this browser. A layout file on its own restyles the open deck. Relative images in a local `.md` don't load (there's no URL to resolve them against), so use absolute URLs or publish the deck.
+- The published site is present-only. Its root opens the app; the **File** menu has **Open URL…**, the published decks and the [Strata tour](https://aaronp.github.io/strata/?src=https://github.com/aaronp/strata/blob/master/examples/strata-tour/strata-tour.md), a deck about Strata in `examples/strata-tour/`.
+- **Open a file:** drop a `.md` (with its `-layout.json`) anywhere in the app, or use **File → Open file…**. It becomes the scratch deck, kept in this browser. A layout file on its own restyles the open deck. Relative images in a local `.md` don't load (there's no URL to resolve them against), so use absolute URLs or publish the deck.
 - **Your own deck repo:** `examples/my-deck/` is a template repo (deck, layout, a redirecting `index.html` and a Pages workflow). From that folder, `make clone REPO=you/your-deck` (or `./clone.sh`, which prompts) copies it to `../your-deck` as a fresh repo, points its README at `https://you.github.io/your-deck/` and sets `origin`. Push it, then set **Settings → Pages → Source: GitHub Actions**: the site redirects to Strata with `?src=` pointing at your `deck.md`.
-- Locally, `make dev` serves `examples/` too: http://127.0.0.1:3067/design/strata.dc.html?src=/examples/strata-tour/strata-tour.md (or paste any URL into the landing page's box).
+- Locally, `make dev` serves `examples/` too: http://127.0.0.1:3067/design/strata.dc.html?src=/examples/strata-tour/strata-tour.md (or use File → Open URL…).
 
 ### Decks are markdown
 A deck is `<name>.md` plus an optional `<name>-layout.json`. The markdown is the content and the only place text is edited; the layout file holds everything else (layouts, per-slide overrides, styles, frames, extras, images, canvas settings). The deck is rebuilt from the two on every load and edit. Locally they live in `decks/<slug>/<slug>.md` and `decks/<slug>/<slug>-layout.json`; opening the app without `?deck=` or `?src=` keeps both in browser storage (scratch mode). See `examples/strata-tour/` and `examples/current-situation.md`.
@@ -43,6 +43,8 @@ A deck is `<name>.md` plus an optional `<name>-layout.json`. The markdown is the
 - Other HTML comments are ignored; raw HTML shows as text. Only `http(s):` links are clickable.
 
 **`?src=<url>`** (e.g. `design/strata.dc.html?src=https://raw.githubusercontent.com/…/talk.md`) loads a markdown file and its sibling `<name>-layout.json`, if there is one. The URL must be `https:` or same-origin. There's no saving: in build mode your edits are kept in the browser as a draft for that URL until you download them. Present mode always shows the remote file; opening build mode with a draft that differs asks **You have local changes to this deck: Use my draft / Discard**.
+
+**Adding slides:** in build mode, the **+** on the slide's right edge adds a slide after it (a sibling, after its children), the **+** on its bottom edge adds one below it (its last child). Each writes a `# New slide` heading with a `slug:` line into the markdown and goes to it.
 
 **Editing:** the markdown is in the right panel's **Content** tab (with any parse issues below it); typing updates the slides live and it scrolls to the current slide. Layout edits (boxes, styles, frames, extras) go to the layout file. In the Slide tab, **This slide / Layout** chooses where they go: a per-slide override, or the shared layout for every slide of that shape without one. Content no layout region claims still shows, with a ⚠️ badge; click it to add a region for it (following the same choice). **Copy** copies the markdown; **Download** saves `<name>.md` and `<name>-layout.json`.
 

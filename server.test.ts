@@ -30,10 +30,8 @@ test("refuses paths outside design/ and decks/", async () => {
   expect((await get("/design/..%2Fserver.ts")).status).toBe(404);
 });
 
-test("index lists decks with relative links", async () => {
-  const html = await (await get("/")).text();
-  expect(html).toContain('href="design/strata.dc.html?deck=talk"');
-  expect(html).toContain("My Talk");
+test("/api/decks lists decks (the File menu's list)", async () => {
+  expect(await (await get("/api/decks")).json()).toContainEqual({ slug: "talk", title: "My Talk" });
 });
 
 test("deckList ignores folders without <slug>.md or with bad names", async () => {
@@ -104,15 +102,8 @@ test("md.js is served and defines StrataMd", async () => {
   expect(typeof w.StrataMd.parseMarkdown).toBe("function");
 });
 
-test("index: open-from-url form and tour link in both variants; the ?src= redirect only static; New deck only dev", () => {
-  const tour = 'href="design/strata.dc.html?src=' + encodeURIComponent("https://github.com/aaronp/strata/blob/master/examples/strata-tour/strata-tour.md") + '"';
-  for (const dev of [true, false]) {
-    const html = indexHtml([], dev);
-    expect(html).toContain('placeholder="https://github.com/you/repo/blob/main/talk.md"'); expect(html).toContain(">Open</button>");
-    expect(html).toContain(tour); expect(html).toContain("Strata tour");
-    expect(html.includes("location.replace('design/strata.dc.html' + location.search)")).toBe(!dev);
-    expect(html.includes("New deck")).toBe(dev);
-  }
+test("index redirects into the app, keeping the query (?src=…&slide=…)", () => {
+  expect(indexHtml()).toContain("location.replace('design/strata.dc.html' + location.search)");
 });
 
 test("serves examples/ like decks/", async () => {

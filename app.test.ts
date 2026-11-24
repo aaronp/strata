@@ -2269,11 +2269,15 @@ test("tool keys only on an own slide in Slide view; Escape puts the tool back to
 // ---- final review fixes ----
 const hasSemi = (o: any): boolean => typeof o === "string" ? o.includes(";") : o && typeof o === "object" ? Object.values(o).some(hasSemi) : false;
 test("layout-file values that could inject CSS resolve to safe defaults (font, colours, blend, border)", async () => {
-  const bad = { font: "x;background:url(http://t)", color: "red;top:0", blend: "x;y" }, SH = { type: "shape", x: 0, y: 0, w: 10, h: 10, kind: "rect" };
+  const bad = { font: "x;background:url(http://t)", color: "red;top:0", blend: "x;y", x: "1;background:url(http://t)", weight: "700;top:0", align: "x;y", valign: "x;y",
+    rot: "1deg);x", size: "9;x", lh: "1;x", ls: "1;x", gap: "1;x", opacity: "1;x", card: "custom", box: { bg: "#fff", bgOpacity: "1);x", borderColor: "red;x", pad: "1;x" } }, SH = { type: "shape", x: 0, y: 0, w: 10, h: 10, kind: "rect" };
   const c = await styledDeck({ styles: { evil: { name: "Evil", color: "red;top:0", font: "x;y" } } }, [TL("a", bad), TL("e", { style: "evil", text: "[w]{style=evil} ok" }),
     { id: "s1", ...SH, fill: "a;b", stroke: "red;x", border: { width: 99, style: "x;y" }, blend: "x;y" }, { id: "s2", ...SH, token: "x;y", border: { width: "3;x", style: "dashed" } }, { id: "s3", ...SH, border: "1px;x" }]);
   const [t, e, s1, s2, s3] = c.layersOf("s").map((l: any) => c.resolveLayer(l, "s"));
-  for (const k of ["font", "color", "blend"]) expect(t[k]).toBeUndefined();
+  for (const k of ["font", "color", "blend", "weight", "align", "valign", "rot", "size", "lh", "ls", "gap", "opacity"]) expect(t[k]).toBeUndefined();
+  expect(t).toMatchObject({ x: 0, y: 5, w: 50, h: 20 }); expect(t.box).toEqual({ bg: "#fff" });
+  expect(c.resolveLayer(TL("n", { x: "12", weight: 700, align: "center", valign: "bottom" }), "s")).toMatchObject({ x: 12, weight: 700, align: "center", valign: "bottom" });
+  c.setState({ cur: "s", mode: "build", view: "slide" }); expect(hasSemi(c.renderVals().overlays.map((o: any) => [o.l, o.t, o.w, o.h, o.rot]))).toBe(false);   // the stage's own boxes too
   expect(e.color).toBeUndefined(); expect(e.font).toBeUndefined(); expect(e._lines[0][0]).toEqual({ text: "w" });
   expect(s1.border).toEqual({ width: 10, style: "solid" }); for (const k of ["fill", "stroke", "blend"]) expect(s1[k]).toBeUndefined();
   expect(s2.border).toEqual({ width: 0, style: "dashed" }); expect(s2.token).toBeUndefined(); expect(s3.border).toEqual({ width: 0, style: "solid" });

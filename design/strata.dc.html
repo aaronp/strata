@@ -1536,10 +1536,18 @@ const FONT_CSS = Object.fromEntries(FONT_LIST.map(f => [f[0], f[2]]));
 // Trust boundary: a layout file (or a ?src= deck) reaches inline CSS through these keys. An unsafe value is dropped, so the renderer's default applies.
 const safeCol = v => typeof v === 'string' && /^(#[0-9a-fA-F]{3,8}|[a-zA-Z]+)$/.test(v);   // a token, a hex or a colour name
 const safeFont = v => typeof v === 'string' && Object.hasOwn(FONT_CSS, v);                  // head, body, mono or a font key
-const dropUnsafe = o => { const r = { ...o }; for (const k of ['color', 'fill', 'stroke', 'token']) if (r[k] != null && !safeCol(r[k])) delete r[k]; if (r.font != null && !safeFont(r.font)) delete r.font; return r; };
+const NUM_KEYS = ['x', 'y', 'w', 'h', 'rot', 'opacity', 'fillOpacity', 'radius', 'size', 'weight', 'lh', 'ls', 'gap', 'sw', 'zoom', 'focusX', 'focusY'];
+const GEO = { x: 0, y: 0, w: 10, h: 10 };   // a box with bad geometry still shows, small, at the top left
+const finite = v => typeof v === 'number' ? Number.isFinite(v) : typeof v === 'string' && v.trim() !== '' && Number.isFinite(Number(v));
+// Numbers become numbers (a numeric string too); anything else takes its default from def, or is dropped.
+const numsOnly = (r, keys, def = {}) => { for (const k of keys) if (r[k] != null) { if (finite(r[k])) r[k] = Number(r[k]); else if (k in def) r[k] = def[k]; else delete r[k]; } return r; };
+const dropUnsafe = o => { const r = numsOnly({ ...o }, NUM_KEYS, GEO); for (const k of ['color', 'fill', 'stroke', 'token']) if (r[k] != null && !safeCol(r[k])) delete r[k]; if (r.font != null && !safeFont(r.font)) delete r.font; return r; };
 function safeLayer(l) {
   const r = dropUnsafe(l);
   if (r.blend != null && !['normal', 'screen'].includes(r.blend)) delete r.blend;
+  if (r.align != null && !['left', 'center', 'right'].includes(r.align)) delete r.align;
+  if (r.valign != null && !['top', 'middle', 'bottom'].includes(r.valign)) delete r.valign;
+  if (r.box != null) { if (typeof r.box !== 'object') delete r.box; else { const b = numsOnly({ ...r.box }, ['bgOpacity', 'blur', 'border', 'radius', 'pad']); for (const k of ['bg', 'borderColor']) if (b[k] != null && !safeCol(b[k])) delete b[k]; r.box = b; } }
   if (r.border != null) r.border = typeof r.border === 'object' ? { ...r.border, style: ['solid', 'dashed', 'dotted'].includes(r.border.style) ? r.border.style : 'solid',
     width: Number.isFinite(r.border.width) ? Math.max(0, Math.min(10, r.border.width)) : 0 } : { width: 0, style: 'solid' };
   if (r._lines) r._lines = r._lines.map(line => line.map(dropUnsafe));
@@ -2696,7 +2704,7 @@ class Component extends DCLogic {
     const selIds = this.selIds(), multi = selIds.length > 1, hits = S.marqueeHits || [], mh = this._mh || {};
     const tool = TOOLS.some(t => t[0] === S.tool) ? S.tool : 'select';   // a drawing tool draws over layers, so they let the pointer through
     const nS = curN.steps || {}, badge = k => { const on = ordering && k === S.orderStep; return { badge: k ? String(k) : '–', badgeBg: on ? '#FBBF24' : k ? '#7AA2FF' : '#343944', badgeFg: on ? '#1C1405' : k ? '#0B1020' : '#C3C8D2' }; };
-    const overlays = curLayers.map((l, i) => ({ ...badge(nS[l.id] || 0), showBadge: ordering && l.block !== 'title', lid: l.id, l: l.x, t: l.y, w: l.w, h: Math.max(l.h, mh[l.id] || 0), rot: l.rot || 0, z: i + 1, pe: !ordering && (tool !== 'select' || (S.interact === l.id && S.layerSel === l.id)) ? 'none' : 'auto', selected: selIds.includes(l.id), single: !multi && l.id === S.layerSel, hidden: !!l.hidden,
+    const overlays = curLayers.map(safeLayer).map((l, i) => ({ ...badge(nS[l.id] || 0), showBadge: ordering && l.block !== 'title', lid: l.id, l: l.x, t: l.y, w: l.w, h: Math.max(l.h, mh[l.id] || 0), rot: l.rot || 0, z: i + 1, pe: !ordering && (tool !== 'select' || (S.interact === l.id && S.layerSel === l.id)) ? 'none' : 'auto', selected: selIds.includes(l.id), single: !multi && l.id === S.layerSel, hidden: !!l.hidden,
       outline: selIds.includes(l.id) || hits.includes(l.id) ? '2px solid #7AA2FF' : 'none', label: lname(l) + (l.link ? (l.link.type === 'url' ? '  ↗ ' + short(l.link.url || 'web link', 26) : '  → ' + short(N[l.link.id] ? name(l.link.id) : 'missing slide', 22)) : ''),
       onDown: ev => { if (!ordering) { this.startDrag(ev, l.id, 'move'); return; } ev.stopPropagation(); this.assignStep(l.id); },   // ordering: a click assigns, nothing drags
       onDbl: ev => { ev.stopPropagation(); if (!ordering) this.startEdit(l.id); }, onDrop: ev => this.dropOn(ev, l.id),
@@ -2798,7 +2806,7 @@ class Component extends DCLogic {
       slideOptions: (S.titlePage ? ['ROOT'] : []).concat(D.order).map(id => ({ id, label: '\u00a0'.repeat(id === 'ROOT' ? 0 : D.depth[id] * 3) + name(id) + (id === cur ? '  (this slide)' : '') })),
       followLink: () => linkOf && linkOf.id && this.nav(linkOf.id, 'jump'),
       showLinkSpots: isPresent && !active,
-      linkSpots: isPresent ? curLayers.filter(l => l.link && !l.hidden && ((l.link.type === 'url' && webUrl(l.link.url)) || (l.link.type === 'slide' && N[l.link.id]))).map(l => ({ l: l.x, t: l.y, w: l.w, h: l.h, rot: l.rot || 0,
+      linkSpots: isPresent ? curLayers.filter(l => l.link && !l.hidden && ((l.link.type === 'url' && webUrl(l.link.url)) || (l.link.type === 'slide' && N[l.link.id]))).map(safeLayer).map(l => ({ l: l.x, t: l.y, w: l.w, h: l.h, rot: l.rot || 0,
         title: l.link.type === 'url' ? 'Open ' + l.link.url : 'Go to ' + pathName(l.link.id),
         onClick: e => { const hit = e && typeof document !== 'undefined' && document.elementsFromPoint ? document.elementsFromPoint(e.clientX, e.clientY).find(x => x.dataset && (x.dataset.link || x.dataset.href)) : null;
           if (hit) { this.followInline(hit.dataset); return; }   // an inline link under the pointer wins over the layer's own link

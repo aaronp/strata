@@ -1378,8 +1378,8 @@ function enrich(sections, layouts, opts = {}) {
       const gone = ls.filter(l => isMd(l) && !byId.has(l.id));   // back in the layout file, out of the slide
       const have = new Set(ls.map(l => l.id));
       const own = ls.filter(l => !isMd(l) || byId.has(l.id)).map(l => isMd(l) ? mergeContent(l, byId.get(l.id)) : l).concat(gen.filter(g => !have.has(g.id)).map(g => ({ ...g, _warn: true })));
-      const OL = byLid(ov.layout), tp = tplProps(own, OL);   // the template's props aren't saved (layoutOf): they go back on here; a detail the template no longer makes is a plain body
-      const placed = own.map(l => tp[l.id] ? onSlot(l, tp[l.id], true) : l.kind === 'detail' ? (({ kind: _k, ...o }) => o)(l) : l), layers = [...genLayers(OL, idx, ov, placed), ...placed];
+      const OL = byLid(ov.layout), tp = tplProps(own, OL);   // the template's props aren't saved (layoutOf): they go back on here (a file without deck.tplKeys predates that: its template-equal values are the template's); a detail the template no longer makes is a plain body
+      const adopt = !((layouts[i] || {}).deck || {}).tplKeys, placed = own.map(l => tp[l.id] ? onSlot(l, tp[l.id], adopt) : l.kind === 'detail' ? (({ kind: _k, ...o }) => o)(l) : l), layers = [...genLayers(OL, idx, ov, placed), ...placed];
       const { _kept: _k, ...rest } = ov; extra = { ...rest, layers, custom: true, ...(gone.length ? { _kept: gone } : {}) };
     } else {
       if (lay) { const boxes = fillSlots(gen, sided(lay, keep || {})), placed = backFirst(gen.map(l => boxes[l.id] ? onSlot(l, boxes[l.id]) : l), boxes); extra = { layers: [...genLayers(lay, idx, keep || {}, placed), ...placed], layout: lay.id }; }
@@ -1401,6 +1401,7 @@ const unwarn = ({ _warn: _w, ...l }) => l;   // a placed block
 const NOT_SAVED = ['id', 'title', 'body', 'children', 'childSrc', '_from', '_kept', '_line'];
 function layoutOf(nodes, deckFields = {}, linkedOv = {}) {   // linkedOv: the host's overrides for linked slides (dotted ids), kept as loaded
   const deck = {}; for (const k of DECK_FIELDS) if (k in deckFields && !['nodes', 'title', 'source'].includes(k)) deck[k] = deckFields[k];
+  deck.tplKeys = 1;   // this file's layers hold no template-set keys (they're stripped below): a template-equal value in it is the user's
   if (deck.images) deck.images = Object.fromEntries(Object.entries(deck.images).filter(([k]) => !k.startsWith('md:')));
   const slides = { ...linkedOv, ...(nodes.ROOT ? { ROOT: nodes.ROOT } : {}) };
   for (const id in nodes) { const n = nodes[id]; if (id === 'ROOT' || n._from) continue;

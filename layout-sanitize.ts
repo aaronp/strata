@@ -144,6 +144,7 @@ const sanitizeDeck = allow({
   styles: v => mapObj(v, (_k, s) => isPlain(s) ? safeLayer(allow({ name: str(80), deleted: bool, ...STYLE })(s)!) : undefined),
   layouts: v => mapObj(v, (_k, L) => sanitizeTemplate(L)),
   layoutDefaults: v => mapObj(v, (_k, x) => okId(x) ? x : undefined),
+  tplKeys: oneOf([1]),   // written by every save since template-set keys are stripped (layoutOf); absent: an older file
 });
 
 // A layout file → a cleaned copy (null if it isn't an object): { version, deck, slides }, nothing else.

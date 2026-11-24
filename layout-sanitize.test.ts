@@ -122,3 +122,8 @@ test("boxes: token colours and borderOpacity are kept on layers and template slo
 test("the unsaved template-key list (_tpl) never comes through a layout file", () => {
   expect(sanitizeLayout({ version: 2, slides: { s: { layers: [{ id: "a", type: "text", _tpl: ["color"], color: "muted" }] } } })!.slides.s.layers).toEqual([{ id: "a", type: "text", color: "muted" }]);
 });
+
+test("deck.tplKeys survives only as the number 1", () => {
+  expect(sanitizeLayout({ deck: { tplKeys: 1 } })!.deck).toEqual({ tplKeys: 1 });
+  for (const v of [2, "1", true]) expect(sanitizeLayout({ deck: { tplKeys: v } })!.deck).toEqual({});
+});

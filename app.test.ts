@@ -2892,3 +2892,16 @@ test("Deck default text colour (null) leaves the bullet marker on its default", 
   await writeMd("talk", "# T\nslug: t\n\nOne.\n"); const { c } = await mount("?deck=talk"); c.setTheme({ palette: "midnight" });
   expect(c.resolveLayer({ id: "x", type: "text", text: "a", style: "bullets", color: null, x: 0, y: 0, w: 10, h: 10 }, "t").markColor).toBe("#93C5FD");
 });
+
+test("files saved since template keys are stripped carry deck.tplKeys: their template-equal values are the user's; older files get the migration", async () => {
+  await writeMd("talk", "# U\nslug: u\n\nSub.\n"); const { c } = await mount("?deck=talk");
+  c.applyLayout("u", "t-title-sub"); c.updLayer("u", "md-body-1", { color: "muted" }); c.componentDidUpdate();
+  expect(c.constructor.md.layoutOf(c.state.nodes, c.state).deck.tplKeys).toBe(1);
+  await c.save(); const L = await Bun.file(deckDir("talk") + "talk-layout.json").json();
+  expect(L.deck.tplKeys).toBe(1); expect(L.slides.u.layers.find((l: any) => l.id === "md-body-1").color).toBe("muted");
+  const m = (await mount("?deck=talk")).c; expect(layerOf(m, "u", "md-body-1")._tpl).toBeUndefined();
+  m.applyLayout("u", "stacked-1"); expect(layerOf(m, "u", "md-body-1").color).toBe("muted");   // the user's Muted stays
+  delete L.deck.tplKeys; await writeMd("old", "# U\nslug: u\n\nSub.\n", L);
+  const o = (await mount("?deck=old")).c; expect(layerOf(o, "u", "md-body-1")._tpl).toEqual(["color"]);   // no marker: an old file, migrated
+  o.applyLayout("u", "stacked-1"); expect(layerOf(o, "u", "md-body-1").color).toBeUndefined();
+});

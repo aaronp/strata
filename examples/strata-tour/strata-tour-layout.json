@@ -16,7 +16,8 @@
     "speed": 900,
     "titlePage": false,
     "rowGap": -0.7,
-    "images": {}
+    "images": {},
+    "tplKeys": 1
   },
   "slides": {
     "keys": {

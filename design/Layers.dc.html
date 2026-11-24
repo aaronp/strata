@@ -49,7 +49,7 @@
   </sc-for>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:800,&quot;height&quot;:450},&quot;layers&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;array&quot;},&quot;live&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;string&quot;},&quot;cards&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;string&quot;},&quot;card&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;object&quot;},&quot;images&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;object&quot;},&quot;ink&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#15171c&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;shadow&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;none&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;editingId&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;string&quot;},&quot;showEmpty&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;}}">
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:800,&quot;height&quot;:450},&quot;layers&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;array&quot;},&quot;live&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;string&quot;},&quot;cards&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;string&quot;},&quot;surface&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;object&quot;},&quot;images&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;object&quot;},&quot;ink&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#15171c&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;shadow&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;none&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;editingId&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;string&quot;},&quot;showEmpty&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;}}">
 const FONTS = { grot: "'Bricolage Grotesque',sans-serif", serif: "'DM Serif Display',serif", news: "'Newsreader',serif", mono: "'JetBrains Mono',monospace", hand: "'Caveat',cursive" };
 const ICONS = {
   arrow: 'M5 12h14M13 6l6 6-6 6', check: 'M5 12.5l4.5 4.5L19 7.5', star: 'M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z',
@@ -76,8 +76,8 @@ class Component extends DCLogic {
   renderVals() {
     const p = this.props; const ink = p.ink || '#15171c'; const imgs = p.images || {};
     const shadow = p.shadow || 'none';
-    // Readability card: deck-wide mode ('none' | 'text' | 'slide'); a text layer can force it 'on' or 'off'.
-    const card = p.card || {}; const cardFill = rgba(card.color, card.opacity ?? 0.45), cardBlur = 'blur(' + (card.blur ?? 8) + 'px)';
+    // The theme's slide surface: null (clear) or a whole-slide { bg, blur } drawn under the layers.
+    const surface = p.surface || null;
     const cq = v => (v || 0) / 16 + 'cqw';   // px on a 1600-wide slide → scales with the slide, like font size
     const boxStyle = l => {
       const b = l.card === 'custom' && l.box;
@@ -93,13 +93,13 @@ class Component extends DCLogic {
         isText: l.type === 'text', isShape: l.type === 'shape', isIcon: l.type === 'icon', isImage: l.type === 'image' };
       if (l.type === 'text') {
         const b = l.bullets || 'none'; const raw = String(l.text ?? '').split('\n');
-        const run = r => ({ text: r.text, fw: r.weight || (r.b ? 'bolder' : ''), fst: r.i ? 'italic' : '', fsz: r.size ? r.size / 16 + 'cqw' : '', col: r.color || '', fam: r.font ? (FONTS[r.font] || '') : '', lsp: r.ls ? r.ls + 'em' : '',
+        const run = r => ({ text: r.text, fw: r.weight || (r.b ? 'bolder' : ''), fst: r.i ? 'italic' : '', fsz: r.size ? r.size / 16 + 'cqw' : '', col: r.color || '', fam: r.font ? (FONTS[r.font] || r.font) : '', lsp: r.ls ? r.ls + 'em' : '',
           lnk: r.broken ? '' : (r.link || ''), href: r.broken ? '' : (r.href || ''), deco: r.broken ? 'underline dashed' : (r.link || r.href ? 'underline' : ''),
           pe: p.links && !r.broken && (r.link || r.href) ? 'auto' : '', cur: p.links && !r.broken && (r.link || r.href) ? 'pointer' : '' });   // links click only when live (present)
         const lines = raw.map((t, i) => ({ text: t === '' ? '\u00a0' : t, runs: ((l._lines && l._lines[i]) || [{ text: t === '' ? '\u00a0' : t }]).map(run),
           hasMark: b !== 'none' && t !== '', mark: b === 'number' ? (raw.slice(0, i + 1).filter(x => x !== '').length) + '.' : MARKS[b] || '' }));
         const align = l.align || 'left';
-        return { ...base, lines, font: FONTS[l.font] || FONTS.grot, fs: (l.size || 40) / 16, weight: l.weight || 400, color: l.color || ink, align, lh: l.lh || 1.2, ls: l.ls || 0,
+        return { ...base, lines, font: FONTS[l.font] || l.font || FONTS.grot, fs: (l.size || 40) / 16, weight: l.weight || 400, color: l.color || ink, align, lh: l.lh || 1.2, ls: l.ls || 0,
           gap: l.gap ?? 0.15, hjust: b !== 'none' ? 'flex-start' : align === 'center' ? 'center' : align === 'right' ? 'flex-end' : 'flex-start',
           vjust: l.valign === 'middle' ? 'center' : l.valign === 'bottom' ? 'flex-end' : 'flex-start', markW: b === 'number' ? '1.4em' : '0.8em',
           ...boxStyle(l) };
@@ -125,7 +125,7 @@ class Component extends DCLogic {
       return { ...base, radius: (l.radius || 0) / 16, hasImg: !!u, imgBg: u ? `url("${u}") ${fx}% ${fy}% / ${l.fit === 'contain' ? 'contain' : 'cover'} no-repeat` : 'none',
         zoom: l.zoom || 1, focus: `${fx}% ${fy}%`, boxBg: u ? 'transparent' : (p.showEmpty ? 'repeating-linear-gradient(45deg,#23262E 0 12px,#2C3039 12px 24px)' : 'rgba(251,249,244,.18)'), showLabel: !u && !!p.showEmpty };
     });
-    return { items, slideCard: card.mode === 'slide', slideBg: cardFill, slideBlur: cardBlur };
+    return { items, slideCard: !!surface, slideBg: surface ? surface.bg : 'transparent', slideBlur: surface ? surface.blur : 'none' };
   }
 }
 </script>

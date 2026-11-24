@@ -18,6 +18,20 @@ html,body{margin:0;height:100%;background:#16181D;color:#E8EAEE}
 a{color:#7AA2FF}a:hover{color:#AFC6FF}
 input,select,textarea,button{font:inherit;color:inherit}
 select option{background:#23262E;color:#E8EAEE}
+@keyframes drift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+.anim{animation:drift 16s ease-in-out infinite}
+@keyframes rise{0%{top:110%;opacity:0;transform:translateX(0)}12%{opacity:1}50%{transform:translateX(14px)}88%{opacity:1}100%{top:-12%;opacity:0;transform:translateX(-8px)}}
+.bubble{position:absolute;top:110%;animation:rise 14s linear infinite}
+@keyframes sky{0%{background-position:50% 0%}50%{background-position:50% 100%}100%{background-position:50% 0%}}
+.sky{animation:sky 40s ease-in-out infinite}
+@keyframes sunx{0%{left:-14%}100%{left:114%}}
+.sunx{position:absolute;top:0;bottom:0;width:0;left:-14%;animation:sunx 40s linear infinite}
+@keyframes suny{0%{top:100%;animation-timing-function:cubic-bezier(0.25,0.6,0.5,1)}50%{top:20%;animation-timing-function:cubic-bezier(0.5,0,0.75,0.4)}100%{top:100%}}
+.suny{position:absolute;top:100%;border-radius:50%;animation:suny 40s infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{animation:spin 40s linear infinite}
+.spinr{animation:spin 40s linear infinite reverse}
+@media (prefers-reduced-motion: reduce){.anim,.sky,.sunx,.suny,.bubble,.spin,.spinr{animation:none}}
 </style>
 </helmet>
 <div style="position:relative;height:100vh;display:flex;flex-direction:column;font-family:Inter,system-ui,sans-serif;font-size:14px;background:#16181D;color:#E8EAEE">
@@ -129,11 +143,12 @@ select option{background:#23262E;color:#E8EAEE}
               <div style="position:absolute;left:{{ n.x }}px;top:{{ n.y }}px;width:76px;opacity:{{ n.opacity }};user-select:none">
                 <div onClick="{{ n.onClick }}" title="{{ n.from }}" style="position:relative;width:76px;height:43px;border-radius:5px;overflow:hidden;background:{{ base }};cursor:pointer;outline:{{ n.outline }};outline-offset:1px;box-shadow:{{ n.ring }}">
                   <div style="position:absolute;left:0;top:0;width:{{ cam.w }}%;height:{{ cam.h }}%;transform:{{ n.cam }};transform-origin:0 0">
+                    <div class="{{ canvasBg.cls }}" style="position:absolute;inset:0;background:{{ canvasBg.css }};background-size:{{ canvasBg.size }};animation-duration:{{ canvasBg.dur }}"></div>
                     <sc-for list="{{ tiles }}" as="tl" hint-placeholder-count="0">
                       <div style="position:absolute;top:{{ tl.t }}%;height:{{ tl.h }}%;left:{{ tl.l }}%;width:calc({{ tl.w }}% + 2px);background:{{ bgCss }};opacity:{{ opacity }}"></div>
                     </sc-for>
                   </div>
-                  <dc-import name="Layers" card="{{ deckCard }}" cards="true" layers="{{ n.layers }}" images="{{ images }}" ink="{{ ink }}" shadow="{{ inkShadow }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
+                  <dc-import name="Layers" surface="{{ surface }}" cards="true" layers="{{ n.layers }}" images="{{ images }}" ink="{{ ink }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
                 </div>
                 <div style="margin-top:3px;display:flex;align-items:center;gap:2px">
                   <sc-if value="{{ n.hasKids }}"><button onClick="{{ n.onToggle }}" title="{{ n.toggleTitle }}" style="flex:none;min-width:18px;height:16px;padding:0 4px;border:1px solid #343944;border-radius:5px;background:#23262E;color:#E8EAEE;cursor:pointer;font-size:11px;line-height:14px;font-weight:700;white-space:nowrap">{{ n.toggleLabel }}</button></sc-if>
@@ -167,18 +182,47 @@ select option{background:#23262E;color:#E8EAEE}
           <div style="position:absolute;inset:0;display:grid;place-items:center;padding:{{ stagePad }}">
             <div ref="{{ stageRef }}" style="position:relative;width:{{ stageW }};aspect-ratio:16/9;overflow:hidden;border-radius:{{ stageRadius }};background:{{ base }};container-type:inline-size;box-shadow:0 30px 80px -30px rgba(0,0,0,.55)">
               <div style="position:absolute;left:0;top:0;width:{{ cam.w }}%;height:{{ cam.h }}%;transform:{{ curCam }};transform-origin:0 0;transition:{{ camTransition }}">
+                <div class="{{ canvasBg.cls }}" style="position:absolute;inset:0;background:{{ canvasBg.css }};background-size:{{ canvasBg.size }};animation-duration:{{ canvasBg.dur }}"></div>
                 <sc-for list="{{ tiles }}" as="tl" hint-placeholder-count="0">
                   <div style="position:absolute;top:{{ tl.t }}%;height:{{ tl.h }}%;left:{{ tl.l }}%;width:calc({{ tl.w }}% + 2px);background:{{ bgCss }};opacity:{{ opacity }}"></div>
                 </sc-for>
               </div>
+              <div aria-hidden="true" style="position:absolute;inset:0;overflow:hidden;pointer-events:none">
+                <sc-if value="{{ fx.isBubbles }}">
+                  <div style="position:absolute;inset:0;opacity:{{ fx.opacity }}">
+                    <sc-for list="{{ fx.bubbles }}" as="u" hint-placeholder-count="12">
+                      <span class="bubble" style="left:{{ u.left }};width:{{ u.size }};height:{{ u.size }};border-radius:50%;border:1px solid {{ fx.tintEdge }};background:radial-gradient(circle at 32% 30%, {{ fx.tintHi }}, {{ fx.tintLo }} 62%);animation-duration:{{ u.dur }};animation-delay:{{ u.delay }}"></span>
+                    </sc-for>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ fx.isSunset }}">
+                  <sc-if value="{{ fx.sunOn }}">
+                    <span class="sunx" style="opacity:{{ fx.opacity }};animation-duration:{{ canvasBg.dur }}">
+                      <span class="suny" style="left:-130px;width:260px;height:260px;margin-top:-130px;background:radial-gradient(circle, rgba(255,236,179,0.97) 0%, rgba(253,186,116,0.8) 30%, rgba(251,146,60,0) 70%);animation-duration:{{ canvasBg.dur }}"></span>
+                    </span>
+                  </sc-if>
+                  <span style="position:absolute;left:0;right:0;bottom:0;height:24%;background:linear-gradient(180deg, transparent 0%, {{ fx.horizon }} 100%)"></span>
+                </sc-if>
+                <sc-if value="{{ fx.isGears }}">
+                  <div style="position:absolute;inset:0;opacity:{{ fx.opacity }}">
+                    <sc-for list="{{ fx.gearGroups }}" as="grp" hint-placeholder-count="2">
+                      <div style="position:absolute;left:{{ grp.left }};top:{{ grp.top }};width:0;height:0;transform:scale({{ fx.gearScale }});transform-origin:0 0">
+                        <sc-for list="{{ grp.gears }}" as="g" hint-placeholder-count="2">
+                          <svg class="{{ g.cls }}" width="{{ g.w }}" height="{{ g.w }}" viewBox="{{ g.vb }}" style="position:absolute;left:{{ g.x }};top:{{ g.y }};animation-duration:{{ g.dur }}"><g transform="rotate({{ g.phase }})"><path d="{{ g.d }}" fill="{{ fx.gearFill }}" stroke="{{ fx.gearStroke }}" stroke-width="2" fill-rule="evenodd"></path></g></svg>
+                        </sc-for>
+                      </div>
+                    </sc-for>
+                  </div>
+                </sc-if>
+              </div>
               <sc-if value="{{ hasPrev }}">
                 <div style="position:absolute;inset:0;transform:{{ planeA.t }};opacity:{{ planeA.o }};transition:{{ planeTr }}">
-                  <dc-import name="Layers" card="{{ deckCard }}" layers="{{ prevLayers }}" images="{{ images }}" ink="{{ ink }}" shadow="{{ inkShadow }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
+                  <dc-import name="Layers" surface="{{ surface }}" layers="{{ prevLayers }}" images="{{ images }}" ink="{{ ink }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
                 </div>
               </sc-if>
               <sc-if value="{{ emptyMsg }}"><div style="position:absolute;inset:0;z-index:2;display:grid;place-items:center;background:{{ base }};color:#9AA1AD;font-size:15px">{{ emptyMsg }}</div></sc-if>
               <div data-stage="main" onClick="{{ onStageLinkClick }}" style="position:absolute;inset:0;transform:{{ planeB.t }};opacity:{{ planeB.o }};transition:{{ planeTr }}">
-                <dc-import name="Layers" card="{{ deckCard }}" live="{{ cur }}" links="{{ isPresent }}" layers="{{ stageLayers }}" images="{{ images }}" ink="{{ ink }}" shadow="{{ inkShadow }}" editing-id="{{ editingId }}" show-empty="{{ editable }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
+                <dc-import name="Layers" surface="{{ surface }}" live="{{ cur }}" links="{{ isPresent }}" layers="{{ stageLayers }}" images="{{ images }}" ink="{{ ink }}" editing-id="{{ editingId }}" show-empty="{{ editable }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
               </div>
               <sc-if value="{{ showStepDots }}">
                 <div style="position:absolute;left:50%;bottom:3%;transform:translateX(-50%);display:flex;align-items:center;gap:5px;padding:5px 8px;border-radius:999px;background:rgba(10,14,28,.38);z-index:7">
@@ -311,9 +355,10 @@ select option{background:#23262E;color:#E8EAEE}
                   <div onClick="{{ mc.onClick }}" title="{{ mc.name }}" data-mapcur="{{ mc.cur }}" style="position:absolute;left:{{ mc.x }}px;top:{{ mc.y }}px;width:{{ mapCardW }}px;cursor:pointer">
                     <div style="position:relative;width:{{ mapCardW }}px;height:{{ mapCardH }}px;border-radius:6px;overflow:hidden;background:{{ base }};outline:{{ mc.outline }};outline-offset:2px">
                       <div style="position:absolute;left:0;top:0;width:{{ cam.w }}%;height:{{ cam.h }}%;transform:{{ mc.cam }};transform-origin:0 0">
+                        <div class="{{ canvasBg.cls }}" style="position:absolute;inset:0;background:{{ canvasBg.css }};background-size:{{ canvasBg.size }};animation-duration:{{ canvasBg.dur }}"></div>
                         <sc-for list="{{ tiles }}" as="tl" hint-placeholder-count="0"><div style="position:absolute;top:{{ tl.t }}%;height:{{ tl.h }}%;left:{{ tl.l }}%;width:calc({{ tl.w }}% + 2px);background:{{ bgCss }};opacity:{{ opacity }}"></div></sc-for>
                       </div>
-                      <dc-import name="Layers" card="{{ deckCard }}" cards="true" layers="{{ mc.layers }}" images="{{ images }}" ink="{{ ink }}" shadow="{{ inkShadow }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
+                      <dc-import name="Layers" surface="{{ surface }}" cards="true" layers="{{ mc.layers }}" images="{{ images }}" ink="{{ ink }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
                     </div>
                     <div style="margin-top:5px;font-size:12px;font-weight:600;color:#E8EAEE;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ mc.name }}</div>
                   </div>
@@ -330,6 +375,7 @@ select option{background:#23262E;color:#E8EAEE}
         <sc-if value="{{ showWire }}">
           <div style="position:absolute;inset:0;overflow:auto;display:flex;align-items:center;padding:24px">
             <div style="position:relative;flex:none;height:min(100cqh - 48px, 100%);aspect-ratio:{{ canvasRatio }};margin:0 auto;background:{{ base }};border-radius:6px;box-shadow:0 20px 60px -24px rgba(0,0,0,.5);overflow:hidden">
+              <div class="{{ canvasBg.cls }}" style="position:absolute;inset:0;background:{{ canvasBg.css }};background-size:{{ canvasBg.size }};animation-duration:{{ canvasBg.dur }}"></div>
               <sc-for list="{{ tiles }}" as="tl" hint-placeholder-count="0">
                 <div style="position:absolute;top:{{ tl.t }}%;height:{{ tl.h }}%;left:{{ tl.l }}%;width:{{ tl.w }}%;background:{{ bgCss }};opacity:{{ opacity }};box-shadow:inset 1px 0 0 rgba(251,249,244,.25)"></div>
               </sc-for>
@@ -425,7 +471,7 @@ select option{background:#23262E;color:#E8EAEE}
                   <sc-for list="{{ layTiles }}" as="lt" hint-placeholder-count="2">
                     <div style="display:flex;flex-direction:column;gap:4px;padding:5px;border:1px solid #2C3039;border-radius:8px;background:#23262E;min-width:0">
                       <div style="position:relative;width:100%;aspect-ratio:16/9;border-radius:4px;overflow:hidden;background:{{ base }}">
-                        <dc-import name="Layers" card="{{ deckCard }}" cards="true" layers="{{ lt.layers }}" images="{{ images }}" ink="{{ ink }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
+                        <dc-import name="Layers" surface="{{ surface }}" cards="true" layers="{{ lt.layers }}" images="{{ images }}" ink="{{ ink }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
                       </div>
                       <div style="display:flex;align-items:center;gap:4px;min-width:0">
                         <sc-if value="{{ lt.star }}"><span title="This type's default" style="color:#7AA2FF">★</span></sc-if>
@@ -522,34 +568,6 @@ select option{background:#23262E;color:#E8EAEE}
                         <sc-if value="{{ tf.over }}"><button onClick="{{ tf.onReset }}" title="Remove this layer's override (use the style)" style="padding:0 4px;border:0;background:none;cursor:pointer;color:#9AA1AD">↺</button></sc-if>
                       </label>
                     </sc-for>
-                  </div>
-                  <div style="display:flex;flex-direction:column;border:1px solid #2C3039;border-radius:8px;background:#23262E">
-                    <div onClick="{{ sec.box.toggle }}" style="display:flex;align-items:center;gap:8px;padding:8px 10px;cursor:pointer;user-select:none">
-                      <span style="width:12px;flex:none;font-size:10px;color:#9AA1AD">{{ sec.box.caret }}</span>
-                      <span style="flex:1;font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#E8EAEE">{{ boxTitle }}</span>
-                      <span style="font-size:11.5px;color:#9AA1AD">{{ boxModeLabel }}</span>
-                      <sc-if value="{{ boxOver }}"><button onClick="{{ onBoxReset }}" title="Remove this layer's container override" style="padding:0 4px;border:0;background:none;cursor:pointer;color:#9AA1AD">↺</button></sc-if>
-                    </div>
-                    <sc-if value="{{ sec.box.open }}">
-                      <div style="display:flex;flex-direction:column;gap:8px;padding:0 10px 10px">
-                        <div style="display:flex;gap:2px;padding:3px;border-radius:9px;background:#23262E">
-                          <sc-for list="{{ boxModes }}" as="bm" hint-placeholder-count="3">
-                            <button onClick="{{ bm.onClick }}" style="flex:1;padding:5px 6px;border:0;border-radius:7px;cursor:pointer;background:{{ bm.bg }};color:{{ bm.color }};box-shadow:{{ bm.shadow }};font-size:12.5px;white-space:nowrap">{{ bm.label }}</button>
-                          </sc-for>
-                        </div>
-                        <div style="display:flex;gap:14px;flex-wrap:wrap">
-                          <sc-for list="{{ boxColors }}" as="bc" hint-placeholder-count="2">
-                            <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#9AA1AD">{{ bc.label }}<input type="color" value="{{ bc.value }}" onChange="{{ bc.onChange }}" style="width:28px;height:24px;padding:0;border:1px solid #2C3039;border-radius:6px;background:#23262E;cursor:pointer"></label>
-                          </sc-for>
-                        </div>
-                        <sc-for list="{{ boxFields }}" as="bf" hint-placeholder-count="5">
-                          <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
-                            <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>{{ bf.label }}</span><span style="font-family:'JetBrains Mono',monospace">{{ bf.valLabel }}</span></span>
-                            <input type="range" min="{{ bf.min }}" max="{{ bf.max }}" step="{{ bf.step }}" value="{{ bf.value }}" onChange="{{ bf.onChange }}" style="accent-color:#7AA2FF;width:100%;min-width:0">
-                          </label>
-                        </sc-for>
-                      </div>
-                    </sc-if>
                   </div>
                   <span style="font-size:12px;color:#9AA1AD">{{ colorLabel }} <sc-if value="{{ colorOver }}"><button onClick="{{ onColorReset }}" title="Remove this layer's colour override" style="padding:0 4px;border:0;background:none;cursor:pointer;color:#9AA1AD">↺</button></sc-if></span>
                   <div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center">
@@ -689,29 +707,179 @@ select option{background:#23262E;color:#E8EAEE}
             <sc-if value="{{ noLayerSel }}">
               <span style="font-size:12px;line-height:1.5;color:#9AA1AD">Select a layer on the slide or in the list. Drag to move, use the handles to resize (Shift keeps proportions), double-click text to type. Drop image files straight onto the slide.</span>
             </sc-if>
-            <div style="display:flex;align-items:center;gap:8px;padding-top:12px;border-top:1px solid #2C3039">
-              <span style="font-size:12px;color:#9AA1AD;flex:1">Default text colour (deck)</span>
-              <div style="display:flex;gap:2px;padding:3px;border-radius:8px;background:#23262E">
-                <sc-for list="{{ toneBtns }}" as="tb" hint-placeholder-count="2">
-                  <button onClick="{{ tb.onClick }}" style="padding:4px 10px;border:0;border-radius:6px;cursor:pointer;background:{{ tb.bg }};box-shadow:{{ tb.shadow }};font-size:12px;font-weight:600">{{ tb.label }}</button>
-                </sc-for>
-              </div>
-            </div>
             </sc-if>
             </sc-if>
           </sc-if>
 
           <sc-if value="{{ tabTheme }}">
+            <section style="display:flex;flex-direction:column;gap:10px">
+              <div style="display:flex;align-items:baseline;gap:8px"><h2 style="margin:0;font-family:'Space Grotesk',Inter,sans-serif;font-size:14px;font-weight:600;color:#E8EAEE">Background</h2><span style="font-size:12px;color:#9AA1AD">{{ bgName }} · {{ schemeName }}</span></div>
+              <div role="group" aria-label="Background kind" style="display:flex;flex-wrap:wrap;gap:4px">
+                <sc-for list="{{ kinds }}" as="k" hint-placeholder-count="6">
+                  <button onClick="{{ k.pick }}" aria-pressed="{{ k.on }}" style="padding:5px 10px;border-radius:999px;border:1px solid #343944;font-size:12px;cursor:pointer;background:{{ k.bg }};color:{{ k.fg }}">{{ k.label }}</button>
+                </sc-for>
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px">
+                <sc-for list="{{ bgList }}" as="b" hint-placeholder-count="8">
+                  <button onClick="{{ b.pick }}" aria-label="{{ b.name }} background" aria-pressed="{{ b.on }}" style="padding:0;border:0;background:none;cursor:pointer;display:flex;flex-direction:column;gap:4px;color:#C3C8D2;text-align:left;min-width:0">
+                    <span class="{{ b.cls }}" style="position:relative;overflow:hidden;display:block;width:100%;aspect-ratio:4/3;border-radius:7px;background:{{ b.css }};background-size:{{ b.size }};outline:{{ b.outline }};outline-offset:2px;animation-duration:{{ b.dur }}">
+                      <sc-if value="{{ b.isBubbles }}">
+                        <span class="bubble" style="left:18%;width:9px;height:9px;border-radius:50%;border:1px solid {{ b.tintEdge }};animation-duration:5s;animation-delay:-1s"></span>
+                        <span class="bubble" style="left:52%;width:6px;height:6px;border-radius:50%;border:1px solid {{ b.tintEdge }};animation-duration:4s;animation-delay:-3s"></span>
+                        <span class="bubble" style="left:72%;width:12px;height:12px;border-radius:50%;border:1px solid {{ b.tintEdge }};animation-duration:6s;animation-delay:-4s"></span>
+                      </sc-if>
+                      <sc-if value="{{ b.isSunset }}">
+                        <span class="sunx" style="animation-duration:{{ b.dur }}"><span class="suny" style="left:-15px;width:30px;height:30px;margin-top:-15px;background:radial-gradient(circle, rgba(255,236,179,0.97) 0%, rgba(253,186,116,0.8) 30%, rgba(251,146,60,0) 70%);animation-duration:{{ b.dur }}"></span></span>
+                      </sc-if>
+                      <sc-if value="{{ b.isGears }}">
+                        <svg class="spin" width="40" height="40" viewBox="-50 -50 100 100" style="position:absolute;left:50%;top:50%;margin:-20px 0 0 -20px;animation-duration:14s"><path d="{{ b.gearD }}" fill="{{ b.gearFill }}" stroke="{{ b.gearStroke }}" stroke-width="3" fill-rule="evenodd"></path></svg>
+                      </sc-if>
+                    </span>
+                    <span style="font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ b.name }}</span>
+                  </button>
+                </sc-for>
+              </div>
+              <sc-if value="{{ showUpload }}">
+                <label title="Upload" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:8px;border-radius:8px;border:1.5px dashed #343944;cursor:pointer;color:#9AA1AD;font-size:12px">
+                  <span style="font-size:15px;color:#E8EAEE">+</span><span>Upload an image</span>
+                  <input type="file" accept="image/*,.svg" onChange="{{ onUpload }}" style="display:none">
+                </label>
+              </sc-if>
+              <sc-if value="{{ isImageBg }}">
+                <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
+                  <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Horizontal offset</span><span style="font-family:'JetBrains Mono',monospace">{{ offsetLabel }}</span></span>
+                  <input type="range" min="0" max="1" step="0.01" value="{{ offset }}" onChange="{{ onOffset }}" style="accent-color:#7AA2FF;width:100%;min-width:0">
+                </label>
+                <sc-if value="{{ hasBgImage }}">
+                  <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
+                    <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Scale · image height vs canvas</span><span style="font-family:'JetBrains Mono',monospace">{{ bgScaleLabel }}</span></span>
+                    <input type="range" min="0.25" max="3" step="0.05" value="{{ bgScale }}" onChange="{{ onBgScale }}" style="accent-color:#7AA2FF;width:100%;min-width:0">
+                  </label>
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <span style="font-size:12px;color:#9AA1AD;flex:1">Repeat</span>
+                    <div style="display:flex;gap:2px;padding:3px;border-radius:9px;background:#23262E">
+                      <sc-for list="{{ bgRepeatBtns }}" as="br" hint-placeholder-count="3">
+                        <button onClick="{{ br.onClick }}" style="padding:4px 10px;border:0;border-radius:7px;cursor:pointer;background:{{ br.bg }};color:{{ br.color }};box-shadow:{{ br.shadow }};font-size:12.5px;white-space:nowrap">{{ br.label }}</button>
+                      </sc-for>
+                    </div>
+                  </div>
+                  <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
+                    <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Vertical position</span><span style="font-family:'JetBrains Mono',monospace">{{ bgYLabel }}</span></span>
+                    <input type="range" min="0" max="1" step="0.01" value="{{ bgY }}" onChange="{{ onBgY }}" style="accent-color:#7AA2FF;width:100%;min-width:0">
+                  </label>
+                </sc-if>
+                <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
+                  <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Opacity</span><span style="font-family:'JetBrains Mono',monospace">{{ opacityLabel }}</span></span>
+                  <input type="range" min="0" max="1" step="0.05" value="{{ opacity }}" onChange="{{ onOpacity }}" style="accent-color:#7AA2FF;width:100%;min-width:0">
+                </label>
+                <span style="font-size:12px;line-height:1.45;color:#9AA1AD">The image's height is the canvas height. It repeats sideways as far as the tree needs. Offset slides the repeat left so a different part sits under the first slide.</span>
+              </sc-if>
+            </section>
+            <sc-if value="{{ isColourBg }}">
+            <section style="display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:10px;background:#23262E;border:1px solid #2C3039">
+              <h3 style="margin:0;font-size:13px;font-weight:600">Colours · {{ bgName }}</h3>
+              <span style="font-size:12px;color:#9AA1AD">Text colours follow automatically.</span>
+              <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px">
+                <sc-for list="{{ schemeOpts }}" as="c" hint-placeholder-count="10">
+                  <button onClick="{{ c.pick }}" aria-pressed="{{ c.on }}" aria-label="{{ c.name }} colours" style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 4px;border-radius:8px;background:#1B1E24;border:1px solid {{ c.border }};cursor:pointer;color:#C3C8D2;min-width:0">
+                    <span style="display:flex;width:100%;height:18px;border-radius:4px;overflow:hidden"><span style="flex:1;background:{{ c.deep }}"></span><span style="flex:1;background:{{ c.mid }}"></span><span style="flex:1;background:{{ c.accent }}"></span></span>
+                    <span style="font-size:10px">{{ c.name }}</span>
+                  </button>
+                </sc-for>
+              </div>
+              <sc-if value="{{ isCustom }}">
+                <div style="display:flex;flex-wrap:wrap;gap:12px;padding-top:4px">
+                  <sc-for list="{{ customSlots }}" as="k" hint-placeholder-count="3">
+                    <label style="display:flex;flex-direction:column;gap:4px;font-size:11px;color:#C3C8D2">{{ k.label }}
+                      <span style="display:flex;align-items:center;gap:6px"><input type="color" value="{{ k.value }}" onInput="{{ k.set }}" style="width:40px;height:28px;padding:0;border:1px solid #343944;border-radius:6px;background:#1B1E24;cursor:pointer"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#E8EAEE">{{ k.value }}</span></span>
+                    </label>
+                  </sc-for>
+                </div>
+              </sc-if>
+              <button onClick="{{ resetColours }}" style="align-self:flex-start;padding:8px 12px;border-radius:8px;border:1px solid #3E5A92;background:#1F2533;color:#D6E2FF;font-size:12px;font-weight:600;cursor:pointer">Reset every background to its original colours</button>
+            </section>
+            </sc-if>
+            <sc-if value="{{ isMotion }}">
+            <section aria-label="Motion settings" style="display:flex;flex-direction:column;gap:12px;padding:12px;border-radius:10px;background:#23262E;border:1px solid #2C3039">
+              <div style="display:flex;flex-direction:column;gap:2px"><h3 style="margin:0;font-size:13px;font-weight:600">Motion · {{ bgName }}</h3><span style="font-size:12px;color:#9AA1AD">{{ ms.hint }}</span></div>
+              <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:#C3C8D2">
+                <span style="display:flex;justify-content:space-between">Speed <span style="color:#E8EAEE">{{ ms.speedLabel }}</span></span>
+                <input type="range" min="0" max="{{ ms.speedMax }}" step="1" value="{{ ms.speedIdx }}" onInput="{{ setSpeed }}" style="accent-color:#7AA2FF">
+                <span style="display:flex;justify-content:space-between;font-size:11px;color:#9AA1AD"><span>Barely moving</span><span>Faster</span></span>
+              </label>
+              <sc-if value="{{ ms.hasCount }}">
+                <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:#C3C8D2">
+                  <span style="display:flex;justify-content:space-between">{{ ms.countLabel }} <span style="color:#E8EAEE">{{ ms.count }}</span></span>
+                  <input type="range" min="{{ ms.countMin }}" max="{{ ms.countMax }}" step="{{ ms.countStep }}" value="{{ ms.count }}" onInput="{{ setCount }}" style="accent-color:#7AA2FF">
+                </label>
+              </sc-if>
+              <sc-if value="{{ ms.hasOpacity }}">
+                <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:#C3C8D2">
+                  <span style="display:flex;justify-content:space-between">Opacity <span style="color:#E8EAEE">{{ ms.opacity }}%</span></span>
+                  <input type="range" min="10" max="100" step="5" value="{{ ms.opacity }}" onInput="{{ setOpacity }}" style="accent-color:#7AA2FF">
+                </label>
+              </sc-if>
+              <sc-if value="{{ ms.hasExtra }}">
+                <div style="display:flex;flex-direction:column;gap:6px">
+                  <span style="font-size:12px;color:#C3C8D2">{{ ms.extraLabel }}</span>
+                  <div role="group" aria-label="{{ ms.extraLabel }}" style="display:flex;gap:2px;background:#1B1E24;padding:3px;border-radius:8px">
+                    <sc-for list="{{ extraOpts }}" as="o" hint-placeholder-count="3">
+                      <button onClick="{{ o.pick }}" aria-pressed="{{ o.on }}" style="flex:1;padding:6px 8px;border:0;border-radius:6px;font-size:12px;cursor:pointer;background:{{ o.bg }};color:#E8EAEE">{{ o.label }}</button>
+                    </sc-for>
+                  </div>
+                </div>
+              </sc-if>
+              <span style="font-size:11px;color:#9AA1AD">Motion stops for viewers who have Reduce motion turned on.</span>
+            </section>
+            </sc-if>
+            <section style="display:flex;flex-direction:column;gap:8px">
+              <div style="display:flex;align-items:baseline;gap:8px"><h2 style="margin:0;font-family:'Space Grotesk',Inter,sans-serif;font-size:14px;font-weight:600;color:#E8EAEE">Theme</h2><span style="font-size:12px;color:#9AA1AD">for {{ palTone }} backgrounds</span></div>
+              <sc-for list="{{ palList }}" as="p" hint-placeholder-count="4">
+                <button onClick="{{ p.pick }}" aria-pressed="{{ p.on }}" style="display:flex;flex-direction:column;gap:8px;padding:10px 12px;border-radius:10px;cursor:pointer;text-align:left;background:#23262E;color:#E8EAEE;border:1px solid {{ p.border }}">
+                  <span style="display:flex;align-items:center;gap:8px;width:100%">
+                    <span style="font-size:13px;font-weight:600">{{ p.name }}</span>
+                    <sc-if value="{{ p.pairs }}"><span style="font-size:10px;padding:2px 6px;border-radius:999px;background:#2A3A5C;color:#C9D8FF">Pairs with these colours</span></sc-if>
+                  </span>
+                  <span style="display:flex;gap:6px;align-items:flex-end">
+                    <span style="display:flex;flex-direction:column;gap:3px;align-items:center"><span style="width:28px;height:20px;border-radius:5px;background:{{ p.primary }}"></span><span style="font-size:9px;color:#9AA1AD">Primary</span></span>
+                    <span style="display:flex;flex-direction:column;gap:3px;align-items:center"><span style="width:28px;height:20px;border-radius:5px;background:{{ p.secondary }}"></span><span style="font-size:9px;color:#9AA1AD">Second</span></span>
+                    <span style="display:flex;flex-direction:column;gap:3px;align-items:center"><span style="width:28px;height:20px;border-radius:5px;background:{{ p.tertiary }}"></span><span style="font-size:9px;color:#9AA1AD">Third</span></span>
+                    <span style="display:flex;flex-direction:column;gap:3px;align-items:center"><span style="width:28px;height:20px;border-radius:5px;background:{{ p.text }};border:1px solid #343944"></span><span style="font-size:9px;color:#9AA1AD">Text</span></span>
+                    <span style="width:1px;height:28px;background:#343944;margin:0 2px"></span>
+                    <span style="display:flex;flex-direction:column;gap:3px;align-items:center"><span style="width:28px;height:20px;border-radius:5px;background:{{ p.impact }};box-shadow:0 0 0 2px #23262E, 0 0 0 3px {{ p.impact }}"></span><span style="font-size:9px;color:#E8EAEE;font-weight:600">Impact</span></span>
+                  </span>
+                </button>
+              </sc-for>
+              <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
+                <span style="font-size:12px;color:#C3C8D2">Slide surface</span>
+                <div role="group" aria-label="Slide surface" style="display:flex;gap:2px;background:#23262E;padding:3px;border-radius:8px">
+                  <sc-for list="{{ surfaces }}" as="f" hint-placeholder-count="3">
+                    <button onClick="{{ f.pick }}" aria-pressed="{{ f.on }}" style="padding:5px 10px;border:0;border-radius:6px;font-size:12px;cursor:pointer;background:{{ f.bg }};color:#E8EAEE">{{ f.label }}</button>
+                  </sc-for>
+                </div>
+              </div>
+            </section>
+            <section style="display:flex;flex-direction:column;gap:8px">
+              <h2 style="margin:0;font-family:'Space Grotesk',Inter,sans-serif;font-size:14px;font-weight:600;color:#E8EAEE">Typography <span style="font-weight:400;font-size:12px;color:#9AA1AD">· Google Fonts</span></h2>
+              <sc-for list="{{ fontList }}" as="t" hint-placeholder-count="5">
+                <button onClick="{{ t.pick }}" aria-pressed="{{ t.on }}" style="display:grid;grid-template-columns:56px minmax(0,1fr);gap:4px 12px;align-items:center;padding:10px 12px;border-radius:10px;cursor:pointer;text-align:left;background:#23262E;color:#E8EAEE;border:1px solid {{ t.border }}">
+                  <span style="grid-row:span 3;font-family:{{ t.head }};font-weight:600;font-size:30px;line-height:1">Aa</span>
+                  <span style="font-family:{{ t.head }};font-weight:600;font-size:14px">{{ t.mood }} · {{ t.headName }}</span>
+                  <span style="font-family:{{ t.body }};font-size:12px;color:#C3C8D2">Body in {{ t.bodyName }}, readable at a distance</span>
+                  <span style="font-family:{{ t.mono }};font-size:11px;color:#9AA1AD">SUBTEXT · {{ t.monoName }}</span>
+                </button>
+              </sc-for>
+            </section>
+            <div style="display:flex;flex-direction:column;border:1px solid #2C3039;border-radius:10px;background:#23262E">
+              <div onClick="{{ sec.canvas.toggle }}" style="display:flex;align-items:center;gap:8px;padding:9px 10px;cursor:pointer;user-select:none">
+                <span style="width:12px;flex:none;font-size:10px;color:#9AA1AD">{{ sec.canvas.caret }}</span>
+                <span style="flex:1;min-width:0;font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#E8EAEE">Canvas</span>
+              </div>
+              <sc-if value="{{ sec.canvas.open }}">
+              <div style="display:flex;flex-direction:column;gap:12px;padding:0 10px 10px">
             <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
               <input type="checkbox" checked="{{ titlePage }}" onChange="{{ onTitlePage }}" style="accent-color:#7AA2FF">Title page · the whole canvas as a first slide
             </label>
-            <div style="display:flex;flex-direction:column;border:1px solid #2C3039;border-radius:10px;background:#23262E">
-              <div onClick="{{ sec.spacing.toggle }}" style="display:flex;align-items:center;gap:8px;padding:9px 10px;cursor:pointer;user-select:none">
-                <span style="width:12px;flex:none;font-size:10px;color:#9AA1AD">{{ sec.spacing.caret }}</span>
-                <span style="flex:1;min-width:0;font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#E8EAEE">Spacing</span>
-              </div>
-              <sc-if value="{{ sec.spacing.open }}">
-              <div style="display:flex;flex-direction:column;gap:12px;padding:0 10px 10px">
             <div style="display:flex;align-items:center;gap:8px">
               <span style="font-size:12px;color:#9AA1AD;flex:1" title="Even steps: every move between neighbours or levels shifts the background the same amount (branches may overlap on the canvas). Fit subtrees: each slide makes room for everything below it.">Spacing</span>
               <div style="display:flex;gap:2px;padding:3px;border-radius:9px;background:#23262E">
@@ -750,96 +918,6 @@ select option{background:#23262E;color:#E8EAEE}
               </sc-for>
               <button onClick="{{ onNewStyle }}" disabled="{{ newStyleOff }}" title="Make a style from the selected text layer's look" style="align-self:flex-start;padding:5px 10px;border:1px solid #2C3039;border-radius:7px;background:#23262E;cursor:pointer;font-size:12.5px">+ New style from selected layer</button>
             </div>
-            <div style="display:flex;align-items:center;gap:8px">
-              <span style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#9AA1AD;flex:1">Background</span>
-              <div style="display:flex;gap:2px;padding:3px;border-radius:9px;background:#23262E">
-                <sc-for list="{{ themeBtns }}" as="th" hint-placeholder-count="2">
-                  <button onClick="{{ th.onClick }}" style="padding:4px 10px;border:0;border-radius:7px;cursor:pointer;background:{{ th.bg }};color:{{ th.color }};box-shadow:{{ th.shadow }};font-size:12.5px;white-space:nowrap">{{ th.label }}</button>
-                </sc-for>
-              </div>
-            </div>
-            <sc-if value="{{ themeBasic }}">
-              <span style="font-size:12px;color:#9AA1AD">Plain colours and gradients, the same behind every slide</span>
-              <div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px">
-                <sc-for list="{{ baseSwatches }}" as="sw" hint-placeholder-count="6">
-                  <button onClick="{{ sw.onClick }}" title="{{ sw.value }}" style="height:32px;padding:0;border-radius:6px;cursor:pointer;background:{{ sw.value }};border:{{ sw.border }}"></button>
-                </sc-for>
-              </div>
-              <div style="display:flex;align-items:center;gap:8px">
-                <span style="font-size:12px;color:#9AA1AD;flex:1">Custom colour</span>
-                <input type="color" value="{{ baseColor }}" onChange="{{ onBaseColor }}" style="width:28px;height:24px;padding:0;border:1px solid #2C3039;border-radius:6px;background:#23262E;cursor:pointer">
-              </div>
-            </sc-if>
-            <sc-if value="{{ themeFun }}">
-            <span style="font-size:12px;color:#9AA1AD">Canvas image · loops left to right</span>
-            <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px">
-              <sc-for list="{{ bgTiles }}" as="b" hint-placeholder-count="3">
-                <button onClick="{{ b.onClick }}" title="{{ b.label }}" style="display:flex;flex-direction:column;gap:4px;padding:4px;border-radius:8px;border:{{ b.border }};background:#23262E;cursor:pointer">
-                  <div style="height:48px;border-radius:4px;background:{{ b.thumb }}"></div>
-                  <span style="font-size:11px;font-weight:600">{{ b.label }}</span>
-                </button>
-              </sc-for>
-              <label title="Upload" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:74px;border-radius:8px;border:1.5px dashed #343944;cursor:pointer;color:#9AA1AD;font-size:11px">
-                <span style="font-size:16px;color:#E8EAEE">+</span><span>Upload</span>
-                <input type="file" accept="image/*,.svg" onChange="{{ onUpload }}" style="display:none">
-              </label>
-            </div>
-            <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
-              <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Horizontal offset</span><span style="font-family:'JetBrains Mono',monospace">{{ offsetLabel }}</span></span>
-              <input type="range" min="0" max="1" step="0.01" value="{{ offset }}" onChange="{{ onOffset }}" style="accent-color:#7AA2FF;width:100%;min-width:0">
-            </label>
-            <sc-if value="{{ hasBgImage }}">
-              <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
-                <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Scale · image height vs canvas</span><span style="font-family:'JetBrains Mono',monospace">{{ bgScaleLabel }}</span></span>
-                <input type="range" min="0.25" max="3" step="0.05" value="{{ bgScale }}" onChange="{{ onBgScale }}" style="accent-color:#7AA2FF;width:100%;min-width:0">
-              </label>
-              <div style="display:flex;align-items:center;gap:8px">
-                <span style="font-size:12px;color:#9AA1AD;flex:1">Repeat</span>
-                <div style="display:flex;gap:2px;padding:3px;border-radius:9px;background:#23262E">
-                  <sc-for list="{{ bgRepeatBtns }}" as="br" hint-placeholder-count="3">
-                    <button onClick="{{ br.onClick }}" style="padding:4px 10px;border:0;border-radius:7px;cursor:pointer;background:{{ br.bg }};color:{{ br.color }};box-shadow:{{ br.shadow }};font-size:12.5px;white-space:nowrap">{{ br.label }}</button>
-                  </sc-for>
-                </div>
-              </div>
-              <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
-                <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Vertical position</span><span style="font-family:'JetBrains Mono',monospace">{{ bgYLabel }}</span></span>
-                <input type="range" min="0" max="1" step="0.01" value="{{ bgY }}" onChange="{{ onBgY }}" style="accent-color:#7AA2FF;width:100%;min-width:0">
-              </label>
-            </sc-if>
-            <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
-              <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Opacity</span><span style="font-family:'JetBrains Mono',monospace">{{ opacityLabel }}</span></span>
-              <input type="range" min="0" max="1" step="0.05" value="{{ opacity }}" onChange="{{ onOpacity }}" style="accent-color:#7AA2FF;width:100%;min-width:0">
-            </label>
-            </sc-if>
-            <div style="display:flex;flex-direction:column;gap:8px;padding-top:8px;border-top:1px solid #2C3039">
-              <span style="font-size:12px;color:#9AA1AD">Readability · a card behind text, or over the whole slide</span>
-              <div style="display:flex;gap:2px;padding:3px;border-radius:9px;background:#23262E">
-                <sc-for list="{{ cardModes }}" as="cm" hint-placeholder-count="3">
-                  <button onClick="{{ cm.onClick }}" style="flex:1;padding:5px 6px;border:0;border-radius:7px;cursor:pointer;background:{{ cm.bg }};color:{{ cm.color }};box-shadow:{{ cm.shadow }};font-size:12.5px;white-space:nowrap">{{ cm.label }}</button>
-                </sc-for>
-              </div>
-              <sc-if value="{{ cardOn }}">
-                <div style="display:flex;align-items:center;gap:8px">
-                  <span style="font-size:12px;color:#9AA1AD;flex:1">Colour</span>
-                  <input type="color" value="{{ cardColor }}" onChange="{{ onCardColor }}" style="width:28px;height:24px;padding:0;border:1px solid #2C3039;border-radius:6px;background:#23262E;cursor:pointer">
-                </div>
-                <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
-                  <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Card opacity</span><span style="font-family:'JetBrains Mono',monospace">{{ cardOpLabel }}</span></span>
-                  <input type="range" min="0" max="1" step="0.05" value="{{ cardOp }}" onChange="{{ onCardOp }}" style="accent-color:#7AA2FF;width:100%;min-width:0">
-                </label>
-                <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
-                  <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Blur</span><span style="font-family:'JetBrains Mono',monospace">{{ cardBlurLabel }}</span></span>
-                  <input type="range" min="0" max="24" step="1" value="{{ cardBlur }}" onChange="{{ onCardBlur }}" style="accent-color:#7AA2FF;width:100%;min-width:0">
-                </label>
-              </sc-if>
-            </div>
-            <div style="display:flex;align-items:center;gap:8px">
-              <span style="font-size:12px;color:#9AA1AD;flex:1">Behind the image</span>
-              <sc-for list="{{ baseSwatches }}" as="bs" hint-placeholder-count="4">
-                <button onClick="{{ bs.onClick }}" style="width:22px;height:22px;padding:0;border-radius:6px;cursor:pointer;background:{{ bs.value }};border:{{ bs.border }}"></button>
-              </sc-for>
-            </div>
-            <span style="font-size:12px;line-height:1.45;color:#9AA1AD">The image's height is the canvas height. It repeats sideways as far as the tree needs. Offset slides the repeat left so a different part sits under the first slide.</span>
           </sc-if>
           <sc-if value="{{ tabBuilds }}">
             <h2 style="margin:0;font-family:'Space Grotesk',Inter,sans-serif;font-size:14px;font-weight:600;color:#E8EAEE">Builds</h2>
@@ -859,13 +937,8 @@ const BGS = {
   forest: { label: 'Forest', src: 'backdrops/forest.png', aspect: 0.4 },
   sky: { label: 'Sky', src: 'backdrops/sky.svg', aspect: 0.4 },
   ocean: { label: 'Ocean', src: 'backdrops/ocean.svg', aspect: 0.4 },
-  none: { label: 'None', src: null, aspect: 1 },
   custom: { label: 'Mine', src: null, aspect: 1 },
 };
-// Basic theme: plain colours and gradients (any CSS background works, since base is used as `background:`).
-const BASES = ['#0b1220', '#E8EAEE', '#2C3039', '#ffffff', '#1f3a5f', '#2d4a3e',
-  'linear-gradient(135deg, #0b1220, #1f3a5f)', 'linear-gradient(135deg, #E8EAEE, #4a3f35)', 'linear-gradient(135deg, #2C3039, #dfe7ef)',
-  'linear-gradient(135deg, #ff9a8b, #ff6a88, #ff99ac)', 'linear-gradient(135deg, #43cea2, #185a9d)', 'radial-gradient(circle at 30% 20%, #3b2a6b, #0b1220)'];
 const DIRS = { left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1], jump: [0, 0] };
 const KEY = 'strata-v8', VA = 16 / 9, H = 100;
 const DECK = (s => s && /^[a-z0-9-]+$/.test(s) ? s : null)(new URLSearchParams(location.search).get('deck'));
@@ -881,22 +954,23 @@ const SRC = DECK ? '../decks/' + DECK + '/' + DECK + '.md' : SRC_ARG && okUrl(SR
 const layoutUrl = src => /\.md(\?.*)?$/i.test(src) ? src.replace(/\.md(\?.*)?$/i, '-layout.json$1') : null;
 const RO_MSG = 'Linked slides are read-only here: change them in their own markdown file';
 const EMPTY_MSG = 'Add a # heading to make a slide';
-const MD = window.StrataMd, BUILDS = window.StrataBuilds;
+const MD = window.StrataMd, BUILDS = window.StrataBuilds, TH = window.StrataTheme;
 const TOUR = 'https://github.com/aaronp/strata/blob/master/examples/strata-tour/strata-tour.md';
 const UIKEY = 'strata-ui', DRAFT_KEY = src => 'strata-draft:' + src;
 const webUrl = u => { u = String(u || '').trim(); if (u && !/^[a-z][a-z0-9+.-]*:/i.test(u)) u = 'https://' + u; return /^https?:\/\//i.test(u) ? u : null; };   // only http(s) targets open
 const AUTOSAVE_MS = 800;
-const DECK_FIELDS = ['title', 'source', 'card', 'nodes', 'bg', 'customBg', 'customAspect', 'bgScale', 'bgRepeat', 'bgY', 'opacity', 'base', 'offset', 'gap', 'tone', 'speed', 'titlePage', 'titleView', 'spacing', 'rowGap', 'styles', 'layouts', 'layoutDefaults', 'images'];
+const DECK_FIELDS = ['title', 'source', 'nodes', 'theme', 'customBg', 'customAspect', 'bgScale', 'bgRepeat', 'bgY', 'opacity', 'offset', 'gap', 'speed', 'titlePage', 'titleView', 'spacing', 'rowGap', 'styles', 'layouts', 'layoutDefaults', 'images'];
 const SAVED = [...DECK_FIELDS, 'md'];   // what save writes (markdown + layout file); dirty tracking compares these
 // Named text styles: built-ins live here; deck.styles holds only their differences and added styles. A styled layer's own STYLE_KEYS are overrides.
 const STYLE_KEYS = ['font', 'size', 'weight', 'color', 'align', 'valign', 'lh', 'ls', 'bullets', 'gap', 'card', 'box'];
-const STYLE_BASE = { font: 'grot', color: null, ls: 0, align: 'left', bullets: 'none', gap: 0.15 };
+// Built-ins take their font and colour from the deck theme (tokens), so changing the theme restyles them.
+const STYLE_BASE = { color: 'text', ls: 0, align: 'left', bullets: 'none', gap: 0.15 };
 const BUILTIN_STYLES = {
-  h1: { name: 'H1', ...STYLE_BASE, size: 64, weight: 800, valign: 'middle', lh: 1.05 },
-  h2: { name: 'H2', ...STYLE_BASE, size: 44, weight: 700, valign: 'top', lh: 1.1 },
-  h3: { name: 'H3', ...STYLE_BASE, size: 32, weight: 600, valign: 'top', lh: 1.2 },
-  body: { name: 'Body', ...STYLE_BASE, size: 32, weight: 400, valign: 'top', lh: 1.35, gap: 0.35, card: 'custom', box: { bg: '#0b1220', bgOpacity: 0.6, blur: 3, border: 0, borderColor: '#ffffff', radius: 12, pad: 12 } },
-  bullets: { name: 'Bullets', ...STYLE_BASE, size: 28, weight: 500, valign: 'top', lh: 1.3, gap: 0.45, bullets: 'disc' },
+  h1: { name: 'H1', ...STYLE_BASE, font: 'head', size: 64, weight: 800, valign: 'middle', lh: 1.05 },
+  h2: { name: 'H2', ...STYLE_BASE, font: 'head', size: 44, weight: 700, valign: 'top', lh: 1.1 },
+  h3: { name: 'H3', ...STYLE_BASE, font: 'head', size: 32, weight: 600, valign: 'top', lh: 1.2 },
+  body: { name: 'Body', ...STYLE_BASE, font: 'body', size: 32, weight: 400, valign: 'top', lh: 1.35, gap: 0.35 },
+  bullets: { name: 'Bullets', ...STYLE_BASE, font: 'body', size: 28, weight: 500, valign: 'top', lh: 1.3, gap: 0.45, bullets: 'disc' },
 };
 const mergeStyles = own => { const out = {}; for (const k in BUILTIN_STYLES) out[k] = { ...BUILTIN_STYLES[k], ...((own || {})[k] || {}) }; for (const k in own || {}) if (!out[k]) out[k] = own[k]; return out; };
 // ---- Layouts: arrangements matched to a slide's signature (its counted content, by style); slots are boxes in % of the slide.
@@ -993,7 +1067,7 @@ const tplProps = (layers, L) => { const b = L ? fillSlots(layers, L) : {}, out =
 // Generated layers (gen-*): drawn by a template at enrich time, never saved, never counted. The section number: the slide's 1-based place among its siblings.
 const isGen = l => String(l.id).startsWith('gen-');
 const genLayers = (L, idx) => L && L.number ? [{ id: 'gen-number', type: 'text', text: String(idx + 1).padStart(2, '0'), ...L.number, opacity: 1,
-  font: 'grot', size: 144, weight: 700, lh: 0.9, color: 'impact', align: 'left', valign: 'bottom', bullets: 'none' }] : [];
+  font: 'head', size: 144, weight: 700, lh: 0.9, color: 'impact', align: 'left', valign: 'bottom', bullets: 'none' }] : [];
 // ---- Enrichment: markdown sections + layout files -> nodes (never saved), and layoutOf, its inverse (what the layout file keeps).
 // LayoutFile: { version: 2, deck: { deck fields but nodes/title/source }, slides: { [id]: a layer override (node minus content), or just SLIDE_KEEP } }; ROOT is stored whole.
 // A slide's own build and template settings: kept for every slide that has them, with or without a layer override.
@@ -1018,7 +1092,7 @@ function blockLayers(sec, depth, prefix = '', src = null, styles = BUILTIN_STYLE
     else if (b.key === 'links') L.push({ id: 'md-links', type: 'text', block: 'links', style: 'bullets', text: sec.links.map(k => `[${esc(k.label)}]{link=${k.target ? prefix + k.target : k.ref}}`).join('\n'),
       ...B(66, 24, 28, Math.min(62, 4 + sec.links.length * 8)), opacity: 1, size: 22, weight: 600, color: '#15171c', card: 'custom', box: CHIP_BOX });
     else if (b.key === 'sources') L.push({ id: 'md-sources', type: 'text', block: 'sources', text: b.text, ...SOURCES_BOX, opacity: 1,
-      font: 'mono', size: 16, weight: 400, color: null, align: 'left', valign: 'middle', lh: 1.2, bullets: 'none', gap: 0.15 });
+      font: 'mono', size: 16, weight: 400, color: 'muted', align: 'left', valign: 'middle', lh: 1.2, bullets: 'none', gap: 0.15 });
     else if (b.key === 'image') { const u = new URL(b.url, srcBase(src)).href; L.push({ id, type: 'image', block: 'image', imgKey: 'md:' + u, alt: b.alt || '', ...B(30, 20, 40, 60), opacity: 1, radius: 0, fit: 'contain' }); }
   }
   return L;
@@ -1318,7 +1392,7 @@ const groupBox = ls => { const x = Math.min(...ls.map(l => l.x)), y = Math.min(.
 const scaleLayers = (ls, from, to) => ls.map(l => ({ ...l, x: rd(to.x + (l.x - from.x) * to.w / from.w), y: rd(to.y + (l.y - from.y) * to.h / from.h), w: rd(l.w * to.w / from.w), h: rd(l.h * to.h / from.h) }));
 const mapImgs = (im, f) => Object.fromEntries(Object.entries(im || {}).map(([k, v]) => [k, f(v)]));
 const TW = 76, COLW = 96, ROWH = 92, TPX = 28, TPY = 18;   // TPX leaves room for the + before button (24px left of a card)
-const FONT_LIST = [['grot', 'Grotesk', "'Bricolage Grotesque',sans-serif"], ['serif', 'Serif', "'DM Serif Display',serif"], ['news', 'Book', "'Newsreader',serif"], ['mono', 'Mono', "'JetBrains Mono',monospace"], ['hand', 'Hand', "'Caveat',cursive"]];
+const FONT_LIST = [['head', 'Theme heading', TH.fontFor('head', TH.FONTS[0])], ['body', 'Theme body', TH.fontFor('body', TH.FONTS[0])], ['grot', 'Grotesk', "'Bricolage Grotesque',sans-serif"], ['serif', 'Serif', "'DM Serif Display',serif"], ['news', 'Book', "'Newsreader',serif"], ['mono', 'Mono', "'JetBrains Mono',monospace"], ['hand', 'Hand', "'Caveat',cursive"]];
 const FONT_CSS = Object.fromEntries(FONT_LIST.map(f => [f[0], f[2]]));
 const ICONS = {
   arrow: 'M5 12h14M13 6l6 6-6 6', check: 'M5 12.5l4.5 4.5L19 7.5', star: 'M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z',
@@ -1369,8 +1443,8 @@ class Component extends DCLogic {
   static rich = { parseRich, plainText, applyFormat, runsToMarkup, linesOf, textOf, toPlain, lineLen, locate, setAttr, toggleAttr, clearRange, insertBreak, insertPlain, deleteRange, linkAt, buildEditor, getOffsets, setOffsets, readLines, wysBefore };
   state = {
     md: SEED, mdIssues: [], nodes: enrich(MD.parseMarkdown(SEED).sections, []).nodes, cur: 'a', prev: null, phase: 'idle', dx: 0, dy: 0, type: 'swipe', mode: STATIC ? 'present' : 'build', view: 'slide', rtab: 'content', applyTo: 'slide',
-    query: '', bg: 'balloons', customBg: null, customAspect: 1, opacity: 1, base: '#0b1220', offset: 0,
-    at: 0, preview: false, secOpen: { layout: true, layers: true }, collapsed: {}, rowGap: -0.7, gap: -0.7, tone: 'light', editMode: 'rich', speed: 900, lastChild: {}, navW: 280, rightW: 340, images: {}, layerSel: null, editing: null, guides: {},
+    query: '', theme: { ...TH.DEFAULT_THEME }, customBg: null, customAspect: 1, opacity: 1, offset: 0,
+    at: 0, preview: false, secOpen: { layout: true, layers: true }, collapsed: {}, rowGap: -0.7, gap: -0.7, editMode: 'rich', speed: 900, lastChild: {}, navW: 280, rightW: 340, images: {}, layerSel: null, editing: null, guides: {},
   };
   _linked = {};
   treeRef = React.createRef(); mdRef = React.createRef(); titleRef = React.createRef(); searchRef = React.createRef(); stageRef = React.createRef(); editRef = React.createRef(); wysRef = React.createRef(); imgInputRef = React.createRef(); openInputRef = React.createRef();
@@ -1382,6 +1456,7 @@ class Component extends DCLogic {
     else try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && typeof s.md === 'string') this.adopt(s.md, s.layout); } catch (e) {}   // scratch deck
     if (STATIC) this.setState({ mode: 'present' });
     this._past = []; this._future = []; setTimeout(() => { this._lastNodes = this.state.nodes; this._lastDeck = this.histDeck(); this._histReady = true; }, 120);
+    this.syncThemeFonts();
     this.onKey = this.onKey.bind(this); window.addEventListener('keydown', this.onKey);
     this.onResize = () => this.forceUpdate(); window.addEventListener('resize', this.onResize);
     this.onPaste = this.onPaste.bind(this); window.addEventListener('paste', this.onPaste);
@@ -1636,7 +1711,15 @@ class Component extends DCLogic {
     clearTimeout(this._crT); if (!this.state.crumbLit) this.setState({ crumbLit: true });
     this._crT = setTimeout(() => this.setState({ crumbLit: false }), (this.state.crumbFade || 2) * 1000);
   }
+  // The theme's Google Fonts: one <link> of our own (helmet links are static), its href following the font set. The editor chrome's fonts link stays separate.
+  syncThemeFonts() {
+    if (typeof document === 'undefined' || !document.head) return;
+    const href = TH.fontsHref(this.theme().fonts); let el = document.getElementById('strata-theme-fonts');
+    if (!el) { el = document.createElement('link'); el.id = 'strata-theme-fonts'; el.rel = 'stylesheet'; document.head.appendChild(el); }
+    if (el.getAttribute('href') !== href) el.setAttribute('href', href);
+  }
   componentDidUpdate() {
+    this.syncThemeFonts();
     if (!this.markCustom()) this.histTrack();
     const S = this.state;
     // Scratch deck: markdown + layout in the browser. Remote (?src=): edits since load are a draft, kept until downloaded or discarded.
@@ -1712,10 +1795,17 @@ class Component extends DCLogic {
     const xs = []; if (rep === 'none') xs.push(-xoff); else for (let x = -xoff; x < CW; x += tw) xs.push(x);
     return ys.flatMap(y => xs.map(x => ({ l: f3(x / CW * 100), w: f3(tw / CW * 100 + 0.05), t: f3(y / H * 100), h: f3(th / H * 100 + 0.05) })));
   }
+  // The canvas image: the theme's image:<id> background (a BGS backdrop or the uploaded one), else none.
   bgInfo() {
-    const S = this.state; const t = BGS[S.bg] || BGS.balloons;
-    return { src: S.bg === 'custom' ? S.customBg : t.src, aspect: S.bg === 'custom' ? S.customAspect : t.aspect };
+    const S = this.state, id = this.theme().bg.image;
+    if (!id) return { src: null, aspect: 1 };
+    const t = BGS[id] || BGS.balloons;
+    return { src: id === 'custom' ? S.customBg : t.src, aspect: id === 'custom' ? S.customAspect : t.aspect };
   }
+  // The deck's resolved theme (StrataTheme.resolveTheme), memoised on the state object. Linked slides use it too: their own deck.theme is never read.
+  theme() { if (this._themeOf !== this.state.theme || !this._theme) { this._themeOf = this.state.theme; this._theme = TH.resolveTheme(this.state.theme); } return this._theme; }
+  // Canvas settings: saved with the deck, not undo steps. A new background starts with its own motion defaults.
+  setTheme(patch) { this.setState(s => { const t = { ...(s.theme || TH.DEFAULT_THEME), ...patch }; if ('background' in patch && !('motion' in patch)) delete t.motion; return { theme: t }; }); }
   // Slide height fills the canvas height: row step (top edge to top edge) between levels, with any gap above and below too.
   // Effective styles (built-ins + deck.styles), memoised on the state object.
   styles() { if (this._stylesOf !== this.state.styles || !this._styles) { this._stylesOf = this.state.styles; this._styles = mergeStyles(this.state.styles); } return this._styles; }
@@ -1730,8 +1820,16 @@ class Component extends DCLogic {
     const L = this.layouts()[n.layout]; return fitsTemplate(this.layersOf(id), L) ? L : this.shapeLayout(id);
   }
   isCustom(id) { const n = this.state.nodes[id]; return !!(n && n.custom); }
-  // A styled text layer over its style: the host's style of that id, else (for a linked-in slide) its own deck's. Display and comparison only.
+  // A layer for display: styledLayer, then theme tokens (fonts head/body/mono, palette colours) resolved to CSS with the deck's theme.
   resolveLayer(l, nodeId) {
+    const r = this.styledLayer(l, nodeId); if (!r || !['text', 'shape', 'icon'].includes(r.type)) return r;
+    const { palette, fonts } = this.theme(), col = v => TH.tokenColor(v, palette), fam = v => ['head', 'body', 'mono'].includes(v) ? TH.fontFor(v, fonts) : v;
+    if (r.type !== 'text') return r.fill ? { ...r, fill: col(r.fill) } : r;
+    return { ...r, ...(r.color ? { color: col(r.color) } : {}), ...(r.font ? { font: fam(r.font) } : {}),
+      _lines: r._lines.map(line => line.map(run => ({ ...run, ...(run.color ? { color: col(run.color) } : {}), ...(run.font ? { font: fam(run.font) } : {}) }))) };
+  }
+  // A styled text layer over its style: the host's style of that id, else (for a linked-in slide) its own deck's. Keeps theme tokens: what editing reads and writes.
+  styledLayer(l, nodeId) {
     if (!l || l.type !== 'text') return l;
     const n = this.state.nodes[nodeId], look = sid => this.styles()[sid] || (n && n._from && ((this._graftStyles || {})[n._from] || {})[sid]) || null;
     const st = l.style ? look(l.style) : null, r = { ...l };
@@ -1904,8 +2002,8 @@ class Component extends DCLogic {
 
   curId() { const N = this.state.nodes, c = this.state.cur; return N[c] && (c !== 'ROOT' || this.state.titlePage) ? c : N.ROOT.children[0] || 'ROOT'; }   // no slides: ROOT, under the empty message
   defaultLayers(n) {
-    const L = [{ id: 't-' + n.id, type: 'text', style: 'h1', x: 8, y: n.body ? 30 : 38, w: 84, h: 22, text: n.title || 'Untitled', font: 'grot', size: 104, weight: 800, color: null, align: 'center', valign: 'middle', lh: 1, bullets: 'none', gap: 0.15 }];
-    if (n.body) L.push({ id: 'b-' + n.id, type: 'text', style: 'body', x: 14, y: 56, w: 72, h: 16, text: n.body, font: 'grot', size: 36, weight: 400, color: null, align: 'center', valign: 'top', lh: 1.35, bullets: 'none', gap: 0.15 });
+    const L = [{ id: 't-' + n.id, type: 'text', style: 'h1', x: 8, y: n.body ? 30 : 38, w: 84, h: 22, text: n.title || 'Untitled', font: 'head', size: 104, weight: 800, color: null, align: 'center', valign: 'middle', lh: 1, bullets: 'none', gap: 0.15 }];
+    if (n.body) L.push({ id: 'b-' + n.id, type: 'text', style: 'body', x: 14, y: 56, w: 72, h: 16, text: n.body, font: 'body', size: 36, weight: 400, color: null, align: 'center', valign: 'top', lh: 1.35, bullets: 'none', gap: 0.15 });
     return L;
   }
   layersOfNode(n) { return n.layers || this.defaultLayers(n); }
@@ -1927,7 +2025,7 @@ class Component extends DCLogic {
   // '' = Custom: keep the look by writing the resolved values onto the layer. Otherwise adopt the style fully.
   chooseStyle(id, lid, sid) {
     this.setLayers(id, ls => ls.map(l => { if (l.id !== lid) return l;
-      if (!sid) { const { _lines, ...o } = this.resolveLayer(l, id); return { ...o, style: '' }; }   // '' = chosen Custom (re-import leaves it alone)
+      if (!sid) { const { _lines, ...o } = this.styledLayer(l, id); return { ...o, style: '' }; }   // '' = chosen Custom (re-import leaves it alone)
       const o = { ...l, style: sid }; STYLE_KEYS.forEach(k => delete o[k]); return o; }));
   }  // A new named style from a layer's current look; the layer then uses it with no overrides.
   newStyleFrom(id, lid) {
@@ -1935,7 +2033,7 @@ class Component extends DCLogic {
     const all = this.styles(), names = Object.values(all).map(st => st.name); let n = 1; while (names.includes('Style ' + n)) n++;
     const name = 'Style ' + n, base = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'style';
     let sid = base, i = 2; while (all[sid]) sid = base + '-' + i++;
-    const r = this.resolveLayer(l, id), st = { name }; STYLE_KEYS.forEach(k => { if (r[k] !== undefined) st[k] = r[k]; });
+    const r = this.styledLayer(l, id), st = { name }; STYLE_KEYS.forEach(k => { if (r[k] !== undefined) st[k] = r[k]; });
     this.setState(s => ({ styles: { ...(s.styles || {}), [sid]: st } }));
     this.chooseStyle(id, lid, sid);
     return sid;
@@ -2200,9 +2298,52 @@ class Component extends DCLogic {
   onUpload(ev) {
     const f = ev.target.files && ev.target.files[0]; ev.target.value = ''; if (!f) return;
     const r = new FileReader(); r.onload = () => { const url = r.result; const img = new Image();
-      img.onload = () => this.setState({ customBg: url, customAspect: img.naturalWidth && img.naturalHeight ? img.naturalWidth / img.naturalHeight : 1, bg: 'custom' });
-      img.onerror = () => this.setState({ customBg: url, customAspect: 1, bg: 'custom' }); img.src = url; };
+      img.onload = () => { this.setState({ customBg: url, customAspect: img.naturalWidth && img.naturalHeight ? img.naturalWidth / img.naturalHeight : 1 }); this.setTheme({ background: 'image:custom' }); };
+      img.onerror = () => { this.setState({ customBg: url, customAspect: 1 }); this.setTheme({ background: 'image:custom' }); }; img.src = url; };
     r.readAsDataURL(f);
+  }
+
+  // The Theme tab (ported from design/slides/theme/Main.dc.html's panel) and the canvas's theme background.
+  themeVals(th) {
+    const S = this.state, t = S.theme || TH.DEFAULT_THEME, img = th.bg.image, sc = TH.schemeOf(t), kind = S.bgKind || 'all', on = '#343944';
+    // A new background or scheme whose tone flips (dark ↔ light) brings a palette of that tone: its pair, else the first.
+    const change = patch => { const n = { ...t, ...patch }, r = TH.schemeOf(n), pal = TH.PALETTES.find(p => p.id === n.palette) || th.palette;
+      this.setTheme(String(n.background).startsWith('image:') || pal.tone === r.tone ? patch : { ...patch, palette: r.pairs || TH.PALETTES.find(p => p.tone === r.tone).id }); };
+    const fx = TH.effectView(t), m = TH.motionOf(t), spec = m && TH.MOTION[sc.b.id], speed = m ? TH.SPEEDS[m.speedIdx] : 1;
+    const setMotion = patch => this.setTheme({ motion: { ...(t.motion || {}), ...patch } });
+    const countCfg = m && spec.controls.includes('count') ? TH.COUNT_CONTROLS[sc.b.effect] : null, extraKey = m ? spec.controls.find(k => TH.EXTRA_CONTROLS[k]) : null, extra = extraKey ? TH.EXTRA_CONTROLS[extraKey] : null;
+    const images = TH.IMAGE_BACKGROUNDS.filter(id => id !== 'custom' || S.customBg).map(id => ({ id: 'image:' + id, name: BGS[id].label, kind: 'image', src: id === 'custom' ? S.customBg : BGS[id].src }));
+    const custom = sc.choice === 'custom' ? t.scheme : sc.colours, choice = img ? '' : sc.choice, suggested = sc.pairs || (TH.PALETTES.find(p => p.tone === sc.tone) || {}).id;
+    return {
+      isImageBg: !!img, isColourBg: !img, showUpload: !!img || kind === 'image', isMotion: !!m, fx,
+      canvasBg: { css: th.bg.css, size: th.bg.size, cls: fx.cls, dur: fx.dur },
+      bgName: img ? (BGS[img] || BGS.balloons).label : sc.b.name, schemeName: img ? 'Image' : sc.name,
+      kinds: [...TH.KINDS, { id: 'image', label: 'Image' }].map(k => ({ label: k.label, on: kind === k.id, bg: kind === k.id ? '#E8EAEE' : 'transparent', fg: kind === k.id ? '#16181D' : '#C3C8D2', pick: () => this.setState({ bgKind: k.id }) })),
+      bgList: [...TH.BACKGROUNDS, ...images].filter(b => kind === 'all' || b.kind === kind).map(b => {
+        const sel = b.id === t.background, outline = sel ? '2px solid #7AA2FF' : '1px solid #343944', pick = () => change({ background: b.id });
+        if (b.kind === 'image') return { name: b.name, css: b.src ? `#2C3039 url("${b.src}") center 20% / cover` : '#23262E', size: 'cover', cls: '', dur: '0s', on: sel, outline, pick,
+          isBubbles: false, isSunset: false, isGears: false, tintEdge: 'transparent', gearD: '', gearFill: 'transparent', gearStroke: 'transparent' };
+        const bt = { ...t, background: b.id, motion: undefined }, r = TH.resolveTheme(bt), x = TH.effectView(bt), c = TH.schemeOf(bt);
+        return { name: b.name, css: r.bg.css, size: r.bg.size, cls: x.cls, dur: b.effect === 'sunset' ? '10s' : x.dur, on: sel, outline, pick,
+          isBubbles: b.effect === 'bubbles', isSunset: b.effect === 'sunset', isGears: b.effect === 'gears',
+          tintEdge: c.tone === 'dark' ? 'rgba(255,255,255,0.6)' : c.colours.accent + '99', gearD: TH.GEAR_SWATCH_PATH, gearFill: c.colours.accent + '12', gearStroke: c.colours.accent + 'CC' }; }),
+      schemeOpts: [{ id: 'original', name: 'Original', ...sc.b.original }, ...TH.SCHEMES, { id: 'custom', name: 'Custom', ...custom }].map(c => ({ name: c.name, deep: c.deep, mid: c.mid, accent: c.accent,
+        on: c.id === choice, border: c.id === choice ? '#7AA2FF' : '#2C3039', pick: () => change({ scheme: c.id === 'custom' ? { deep: custom.deep, mid: custom.mid, accent: custom.accent } : c.id }) })),
+      isCustom: choice === 'custom',
+      customSlots: sc.slots.map(([k, label]) => ({ label, value: custom[k], set: e => change({ scheme: { deep: custom.deep, mid: custom.mid, accent: custom.accent, [k]: e.target.value } }) })),
+      resetColours: () => this.setTheme({ scheme: 'original' }),
+      ms: { hint: m ? spec.hint : '', speedIdx: m ? m.speedIdx : 0, speedMax: TH.SPEEDS.length - 1,
+        speedLabel: '×' + speed + ' · ' + (speed < 0.1 ? 'barely moving' : speed < 0.4 ? 'very slow' : speed < 0.8 ? 'slow' : speed <= 1 ? 'normal' : 'brisk'),
+        hasCount: !!countCfg, countLabel: countCfg ? countCfg.label : '', count: countCfg ? m.count : 0, countMin: countCfg ? countCfg.min : 0, countMax: countCfg ? countCfg.max : 0, countStep: countCfg ? countCfg.step : 1,
+        hasOpacity: !!m && spec.controls.includes('opacity'), opacity: m ? m.opacity : 0, hasExtra: !!extra, extraLabel: extra ? extra.label : '' },
+      extraOpts: extra ? extra.options.map(o => ({ label: o.label, on: m[extraKey] === o.value, bg: m[extraKey] === o.value ? on : 'transparent', pick: () => setMotion({ [extraKey]: o.value }) })) : [],
+      setSpeed: e => setMotion({ speedIdx: +e.target.value }), setCount: e => setMotion({ count: +e.target.value }), setOpacity: e => setMotion({ opacity: +e.target.value }),
+      palTone: img ? 'any' : sc.tone,
+      palList: TH.PALETTES.filter(p => img || p.tone === sc.tone).sort((a, b) => (a.id === suggested ? -1 : b.id === suggested ? 1 : 0)).map(p => ({ ...p,
+        on: p.id === th.palette.id, pairs: !img && p.id === sc.pairs, border: p.id === th.palette.id ? '#7AA2FF' : '#2C3039', pick: () => this.setTheme({ palette: p.id }) })),
+      surfaces: TH.SURFACES.map(f => ({ label: f.label, on: th.surface === f.id, bg: th.surface === f.id ? on : 'transparent', pick: () => this.setTheme({ surface: f.id }) })),
+      fontList: TH.FONTS.map(f => ({ ...f, on: f.id === th.fonts.id, border: f.id === th.fonts.id ? '#7AA2FF' : '#2C3039', pick: () => this.setTheme({ fonts: f.id }) })),
+    };
   }
 
   renderVals() {
@@ -2213,7 +2354,7 @@ class Component extends DCLogic {
     const rtab = ['content', 'theme', 'slides', 'builds'].includes(S.rtab) ? S.rtab : 'content';   // any other saved tab opens Content
     const tab = on => ({ bg: on ? '#343944' : 'transparent', color: on ? '#FFFFFF' : '#C3C8D2', shadow: 'none' });
     const match = {}; D.order.forEach(id => { if (!q || (N[id].title + ' ' + N[id].body).toLowerCase().includes(q)) match[id] = true; });
-    const light = S.tone === 'light'; const ease = 'cubic-bezier(.65,0,.25,1)';
+    const th = this.theme(); const ease = 'cubic-bezier(.65,0,.25,1)';
     const sibs = cur === 'ROOT' ? ['ROOT'] : N[D.parent[cur]].children; const ci = sibs.indexOf(cur);
 
     // canvas: width covers the whole tree plus one viewport of slack; image tiles repeat across it
@@ -2298,7 +2439,7 @@ class Component extends DCLogic {
     const editable = !isPresent && !isWire && !active && !curN._from;
     const curLayers = this.layersOf(cur); const ly = S.layerSel ? curLayers.find(l => l.id === S.layerSel && !isGen(l)) : null;
     const styled = !!(ly && ly.type === 'text' && ly.style && this.styles()[ly.style] && !this.styles()[ly.style].deleted), toStyle = styled && S.styleTarget === 'style';
-    const lyR = ly ? this.resolveLayer(ly, cur) : null;
+    const lyR = ly ? this.styledLayer(ly, cur) : null;
     const lv = toStyle ? { ...Object.fromEntries(Object.entries(lyR).filter(([k]) => !STYLE_KEYS.includes(k))), ...this.styles()[ly.style] } : lyR;   // Style mode shows the style's values only, so a layer's overrides never leak into it
     const over = k => styled && ly[k] !== undefined;
     // Style mode sends style settings to the style; everything else (text, geometry, link…) always goes to the layer.
@@ -2314,7 +2455,7 @@ class Component extends DCLogic {
       onW: ev => this.startDrag(ev, l.id, 'w'), onE: ev => this.startDrag(ev, l.id, 'e'), gen: isGen(l) })).filter(o => !o.hidden && !o.gen);   // generated layers aren't stage objects
     const edL = S.editing ? curLayers.find(l => l.id === S.editing) : null;
     const edR = edL && this.resolveLayer(edL, cur);
-    const ed = edR ? { text: edR.text, l: edR.x, t: edR.y, w: edR.w, h: edR.h, font: FONT_CSS[edR.font] || FONT_CSS.grot, fs: (edR.size || 40) / 16, weight: edR.weight || 400, color: edR.color || (light ? '#fbf9f4' : '#15171c'), align: edR.align || 'left', lh: edR.lh || 1.2 } : {};
+    const ed = edR ? { text: edR.text, l: edR.x, t: edR.y, w: edR.w, h: edR.h, font: FONT_CSS[edR.font] || edR.font || FONT_CSS.grot, fs: (edR.size || 40) / 16, weight: edR.weight || 400, color: edR.color || th.palette.text, align: edR.align || 'left', lh: edR.lh || 1.2 } : {};
     const layerRows = curLayers.map((l, i) => ({ l, i })).filter(({ l }) => !isGen(l)).reverse().map(({ l, i }) => ({ name: lname(l), glyph: { text: 'T', image: 'IMG', shape: '■', icon: '★', component: '⧉' }[l.type], bg: selIds.includes(l.id) ? '#2A3A5C' : '#23262E', weight: selIds.includes(l.id) ? 700 : 500, opacity: l.hidden ? 0.45 : 1,
       eye: l.hidden ? '◌' : '◉', eyeTitle: l.hidden ? 'Show' : 'Hide', upOp: i < curLayers.length - 1 ? 0.8 : 0.25, downOp: i > 0 ? 0.8 : 0.25,
       onClick: e => { if (e && (e.shiftKey || e.metaKey || e.ctrlKey)) this.selectToggle(l.id); else this.setSelection([l.id]); this.setState({ view: 'slide' }); }, onEye: e => { e.stopPropagation(); this.updLayer(cur, l.id, { hidden: !l.hidden }); },
@@ -2353,7 +2494,7 @@ class Component extends DCLogic {
       clipMsgOn: !!S.clipMsg && !!ly && ly.type === 'image', clipMsg: S.clipMsg || '', lyIsShape: !!ly && ly.type === 'shape', lyIsIcon: !!ly && ly.type === 'icon', lyIsRect: !!ly && ly.shape === 'rect',
       dupLayer: () => ly && this.dupLayer(ly.id), delLayer: () => ly && this.delLayer(ly.id),
       onLyText: e => upL({ text: e.target.value }), onLySize: e => upL({ size: +e.target.value }), sizeLabel: ly ? (ly.size || 40) + '' : '',
-      fontBtns: FONT_LIST.map(([k, label, css]) => ({ label, title: label, font: css, ...tabOn(ly && (ly.font || 'grot') === k, { font: css }), onClick: () => upL({ font: k }) })),
+      fontBtns: FONT_LIST.map(([k, label, css]) => ({ label, title: label, font: css, ...tabOn(ly && (ly.font || 'body') === k, { font: css }), onClick: () => upL({ font: k }) })),
       weightBtns: [[400, 'Reg'], [600, 'Semi'], [800, 'Bold']].map(([w, label]) => ({ label, title: label, ...tabOn(ly && (ly.weight || 400) === w, { weight: w }), onClick: () => upL({ weight: w }) })),
       alignBtns: [['left', 'Left'], ['center', 'Centre'], ['right', 'Right']].map(([a, label]) => ({ label, title: label, ...tabOn(ly && (ly.align || 'left') === a), onClick: () => upL({ align: a }) })),
       valignBtns: [['top', 'Top'], ['middle', 'Middle'], ['bottom', 'Bottom']].map(([a, label]) => ({ label, title: label, ...tabOn(ly && (ly.valign || 'top') === a), onClick: () => upL({ valign: a }) })),
@@ -2381,22 +2522,8 @@ class Component extends DCLogic {
     // Numeric settings: a number input; empty, non-numeric or below-minimum input is ignored.
     const numField = (label, key, step, min, unit, fallback) => ({ num: true, label: label + (over(key) ? ' •' : ''), step, min, unit, value: String(lv ? (lv[key] ?? fallback) : fallback),
       onChange: e => { const v = parseFloat(e.target.value); if (Number.isFinite(v) && v >= min) upL({ [key]: v }); }, over: over(key), onReset: () => this.clearKeys(cur, ly.id, [key]) });
-    const CARD0 = { mode: 'none', color: '#0b1220', opacity: 0.45, blur: 8 }; const cardCfg = { ...CARD0, ...(S.card || {}) };
-    const setCard = patch => this.setState(s => ({ card: { ...CARD0, ...(s.card || {}), ...patch } }));
-    // Text box: deck default / on (deck style) / custom / off. Custom starts from the deck's style.
-    const bx = ly && ly.type === 'text' ? { bg: cardCfg.color, bgOpacity: cardCfg.opacity, blur: cardCfg.blur, border: 0, borderColor: '#ffffff', radius: 12, pad: 12, ...(lv.box || {}) } : null;
-    const upBox = patch => upL({ card: 'custom', box: { ...bx, ...patch } });   // touching any control makes the box custom
-    const setBoxMode = m => upL(m === 'custom' && !lv.box ? { card: 'custom', box: bx } : { card: m });
-    const onOff = lv && lv.card === 'custom' ? 'On' : 'Off', styleName = styled ? (this.styles()[ly.style].name || ly.style) : '';
-    const boxModes = bx ? [['custom', 'On'], ['off', 'Off']].map(([m, label]) => ({ label, ...tab((onOff === 'On' ? 'custom' : 'off') === m), onClick: () => setBoxMode(m) })) : [];
-    const boxTitle = toStyle ? styleName + ' container' : 'Container';
-    const boxModeLabel = bx ? (toStyle || !styled ? onOff : (over('card') || over('box') ? `This layer · ${onOff} •` : `From ${styleName} · ${onOff}`)) : '';   // where the container comes from
-    const boxColors = bx ? [['Background', 'bg'], ['Border', 'borderColor']].map(([label, k]) => ({ label, value: bx[k], onChange: e => upBox({ [k]: e.target.value }) })) : [];
-    const boxFields = bx ? [['Opacity', 'bgOpacity', 0, 1, 0.05, v => Math.round(v * 100) + '%'], ['Blur', 'blur', 0, 24, 1, v => v + ' px'], ['Border', 'border', 0, 8, 0.5, v => v + ' px'],
-      ['Corners', 'radius', 0, 48, 1, v => v + ' px'], ['Padding', 'pad', 0, 48, 1, v => v + ' px']]
-      .map(([label, k, min, max, step, fmt]) => ({ label, min, max, step, value: bx[k], valLabel: fmt(bx[k]), onChange: e => upBox({ [k]: +e.target.value }) })) : [];
     const textFields = ly && ly.type === 'text' ? [
-      field('Font', 'font', FONT_LIST.map(f => [f[0], f[1]]), 'grot'),
+      field('Font', 'font', FONT_LIST.map(f => [f[0], f[1]]), 'body'),
       numField('Size', 'size', 1, 1, 'px', 40),
       field('Weight', 'weight', [[400, 'Regular'], [500, 'Medium'], [600, 'Semibold'], [700, 'Bold'], [800, 'Extra bold']], 400, Number),
       field('Align', 'align', [['left', 'Left'], ['center', 'Centre'], ['right', 'Right']], 'left'),
@@ -2473,7 +2600,6 @@ class Component extends DCLogic {
       styleTargetBtns: styled ? [['layer', 'This layer'], ['style', (this.styles()[ly.style].name || ly.style) + ' style']].map(([v, label]) => ({ label, ...tab((S.styleTarget === 'style' ? 'style' : 'layer') === v), onClick: () => this.setState({ styleTarget: v }) })) : [],
       lyHasOverrides: styled && STYLE_KEYS.some(over), onClearOverrides: () => ly && this.clearKeys(cur, ly.id, STYLE_KEYS),
       colorLabel: 'Colour' + (over('color') ? ' •' : ''), colorOver: over('color'), onColorReset: () => ly && this.clearKeys(cur, ly.id, ['color']),
-      boxOver: over('card') || over('box'), onBoxReset: e => { e && e.stopPropagation && e.stopPropagation(); ly && this.clearKeys(cur, ly.id, ['card', 'box']); },
       styleRows: Object.entries(this.styles()).filter(([, st]) => !st.deleted).map(([id, st]) => ({ id, name: st.name || id, count: (styleCount[id] || 0) + ' layer' + (styleCount[id] === 1 ? '' : 's'), canDelete: !BUILTIN_STYLES[id],
         onName: e => this.setStyle(id, { name: e.target.value }), onDelete: () => this.deleteStyle(id) })),
       newStyleOff: !(ly && ly.type === 'text'), onNewStyle: () => ly && this.newStyleFrom(cur, ly.id),
@@ -2534,15 +2660,12 @@ class Component extends DCLogic {
       tvX: tvw.x, tvXLabel: Math.round(tvw.x * 100) + '%', onTvX: e => setTv({ x: +e.target.value }),
       tvY: tvw.y, tvYLabel: Math.round(tvw.y * 100) + '%', onTvY: e => setTv({ y: +e.target.value }),
       tvHint: tvFree.length ? 'The whole canvas fits this way, so ' + tvFree.join(' and ') + ' has no effect.' : '',
-      ...layerVals, ...linkVals, textFields, boxModes, boxModeLabel, boxTitle, boxColors, boxFields, ...stepVals,
-      sec: Object.fromEntries(['layout', 'layers', 'box', 'insert', 'spacing'].map(k => { const open = !!((S.secOpen || {})[k] ?? k === 'spacing'); return [k, { open, caret: open ? '▾' : '▸', toggle: () => this.setState(st => ({ secOpen: { ...st.secOpen, [k]: !open } })) }]; })),
+      ...layerVals, ...linkVals, textFields, ...stepVals,
+      sec: Object.fromEntries(['layout', 'layers', 'insert', 'canvas'].map(k => { const open = !!((S.secOpen || {})[k] ?? k === 'canvas'); return [k, { open, caret: open ? '▾' : '▸', toggle: () => this.setState(st => ({ secOpen: { ...st.secOpen, [k]: !open } })) }]; })),
       undo: () => this.undo(), redo: () => this.redo(), undoOp: this._past && this._past.length ? 1 : 0.4, redoOp: this._future && this._future.length ? 1 : 0.4,
       deckTitle: (S.titlePage && N.ROOT.title) || (N.ROOT.children[0] ? name(N.ROOT.children[0]) : DECK || 'Untitled'), emptyMsg: !N.ROOT.children.length ? EMPTY_MSG : S.loading && S.loading === cur ? 'Loading…' : '',
       keyHint: S.saveMsg || S.note || (isPresent ? '← → ↑ ↓  ·  Space next  ·  / search' + (STATIC ? '' : '  ·  Esc') : ''),
-      cardModes: [['none', 'None'], ['slide', 'Whole slide']].map(([m, label]) => ({ label, ...tab(cardCfg.mode === m), onClick: () => setCard({ mode: m }) })),
-      cardOn: cardCfg.mode !== 'none', cardColor: cardCfg.color, onCardColor: e => setCard({ color: e.target.value }),
-      cardOp: cardCfg.opacity, cardOpLabel: Math.round(cardCfg.opacity * 100) + '%', onCardOp: e => setCard({ opacity: +e.target.value }),
-      cardBlur: cardCfg.blur, cardBlurLabel: cardCfg.blur + ' px', onCardBlur: e => setCard({ blur: +e.target.value }), deckCard: S.card || null,
+      surface: th.surface === 'clear' ? null : { bg: th.surface === 'frosted' ? (th.tone === 'dark' ? 'rgba(15,18,32,0.35)' : 'rgba(255,255,255,0.35)') : th.tone === 'dark' ? 'rgba(15,18,32,0.85)' : 'rgba(255,255,255,0.9)', blur: th.surface === 'frosted' ? 'blur(8px)' : 'none' },
       hasDeck: !!DECK && !STATIC, draftPrompt: !!S.draftPrompt && !isPresent,
       onUseDraft: () => { const d = this._draft; this._draft = null; if (d) this.adopt(d.md, d.layout, () => this.setState({ draftPrompt: false })); },
       onDiscardDraft: () => { this._draft = null; try { localStorage.removeItem(DRAFT_KEY(SRC)); } catch (e) {} this.setState({ draftPrompt: false }); }, save: () => this.save(), saveLabel: S.saving ? 'Saving…' : S.saveMsg ? '⚠ Save' : this.isDirty() ? '● Unsaved' : '✓ Saved',
@@ -2573,10 +2696,10 @@ class Component extends DCLogic {
       viewTabs: [{ label: 'Slide', ...tab(S.view === 'slide'), onClick: () => this.setState({ view: 'slide' }) }, { label: 'Wireframe', ...tab(S.view === 'wire'), onClick: () => this.setState({ view: 'wire' }) }],
       viewHint: isWire ? 'Every slide on the looping canvas. Click to select, double-click to open.' : 'What viewers see. Arrow keys move around the tree.',
       stageAreaBg: isPresent ? '#05070c' : '#16181D', showStage: !isWire && !mapView, showWire: isWire, showMap: !!mapView,
-      base: S.base, bgCss: B.src ? `url("${B.src}") center / 100% 100% no-repeat` : 'none', opacity: S.opacity, tiles, cam,
+      base: th.bg.image ? (th.tone === 'dark' ? '#0b1220' : '#F5F3EE') : th.bg.css, bgCss: B.src ? `url("${B.src}") center / 100% 100% no-repeat` : 'none', opacity: S.opacity, tiles, cam,
       curCam: camOf(cur), camTransition: `transform ${S.speed}ms ${ease}`,
       hasPrev: !!active, planeA, planeB, planeTr: active && S.phase === 'run' ? `transform ${S.speed}ms ${ease}, opacity ${S.speed}ms ease` : 'none',
-      ink: light ? '#fbf9f4' : '#15171c', inkShadow: light ? '0 2px 18px rgba(0,0,0,.45)' : '0 1px 12px rgba(255,255,255,.5)',
+      ink: th.palette.text,
       prevTitle: active ? name(S.prev) : '', prevBody: active ? N[S.prev].body : '', prevLabel: active ? label(S.prev) : '',
       cur: curN, curTitle: name(cur), curBody: curN.body, curLabel: label(cur),
       crumbRows, crumbTx, crumbTy, crumbH, hasDownHint: !!downHint, downHint: downHint || {},
@@ -2592,26 +2715,18 @@ class Component extends DCLogic {
       rTabs: [['content', 'Content'], ['theme', 'Theme'], ['slides', 'Slides'], ['builds', 'Builds']].map(([id, label]) => ({ label, ...tab(rtab === id), onClick: () => this.setState({ rtab: id }) })),
       tabContent: rtab === 'content', tabTheme: rtab === 'theme', tabSlides: rtab === 'slides', tabBuilds: rtab === 'builds',
       titleRef: this.titleRef, onTitle: e => this.setNode(cur, { title: e.target.value }), onBody: e => this.setNode(cur, { body: e.target.value }),
-      toneBtns: [['light', 'Light'], ['dark', 'Dark']].map(([id, l]) => ({ label: l, ...tab(S.tone === id), onClick: () => this.setState({ tone: id }) })),
       rowStep: L.rowStep, rowStepLabel: Math.round(L.rowStep * 100) + '% of a slide', onRowStep: e => this.setState({ rowGap: +e.target.value - 1 }),   // stored as rowGap = step − 1
       spacingBtns: [['even', 'Even steps'], ['fit', 'Fit subtrees']].map(([v, label]) => ({ label, ...tab((S.spacing === 'fit' ? 'fit' : 'even') === v), onClick: () => this.setState({ spacing: v }) })),
       gapStep: 1 + S.gap, gapLabel: Math.round((1 + S.gap) * 100) + '% of a slide', onGap: e => this.setState({ gap: +e.target.value - 1 }),   // stored as gap = step − 1, so existing decks keep their spacing
       levelInfo: `${D.levels} level${D.levels === 1 ? '' : 's'} deep, so each slide is ${(L.h).toFixed(1)}% of the canvas height.`,
       sizeInfo: B.src ? `One copy of the image is ${(tileW / L.w).toFixed(2)} slides wide; the tree spans ${(L.CW / L.w).toFixed(1)} slides.` : `The tree spans ${(L.CW / L.w).toFixed(1)} slides.`,
       speed: S.speed, speedLabel: S.speed + 'ms', onSpeed: e => this.setState({ speed: +e.target.value }),
-      bgTiles: ['balloons', 'london', 'sea', 'space', 'forest', 'sky', 'ocean'].concat(S.customBg ? ['custom'] : []).map(id => { const src = id === 'custom' ? S.customBg : BGS[id].src;
-        return { label: BGS[id].label, border: S.bg === id ? '2px solid #7AA2FF' : '1px solid #2C3039', thumb: src ? `#2C3039 url("${src}") center 20% / cover` : '#23262E', onClick: () => this.setState({ bg: id }) }; }),
       hasBgImage: !!B.src, bgScale: S.bgScale || 1, bgScaleLabel: Math.round((S.bgScale || 1) * 100) + '%', onBgScale: e => this.setState({ bgScale: +e.target.value }),
       bgY: S.bgY || 0, bgYLabel: Math.round((S.bgY || 0) * 100) + '%', onBgY: e => this.setState({ bgY: +e.target.value }),
       bgRepeatBtns: [['x', 'Across'], ['xy', 'Tile'], ['none', 'Once']].map(([v, label]) => ({ label, ...tab((S.bgRepeat || 'x') === v), onClick: () => this.setState({ bgRepeat: v }) })),
       onUpload: e => this.onUpload(e), offset: S.offset, offsetLabel: Math.round(S.offset * 100) + '%', onOffset: e => this.setState({ offset: +e.target.value }),
       opacityLabel: Math.round(S.opacity * 100) + '%', onOpacity: e => this.setState({ opacity: +e.target.value }),
-      // Theme is derived from bg: Basic = no image (bg 'none'), Fun = one of the canvas images.
-      themeBasic: S.bg === 'none', themeFun: S.bg !== 'none',
-      themeBtns: [['fun', 'Fun'], ['basic', 'Basic']].map(([id, label]) => ({ label, ...tab((S.bg === 'none' ? 'basic' : 'fun') === id),
-        onClick: () => this.setState({ bg: id === 'basic' ? 'none' : S.bg === 'none' ? 'balloons' : S.bg }) })),
-      baseSwatches: BASES.map(v => ({ value: v, border: S.base === v ? '2px solid #7AA2FF' : '1px solid #343944', onClick: () => this.setState({ bg: 'none', base: v }) })),
-      baseColor: /^#[0-9a-f]{6}$/i.test(S.base) ? S.base : '#ffffff', onBaseColor: e => this.setState({ bg: 'none', base: e.target.value }),
+      ...this.themeVals(th),
     };
   }
 }

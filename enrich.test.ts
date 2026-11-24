@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { parseMarkdown } from "./markdown";
 
 const js = (await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text()).split('<script type="text/x-dc" data-dc-script>')[1].split("</script>")[0];
-const g = { location: { search: "" }, window: { StrataMd: await import("./markdown"), StrataBuilds: await import("./builds"), addEventListener() {}, removeEventListener() {} }, localStorage: { getItem: () => null, setItem() {} } };
+const g = { location: { search: "" }, window: { StrataMd: await import("./markdown"), StrataTheme: await import("./theme"), StrataBuilds: await import("./builds"), addEventListener() {}, removeEventListener() {} }, localStorage: { getItem: () => null, setItem() {} } };
 const C = new Function("DCLogic", "React", ...Object.keys(g), js + "\nreturn Component;")(class {}, { createRef: () => ({ current: null }) }, ...Object.values(g));
 const { enrich, layoutOf } = C.md, { BUILTIN_LAYOUTS } = C.lay;
 const run = (md: string, layouts: any[] = [], opts: any = {}) => enrich(parseMarkdown(md).sections, layouts, opts);
@@ -92,13 +92,13 @@ test("layoutOf: strips content", () => {
   const { nodes } = run("# T\nslug: t\n\nA.\n\n- x\n\n[link:t][Me]\n\n[S](https://s)\n\n![c](c.png)", [], { src: "https://h/a.md" });
   const n = nodes.t, extra = { id: "e1", type: "text", text: "Mine", x: 0, y: 0, w: 5, h: 5 };
   const L = layoutOf({ ...nodes, t: { ...n, custom: true, layers: [...n.layers, extra] } },
-    { title: "x", nodes: {}, source: "s", bg: "plain", images: { im1: "data:x", "md:https://h/c.png": "https://h/c.png" } });
+    { title: "x", nodes: {}, source: "s", theme: { palette: "ember" }, images: { im1: "data:x", "md:https://h/c.png": "https://h/c.png" } });
   const ls = L.slides.t.layers;
   for (const l of ls.filter((l: any) => l.id.startsWith("md-"))) { expect(l.text).toBeUndefined(); expect(l.link).toBeUndefined(); expect(l.src).toBeUndefined(); expect(l.imgKey).toBeUndefined(); }
   expect(ls.find((l: any) => l.id === "e1").text).toBe("Mine");
   expect(L.slides.t).not.toHaveProperty("title"); expect(L.slides.t).not.toHaveProperty("body"); expect(L.slides.t).not.toHaveProperty("children");
   expect(L.version).toBe(2);
-  expect(L.deck).toEqual({ bg: "plain", images: { im1: "data:x" } });
+  expect(L.deck).toEqual({ theme: { palette: "ember" }, images: { im1: "data:x" } });
   expect(L.slides.ROOT).toMatchObject({ id: "ROOT" });
   expect(Object.keys(L.slides).sort()).toEqual(["ROOT", "t"]);   // non-custom slides aren't stored
   expect(Object.keys(layoutOf({ ...nodes, t: { ...n, custom: true, _from: "u" } }, {}).slides)).toEqual(["ROOT"]);

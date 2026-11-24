@@ -10,23 +10,22 @@ const HELPER = new Function("DCLogic", js + "\nreturn HELPER;")(class {});
 
 const txt = (extra = {}) => ({ id: "t", type: "text", text: "Hi", x: 0, y: 0, w: 10, h: 10, ...extra });
 const shape = { id: "s", type: "shape", x: 0, y: 0, w: 10, h: 10 };
-const CARD = { color: "#0b1220", opacity: 0.5, blur: 6 };
-
-test("no deck card: text is drawn as before", () => {
+test("no surface: text is drawn as before", () => {
   const v = render({ layers: [txt()], shadow: "0 1px 2px #000" });
   expect(v.items[0]).toMatchObject({ cardBg: "transparent", cardBlur: "none", shadow: "0 1px 2px #000" });
   expect(v.slideCard).toBe(false);
 });
 
-test("a layer's own card setting overrides the deck", () => {
-  expect(render({ layers: [txt({ card: "off" })], card: { mode: "slide", ...CARD } }).items[0].cardBg).toBe("transparent");
-});
-
-test("'whole slide' draws one overlay under all layers", () => {
-  const v = render({ layers: [txt()], card: { mode: "slide", ...CARD } });
-  expect(v).toMatchObject({ slideCard: true, slideBg: "rgba(11,18,32,0.5)", slideBlur: "blur(6px)" });
+test("a theme surface draws one whole-slide overlay under all layers", () => {
+  const v = render({ layers: [txt()], surface: { bg: "rgba(15,18,32,0.35)", blur: "blur(8px)" } });
+  expect(v).toMatchObject({ slideCard: true, slideBg: "rgba(15,18,32,0.35)", slideBlur: "blur(8px)" });
   expect(v.items[0].cardBg).toBe("transparent");
   expect(html).toContain('<sc-if value="{{ slideCard }}">');
+});
+
+test("theme fonts arrive as CSS families; the old font keys still map", () => {
+  expect(render({ layers: [txt({ font: "'Space Grotesk', sans-serif" })] }).items[0].font).toBe("'Space Grotesk', sans-serif");
+  expect(render({ layers: [txt({ font: "serif" })] }).items[0].font).toBe("'DM Serif Display',serif");
 });
 
 const BOX = { bg: "#ffffff", bgOpacity: 0.25, blur: 4, border: 2, borderColor: "#d9432b", radius: 16, pad: 24 };

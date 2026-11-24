@@ -5,7 +5,7 @@ import { Window } from "happy-dom";
 
 const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
 const js = html.split('<script type="text/x-dc" data-dc-script>')[1].split("</script>")[0];
-const g = { location: { search: "" }, window: {}, localStorage: { getItem: () => null, setItem() {} }, fetch: async () => new Response("{}"), setTimeout, requestAnimationFrame() {} };
+const g = { location: { search: "" }, window: { StrataTheme: await import("./theme") }, localStorage: { getItem: () => null, setItem() {} }, fetch: async () => new Response("{}"), setTimeout, requestAnimationFrame() {} };
 const C = new Function("DCLogic", "React", ...Object.keys(g), js + "\nreturn Component;")(class {}, { createRef: () => ({ current: null }) }, ...Object.values(g));
 const R = C.rich;
 const fresh = () => { const w = new Window(); const root = w.document.createElement("div"); root.setAttribute("contenteditable", "true"); w.document.body.appendChild(root); return { w, root }; };

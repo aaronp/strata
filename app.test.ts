@@ -49,13 +49,13 @@ const nudge = (c: any, id: string, lid: string, dx: number) => { c.setLayers(id,
 const reply = (body: string, type: string, status = 200) => new Response(body, { status, headers: { "content-type": type } });
 
 test("app: loads deck markdown and layout", async () => {
-  await writeMd("talk", TALK, { version: 2, deck: { bg: "space", styles: { h1: { size: 80 } } },
+  await writeMd("talk", TALK, { version: 2, deck: { theme: { background: "image:space" }, styles: { h1: { size: 80 } } },
     slides: { intro: { custom: true, layers: [{ id: "md-title", type: "text", block: "title", x: 1, y: 2, w: 50, h: 10 }, { id: "x1", type: "shape", x: 0, y: 0, w: 5, h: 5 }] } } });
   const { c } = await mount("?deck=talk");
   expect(c.state.md).toBe(TALK);
   expect(c.state.nodes.ROOT.children).toEqual(["intro", "next"]);
   expect(c.state.nodes.intro.children).toEqual(["detail"]);
-  expect(c.state.bg).toBe("space"); expect(c.state.styles).toEqual({ h1: { size: 80 } });
+  expect(c.state.theme).toEqual({ background: "image:space" }); expect(c.state.styles).toEqual({ h1: { size: 80 } });
   expect(layerOf(c, "intro", "md-title")).toMatchObject({ x: 1, y: 2, text: "Intro" });
   expect(layerOf(c, "intro", "x1")).toBeDefined();
   expect(layerOf(c, "next", "md-title").text).toBe("Next");
@@ -106,11 +106,11 @@ test("app: save writes md and layout", async () => {
   const md = TALK + "\n# Last\nslug: last\n";
   c.setMd(md); c.reenrich(); c.componentDidUpdate();
   nudge(c, "intro", "md-body-1", 10);
-  c.setState({ bg: "space", images: { ...c.state.images, im1: "data:image/png;base64," + Buffer.from("png").toString("base64") } });
+  c.setTheme({ background: "image:space" }); c.setState({ images: { ...c.state.images, im1: "data:image/png;base64," + Buffer.from("png").toString("base64") } });
   await c.save();
   expect(await Bun.file(deckDir("talk") + "talk.md").text()).toBe(md);
   const L = await Bun.file(deckDir("talk") + "talk-layout.json").json();
-  expect(L.deck.bg).toBe("space"); expect(L.deck.images.im1).toMatch(/^img\/[0-9a-f]{12}\.png$/);
+  expect(L.deck.theme.background).toBe("image:space"); expect(L.deck.images.im1).toMatch(/^img\/[0-9a-f]{12}\.png$/);
   expect(L.slides.intro.custom).toBe(true); expect(L.slides.next).toBeUndefined();
   expect(c.state.images.im1).toMatch(/^\.\.\/decks\/talk\/img\/[0-9a-f]{12}\.png$/);
   expect(c.isDirty()).toBe(false);
@@ -118,10 +118,10 @@ test("app: save writes md and layout", async () => {
 
 test("app: src loads https url", async () => {
   const files: Record<string, Response> = { "https://x/a.md": reply("# Remote\nslug: r\n\n![pic](img/p.png)\n", "text/markdown"),
-    "https://x/a-layout.json": reply(JSON.stringify({ version: 2, deck: { bg: "space", images: { im1: "img/a.png", im2: "data:image/png;base64,AA" }, customBg: "img/bg.jpg" }, slides: {} }), "application/json") };
+    "https://x/a-layout.json": reply(JSON.stringify({ version: 2, deck: { theme: { background: "image:space" }, images: { im1: "img/a.png", im2: "data:image/png;base64,AA" }, customBg: "img/bg.jpg" }, slides: {} }), "application/json") };
   const { c } = await mount("?src=https://x/a.md", { fetch: u => files[u] });
   expect(c.state.saveMsg).toBeFalsy();
-  expect(c.state.nodes.r.title).toBe("Remote"); expect(c.state.bg).toBe("space");
+  expect(c.state.nodes.r.title).toBe("Remote"); expect(c.state.theme.background).toBe("image:space");
   expect(c.state.images["md:https://x/img/p.png"]).toBe("https://x/img/p.png");   // relative to the markdown file
   expect(c.state.images.im1).toBe("https://x/img/a.png"); expect(c.state.images.im2).toBe("data:image/png;base64,AA"); expect(c.state.customBg).toBe("https://x/img/bg.jpg");   // layout file paths too
 });
@@ -268,19 +268,7 @@ test("a new deck starts with one blank slide named after its slug", async () => 
   expect(c.state.nodes[c.state.nodes.ROOT.children[0]]).toMatchObject({ title: "My talk", children: [] });
 });
 
-test("the deck's readability card is saved", async () => {
-  const { c } = await mount("?deck=talk");
-  c.setState({ card: { mode: "slide", color: "#ffffff", opacity: 0.6, blur: 10 } }); await c.save();
-  expect((await onDisk()).deck.card).toEqual({ mode: "slide", color: "#ffffff", opacity: 0.6, blur: 10 });
-});
 
-test("every Layers render gets the deck card, and the card controls exist", async () => {
-  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
-  const imports = html.match(/<dc-import name="Layers"[^>]*>/g)!;
-  expect(imports.every(t => t.includes('card="{{ deckCard }}"'))).toBe(true);
-  expect(html).toContain('<sc-for list="{{ cardModes }}"');
-  expect(html).toContain('<sc-for list="{{ boxFields }}"');
-});
 
 test("the editor measures grown text boxes so the selection outline matches", async () => {
   const { c } = await mount("?deck=talk");
@@ -365,13 +353,6 @@ test("stage template has the group box handles and the selection rectangle", asy
   expect(html).toContain('<sc-if value="{{ hasMarquee }}">');
 });
 
-test("text layers have an always-available, collapsible Container section", async () => {
-  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
-  expect(html).toContain('<sc-if value="{{ sec.box.open }}">');
-  expect(html).toContain('<sc-for list="{{ boxModes }}"');
-  expect(html).not.toContain("{{ lyBoxCustom }}");
-  expect(html).not.toContain("label: 'Box'");
-});
 
 // ---- slide tree: collapse + drag to move ----
 async function treeDeck(extra: Record<string, any> = {}) {
@@ -658,9 +639,9 @@ test("removing a bullet drops its step; the current step clamps to the highest r
 });
 
 test("a v1 (frames) layout file is ignored: default layers, with a note", async () => {
-  await writeMd("talk", TALK, { version: 1, deck: { bg: "space" }, slides: { intro: { custom: true, frames: [{ id: "f1", layers: [{ id: "md-title", type: "text", block: "title", x: 1, y: 2, w: 50, h: 10 }] }] } } });
+  await writeMd("talk", TALK, { version: 1, deck: { theme: { background: "image:space" } }, slides: { intro: { custom: true, frames: [{ id: "f1", layers: [{ id: "md-title", type: "text", block: "title", x: 1, y: 2, w: 50, h: 10 }] }] } } });
   const { c } = await mount("?deck=talk");
-  expect(c.state.note).toBe("Old layout file ignored"); expect(c.state.bg).toBe("balloons");
+  expect(c.state.note).toBe("Old layout file ignored"); expect(c.state.theme).toEqual(DEFAULT_THEME);
   expect(layerOf(c, "intro", "md-title").x).not.toBe(1); expect(c.state.nodes.intro.frames).toBeUndefined();
 });
 
@@ -896,14 +877,6 @@ test("the wireframe title rect is clamped to the canvas, so all four dashed edge
 });
 
 
-test("countryside balloons is a Canvas backdrop and the default for new decks", async () => {
-  const { c } = await mount("?deck=fresh");
-  expect(c.state.bg).toBe("balloons");
-  const tile = c.renderVals().bgTiles.find((b: any) => b.label === "Balloons");
-  expect(tile).toBeTruthy();
-  expect(c.bgInfo()).toEqual({ src: "backdrops/countryside-balloons.png", aspect: 1.5 });
-  expect(await Bun.file(join(import.meta.dir, "design/backdrops/countryside-balloons.png")).exists()).toBe(true);
-});
 
 test("column step: 100% abuts slides (camera and background move in sync); below 100% overlaps them and the canvas still covers the last slide", async () => {
   await writeDeck("talk", { ROOT: slideNode("ROOT", "", ["a", "b", "c"]), a: slideNode("a", "A"), b: slideNode("b", "B"), c: slideNode("c", "C") }, { gap: 0 });
@@ -1030,13 +1003,6 @@ test("Styles section: counts, rename keeps the id, new style from a layer, delet
   for (const h of ["{{ styleRows }}", "{{ onNewStyle }}"]) expect(html).toContain(h);
 });
 
-test("Style mode shows and edits the style's container, never copying this layer's own container into it", async () => {
-  const c = await styledDeck({}, [TL("a", { style: "h1", card: "custom", box: { bg: "#ff0000", radius: 40 } }), TL("b", { style: "h1" })]);
-  c.setState({ layerSel: "a", styleTarget: "style" }); const v = c.renderVals();
-  expect(v.boxModeLabel).toBe("Off");                                         // the style's container, not the layer's Custom one
-  v.boxFields.find((f: any) => f.label === "Padding").onChange({ target: { value: "20" } });
-  expect(c.state.styles.h1.box.bg).not.toBe("#ff0000"); expect(c.state.styles.h1.box.radius).toBe(12);
-});
 
 test("deleting a style keeps a tombstone: undo brings layers back looking right, and the id is never reused", async () => {
   const c = await styledDeck(); await Bun.sleep(150);
@@ -1092,7 +1058,7 @@ test("applyFormat: toggles bold, wraps lines, updates or unwraps spans, clears, 
 test("resolveLayer gives every text layer display runs, with style spans looked up like layer styles; names are plain", async () => {
   const c = await styledDeck({ styles: { h2: { size: 41 } } }, [TL("a", { text: "x [y]{style=h2} **z**" }), TL("b", { style: "h1", text: "plain" })]);
   const [a, b] = c.layersOf("s").map((l: any) => c.resolveLayer(l, "s"));
-  expect(a._lines).toEqual([[{ text: "x " }, { text: "y", size: 41, weight: 700, font: "grot", ls: 0 }, { text: " " }, { text: "z", b: true }]]);   // H2's colour is null, so it's not taken
+  expect(a._lines).toEqual([[{ text: "x " }, { text: "y", size: 41, weight: 700, color: "#F1F5F9", font: "'Space Grotesk', sans-serif", ls: 0 }, { text: " " }, { text: "z", b: true }]]);   // H2's theme tokens, resolved
   expect(b._lines).toEqual([[{ text: "plain" }]]);
   expect(c.layersOf("s")[0]._lines).toBeUndefined();                         // never stored
   c.chooseStyle("s", "a", ""); expect(c.layersOf("s")[0]._lines).toBeUndefined();
@@ -1150,32 +1116,8 @@ test("formatting bar: Plain is choosable, focus in the bar counts as typing, lea
 });
 
 // ---- container: On / Off, sourced from the style ----
-test("container is On/Off: every old setting maps onto it, and the header says where it comes from", async () => {
-  const c = await styledDeck({}, [TL("a", { card: "custom", box: { bg: "#ff0000" } }), TL("b", { card: "off" }), TL("c"), TL("e", { style: "h1" }), TL("f", { style: "h1", card: "custom", box: {} })]);
-  const v = (id: string) => { c.setState({ layerSel: id, styleTarget: "layer" }); return c.renderVals(); };
-  expect(v("a").boxModes.map((m: any) => m.label)).toEqual(["On", "Off"]);
-  for (const [id, on] of [["a", "On"], ["b", "Off"], ["c", "Off"]]) expect(v(id).boxModeLabel).toBe(on);
-  expect(v("e").boxModeLabel).toBe("From H1 · Off"); expect(v("e").boxTitle).toBe("Container");
-  expect(v("f").boxModeLabel).toBe("This layer · On •");
-  c.setState({ layerSel: "e", styleTarget: "style" }); expect(c.renderVals().boxTitle).toBe("H1 container");
-  v("c").boxModes[0].onClick(); expect(c.layersOf("s")[2].card).toBe("custom");
-  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
-  expect(html).toContain("{{ boxTitle }}");
-});
 
-test("Readability offers None / Whole slide", async () => {
-  const c = await styledDeck();
-  expect(c.renderVals().cardModes.map((m: any) => m.label)).toEqual(["None", "Whole slide"]);
-});
 
-test("London, Under the sea and Space are Canvas backdrops next to the others", async () => {
-  const { c } = await mount("?deck=fresh");
-  expect(c.renderVals().bgTiles.map((b: any) => b.label)).toEqual(["Balloons", "London", "Under the sea", "Space", "Forest", "Sky", "Ocean"]);
-  for (const [id, src, aspect] of [["london", "backdrops/london.png", 1], ["sea", "backdrops/under-the-sea.png", 0.4], ["space", "backdrops/space.png", 0.4], ["forest", "backdrops/forest.png", 0.4]] as const) {
-    c.setState({ bg: id }); expect(c.bgInfo()).toEqual({ src, aspect });
-    expect(await Bun.file(join(import.meta.dir, "design", src)).exists()).toBe(true);
-  }
-});
 
 // ---- inline links ----
 test("inline links: parsed into runs, broken targets flagged, followed in present mode, and set from the bar", async () => {
@@ -1365,7 +1307,7 @@ test("tree Focus mode on a deep slide renders (top-row connector only joins top-
 
 test("Bullets is a built-in style: dot bullets with roomy lines", async () => {
   const c = await styledDeck();
-  expect(c.styles().bullets).toMatchObject({ name: "Bullets", bullets: "disc", font: "grot" });
+  expect(c.styles().bullets).toMatchObject({ name: "Bullets", bullets: "disc", font: "body", color: "text" });
 });
 
 test("Size, Line height and Gap are number inputs; typed values override (or edit the style); invalid input is ignored", async () => {
@@ -1527,10 +1469,10 @@ test("right panel: Content, Theme, Slides and Builds tabs; Canvas content (spaci
   }
   c.setState({ rtab: "canvas" }); v = c.renderVals(); expect(v.tabContent).toBe(true); expect(v.tabTheme).toBe(false);
   c.setState({ rtab: "theme" }); v = c.renderVals();
-  expect(v.sec.spacing.open).toBe(true); v.sec.spacing.toggle(); expect(c.renderVals().sec.spacing.open).toBe(false);
+  expect(v.sec.canvas.open).toBe(true); v.sec.canvas.toggle(); expect(c.renderVals().sec.canvas.open).toBe(false);
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
   const theme = html.slice(html.indexOf('<sc-if value="{{ tabTheme }}">'));
-  expect(theme).toContain('onClick="{{ sec.spacing.toggle }}"'); expect(theme).toContain('value="{{ rowStep }}"'); expect(html).not.toContain("{{ tabCanvas }}");
+  expect(theme).toContain('onClick="{{ sec.canvas.toggle }}"'); expect(theme).toContain('value="{{ rowStep }}"'); expect(html).not.toContain("{{ tabCanvas }}");
 });
 
 test("present: Max/Fit sizing (button and F), Jump to lives in the header, header auto-hides and shows on hover or search", async () => {
@@ -1588,11 +1530,12 @@ test("present View menu: layout (Slides / Tree / Radial), breadcrumbs, max size;
   for (const h of ["{{ onViewMenu }}", "{{ viewItems }}", "{{ mapCards }}", "{{ mapEdges }}", "{{ onMapZoomIn }}", "{{ onCrumbMode }}", '<sc-if value="{{ crumbsOn }}">']) expect(html).toContain(h);
 });
 
-test("defaults: 30% row and column steps; H1 centred vertically; Body has a container on", async () => {
+test("defaults: 30% row and column steps; H1 centred vertically; built-in styles take theme tokens and have no container", async () => {
   const c = await treeDeck(); const v = c.renderVals();
   expect(v.rowStepLabel).toBe("30% of a slide"); expect(v.gapLabel).toBe("30% of a slide");
   const S = c.styles(); expect(S.h1.valign).toBe("middle");
-  expect(S.body).toMatchObject({ card: "custom", box: { bg: "#0b1220", bgOpacity: 0.6, blur: 3, border: 0, radius: 12, pad: 12 } });
+  expect(S.body).toMatchObject({ font: "body", color: "text" }); expect(S.body.card).toBeUndefined(); expect(S.body.box).toBeUndefined();
+  expect(S.h1).toMatchObject({ font: "head", color: "text" });
 });
 
 // ---- layouts by markdown block ----
@@ -2009,7 +1952,7 @@ test("src: an unknown &slide= stays on the first slide with a note", async () =>
 test("example: the Strata tour loads from the dev server; going down chains three files, each resolved against its own url", async () => {
   const got: string[] = [], S = "?src=/examples/strata-tour/strata-tour.md";
   const { c } = await mount(S, { href: "http://x/design/strata.dc.html" + S, fetch: u => { got.push(u); return handler(import.meta.dir)(new Request(new URL(u, "http://x/design/strata.dc.html"))) as any; } });
-  expect(c.state.saveMsg).toBeFalsy(); expect(c.state.bg).toBe("sky"); expect(c.state.titlePage).toBe(false); expect(c.state.cur).toBe("tour");
+  expect(c.state.saveMsg).toBeFalsy(); expect(c.state.theme.background).toBe("image:sky"); expect(c.state.titlePage).toBe(false); expect(c.state.cur).toBe("tour");
   expect(c.state.mdIssues.filter((i: any) => i.level === "error")).toEqual([]);
   await down(c, "stitching");
   expect(c.state.cur).toBe("stitching.another-file"); expect(c.state.nodes["stitching.another-file"]._from).toBe("http://x/examples/strata-tour/linked/children.md");
@@ -2020,11 +1963,11 @@ test("example: the Strata tour loads from the dev server; going down chains thre
 
 test("opening local files: a .md with its layout becomes the scratch deck; a lone layout file restyles it", async () => {
   const { c, listeners, store } = await mount("");
-  await c.openFiles([new File([TALK], "talk.md"), new File([JSON.stringify({ version: 2, deck: { bg: "space" } })], "talk-layout.json")]);
-  expect(c.state.nodes.ROOT.children).toEqual(["intro", "next"]); expect(c.state.bg).toBe("space");
+  await c.openFiles([new File([TALK], "talk.md"), new File([JSON.stringify({ version: 2, deck: { theme: { background: "image:space" } } })], "talk-layout.json")]);
+  expect(c.state.nodes.ROOT.children).toEqual(["intro", "next"]); expect(c.state.theme.background).toBe("image:space");
   c.componentDidUpdate(); expect(JSON.parse(store["strata-v8"]).md).toBe(TALK);
-  await c.openFiles([new File([JSON.stringify({ version: 2, deck: { bg: "forest" } })], "other-layout.json")]);
-  expect(c.state.md).toBe(TALK); expect(c.state.bg).toBe("forest");
+  await c.openFiles([new File([JSON.stringify({ version: 2, deck: { theme: { background: "image:forest" } } })], "other-layout.json")]);
+  expect(c.state.md).toBe(TALK); expect(c.state.theme.background).toBe("image:forest");
   await c.openFiles([new File(["x"], "pic.png")]); expect(c.state.note).toMatch(/\.md file/);
   let prevented = false;   // a file dropped anywhere opens too
   listeners.drop({ defaultPrevented: false, preventDefault: () => (prevented = true), dataTransfer: { files: [new File(["# Dropped\n"], "d.md")] } });
@@ -2032,18 +1975,6 @@ test("opening local files: a .md with its layout becomes the scratch deck; a lon
 });
 
 
-test("Basic theme: plain colours and gradients with no image; Fun brings the images back", async () => {
-  const { c } = await mount("?deck=fresh");
-  const theme = (id: string) => c.renderVals().themeBtns.find((b: any) => b.label === id);
-  expect(c.renderVals().themeFun).toBe(true);
-  theme("Basic").onClick();
-  expect(c.state.bg).toBe("none"); expect(c.renderVals().themeBasic).toBe(true); expect(c.bgInfo().src).toBeNull();
-  const grad = c.renderVals().baseSwatches.find((s: any) => s.value.includes("gradient"));
-  grad.onClick(); expect(c.renderVals().base).toBe(grad.value);
-  expect(c.renderVals().baseColor).toBe("#ffffff");   // a gradient isn't a picker value
-  c.renderVals().onBaseColor({ target: { value: "#123456" } }); expect(c.state.base).toBe("#123456");
-  theme("Fun").onClick(); expect(c.state.bg).toBe("balloons");
-});
 
 test("dark chrome: select shares the font/colour reset; every template input/select sets a background", async () => {
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
@@ -2051,4 +1982,101 @@ test("dark chrome: select shares the font/colour reset; every template input/sel
   const tpl = html.slice(0, html.indexOf("<script type=\"text/x-dc\"") > 0 ? html.indexOf("<script type=\"text/x-dc\"") : html.length);
   const bare = [...tpl.matchAll(/<(?:input|select)\b[^>]*>/g)].map(m => m[0]).filter(t => !/type="(checkbox|range|radio|file)"/.test(t) && !/background/.test(t));
   expect(bare).toEqual([]);
+});
+
+// ---- theme ----
+const { DEFAULT_THEME, PALETTES: TH_PALETTES } = await import("./theme");
+const titleOf = (c: any, id: string) => c.resolveLayer(layerOf(c, id, "md-title"), id);
+
+test("theme: a new deck starts on the default theme", async () => {
+  const { c } = await mount("?deck=fresh");
+  expect(c.state.theme).toEqual(DEFAULT_THEME);
+});
+
+test("theme: picking a palette restyles headings with no layer edit; fonts follow the font set", async () => {
+  await deckTalk(); const { c } = await mount("?deck=talk");
+  const stored = JSON.stringify(c.layersOf("t"));
+  expect(titleOf(c, "t").color).toBe("#F1F5F9"); expect(titleOf(c, "t").font).toBe("'Space Grotesk', sans-serif");
+  c.renderVals().palList.find((p: any) => p.id === "ember").pick();
+  expect(c.state.theme.palette).toBe("ember"); expect(titleOf(c, "t").color).toBe("#FFF7ED");
+  c.renderVals().fontList.find((f: any) => f.id === "elegant").pick();
+  expect(titleOf(c, "t").font).toBe("'Playfair Display', serif");
+  expect(JSON.stringify(c.layersOf("t"))).toBe(stored);
+});
+
+test("theme: round-trips through save and reload", async () => {
+  await deckTalk(); const { c } = await mount("?deck=talk");
+  const t = { background: "bubbles", scheme: { deep: "#010101", mid: "#020202", accent: "#030303" }, palette: "ember", fonts: "elegant", surface: "card", motion: { speedIdx: 4, count: 20, opacity: 50 } };
+  c.setTheme(t); await c.save();
+  expect((await onDisk()).deck.theme).toEqual(t);
+  const { c: c2 } = await mount("?deck=talk"); expect(c2.state.theme).toEqual(t);
+});
+
+test("theme: an image background uses the backdrop and its controls", async () => {
+  const { c } = await mount("?deck=fresh");
+  expect(c.bgInfo().src).toBeNull(); expect(c.renderVals().hasBgImage).toBe(false);
+  c.setTheme({ background: "image:london" });
+  expect(c.bgInfo()).toEqual({ src: "backdrops/london.png", aspect: 1 });
+  const v = c.renderVals(); expect(v.isImageBg).toBe(true); expect(v.hasBgImage).toBe(true);
+  v.kinds.find((k: any) => k.label === "Image").pick();
+  expect(c.renderVals().bgList.map((b: any) => b.name)).toEqual(["Balloons", "London", "Under the sea", "Space", "Forest", "Sky", "Ocean"]);
+  expect(c.renderVals().bgList.find((b: any) => b.name === "London").on).toBe(true);
+  for (const [id, src] of [["balloons", "backdrops/countryside-balloons.png"], ["sea", "backdrops/under-the-sea.png"], ["space", "backdrops/space.png"], ["forest", "backdrops/forest.png"]]) {
+    c.setTheme({ background: "image:" + id }); expect(c.bgInfo().src).toBe(src);
+    expect(await Bun.file(join(import.meta.dir, "design", src)).exists()).toBe(true);
+  }
+  c.setState({ customBg: "data:image/png;base64,AA", customAspect: 2 }); c.setTheme({ background: "image:custom" });
+  expect(c.bgInfo()).toEqual({ src: "data:image/png;base64,AA", aspect: 2 });
+});
+
+test("theme: token colours on shapes and icons resolve to the palette; hex stays", async () => {
+  await deckTalk(); const { c } = await mount("?deck=talk");
+  const p = TH_PALETTES.find(x => x.id === "midnight")!;
+  expect(c.resolveLayer({ id: "s", type: "shape", fill: "impact" }, "t").fill).toBe(p.impact);
+  expect(c.resolveLayer({ id: "i", type: "icon", fill: "primary" }, "t").fill).toBe(p.primary);
+  expect(c.resolveLayer({ id: "s", type: "shape", fill: "#123456" }, "t").fill).toBe("#123456");
+  expect(c.resolveLayer({ id: "x", type: "text", text: "a [b]{color=impact}", color: "#abcdef" }, "t")).toMatchObject({ color: "#abcdef", _lines: [[{ text: "a " }, { text: "b", color: p.impact }]] });
+});
+
+test("theme: a linked child's own deck.theme is ignored", async () => {
+  const files: Record<string, () => Response> = { "https://h/host.md": () => reply("# A\nslug: a\n<!-- children: ./team.md -->\n", "text/markdown"), "https://h/team.md": () => reply(TEAM, "text/markdown"),
+    "https://h/team-layout.json": () => reply(JSON.stringify({ version: 2, deck: { theme: { palette: "ember", fonts: "elegant" } }, slides: {} }), "application/json") };
+  const { c } = await mount("?src=https://h/host.md", { fetch: u => u.startsWith("https://") ? (files[u] ? files[u]() : reply("", "text/plain", 404)) : undefined });
+  await down(c, "a");
+  expect(c.state.cur).toBe("a.costs"); expect(c.state.theme).toEqual(DEFAULT_THEME);
+  expect(titleOf(c, "a.costs")).toMatchObject({ color: "#F1F5F9", font: "'Space Grotesk', sans-serif" });
+});
+
+test("theme: the Theme tab has Background, Colours, Theme, Typography, Surface and a collapsible Canvas section with the spacing controls", async () => {
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  const tab = html.slice(html.indexOf('<sc-if value="{{ tabTheme }}">'), html.indexOf('<sc-if value="{{ tabBuilds }}">'));
+  for (const h of ["{{ kinds }}", "{{ bgList }}", "{{ schemeOpts }}", "{{ customSlots }}", "{{ resetColours }}", "{{ palList }}", "{{ fontList }}", "{{ surfaces }}",
+    'onClick="{{ sec.canvas.toggle }}"', "{{ spacingBtns }}", 'value="{{ rowStep }}"', "{{ onSpeed }}", "{{ onTitlePage }}", ">Canvas<"]) expect(tab).toContain(h);
+  for (const gone of ["{{ themeBtns }}", "{{ baseSwatches }}", "{{ cardModes }}", "{{ toneBtns }}", "{{ boxModes }}"]) expect(html).not.toContain(gone);
+});
+
+test("theme: surface draws through Layers' whole-slide card; moving backgrounds animate at the chosen speed", async () => {
+  await deckTalk(); const { c } = await mount("?deck=talk");
+  expect(c.renderVals().surface).toBeNull();
+  c.setTheme({ surface: "frosted" }); expect(c.renderVals().surface).toEqual({ bg: "rgba(15,18,32,0.35)", blur: "blur(8px)" });
+  c.setTheme({ surface: "card" }); expect(c.renderVals().surface).toEqual({ bg: "rgba(15,18,32,0.85)", blur: "none" });
+  c.setTheme({ palette: "paper" }); expect(c.renderVals().surface).toEqual({ bg: "rgba(255,255,255,0.9)", blur: "none" });
+  c.setTheme({ background: "aurora" }); let v = c.renderVals();
+  expect(v.canvasBg.cls).toBe("anim"); expect(v.canvasBg.dur).toBe("16.0s"); expect(v.isMotion).toBe(true);
+  v.setSpeed({ target: { value: "7" } }); v = c.renderVals(); expect(v.canvasBg.dur).toBe("32.0s"); expect(c.state.theme.motion.speedIdx).toBe(7);
+  c.setTheme({ background: "bubbles" }); v = c.renderVals();
+  expect(c.state.theme.motion).toBeUndefined(); expect(v.fx.isBubbles).toBe(true); expect(v.fx.bubbles.length).toBe(18);
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  expect(html.match(/<dc-import name="Layers"[^>]*>/g)!.every(t => t.includes('surface="{{ surface }}"'))).toBe(true);
+});
+
+test("theme: the font set loads through its own <link>, updated when the set changes", async () => {
+  await deckTalk(); const { c } = await mount("?deck=talk");
+  const w = new Window({ settings: { disableCSSFileLoading: true } }); (globalThis as any).document = w.document;
+  try {
+    c.syncThemeFonts(); const link = w.document.getElementById("strata-theme-fonts")!;
+    expect(link.getAttribute("rel")).toBe("stylesheet"); expect(link.getAttribute("href")).toContain("Space+Grotesk");
+    c.setTheme({ fonts: "elegant" }); c.syncThemeFonts();
+    expect(w.document.querySelectorAll("#strata-theme-fonts").length).toBe(1); expect(link.getAttribute("href")).toContain("Playfair+Display");
+  } finally { delete (globalThis as any).document; }
 });

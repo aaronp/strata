@@ -112,11 +112,25 @@ export const IMAGE_BACKGROUNDS = ["balloons", "london", "sea", "space", "forest"
 
 export type Palette = (typeof PALETTES)[number];
 export type FontSet = (typeof FONTS)[number];
-export type Theme = { background: string; scheme: string | { deep: string; mid: string; accent: string }; palette: string; fonts: string; surface: "clear" | "frosted" | "card"; motion?: Record<string, number> };
+export type Theme = { background: string; scheme: string | { deep: string; mid: string; accent: string }; palette: string; fonts: string; surface: "clear" | "frosted" | "card"; motion?: Record<string, number | string> };
 export const DEFAULT_THEME: Theme = { background: "dusk", scheme: "original", palette: "midnight", fonts: "technical", surface: "clear" };
 
 const pick = <T extends { id: string }>(list: T[], id: unknown, fallback: string): T => list.find((x) => x.id === id) ?? list.find((x) => x.id === fallback)!;
 const isHex = (v: unknown): v is string => typeof v === "string" && /^#[0-9a-fA-F]{6}$/.test(v);
+
+// The (non-image) background a theme names, and its colours under the theme's scheme. choice: 'original' | a scheme id | 'custom'.
+// tone: light or dark by the colours' luminance (what the palette list and the motion tints follow).
+export function schemeOf(t0: Partial<Theme> | null = {}) {
+  const t: Partial<Theme> = t0 ?? {}, s = t.scheme;
+  const b = pick(BACKGROUNDS, t.background, DEFAULT_THEME.background);
+  const custom = s && typeof s === "object" && isHex(s.deep) && isHex(s.mid) && isHex(s.accent) ? s : undefined;
+  const named = typeof s === "string" ? SCHEMES.find((x) => x.id === s) : undefined;
+  const colours = custom ?? (named ? { deep: named.deep, mid: named.mid, accent: named.accent } : b.original);
+  const slots = (STYLES as any)[b.style].slots as [string, string][];
+  const lum = slots.some((x) => x[0] === "mid") ? (luminance(colours.deep) + luminance(colours.mid)) / 2 : luminance(colours.deep);
+  return { b, colours: { deep: colours.deep, mid: colours.mid, accent: colours.accent }, slots, choice: custom ? "custom" : named ? named.id : "original",
+    name: custom ? "Custom" : named ? named.name : "Original", pairs: custom ? null : named ? named.pairs : b.pairs, tone: (lum > 0.4 ? "light" : "dark") as "light" | "dark" };
+}
 
 export function resolveTheme(t0: Partial<Theme> | null = {}) {
   const t: Partial<Theme> = t0 ?? {};
@@ -126,10 +140,7 @@ export function resolveTheme(t0: Partial<Theme> | null = {}) {
   const tone = palette.tone as "light" | "dark";
   const id = typeof t.background === "string" ? t.background : "";
   if (id.startsWith("image:")) return { palette, fonts, surface, tone, bg: { css: "none", size: "cover", image: id.slice(6) } };
-  const b = pick(BACKGROUNDS, id, DEFAULT_THEME.background);
-  const s = t.scheme;
-  const sch = typeof s === "string" ? SCHEMES.find((x) => x.id === s) : s && isHex(s.deep) && isHex(s.mid) && isHex(s.accent) ? s : undefined;
-  const c = sch ? { deep: sch.deep, mid: sch.mid, accent: sch.accent } : b.original;
+  const { b, colours: c } = schemeOf(t);
   const built = (STYLES as any)[b.style].build(c, tone);
   return { palette, fonts, surface, tone, bg: { css: built.css as string, size: built.size as string, ...("effect" in b ? { motion: b.effect as string } : {}) } as { css: string; size: string; image?: string; motion?: string } };
 }
@@ -146,4 +157,95 @@ export const fontFor = (role: "head" | "body" | "mono", f: FontSet): string => f
 export function fontsHref(f: FontSet): string {
   const names = [...new Set([f.headName, f.bodyName, f.monoName])];
   return "https://fonts.googleapis.com/css2?" + names.map((n) => "family=" + n.replace(/ /g, "+") + ":wght@400;500;600;700").join("&") + "&display=swap";
+}
+
+// ---------- motion effects (ported from Main.dc.html) ----------
+// A moving background's settings when the theme has none (theme.motion holds the user's, for the current background).
+export const MOTION_DEFAULTS: Record<string, Record<string, number | string>> = {
+  aurora: { speedIdx: 9 }, lagoon: { speedIdx: 9 }, embers: { speedIdx: 9 }, pearl: { speedIdx: 9 },
+  bubbles: { speedIdx: 9, opacity: 60, count: 18 },
+  fizz: { speedIdx: 9, opacity: 70, count: 18 },
+  sunset: { speedIdx: 9, opacity: 90, sun: "show" },
+  gears: { speedIdx: 8, opacity: 35, count: 4, size: "medium" },
+};
+export const COUNT_CONTROLS: Record<string, { label: string; min: number; max: number; step: number }> = {
+  bubbles: { label: "Number of bubbles", min: 4, max: 60, step: 2 },
+  gears: { label: "Number of gears", min: 1, max: 8, step: 1 },
+};
+export const EXTRA_CONTROLS: Record<string, { label: string; options: { value: string; label: string }[] }> = {
+  sun: { label: "Sun", options: [{ value: "show", label: "Show" }, { value: "hide", label: "Hide" }] },
+  size: { label: "Gear size", options: [{ value: "small", label: "Small" }, { value: "medium", label: "Medium" }, { value: "large", label: "Large" }] },
+};
+const GEAR_SCALE: Record<string, number> = { small: 0.65, medium: 1, large: 1.4 };
+const GEAR_DEPTH = 14;
+// Gear chains anchored to canvas corners. Each gear after the first meshes with the one before it, at `angle` degrees.
+const GEAR_CHAINS: Record<string, { left: string; top: string; gears: { R: number; teeth: number; angle?: number }[] }> = {
+  bl: { left: "5%", top: "76%", gears: [{ R: 150, teeth: 18 }, { R: 96, teeth: 12, angle: -28 }, { R: 60, teeth: 7, angle: 12 }] },
+  tr: { left: "90%", top: "14%", gears: [{ R: 120, teeth: 14 }, { R: 60, teeth: 7, angle: 136 }] },
+  br: { left: "95%", top: "94%", gears: [{ R: 110, teeth: 13 }, { R: 72, teeth: 9, angle: 200 }] },
+  tl: { left: "3%", top: "5%", gears: [{ R: 84, teeth: 10 }] },
+};
+// The order gears are added as the count goes up: [chain, how many gears of that chain are then shown].
+const GEAR_ORDER: [string, number][] = [["bl", 1], ["tr", 1], ["bl", 2], ["tr", 2], ["br", 1], ["bl", 3], ["br", 2], ["tl", 1]];
+
+function seededRandom(seed: number) {
+  let s = seed >>> 0;
+  return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+}
+function makeBubbles(count: number, baseSeconds: number, factor: number, seed: number) {
+  const rnd = seededRandom(seed);
+  return Array.from({ length: count }, () => {
+    const size = 8 + rnd() * 28, left = rnd() * 96, dur = baseSeconds * (0.7 + rnd() * 0.6) * factor, delay = -(rnd() * dur);
+    return { left: left.toFixed(1) + "%", size: size.toFixed(1) + "px", dur: dur.toFixed(2) + "s", delay: delay.toFixed(2) + "s" };
+  });
+}
+function gearPath(teeth: number, R: number, depth: number, hole: number) {
+  const r = R - depth, a = (Math.PI * 2) / teeth, pts: string[] = [];
+  const pt = (rad: number, ang: number) => (rad * Math.cos(ang)).toFixed(2) + " " + (rad * Math.sin(ang)).toFixed(2);
+  for (let i = 0; i < teeth; i++) pts.push(pt(r, i * a), pt(R, (i + 0.15) * a), pt(R, (i + 0.45) * a), pt(r, (i + 0.6) * a));
+  const h = hole.toFixed(2);
+  return "M" + pts.join(" L") + " Z M" + h + " 0 A" + h + " " + h + " 0 1 0 -" + h + " 0 A" + h + " " + h + " 0 1 0 " + h + " 0 Z";
+}
+export const GEAR_SWATCH_PATH = gearPath(10, 46, 12, 13);
+function layoutGears(count: number, baseSeconds: number, factor: number) {
+  const shown: Record<string, number> = {};
+  GEAR_ORDER.slice(0, count).forEach(([k, n]) => { shown[k] = n; });
+  return Object.keys(shown).map((key) => {
+    const chain = GEAR_CHAINS[key]; let x = 0, y = 0;
+    const gears = chain.gears.slice(0, shown[key]).map((g, i, list) => {
+      if (i > 0) { const prev = list[i - 1], dist = prev.R + g.R - GEAR_DEPTH, rad = ((g.angle || 0) * Math.PI) / 180; x += dist * Math.cos(rad); y += dist * Math.sin(rad); }
+      return { cls: i % 2 === 0 ? "spin" : "spinr", w: g.R * 2, vb: -g.R + " " + -g.R + " " + g.R * 2 + " " + g.R * 2,
+        x: (x - g.R).toFixed(1) + "px", y: (y - g.R).toFixed(1) + "px", phase: i === 0 ? 0 : 180 / g.teeth,
+        dur: (baseSeconds * factor * (g.teeth / 18)).toFixed(1) + "s", d: gearPath(g.teeth, g.R, GEAR_DEPTH, g.R * 0.28) };
+    });
+    return { left: chain.left, top: chain.top, gears };
+  });
+}
+
+// The motion settings of a theme's background (defaults under the theme's own), or null for a still one. Bad values fall back.
+export function motionOf(t0: Partial<Theme> | null = {}) {
+  const t: Partial<Theme> = t0 ?? {}, id = schemeOf(t).b.id;
+  if (typeof t.background !== "string" || t.background !== id || !(id in MOTION)) return null;
+  const m: Record<string, any> = { ...MOTION_DEFAULTS[id], ...(t.motion && typeof t.motion === "object" ? t.motion : {}) };
+  if (!(SPEEDS[m.speedIdx] > 0)) m.speedIdx = MOTION_DEFAULTS[id].speedIdx;
+  return m;
+}
+const clampN = (v: unknown, lo: number, hi: number, d: number) => (typeof v === "number" && v >= lo && v <= hi ? v : d);
+
+// What the canvas draws for a theme's moving background: the background-position animation (cls, dur) and the bubbles/sunset/gears overlays.
+export function effectView(t0: Partial<Theme> | null = {}) {
+  const t: Partial<Theme> = t0 ?? {}, m = motionOf(t);
+  const view = { cls: "", dur: "0s", isBubbles: false, isSunset: false, isGears: false, sunOn: false, opacity: 1, horizon: "transparent",
+    bubbles: [] as ReturnType<typeof makeBubbles>, gearGroups: [] as ReturnType<typeof layoutGears>, gearScale: 1, gearFill: "transparent", gearStroke: "transparent",
+    tintEdge: "transparent", tintHi: "transparent", tintLo: "transparent" };
+  if (!m) return view;
+  const sc = schemeOf(t), b = sc.b as any, c = sc.colours, spec = (MOTION as any)[b.id], factor = 1 / SPEEDS[m.speedIdx];
+  Object.assign(view, { dur: (spec.base * factor).toFixed(1) + "s", opacity: spec.controls.includes("opacity") ? clampN(m.opacity, 0, 100, 100) / 100 : 1 });
+  if (b.effect === "flow") view.cls = "anim";
+  if (b.effect === "sunset") Object.assign(view, { cls: "sky", isSunset: true, sunOn: m.sun !== "hide", horizon: hexA(c.deep, 0.9) });
+  if (b.effect === "bubbles") Object.assign(view, { isBubbles: true, bubbles: makeBubbles(clampN(m.count, 0, 60, 18), spec.base, factor, 7),
+    tintEdge: sc.tone === "dark" ? "rgba(255,255,255,0.5)" : hexA(c.accent, 0.5), tintHi: sc.tone === "dark" ? "rgba(255,255,255,0.35)" : "rgba(255,255,255,0.9)", tintLo: hexA(c.accent, 0.08) });
+  if (b.effect === "gears") Object.assign(view, { isGears: true, gearScale: GEAR_SCALE[m.size] ?? 1, gearGroups: layoutGears(clampN(m.count, 0, 8, 4), spec.base, factor),
+    gearFill: hexA(c.accent, 0.07), gearStroke: hexA(c.accent, 0.8) });
+  return view;
 }

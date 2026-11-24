@@ -154,6 +154,6 @@ export function sanitizeLayout(file: unknown): Obj | null {
 // The app's remembered UI state (localStorage strata-ui): only the keys the app writes, each of its type.
 const flags = (v: unknown) => mapObj(v, (_k, x) => bool(x));
 export const sanitizeUi = allow({
-  navW: num, rightW: num, treeZoom: num, crumbFade: num, secOpen: flags, collapsed: flags, presentFit: oneOf(["fit", "max"]), showCrumbs: bool, treeFocus: bool,
+  navW: num, rightW: num, treeZoom: num, crumbFade: num, secOpen: flags, collapsed: flags, presentFit: oneOf(["fit", "max"]), showCrumbs: (v: unknown) => (v === "fade" || typeof v === "boolean" ? v : undefined), treeFocus: bool,
   view: oneOf(["slide", "wire"]), rtab: oneOf(["content", "theme", "slides", "builds"]), ttab: word, applyTo: oneOf(["slide", "layout"]),
 });

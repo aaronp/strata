@@ -100,4 +100,6 @@ test("allow-lists: unknown deck, slide, layer, template and slot keys are droppe
 test("sanitizeUi keeps only the UI keys the app writes, each of its type", () => {
   expect(sanitizeUi({ navW: 300, rightW: "1;x", rtab: "theme", view: "x;y", secOpen: { a: true, b: "x" }, presentFit: "max", evil: "top:0" }))
     .toEqual({ navW: 300, rtab: "theme", secOpen: { a: true }, presentFit: "max" });
+  for (const v of ["fade", true, false]) expect(sanitizeUi({ showCrumbs: v })).toEqual({ showCrumbs: v });   // breadcrumbs: on, off or fade
+  expect(sanitizeUi({ showCrumbs: "x;top:0" })).toEqual({});
 });

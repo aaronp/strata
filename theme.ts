@@ -150,6 +150,7 @@ const TOKENS = ["primary", "secondary", "tertiary", "impact", "text", "muted", "
 export function tokenColor(v: string | null | undefined, p: Palette): string | null {
   if (v == null) return null;
   if (v === "surface") return p.tone === "dark" ? "#FFFFFF" : "#000000";
+  if (v === "tertiaryInk") return p.tone === "light" ? p.muted : p.tertiary;   // tertiary as text: too faint on light palettes, so muted there
   return TOKENS.includes(v) && Object.hasOwn(p, v) ? (p as any)[v] : v;
 }
 

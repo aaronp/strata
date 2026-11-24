@@ -118,3 +118,7 @@ test("boxes: token colours and borderOpacity are kept on layers and template slo
   expect(out.deck.layouts.t.slots.body[0].box).toEqual(box);
   const { borderOpacity: _o, ...rest } = box; expect(out.slides.s.layers[0].box).toEqual(rest);
 });
+
+test("the unsaved template-key list (_tpl) never comes through a layout file", () => {
+  expect(sanitizeLayout({ version: 2, slides: { s: { layers: [{ id: "a", type: "text", _tpl: ["color"], color: "muted" }] } } })!.slides.s.layers).toEqual([{ id: "a", type: "text", color: "muted" }]);
+});

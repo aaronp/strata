@@ -2706,7 +2706,7 @@ test("t-cards: three bodies on theme-token cards, numbered 01–03 in primary/se
   for (const b of bs) { expect(b).toMatchObject({ card: "custom", box: { bg: "surface", bgOpacity: 0.07 } });
     expect(c.resolveLayer(b, "t").box).toMatchObject({ bg: "#FFFFFF", bgOpacity: 0.07 }); }
   const nums = ["gen-num-1", "gen-num-2", "gen-num-3"].map(k => layerOf(c, "t", k));
-  expect(nums.map((l: any) => [l.text, l.color, l.font])).toEqual([["01", "primary", "mono"], ["02", "secondary", "mono"], ["03", "tertiary", "mono"]]);
+  expect(nums.map((l: any) => [l.text, l.color, l.font])).toEqual([["01", "primary", "mono"], ["02", "secondary", "mono"], ["03", "tertiaryInk", "mono"]]);
   expect(nums.map((l: any) => c.resolveLayer(l, "t").color)).toEqual(["#93C5FD", "#C4B5FD", "#5EEAD4"]);
   for (let i = 0; i < 3; i++) expect(nums[i].y + nums[i].h).toBeLessThanOrEqual(bs[i].y);   // above its card
   const v = c.renderVals(); expect(v.overlays.some((o: any) => o.lid.startsWith("gen-num"))).toBe(false);
@@ -2737,7 +2737,7 @@ test("t-split draws a list panel behind the list (tone-aware, mirrored with the 
   expect(c.layersOf("s").indexOf(panel())).toBeLessThan(c.layersOf("s").indexOf(list));   // behind
   expect(panel().x).toBeLessThanOrEqual(list.x); expect(panel().x + panel().w).toBeGreaterThanOrEqual(list.x + list.w);
   expect(c.resolveLayer(panel(), "s").fill).toBe("rgba(10,12,30,0.35)");
-  c.setTheme({ palette: "paper" }); expect(c.resolveLayer(panel(), "s").fill).toBe("rgba(0,0,0,0.05)");
+  c.setTheme({ palette: "paper" }); expect(c.resolveLayer(panel(), "s").fill).toBe("rgba(0,0,0,0.12)");   // M3: visible on light backgrounds
   c.setTemplateOpt("s", { side: "right" }); c.componentDidUpdate(); expect(panel().x + panel().w).toBe(100);
   c.applyLayout("t", "t-title"); expect(layerOf(c, "t", "gen-rule")).toMatchObject({ token: "primary" });
   c.applyLayout("u", "t-title-sub"); expect(layerOf(c, "u", "gen-rule")).toBeTruthy(); expect(layerOf(c, "u", "md-body-1").color).toBe("muted");
@@ -2764,4 +2764,85 @@ test("Save as layout keeps the template's region styling as its own slot extras,
   const lid = c.saveAsLayout("t"); c.componentDidUpdate();
   expect(c.state.layouts[lid].slots.body[0]).toMatchObject({ card: "custom", box: { bg: "surface" } });
   c.applyLayout("t", "stacked-3"); expect(bodiesOf(c, "t")[0].box).toBeUndefined();
+});
+
+// ---- template props: who owns a key (_tpl), named styles, builds, light tones ----
+test("a named style beats a template's region props; a layer's own value beats both (I1)", async () => {
+  await writeMd("talk", "# U\nslug: u\n\nSub.\n\n" + THREE.replace("# T", "# T")); const { c } = await mount("?deck=talk");
+  c.setStyle("body", { color: "#ff0000" }); c.applyLayout("u", "t-title-sub");
+  expect(c.resolveLayer(layerOf(c, "u", "md-body-1"), "u").color).toBe("#ff0000");
+  c.setStyle("body", { card: "custom", box: { bg: "#ff0000", bgOpacity: 0.5 } }); c.applyLayout("t", "t-cards");
+  expect(c.resolveLayer(layerOf(c, "t", "md-body-1"), "t").box).toMatchObject({ bg: "#ff0000", bgOpacity: 0.5 });
+  c.setStyle("body", { card: undefined, box: undefined, color: undefined });
+  expect(c.resolveLayer(layerOf(c, "t", "md-body-1"), "t").box).toMatchObject({ bg: "#FFFFFF", bgOpacity: 0.07 });   // back to the template's
+});
+
+test("the template's keys are recorded in an unsaved _tpl; a switch removes only those; a user edit makes a key the user's (I3)", async () => {
+  await writeMd("talk", "# U\nslug: u\n\nSub.\n\n" + THREE); const { c } = await mount("?deck=talk");
+  c.applyLayout("u", "t-title-sub"); expect(layerOf(c, "u", "md-body-1")._tpl).toEqual(["color"]);
+  c.updLayer("u", "md-body-1", { color: "muted" }); c.componentDidUpdate(); expect(layerOf(c, "u", "md-body-1")._tpl).toBeUndefined();
+  c.applyLayout("u", "stacked-1"); expect(layerOf(c, "u", "md-body-1").color).toBe("muted");   // picked by the user, though equal to the template's
+  const mine = { bg: "#112233", bgOpacity: 0.5, blur: 0, border: 0, borderColor: "#ffffff", radius: 4, pad: 8 };
+  c.applyLayout("t", "stacked-3"); c.updLayer("t", "md-body-1", { card: "custom", box: mine }); c.componentDidUpdate();
+  c.applyLayout("t", "t-cards"); expect(layerOf(c, "t", "md-body-1")).toMatchObject({ card: "custom", box: mine });
+  c.applyLayout("t", "stacked-3"); expect(layerOf(c, "t", "md-body-1")).toMatchObject({ card: "custom", box: mine });
+  c.applyLayout("t", "t-cards"); c.updLayer("t", "md-body-2", { box: { ...layerOf(c, "t", "md-body-2").box, bgOpacity: 0.2 } }); c.componentDidUpdate();
+  expect(layerOf(c, "t", "md-body-2")._tpl).toEqual(["card"]);
+  const json = JSON.stringify(c.constructor.md.layoutOf(c.state.nodes, c.state)); expect(json).not.toContain("_tpl");
+  expect(json).toContain('"bgOpacity":0.2');
+  c.reenrich(); expect(layerOf(c, "t", "md-body-2")).toMatchObject({ card: "custom", box: { bgOpacity: 0.2 }, _tpl: ["card"] });
+  c.applyLayout("t", "stacked-3"); expect(layerOf(c, "t", "md-body-2").card).toBeUndefined(); expect(layerOf(c, "t", "md-body-2").box).toMatchObject({ bgOpacity: 0.2 });
+});
+
+test("New style from a templated layer leaves the template's card out of the style (I2); choosing a style keeps template props alike in session and on reload (M1)", async () => {
+  await writeMd("talk", THREE + "\n# U\nslug: u\n\nSolo.\n"); const { c } = await mount("?deck=talk");
+  c.applyLayout("t", "t-cards"); const sid = c.newStyleFrom("t", "md-body-1"); c.componentDidUpdate();
+  expect(c.styles()[sid].card).toBeUndefined(); expect(c.styles()[sid].box).toBeUndefined();
+  expect(layerOf(c, "t", "md-body-1")).toMatchObject({ style: sid, card: "custom" });
+  c.applyLayout("t", "stacked-3"); expect(c.resolveLayer(layerOf(c, "t", "md-body-1"), "t").card).toBeUndefined();
+  c.applyLayout("t", "t-cards"); c.chooseStyle("t", "md-body-2", "body"); c.componentDidUpdate();
+  const was = layerOf(c, "t", "md-body-2").card; c.reenrich(); expect(layerOf(c, "t", "md-body-2").card).toBe(was); expect(was).toBe("custom");
+});
+
+test("a bullet marker follows a user-chosen text colour unless markColor is set (M4)", async () => {
+  await writeMd("talk", "# T\nslug: t\n\nOne.\n"); const { c } = await mount("?deck=talk"); c.setTheme({ palette: "midnight" });
+  const li = { id: "x", type: "text", text: "a", style: "bullets", x: 0, y: 0, w: 10, h: 10 }, res = (l: any) => c.resolveLayer(l, "t");
+  expect(res(li).markColor).toBe("#93C5FD");
+  expect(res({ ...li, color: "#ff0000" }).markColor).toBeUndefined();
+  expect(res({ ...li, color: "#ff0000", markColor: "secondary" }).markColor).toBe("#C4B5FD");
+  c.setStyle("bullets", { color: "#00ff00" }); expect(res(li).markColor).toBeUndefined();
+});
+
+test("card numbers and column accents take the step of the region they decorate (M2), and follow its box (M5)", async () => {
+  await writeMd("talk", THREE); const { c } = await mount("?deck=talk"); c.applyLayout("t", "t-cards");
+  c.setNode("t", { steps: { "md-body-2": 1 }, trans: { 1: "fade" } }); c.setState({ mode: "present", cur: "t", at: 0 });
+  const op = (id: string) => { const l = c.renderVals().stageLayers.find((x: any) => x.id === id); return l.build.opacity; };
+  expect([op("md-body-2"), op("gen-num-2"), op("gen-num-1")]).toEqual([0, 0, 1]);
+  c.setState({ at: 1 }); expect(op("gen-num-2")).toBe(1);
+  c.setState({ mode: "build" }); c.updLayer("t", "md-body-2", { x: 40, y: 35 }); c.componentDidUpdate();
+  const n2 = c.resolveLayer(layerOf(c, "t", "gen-num-2"), "t"); expect([n2.x, n2.y]).toEqual([40, 35 - 4.4]);
+  c.updLayer("t", "md-body-2", { hidden: true }); expect(c.resolveLayer(layerOf(c, "t", "gen-num-2"), "t").hidden).toBe(true);
+  await writeMd("t2", "# T\nslug: t\n\nOne.\n\nTwo.\n", { version: 2, deck: { layouts: { "t-two": { name: "Two columns", opts: ["bar"], match: { title: 1, body: 2 },
+    slots: { title: [{ x: 5, y: 6, w: 90, h: 12 }], body: [{ x: 5, y: 40, w: 40, h: 50 }, { x: 55, y: 40, w: 40, h: 50 }] } } } }, slides: { t: { layout: "t-two" } } });
+  const m = (await mount("?deck=t2")).c; expect(m.state.nodes.t.layout).toBe("t-two");
+  const a2 = m.resolveLayer(layerOf(m, "t", "gen-accent-2"), "t"); expect([a2.x, a2.y, a2.w]).toEqual([56, 40, 38]);   // the deck's own slots
+});
+
+// WCAG contrast of a colour (optionally translucent over the background) against the background.
+const lum = (rgb: number[]) => { const l = rgb.map(v => { const s = v / 255; return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4); }); return 0.2126 * l[0] + 0.7152 * l[1] + 0.0722 * l[2]; };
+const rgbOf = (c: string): number[] => { const m = /^#([0-9a-f]{6})/i.exec(c); if (m) { const n = parseInt(m[1], 16); return [n >> 16 & 255, n >> 8 & 255, n & 255, 1]; }
+  const r = /rgba?\(([^)]+)\)/.exec(c)!; const p = r[1].split(",").map(Number); return [p[0], p[1], p[2], p[3] ?? 1]; };
+const over = (fg: number[], a: number, bg: number[]) => fg.slice(0, 3).map((v, i) => v * a + bg[i] * (1 - a));
+const ratio = (a: number[], b: number[]) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+test("light palettes: card fill, frame border and list panel are visible (≥1.3:1) and card numbers readable (≥3:1) on their paired backgrounds (M3)", async () => {
+  await writeMd("talk", "# S\nslug: s\n\n- a\n- b\n\nA.\n\nB.\n\n" + THREE + "\n# W\nslug: w\n\nOne.\n\nTwo.\n"); const { c } = await mount("?deck=talk");
+  c.applyLayout("t", "t-cards"); c.applyLayout("w", "t-two"); expect(c.state.nodes.s.layout).toBe("t-split");
+  for (const [palette, bgs] of [["paper", ["dots", "pinstripe"]], ["coastal", ["mist", "pearl", "fizz"]]] as const) for (const background of bgs) {
+    c.setTheme({ palette, background }); const bg = rgbOf(c.theme().bg.deep!), r = (n: string, id: string) => c.resolveLayer(layerOf(c, n, id), n), why = palette + "/" + background;
+    const card = r("t", "md-body-1").box; if (ratio(over(rgbOf(card.bg), card.bgOpacity, bg), bg) < 1.3) throw new Error(why);
+    expect(ratio(over(rgbOf(card.bg), card.bgOpacity, bg), bg)).toBeGreaterThanOrEqual(1.3);
+    const fr = r("w", "md-body-1").box, fa = fr.borderOpacity; expect(fa).toBeGreaterThanOrEqual(0.3); expect(ratio(over(rgbOf(fr.borderColor), fa, bg), bg)).toBeGreaterThanOrEqual(1.3);
+    const p = rgbOf(r("s", "gen-panel").fill); expect(ratio(over(p, p[3], bg), bg)).toBeGreaterThanOrEqual(1.3);
+    for (const k of [1, 2, 3]) expect(ratio(rgbOf(r("t", "gen-num-" + k).color), bg)).toBeGreaterThanOrEqual(3);
+  }
 });

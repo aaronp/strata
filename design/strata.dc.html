@@ -1163,6 +1163,7 @@ const BODY_Y = [24, 90];
 const CARD = { card: 'custom', box: { bg: 'surface', bgOpacity: 0.07, blur: 0, border: 0, borderColor: 'surface', radius: 16, pad: 38 } };
 const FRAME = { card: 'custom', box: { bg: 'surface', bgOpacity: 0, blur: 0, border: 2.4, borderColor: 'surface', borderOpacity: 0.22, radius: 16, pad: 42 } };
 const look = (bs, ex) => bs.map(b => ({ ...b, ...ex }));
+const LIGHT_SURFACE = 1.75;   // surface alphas on light tones: card 0.07 → 0.12, frame border 0.22 → 0.39
 const stackOf = (n, [y0, y1] = BODY_Y) => { const h = (y1 - y0 - 2 * (n - 1)) / n; return Array.from({ length: n }, (_, i) => B(6, +(y0 + i * (h + 2)).toFixed(2), 88, +h.toFixed(2))); };
 const BUILTIN_LAYOUTS = {
   'stacked-1': { name: 'Stacked', match: { title: 1, body: 1 }, slots: { title: HEAD, body: stackOf(1) } },
@@ -1196,17 +1197,21 @@ const BUILTIN_LAYOUTS = {
   't-shapes': { name: 'Shapes / Venn', icon: 'venn', match: { title: 1 }, slots: { title: [B(5, 7.1, 90, 7.3)] } },
 };
 // A template's decorations, by layout id: generated (gen-*) layers drawn behind its regions. By id, so a deck's updated copy of a built-in keeps them,
-// and kept out of layout files. Numbers over the cards, accent bars on the columns' top edges, the list panel, the title's rule.
-const accent = (b, token) => ({ type: 'shape', kind: 'rect', token, fillOpacity: 100, x: b.x + 1, y: b.y, w: b.w - 2, h: 0.5 });
-const num = (b, i, color) => ({ type: 'text', text: String(i).padStart(2, '0'), x: b.x, y: 24.6, w: b.w, h: 3.6, font: 'mono', size: 26, weight: 500, lh: 1, color, align: 'left', valign: 'top', bullets: 'none' });
-const rule = y => ({ type: 'shape', kind: 'rect', token: 'primary', fillOpacity: 100, x: 8, y, w: 10, h: 0.8 });
-const accents = bs => ({ 'accent-1': accent(bs[0], 'primary'), 'accent-2': accent(bs[1], 'secondary') });
+// and kept out of layout files. on: [region key, index] ties one to the layer filling that region: it is placed relative to that layer's box (rel; w is the
+// box's width + dw unless fixed) wherever the layer is, and takes its build step and hidden flag. Numbers over the cards, accent bars on the columns' top
+// edges, the title's rule; the list panel is fixed (mirrored with the list). tertiaryInk: tertiary, or muted on light palettes (tertiary is too faint for text there).
+const accents = () => ({ 'accent-1': { type: 'shape', kind: 'rect', token: 'primary', fillOpacity: 100, on: ['body', 0], rel: { dx: 1, dy: 0, dw: -2, h: 0.5 } },
+  'accent-2': { type: 'shape', kind: 'rect', token: 'secondary', fillOpacity: 100, on: ['body', 1], rel: { dx: 1, dy: 0, dw: -2, h: 0.5 } } });
+const num = (i, color) => ({ type: 'text', text: String(i + 1).padStart(2, '0'), font: 'mono', size: 26, weight: 500, lh: 1, color, align: 'left', valign: 'top', bullets: 'none',
+  on: ['body', i], rel: { dx: 0, dy: -4.4, dw: 0, h: 3.6 } });
+const rule = dy => ({ rule: { type: 'shape', kind: 'rect', token: 'primary', fillOpacity: 100, on: ['title', 0], rel: { dx: 0, dy, w: 10, h: 0.8 } } });
 const DECO = {
-  't-title': { rule: rule(58.3) }, 't-title-sub': { rule: rule(52.4) },
+  't-title': rule(14.6), 't-title-sub': rule(15.2),
   't-split': { panel: { type: 'shape', kind: 'rect', fill: 'panel', x: 0, y: 23.1, w: 34, h: 76.9 } },
-  't-two': accents(BUILTIN_LAYOUTS['t-two'].slots.body), 'cols-2': accents(BUILTIN_LAYOUTS['cols-2'].slots.body),
-  't-cards': Object.fromEntries(BUILTIN_LAYOUTS['t-cards'].slots.body.map((b, i) => ['num-' + (i + 1), num(b, i + 1, ['primary', 'secondary', 'tertiary'][i])])),
+  't-two': accents(), 'cols-2': accents(),
+  't-cards': { 'num-1': num(0, 'primary'), 'num-2': num(1, 'secondary'), 'num-3': num(2, 'tertiaryInk') },
 };
+const relBox = (b, r) => ({ x: +(b.x + r.dx).toFixed(2), y: +(b.y + r.dy).toFixed(2), w: r.w ?? +(b.w + r.dw).toFixed(2), h: r.h });
 const SOURCES_BOX = B(6, 89, 88, 5);
 // What a template's regions need beyond the slide's own section (md, heading on `line`): bodies, a list, one detail per bullet, a subtitle. Images and links get none.
 const sectionAt = (md, line) => { const flat = [], walk = ss => ss.forEach(s => { flat.push(s); walk(s.children); }); walk(MD.parseMarkdown(md).sections); return flat.find(s => s.line === line); };
@@ -1280,19 +1285,26 @@ const slotsOf = layers => { const out = {}, g = groupsOf(layers);
   return out; };
 // The props a layout puts on each layer beyond its box (kind 'detail', a slot's colour, font or card), by layer id: { key: value }.
 const tplProps = (layers, L) => { const b = L ? fillSlots(layers, L) : {}, out = {}; for (const id in b) { const { x: _x, y: _y, w: _w, h: _h, rot: _r, ...more } = b[id]; out[id] = more; } return out; };
-// A layer less the template props it still has as the template set them (a value the user changed is theirs and stays).
+// _tpl (never saved): the keys the layer's template set on it. A user edit to one (updLayer) takes it off the list: the value is then the user's.
 const sameVal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-const stripTpl = (l, tp) => { const o = { ...l }, t = tp[l.id] || {}; for (const k in t) if (sameVal(o[k], t[k])) delete o[k]; return o; };
-// A slot onto a layer: its box always; its other props only where the layer has none of its own, so user-set values win.
+const stripTpl = l => { if (!l._tpl) return l; const o = { ...l }; for (const k of l._tpl) delete o[k]; delete o._tpl; return o; };
+// A slot onto a layer: its box always; its other props only where the layer has none of its own (user-set values win), recorded in _tpl.
+// A named style that sets one of them wins too, at display time (styledLayer).
 const GEO = ['x', 'y', 'w', 'h', 'rot'];
-const onSlot = (l, b) => { const o = { ...l }; for (const k in b) if (GEO.includes(k) || !(k in l)) o[k] = b[k]; return o; };
+const onSlot = (l, b) => { const o = { ...l }, set = []; for (const k in b) { if (GEO.includes(k)) o[k] = b[k]; else if (!(k in l)) { o[k] = b[k]; set.push(k); } }
+  if (set.length) o._tpl = set; return o; };
+// Does a named style set this key itself (a built-in's own default doesn't count: the template's region look goes over it)?
+const styleSets = (sid, st, k) => !!st && st[k] !== undefined && !(BUILTIN_STYLES[sid] && sameVal(st[k], BUILTIN_STYLES[sid][k]));
 // Generated layers (gen-*): drawn by a template at enrich time, never saved, never counted. The section number: the slide's 1-based place among its siblings.
 // A template with the 'bar' option draws its title bar from the slide's barStyle: band (default), rule (an underline) or none. 13cqw deep, as in Templates.dc.html.
 const isGen = l => String(l.id).startsWith('gen-');
 const BAR_STYLES = { band: { y: 0, h: 23.1, fill: 'scrim' }, rule: { y: 22.6, h: 0.5, token: 'primary', fillOpacity: 100 } };
-const genLayers = (L, idx, n = {}) => {
-  const bar = L && (L.opts || []).includes('bar') && BAR_STYLES[n.barStyle || 'band'], flip = !!(L && n.side === 'right' && (L.opts || []).includes('side'));
-  const deco = Object.entries((L && DECO[L.id]) || {}).map(([k, d]) => ({ id: 'gen-' + k, rot: 0, opacity: 1, ...d, ...(flip ? { x: +(100 - d.x - d.w).toFixed(2) } : {}) }));
+// layers: the slide's placed layers (what region-tied decorations attach to); a decoration whose region is empty is left out.
+const genLayers = (L, idx, n = {}, layers = []) => {
+  const bar = L && (L.opts || []).includes('bar') && BAR_STYLES[n.barStyle || 'band'], flip = !!(L && n.side === 'right' && (L.opts || []).includes('side')), g = groupsOf(layers.filter(l => !isGen(l)));
+  const deco = Object.entries((L && DECO[L.id]) || {}).map(([k, d0]) => { const { on, ...d } = d0, base = { id: 'gen-' + k, rot: 0, opacity: 1, ...d };
+    if (!on) return { ...base, ...(flip ? { x: +(100 - d.x - d.w).toFixed(2) } : {}) };
+    const t = ((regionsOf(g[on[0]] || [])[on[1]]) || [])[0]; return t ? { ...base, of: t.id, ...relBox(t, d.rel) } : null; }).filter(Boolean);
   return [...deco, ...(bar ? [{ id: 'gen-bar', type: 'shape', kind: 'rect', x: 0, w: 100, rot: 0, opacity: 1, ...bar }] : []),
     ...(L && L.number ? [{ id: 'gen-number', type: 'text', text: String(idx + 1).padStart(2, '0'), ...L.number, opacity: 1,
       font: 'head', size: 144, weight: 700, lh: 0.9, color: 'impact', align: 'left', valign: 'bottom', bullets: 'none' }] : [])]; };
@@ -1358,10 +1370,10 @@ function enrich(sections, layouts, opts = {}) {
       const have = new Set(ls.map(l => l.id));
       const own = ls.filter(l => !isMd(l) || byId.has(l.id)).map(l => isMd(l) ? mergeContent(l, byId.get(l.id)) : l).concat(gen.filter(g => !have.has(g.id)).map(g => ({ ...g, _warn: true })));
       const OL = byLid(ov.layout), tp = tplProps(own, OL);   // the template's props aren't saved (layoutOf): they go back on here
-      const layers = [...genLayers(OL, idx, ov), ...own.map(l => tp[l.id] ? onSlot(l, tp[l.id]) : l)];
+      const placed = own.map(l => tp[l.id] ? onSlot(l, tp[l.id]) : l), layers = [...genLayers(OL, idx, ov, placed), ...placed];
       const { _kept: _k, ...rest } = ov; extra = { ...rest, layers, custom: true, ...(gone.length ? { _kept: gone } : {}) };
     } else {
-      if (lay) { const boxes = fillSlots(gen, sided(lay, keep || {})); extra = { layers: [...genLayers(lay, idx, keep || {}), ...backFirst(gen.map(l => boxes[l.id] ? onSlot(l, boxes[l.id]) : l), boxes)], layout: lay.id }; }
+      if (lay) { const boxes = fillSlots(gen, sided(lay, keep || {})), placed = backFirst(gen.map(l => boxes[l.id] ? onSlot(l, boxes[l.id]) : l), boxes); extra = { layers: [...genLayers(lay, idx, keep || {}, placed), ...placed], layout: lay.id }; }
       else { const rest = gen.filter(l => counted(l) && l.block !== 'title'), st = stackOf(rest.length, [24, 88]);   // no match: stack the blocks, and flag them
         extra = { layers: gen.map(l => { const k = rest.indexOf(l); return k < 0 ? l : { ...l, ...st[k], _warn: true }; }) }; }
     }
@@ -1385,8 +1397,7 @@ function layoutOf(nodes, deckFields = {}, linkedOv = {}) {   // linkedOv: the ho
   for (const id in nodes) { const n = nodes[id]; if (id === 'ROOT' || n._from) continue;
     if (n.custom !== true) { const k = keepOf(n); if (Object.keys(k).length) slides[id] = k; continue; }
     const o = Object.fromEntries(Object.entries(n).filter(([k]) => !NOT_SAVED.includes(k)));
-    const own = (n.layers || []).filter(l => !isGen(l)), tp = tplProps(own, n.layout && ({ ...BUILTIN_LAYOUTS, ...(deckFields.layouts || {}) })[n.layout]);   // template props: enrich puts them back
-    o.layers = own.filter(l => !(isMd(l) && l._warn)).map(l => stripTpl(l, tp))   // an unclaimed block isn't part of the override yet
+    o.layers = (n.layers || []).filter(l => !(isMd(l) && l._warn) && !isGen(l)).map(stripTpl)   // an unclaimed block isn't part of the override yet; template props: enrich puts them back
       .map(l => isMd(l) ? Object.fromEntries(Object.entries(l).filter(([k]) => !MD_CONTENT.includes(k))) : l).concat(n._kept || []);
     slides[id] = o; }
   return { version: 2, deck, slides };
@@ -2075,6 +2086,7 @@ class Component extends DCLogic {
   isCustom(id) { const n = this.state.nodes[id]; return !!(n && n.custom); }
   // A layer for display: styledLayer, then theme tokens (fonts head/body/mono, palette colours) resolved to CSS with the deck's theme.
   resolveLayer(l, nodeId) {
+    if (l && l.of) { const t = this.layersOf(nodeId).find(x => x.id === l.of); l = t ? { ...l, ...relBox(t, l.rel || { dx: 0, dy: 0, dw: 0, h: l.h }), hidden: !!(l.hidden || t.hidden) } : { ...l, hidden: true }; }   // a region's decoration follows it
     const r0 = this.styledLayer(l, nodeId); if (!r0) return r0;
     const r = safeLayer(r0); if (!['text', 'shape', 'icon'].includes(r.type)) return r;
     const { palette, fonts } = this.theme(), col = v => TH.tokenColor(v, palette), fam = v => ['head', 'body', 'mono'].includes(v) ? TH.fontFor(v, fonts) : v;
@@ -2083,18 +2095,24 @@ class Component extends DCLogic {
       return { ...r, fill: c ? c + a.toString(16).padStart(2, '0') : 'transparent', stroke: c || col('text') };
     }
     if (r.fill === 'scrim') return { ...r, fill: this.theme().tone === 'dark' ? 'rgba(10,12,30,0.45)' : 'rgba(255,255,255,0.55)' };   // the title-bar band follows the palette tone
-    if (r.fill === 'panel') return { ...r, fill: this.theme().tone === 'dark' ? 'rgba(10,12,30,0.35)' : 'rgba(0,0,0,0.05)' };        // List + detail's list panel, likewise
+    if (r.fill === 'panel') return { ...r, fill: this.theme().tone === 'dark' ? 'rgba(10,12,30,0.35)' : 'rgba(0,0,0,0.12)' };        // List + detail's list panel, likewise
     if (r.type !== 'text') return r.fill ? { ...r, fill: col(r.fill) } : r;
     return { ...r, ...(r.color ? { color: col(r.color) } : {}), ...(r.markColor ? { markColor: col(r.markColor) } : {}), ...(r.font ? { font: fam(r.font) } : {}),
-      ...(r.box ? { box: { ...r.box, ...(r.box.bg ? { bg: col(r.box.bg) } : {}), ...(r.box.borderColor ? { borderColor: col(r.box.borderColor) } : {}) } } : {}),
+      ...(r.box ? { box: this.boxColors(r.box, col) } : {}),
       _lines: r._lines.map(line => line.map(run => ({ ...run, ...(run.color ? { color: col(run.color) } : {}), ...(run.font ? { font: fam(run.font) } : {}) }))) };
   }
+  // A box's token colours as CSS. surface alphas are written for dark tones; on light ones black needs more to show (≥1.3:1 against light backgrounds).
+  boxColors(b, col) { const lift = this.theme().tone === 'light' ? LIGHT_SURFACE : 1, up = (c, a) => c === 'surface' && typeof a === 'number' ? +Math.min(1, a * lift).toFixed(3) : a;
+    return { ...b, ...(b.bg ? { bg: col(b.bg), bgOpacity: up(b.bg, b.bgOpacity) } : {}), ...(b.borderColor ? { borderColor: col(b.borderColor), borderOpacity: up(b.borderColor, b.borderOpacity) } : {}) }; }
   // A styled text layer over its style: the host's style of that id, else (for a linked-in slide) its own deck's. Keeps theme tokens: what editing reads and writes.
   styledLayer(l, nodeId) {
     if (!l || l.type !== 'text') return l;
     const n = this.state.nodes[nodeId], look = sid => this.styles()[sid] || (n && n._from && ((this._graftStyles || {})[n._from] || {})[sid]) || null;
-    const st = l.style ? look(l.style) : null, r = { ...l };
+    const st = l.style ? look(l.style) : null, r = { ...l }, tpl = l._tpl || [];
+    for (const k of tpl) if (styleSets(l.style, st, k)) delete r[k];   // a named style's own value beats the template's region look
     if (st) for (const k of STYLE_KEYS) if (r[k] === undefined && st[k] !== undefined) r[k] = st[k];
+    // A user-chosen text colour (the layer's own, or its style's) takes the marker with it, unless a marker colour is set too.
+    if (l.markColor === undefined && !styleSets(l.style, st, 'markColor') && ((l.color !== undefined && !tpl.includes('color')) || styleSets(l.style, st, 'color'))) delete r.markColor;
     const N = this.state.nodes;   // display-only runs; never saved. A link to a missing slide is marked broken.
     r._lines = String(r.text ?? '').split('\n').map(line => parseRich(line, look).map(run => run.link && !N[run.link] && !this.unloadedAbove(run.link) ? { ...run, broken: true } : run));
     return r;
@@ -2211,12 +2229,11 @@ class Component extends DCLogic {
 
   // A layout applied to one node: its counted boxes; layout recorded, custom cleared. Null for linked-in slides.
   layoutPatch(n, L) { if (!L || n._from) return null; const ls0 = this.layersOfNode(n).filter(l => !isGen(l));
-    // The old layout's template props come off before the new layout's go on, so a layer carries exactly the new template's.
-    const old = tplProps(ls0, this.layouts()[n.layout]), strip = l => stripTpl(l, old);
-    const ls = ls0.map(strip), boxes = fillSlots(ls, sided(L, n)), { custom: _c, layers: _l, ...rest } = n, gen = genLayers(L, this.indexOf(n.id), n);
+    // The old layout's template props (_tpl) come off before the new layout's go on, so a layer carries exactly the new template's.
+    const ls = ls0.map(stripTpl), boxes = fillSlots(ls, sided(L, n)), { custom: _c, layers: _l, ...rest } = n;
     // A template that doesn't fit places what its regions claim (by key, in reading order); a counted block no region claims is flagged ⚠️.
-    const place = l => boxes[l.id] ? onSlot(unwarn(l), boxes[l.id]) : counted(l) ? { ...l, _warn: true } : l;
-    return { ...rest, layers: [...gen, ...backFirst(ls.map(place), boxes)], layout: L.id }; }
+    const place = l => boxes[l.id] ? onSlot(unwarn(l), boxes[l.id]) : counted(l) ? { ...l, _warn: true } : l, placed = backFirst(ls.map(place), boxes);
+    return { ...rest, layers: [...genLayers(L, this.indexOf(n.id), n, placed), ...placed], layout: L.id }; }
   // Extras (layers not from the markdown) live only in a per-slide override.
   hasExtras(id, ls = this.layersOf(id)) { return ls.some(l => !isMd(l) && !isGen(l)); }
   // The layout enrich gives a shape with no override: the deck default, else the deck's first match, else the built-in.
@@ -2251,7 +2268,7 @@ class Component extends DCLogic {
   setTemplateOpt(id, patch) {
     const n = { ...this.state.nodes[id], ...patch }, L = this.effectiveLayout(id); if (!L || n._from) return;
     if ('side' in patch) { this.applyLayout(id, L.id, n); return; }
-    const nodes = { ...this.state.nodes, [id]: { ...n, layers: [...genLayers(L, this.indexOf(id), n), ...this.layersOfNode(n).filter(l => !isGen(l))] } };
+    const own = this.layersOfNode(n).filter(l => !isGen(l)), nodes = { ...this.state.nodes, [id]: { ...n, layers: [...genLayers(L, this.indexOf(id), n, own), ...own] } };
     this.allowLayout(nodes); this.setState({ nodes });
   }
   resetToDefault(id) { const d = this.shapeLayout(id); if (d) this.applyLayout(id, d.id); }
@@ -2339,7 +2356,8 @@ class Component extends DCLogic {
   endBuilds() { clearTimeout(this._rp); this.stopPlay(); if (this.state.ordering || this.state.preview) this.setState({ ordering: false, preview: false }); }   // leaving the Builds tab, Escape
   updLayer(id, lid, patch) { const E = this._mdEdit;
     if (E && lid === E.lid && 'text' in patch && !this._localUndo) { const l = this.layersOf(id).find(x => x.id === lid); if (l && l.text !== patch.text) { E.undo.push(l.text); E.redo = []; } }   // the open editor's own undo
-    this.setLayers(id, ls => ls.map(l => l.id === lid ? { ...l, ...patch } : l)); }
+    this.setLayers(id, ls => ls.map(l => { if (l.id !== lid) return l; const o = { ...l, ...patch }, t = (l._tpl || []).filter(k => !(k in patch));   // an edited key is the user's now
+      if (t.length) o._tpl = t; else delete o._tpl; return o; })); }
   // ⌘Z / ⌘⇧Z in the editor. A markdown layer's editor undoes its own text only (app history holds the markdown and must not move under it); other layers use the app's undo.
   editUndo(redo) { const E = this._mdEdit; if (!E) { if (redo) this.redo(); else this.undo(); return; }
     const [from, to] = redo ? [E.redo, E.undo] : [E.undo, E.redo]; if (!from.length) return;
@@ -2350,14 +2368,14 @@ class Component extends DCLogic {
   chooseStyle(id, lid, sid) {
     this.setLayers(id, ls => ls.map(l => { if (l.id !== lid) return l;
       if (!sid) { const { _lines, ...o } = this.styledLayer(l, id); return { ...o, style: '' }; }   // '' = chosen Custom (re-import leaves it alone)
-      const o = { ...l, style: sid }; STYLE_KEYS.forEach(k => delete o[k]); return o; }));
+      const o = { ...l, style: sid }; STYLE_KEYS.forEach(k => { if (!(l._tpl || []).includes(k)) delete o[k]; }); return o; }));   // the template's keys stay its own (a style that sets one wins on display)
   }  // A new named style from a layer's current look; the layer then uses it with no overrides.
   newStyleFrom(id, lid) {
     const l = this.layersOf(id).find(x => x.id === lid); if (!l || l.type !== 'text') return null;
     const all = this.styles(), names = Object.values(all).map(st => st.name); let n = 1; while (names.includes('Style ' + n)) n++;
     const name = 'Style ' + n, base = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'style';
     let sid = base, i = 2; while (all[sid]) sid = base + '-' + i++;
-    const r = this.styledLayer(l, id), st = { name }; STYLE_KEYS.forEach(k => { if (r[k] !== undefined) st[k] = r[k]; });
+    const r = this.styledLayer(stripTpl(l), id), st = { name }; STYLE_KEYS.forEach(k => { if (r[k] !== undefined) st[k] = r[k]; });   // not the template's region look: a switch couldn't take it off
     this.setState(s => ({ styles: { ...(s.styles || {}), [sid]: st } }));
     this.chooseStyle(id, lid, sid);
     return sid;
@@ -2430,7 +2448,7 @@ class Component extends DCLogic {
   moveSel(dx, dy) { const ids = this.selIds(); this.setLayers(this.curId(), ls => ls.map(l => ids.includes(l.id) ? { ...l, x: rd(l.x + dx), y: rd(l.y + dy) } : l)); }
   delSel() { const ids = this.selIds(); this.setLayers(this.curId(), ls => ls.filter(l => !ids.includes(l.id))); this.setSelection([]); }
   dupSel() {
-    const ids = this.selIds(); const copies = this.layersOf(this.curId()).filter(l => ids.includes(l.id)).map(l => ({ ...l, id: 'l' + uid(), x: l.x + 2, y: l.y + 3 }));
+    const ids = this.selIds(); const copies = this.layersOf(this.curId()).filter(l => ids.includes(l.id)).map(({ _tpl: _t, ...l }) => ({ ...l, id: 'l' + uid(), x: l.x + 2, y: l.y + 3 }));
     this.setLayers(this.curId(), ls => [...ls, ...copies]); this.setSelection(copies.map(l => l.id));
   }
   resizeGroup(cid, orig, box, mode, dx, dy, keep) {
@@ -2493,7 +2511,7 @@ class Component extends DCLogic {
     window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
   }
   delLayer(lid) { if (isGen({ id: lid })) return; this.setLayers(this.curId(), ls => ls.filter(l => l.id !== lid)); this.setState({ layerSel: null, editing: null }); }
-  dupLayer(lid) { const l = this.layersOf(this.curId()).find(x => x.id === lid); if (!l || isGen(l)) return; const nl = { ...l, id: 'l' + uid(), x: l.x + 2, y: l.y + 3 }; this.setLayers(this.curId(), ls => [...ls, nl]); this.setState({ layerSel: nl.id }); }
+  dupLayer(lid) { const l = this.layersOf(this.curId()).find(x => x.id === lid); if (!l || isGen(l)) return; const { _tpl: _t, ...l0 } = l, nl = { ...l0, id: 'l' + uid(), x: l.x + 2, y: l.y + 3 }; this.setLayers(this.curId(), ls => [...ls, nl]); this.setState({ layerSel: nl.id }); }
   zLayer(lid, dir) { this.setLayers(this.curId(), ls => { const a = [...ls]; const i = a.findIndex(l => l.id === lid); const j = i + dir; if (i < 0 || j < 0 || j >= a.length) return ls; [a[i], a[j]] = [a[j], a[i]]; return a; }); }
   startDrag(ev, lid, mode) {
     ev.stopPropagation(); if (ev.button || isGen({ id: lid }) || this.state.ordering) return; if (this.state.editing === lid) return;   // ordering: nothing drags
@@ -2818,7 +2836,7 @@ class Component extends DCLogic {
     const staged = (id, at) => { const ls = this.shown(id, this.layersOf(id));
       if (ordering && id === cur) return ls.map(l => l.kind === 'detail' && l.id !== peek ? { ...l, build: { opacity: 0, transform: 'none', clip: 'inset(0 0 0 0)', transition: 'none' } } : l);   // ordering: stacked detail panels show one at a time
       if (!isPresent && !S.preview) return ls.map(({ build: _b, ...l }) => l);   // editing: no build styles (only Present and preview compute them)
-      const n = N[id], b = this.buildOf(id); return ls.map(l => ({ ...l, build: BUILDS.buildStyle(l, at, n.steps || {}, ls, n.trans || {}, b) })); };
+      const n = N[id], b = this.buildOf(id); return ls.map(l => ({ ...l, build: BUILDS.buildStyle((l.of && ls.find(o => o.id === l.of)) || l, at, n.steps || {}, ls, n.trans || {}, b) })); };   // a region's decoration builds with it
     // layer editing
     const editable = !isPresent && !isWire && !active && !curN._from;
     const curLayers = this.layersOf(cur); const ly = S.layerSel ? curLayers.find(l => l.id === S.layerSel && !isGen(l)) : null;

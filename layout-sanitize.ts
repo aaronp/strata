@@ -87,7 +87,7 @@ const LAYER: Record<string, Check> = {
   ...Object.fromEntries(["hidden", "flip", "back", "group"].map(k => [k, bool])),
   ...STYLE,
   text: str(100000), alt: str(2000), name: str(200), code: str(500000), style: v => typeof v === "string" && /^[\w.:-]{0,80}$/.test(v) ? v : undefined,
-  block: oneOf(["title", "body", "list", "links", "sources", "image"]), kind: oneOf(KINDS), shape: oneOf(KINDS), icon: word, fit: oneOf(["cover", "contain"]), blend: oneOf(["normal", "screen"]),
+  block: oneOf(["title", "body", "list", "links", "sources", "image"]), kind: oneOf(KINDS), icon: word, fit: oneOf(["cover", "contain"]), blend: oneOf(["normal", "screen"]),
   fill: v => safeCol(v) ? v : undefined, stroke: v => safeCol(v) ? v : undefined, token: v => safeCol(v) ? v : undefined,
   border: allow({ width: numLike, style: oneOf(["solid", "dashed", "dotted"]) }),
   imgKey: v => typeof v === "string" && NO_BREAK.test(v) ? v : undefined,   // a key into images (md: keys hold a url)
@@ -134,7 +134,7 @@ const THEME = allow({
   palette: oneOf(ids(PALETTES)), fonts: oneOf(ids(FONTS)), surface: oneOf(ids(SURFACES)),
   motion: v => mapObj(v, (_k, x) => num(x) ?? (typeof x === "string" && /^[\w-]{1,20}$/.test(x) ? x : undefined)),
 });
-// The deck fields the app reads (DECK_FIELDS but nodes; title/source only from older files).
+// The deck fields the app reads (DECK_FIELDS but nodes).
 const sanitizeDeck = allow({
   ...Object.fromEntries(["opacity", "offset", "gap", "rowGap", "speed", "customAspect", "bgScale", "bgY"].map(k => [k, num])),
   titleView: allow({ zoom: num, x: num, y: num }),
@@ -144,7 +144,6 @@ const sanitizeDeck = allow({
   styles: v => mapObj(v, (_k, s) => isPlain(s) ? safeLayer(allow({ name: str(80), deleted: bool, ...STYLE })(s)!) : undefined),
   layouts: v => mapObj(v, (_k, L) => sanitizeTemplate(L)),
   layoutDefaults: v => mapObj(v, (_k, x) => okId(x) ? x : undefined),
-  tplKeys: oneOf([1]),   // written by every save since template-set keys are stripped (layoutOf); absent: an older file
 });
 
 // A layout file → a cleaned copy (null if it isn't an object): { version, deck, slides }, nothing else.

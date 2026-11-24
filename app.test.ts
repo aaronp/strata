@@ -638,10 +638,10 @@ test("removing a bullet drops its step; the current step clamps to the highest r
   expect(c.state.nodes.a.custom).toBeUndefined();                                          // steps alone don't make a slide custom
 });
 
-test("a v1 (frames) layout file is ignored: default layers, with a note", async () => {
+test("a non-v2 layout file is treated as empty", async () => {
   await writeMd("talk", TALK, { version: 1, deck: { theme: { background: "image:space" } }, slides: { intro: { custom: true, frames: [{ id: "f1", layers: [{ id: "md-title", type: "text", block: "title", x: 1, y: 2, w: 50, h: 10 }] }] } } });
   const { c } = await mount("?deck=talk");
-  expect(c.state.note).toBe("Old layout file ignored"); expect(c.state.theme).toEqual(DEFAULT_THEME);
+  expect(c.state.theme).toEqual(DEFAULT_THEME);
   expect(layerOf(c, "intro", "md-title").x).not.toBe(1); expect(c.state.nodes.intro.frames).toBeUndefined();
 });
 
@@ -1697,7 +1697,6 @@ test("right panel: Content, Theme, Slides and Builds tabs; Canvas content (spaci
     expect(c.state.rtab).toBe(["content", "theme", "slides", "builds"][i]); expect(v[k]).toBe(true);
     expect(["tabContent", "tabTheme", "tabSlides", "tabBuilds"].filter(t => v[t])).toEqual([k]);
   }
-  c.setState({ rtab: "canvas" }); v = c.renderVals(); expect(v.tabContent).toBe(true); expect(v.tabTheme).toBe(false);
   c.setState({ rtab: "theme" }); v = c.renderVals();
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
   const theme = html.slice(html.indexOf('<sc-if value="{{ tabTheme }}">'));
@@ -2847,25 +2846,7 @@ test("light palettes: card fill, frame border and list panel are visible (≥1.3
   }
 });
 
-// ---- old decks, the default layout and style picks with template keys ----
-test("an old custom slide's template-equal values load as the template's: a switch removes them; kind 'detail' goes with List + detail (N1)", async () => {
-  const old = { version: 2, deck: {}, slides: {
-    t: { custom: true, layout: "t-statement", layers: [{ id: "md-title", type: "text", block: "title", x: 8, y: 14.2, w: 84, h: 5, font: "mono", size: 15, weight: 500, valign: "top" },
-      { id: "md-body-1", type: "text", block: "body", x: 8, y: 36.5, w: 84, h: 13.5 }, { id: "md-body-2", type: "text", block: "body", x: 8, y: 50, w: 84, h: 13.5, color: "impact" }, { id: "x1", type: "shape", kind: "rect", x: 1, y: 1, w: 2, h: 2 }] },
-    s: { custom: true, layout: "t-split", layers: [{ id: "md-title", type: "text", block: "title", x: 5, y: 6, w: 90, h: 12 },
-      { id: "md-list-1-1", type: "text", block: "list", list: 1, item: 1, kind: "item", x: 3, y: 29.2, w: 28, h: 30 }, { id: "md-list-1-2", type: "text", block: "list", list: 1, item: 2, kind: "item", x: 3, y: 60, w: 28, h: 30 },
-      { id: "md-body-1", type: "text", block: "body", kind: "detail", x: 38, y: 29.2, w: 58, h: 64.8 }, { id: "md-body-2", type: "text", block: "body", kind: "detail", x: 38, y: 29.2, w: 58, h: 64.8 }, { id: "x2", type: "shape", kind: "rect", x: 1, y: 1, w: 2, h: 2 }] } } };
-  await writeMd("talk", "# T\nslug: t\n\nA.\n\nB.\n\n# S\nslug: s\n\n- a\n- b\n\nA.\n\nB.\n", old); const { c } = await mount("?deck=talk");
-  expect(layerOf(c, "t", "md-title")).toMatchObject({ font: "mono", size: 15 }); expect(layerOf(c, "t", "md-body-2").color).toBe("impact");   // the old look loads as it was
-  c.applyLayout("t", "stacked-2");
-  const ti = layerOf(c, "t", "md-title"); expect([ti.font, ti.size, ti.weight, ti.valign]).toEqual([undefined, undefined, undefined, undefined]);
-  expect(layerOf(c, "t", "md-body-2").color).toBeUndefined();
-  expect(c.layersOf("s").filter((l: any) => l.block === "body").every((l: any) => l.kind === "detail")).toBe(true);
-  c.applyLayout("s", "text-list");
-  expect(c.layersOf("s").filter((l: any) => l.block === "body").map((l: any) => l.kind)).toEqual([undefined, undefined]);
-  expect(layerOf(c, "s", "md-list-1-1").kind).toBe("item");   // the markdown's own kind stays
-});
-
+// ---- the default layout and style picks with template keys ----
 test("switching to the shape's default layout keeps a slide with the user's own edits custom, so they last (no data loss)", async () => {
   await writeMd("talk", THREE); const { c } = await mount("?deck=talk");
   c.applyLayout("t", "t-cards"); c.updLayer("t", "md-body-2", { color: "#00ff00" }); c.componentDidUpdate();
@@ -2893,15 +2874,3 @@ test("Deck default text colour (null) leaves the bullet marker on its default", 
   expect(c.resolveLayer({ id: "x", type: "text", text: "a", style: "bullets", color: null, x: 0, y: 0, w: 10, h: 10 }, "t").markColor).toBe("#93C5FD");
 });
 
-test("files saved since template keys are stripped carry deck.tplKeys: their template-equal values are the user's; older files get the migration", async () => {
-  await writeMd("talk", "# U\nslug: u\n\nSub.\n"); const { c } = await mount("?deck=talk");
-  c.applyLayout("u", "t-title-sub"); c.updLayer("u", "md-body-1", { color: "muted" }); c.componentDidUpdate();
-  expect(c.constructor.md.layoutOf(c.state.nodes, c.state).deck.tplKeys).toBe(1);
-  await c.save(); const L = await Bun.file(deckDir("talk") + "talk-layout.json").json();
-  expect(L.deck.tplKeys).toBe(1); expect(L.slides.u.layers.find((l: any) => l.id === "md-body-1").color).toBe("muted");
-  const m = (await mount("?deck=talk")).c; expect(layerOf(m, "u", "md-body-1")._tpl).toBeUndefined();
-  m.applyLayout("u", "stacked-1"); expect(layerOf(m, "u", "md-body-1").color).toBe("muted");   // the user's Muted stays
-  delete L.deck.tplKeys; await writeMd("old", "# U\nslug: u\n\nSub.\n", L);
-  const o = (await mount("?deck=old")).c; expect(layerOf(o, "u", "md-body-1")._tpl).toEqual(["color"]);   // no marker: an old file, migrated
-  o.applyLayout("u", "stacked-1"); expect(layerOf(o, "u", "md-body-1").color).toBeUndefined();
-});

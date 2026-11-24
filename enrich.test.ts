@@ -98,7 +98,7 @@ test("layoutOf: strips content", () => {
   expect(ls.find((l: any) => l.id === "e1").text).toBe("Mine");
   expect(L.slides.t).not.toHaveProperty("title"); expect(L.slides.t).not.toHaveProperty("body"); expect(L.slides.t).not.toHaveProperty("children");
   expect(L.version).toBe(2);
-  expect(L.deck).toEqual({ theme: { palette: "ember" }, images: { im1: "data:x" }, tplKeys: 1 });
+  expect(L.deck).toEqual({ theme: { palette: "ember" }, images: { im1: "data:x" } });
   expect(L.slides.ROOT).toMatchObject({ id: "ROOT" });
   expect(Object.keys(L.slides).sort()).toEqual(["ROOT", "t"]);   // non-custom slides aren't stored
   expect(Object.keys(layoutOf({ ...nodes, t: { ...n, custom: true, _from: "u" } }, {}).slides)).toEqual(["ROOT"]);

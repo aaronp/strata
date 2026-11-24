@@ -1291,9 +1291,9 @@ const stripTpl = l => { if (!l._tpl) return l; const o = { ...l }; for (const k 
 // A slot onto a layer: its box always; its other props only where the layer has none of its own (user-set values win), recorded in _tpl.
 // A named style that sets one of them wins too, at display time (styledLayer).
 const GEO = ['x', 'y', 'w', 'h', 'rot'];
-// kind is always the template's (users never set it). adopt (loading a custom slide): a value equal to the slot's is the template's too, as saved before _tpl.
-const onSlot = (l, b, adopt) => { const o = { ...l }, set = [];
-  for (const k in b) { if (GEO.includes(k)) o[k] = b[k]; else if (k === 'kind' || !(k in l)) { o[k] = b[k]; set.push(k); } else if (adopt && sameVal(l[k], b[k])) set.push(k); }
+// kind is always the template's (users never set it).
+const onSlot = (l, b) => { const o = { ...l }, set = [];
+  for (const k in b) { if (GEO.includes(k)) o[k] = b[k]; else if (k === 'kind' || !(k in l)) { o[k] = b[k]; set.push(k); } }
   if (set.length) o._tpl = set; return o; };
 // Does a markdown layer carry an edit of the user's (beyond its place and its template's props)? A key enrich doesn't write, or a changed generated value.
 // ponytail: links/sources write their own look, so they never count; compare with blockLayers' output if one of their edits gets lost.
@@ -1378,8 +1378,8 @@ function enrich(sections, layouts, opts = {}) {
       const gone = ls.filter(l => isMd(l) && !byId.has(l.id));   // back in the layout file, out of the slide
       const have = new Set(ls.map(l => l.id));
       const own = ls.filter(l => !isMd(l) || byId.has(l.id)).map(l => isMd(l) ? mergeContent(l, byId.get(l.id)) : l).concat(gen.filter(g => !have.has(g.id)).map(g => ({ ...g, _warn: true })));
-      const OL = byLid(ov.layout), tp = tplProps(own, OL);   // the template's props aren't saved (layoutOf): they go back on here (a file without deck.tplKeys predates that: its template-equal values are the template's); a detail the template no longer makes is a plain body
-      const adopt = !((layouts[i] || {}).deck || {}).tplKeys, placed = own.map(l => tp[l.id] ? onSlot(l, tp[l.id], adopt) : l.kind === 'detail' ? (({ kind: _k, ...o }) => o)(l) : l), layers = [...genLayers(OL, idx, ov, placed), ...placed];
+      const OL = byLid(ov.layout), tp = tplProps(own, OL);   // the template's props aren't saved (layoutOf): they go back on here
+      const placed = own.map(l => tp[l.id] ? onSlot(l, tp[l.id]) : l), layers = [...genLayers(OL, idx, ov, placed), ...placed];
       const { _kept: _k, ...rest } = ov; extra = { ...rest, layers, custom: true, ...(gone.length ? { _kept: gone } : {}) };
     } else {
       if (lay) { const boxes = fillSlots(gen, sided(lay, keep || {})), placed = backFirst(gen.map(l => boxes[l.id] ? onSlot(l, boxes[l.id]) : l), boxes); extra = { layers: [...genLayers(lay, idx, keep || {}, placed), ...placed], layout: lay.id }; }
@@ -1401,7 +1401,6 @@ const unwarn = ({ _warn: _w, ...l }) => l;   // a placed block
 const NOT_SAVED = ['id', 'title', 'body', 'children', 'childSrc', '_from', '_kept', '_line'];
 function layoutOf(nodes, deckFields = {}, linkedOv = {}) {   // linkedOv: the host's overrides for linked slides (dotted ids), kept as loaded
   const deck = {}; for (const k of DECK_FIELDS) if (k in deckFields && !['nodes', 'title', 'source'].includes(k)) deck[k] = deckFields[k];
-  deck.tplKeys = 1;   // this file's layers hold no template-set keys (they're stripped below): a template-equal value in it is the user's
   if (deck.images) deck.images = Object.fromEntries(Object.entries(deck.images).filter(([k]) => !k.startsWith('md:')));
   const slides = { ...linkedOv, ...(nodes.ROOT ? { ROOT: nodes.ROOT } : {}) };
   for (const id in nodes) { const n = nodes[id]; if (id === 'ROOT' || n._from) continue;
@@ -1805,7 +1804,7 @@ class Component extends DCLogic {
         if (/text\/html/i.test((r.headers && r.headers.get('content-type')) || '') || /^\s*<(!doctype|html)/i.test(md)) throw new Error('not a markdown file');
         let layout = null; const lr = layoutUrl(src) && await fetch(layoutUrl(src), { cache: 'no-store' }).catch(() => null);   // missing or invalid: the built-ins
         if (lr && lr.ok) try { layout = JSON.parse(await lr.text()); } catch (e) {}
-        layout = sanitizeLayout(layout); if (layout && layout.version !== 2) layout = null;   // an old (frames) file: the built-ins
+        layout = sanitizeLayout(layout); if (layout && layout.version !== 2) layout = null;
         return { src, md, layout };
       } catch (e) { return { src, error: e.message }; }
     }));
@@ -1834,7 +1833,7 @@ class Component extends DCLogic {
   // A loaded markdown + layout file pair becomes the deck: not an undo step, and nothing to save.
   adopt(md, L, then) {
     L = sanitizeLayout(L);   // the trust boundary: every layout file (deck, ?src=, opened file, draft) is cleaned before use
-    if (L && L.version !== 2) { L = null; this.flash('Old layout file ignored', 8000); }   // no migration: an older (frames) file means the defaults
+    if (L && L.version !== 2) L = null;   // only v2 files load
     this._linked = {}; this._goneOv = {}; this._linkedOv = Object.fromEntries(Object.entries((L && L.slides) || {}).filter(([k]) => k.includes('.')));   // linked slides are read-only: their host overrides stay as loaded
     const d = (L && L.deck) || {}, r = this.enrichMd(md, L), pick = Object.fromEntries(DECK_FIELDS.filter(k => k in d).map(k => [k, d[k]]));
     this._lastNodes = r.nodes;
@@ -2761,7 +2760,7 @@ class Component extends DCLogic {
     const cur = this.curId(); const curN = N[cur]; const isPresent = S.mode === 'present'; const isWire = !isPresent && S.view === 'wire', mapView = isPresent && (S.presentView === 'tree' || S.presentView === 'radial') ? S.presentView : null;   // present: the deck as a tree or radial map
     const q = S.query.trim().toLowerCase(); const name = id => N[id].title || (id === 'ROOT' ? 'Title page' : 'Untitled');
     const pathOf = id => { const p = []; let x = id; while (x && x !== 'ROOT') { p.unshift(x); x = D.parent[x]; } return p; };
-    const rtab = ['content', 'theme', 'slides', 'builds'].includes(S.rtab) ? S.rtab : 'content';   // any other saved tab opens Content
+    const rtab = S.rtab;
     const tab = on => ({ bg: on ? '#343944' : 'transparent', color: on ? '#FFFFFF' : '#C3C8D2', shadow: 'none' });
     const match = {}; D.order.forEach(id => { if (!q || (N[id].title + ' ' + N[id].body).toLowerCase().includes(q)) match[id] = true; });
     const th = this.theme(); const ease = 'cubic-bezier(.65,0,.25,1)';
@@ -2968,7 +2967,7 @@ class Component extends DCLogic {
     };
     // Shape properties (Templates.dc.html): kind, fill token and opacity, border, and how overlapping shapes blend.
     const seg = (opts, on, set) => opts.map(([v, label]) => ({ label, on: v === on, bg: v === on ? '#343944' : 'transparent', pick: () => set(v) }));
-    const sh = ly && ly.type === 'shape' ? ly : null, shBorder = (sh && sh.border) || { width: 0, style: 'solid' }, shKind = sh ? sh.kind || sh.shape || 'rect' : '', shLine = shKind === 'line' || shKind === 'arrow';
+    const sh = ly && ly.type === 'shape' ? ly : null, shBorder = (sh && sh.border) || { width: 0, style: 'solid' }, shKind = sh ? sh.kind || 'rect' : '', shLine = shKind === 'line' || shKind === 'arrow';
     const num = (min, set) => e => { const v = parseFloat(e.target.value); if (Number.isFinite(v) && v >= min) set(v); };   // empty, non-numeric or too-small input is ignored
     const shapeVals = {
       shapeTitle: sh ? ({ ellipse: 'Ellipse', round: 'Rounded rectangle', rect: 'Rectangle', line: 'Line', arrow: 'Arrow', triangle: 'Triangle' }[shKind] || 'Shape') : '', shapeIsArea: !!sh && !shLine,

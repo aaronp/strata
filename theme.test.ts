@@ -49,3 +49,15 @@ test("motion: defaults, overrides, bad values and the effect view", async () => 
   expect(effectView({ background: "bubbles", motion: { count: 6 } }).bubbles.length).toBe(6);
   expect(effectView({ background: "gears", motion: { count: 999 } }).gearGroups.length).toBe(2);   // out of range: the default 4 gears, in two corners
 });
+test("effects lay out across the whole canvas (w × h stage sizes), not once per stage", async () => {
+  const { effectView, resolveTheme } = await import("./theme");
+  const canvas = { w: 2.9, h: 1 };                                                   // 4 flat slides at the default gap
+  expect(effectView({ background: "bubbles" }).bubbles.length).toBe(18);           // one stage: as set
+  const b = effectView({ background: "bubbles" }, canvas).bubbles;
+  expect(b.length).toBe(Math.round(18 * 2.9));                                      // same density per stage
+  expect(Math.max(...b.map(u => parseFloat(u.left))) * canvas.w / 100).toBeGreaterThan(1.5);   // spread beyond the first stage
+  const xs = effectView({ background: "gears" }, canvas).gearGroups.map(g => parseFloat(g.left) * canvas.w / 100);
+  expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(1);                     // gear groups span more than one stage width
+  expect(effectView({ background: "gears" }).gearGroups.map(g => g.left)).toEqual(["5.000%", "90.000%"]);   // one stage: the old corners
+  expect(resolveTheme({ background: "dusk" }).bg.deep).toBe("#1E1B4B");
+});

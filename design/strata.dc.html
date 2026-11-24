@@ -197,34 +197,34 @@ select option{background:#23262E;color:#E8EAEE}
                 <sc-for list="{{ tiles }}" as="tl" hint-placeholder-count="0">
                   <div style="position:absolute;top:{{ tl.t }}%;height:{{ tl.h }}%;left:{{ tl.l }}%;width:calc({{ tl.w }}% + 2px);background:{{ bgCss }};opacity:{{ opacity }}"></div>
                 </sc-for>
-              </div>
-              <div aria-hidden="true" style="position:absolute;inset:0;overflow:hidden;pointer-events:none">
-                <sc-if value="{{ fx.isBubbles }}">
-                  <div style="position:absolute;inset:0;opacity:{{ fx.opacity }}">
-                    <sc-for list="{{ fx.bubbles }}" as="u" hint-placeholder-count="12">
-                      <span class="bubble" style="left:{{ u.left }};width:{{ u.size }};height:{{ u.size }};border-radius:50%;border:1px solid {{ fx.tintEdge }};background:radial-gradient(circle at 32% 30%, {{ fx.tintHi }}, {{ fx.tintLo }} 62%);animation-duration:{{ u.dur }};animation-delay:{{ u.delay }}"></span>
-                    </sc-for>
-                  </div>
-                </sc-if>
-                <sc-if value="{{ fx.isSunset }}">
-                  <sc-if value="{{ fx.sunOn }}">
-                    <span class="sunx" style="opacity:{{ fx.opacity }};animation-duration:{{ canvasBg.dur }}">
-                      <span class="suny" style="left:-130px;width:260px;height:260px;margin-top:-130px;background:radial-gradient(circle, rgba(255,236,179,0.97) 0%, rgba(253,186,116,0.8) 30%, rgba(251,146,60,0) 70%);animation-duration:{{ canvasBg.dur }}"></span>
-                    </span>
+                <div aria-hidden="true" style="position:absolute;inset:0;overflow:hidden;pointer-events:none">
+                  <sc-if value="{{ fx.isBubbles }}">
+                    <div style="position:absolute;inset:0;opacity:{{ fx.opacity }}">
+                      <sc-for list="{{ fx.bubbles }}" as="u" hint-placeholder-count="12">
+                        <span class="bubble" style="left:{{ u.left }};width:{{ u.size }};height:{{ u.size }};border-radius:50%;border:1px solid {{ fx.tintEdge }};background:radial-gradient(circle at 32% 30%, {{ fx.tintHi }}, {{ fx.tintLo }} 62%);animation-duration:{{ u.dur }};animation-delay:{{ u.delay }}"></span>
+                      </sc-for>
+                    </div>
                   </sc-if>
-                  <span style="position:absolute;left:0;right:0;bottom:0;height:24%;background:linear-gradient(180deg, transparent 0%, {{ fx.horizon }} 100%)"></span>
-                </sc-if>
-                <sc-if value="{{ fx.isGears }}">
-                  <div style="position:absolute;inset:0;opacity:{{ fx.opacity }}">
-                    <sc-for list="{{ fx.gearGroups }}" as="grp" hint-placeholder-count="2">
-                      <div style="position:absolute;left:{{ grp.left }};top:{{ grp.top }};width:0;height:0;transform:scale({{ fx.gearScale }});transform-origin:0 0">
-                        <sc-for list="{{ grp.gears }}" as="g" hint-placeholder-count="2">
-                          <svg class="{{ g.cls }}" width="{{ g.w }}" height="{{ g.w }}" viewBox="{{ g.vb }}" style="position:absolute;left:{{ g.x }};top:{{ g.y }};animation-duration:{{ g.dur }}"><g transform="rotate({{ g.phase }})"><path d="{{ g.d }}" fill="{{ fx.gearFill }}" stroke="{{ fx.gearStroke }}" stroke-width="2" fill-rule="evenodd"></path></g></svg>
-                        </sc-for>
-                      </div>
-                    </sc-for>
-                  </div>
-                </sc-if>
+                  <sc-if value="{{ fx.isSunset }}">
+                    <sc-if value="{{ fx.sunOn }}">
+                      <span class="sunx" style="opacity:{{ fx.opacity }};animation-duration:{{ canvasBg.dur }}">
+                        <span class="suny" style="left:-130px;width:260px;height:260px;margin-top:-130px;background:radial-gradient(circle, rgba(255,236,179,0.97) 0%, rgba(253,186,116,0.8) 30%, rgba(251,146,60,0) 70%);animation-duration:{{ canvasBg.dur }}"></span>
+                      </span>
+                    </sc-if>
+                    <span style="position:absolute;left:0;right:0;bottom:0;height:24%;background:linear-gradient(180deg, transparent 0%, {{ fx.horizon }} 100%)"></span>
+                  </sc-if>
+                  <sc-if value="{{ fx.isGears }}">
+                    <div style="position:absolute;inset:0;opacity:{{ fx.opacity }}">
+                      <sc-for list="{{ fx.gearGroups }}" as="grp" hint-placeholder-count="2">
+                        <div style="position:absolute;left:{{ grp.left }};top:{{ grp.top }};width:0;height:0;transform:scale({{ fx.gearScale }});transform-origin:0 0">
+                          <sc-for list="{{ grp.gears }}" as="g" hint-placeholder-count="2">
+                            <svg class="{{ g.cls }}" width="{{ g.w }}" height="{{ g.w }}" viewBox="{{ g.vb }}" style="position:absolute;left:{{ g.x }};top:{{ g.y }};animation-duration:{{ g.dur }}"><g transform="rotate({{ g.phase }})"><path d="{{ g.d }}" fill="{{ fx.gearFill }}" stroke="{{ fx.gearStroke }}" stroke-width="2" fill-rule="evenodd"></path></g></svg>
+                          </sc-for>
+                        </div>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+                </div>
               </div>
               <sc-if value="{{ hasPrev }}">
                 <div style="position:absolute;inset:0;transform:{{ planeA.t }};opacity:{{ planeA.o }};transition:{{ planeTr }}">
@@ -2623,12 +2623,12 @@ class Component extends DCLogic {
   }
 
   // The Theme tab (ported from design/slides/theme/Main.dc.html's panel) and the canvas's theme background.
-  themeVals(th) {
+  themeVals(th, cam) {   // cam: the camera plane's size in % of the stage; the motion overlays cover all of it
     const S = this.state, t = S.theme || TH.DEFAULT_THEME, img = th.bg.image, sc = TH.schemeOf(t), kind = S.bgKind || 'all', on = '#343944';
     // A new background or scheme whose tone flips (dark ↔ light) brings a palette of that tone: its pair, else the first.
     const change = patch => { const n = { ...t, ...patch }, r = TH.schemeOf(n), pal = TH.PALETTES.find(p => p.id === n.palette) || th.palette;
       this.setTheme(String(n.background).startsWith('image:') || pal.tone === r.tone ? patch : { ...patch, palette: r.pairs || TH.PALETTES.find(p => p.tone === r.tone).id }); };
-    const fx = TH.effectView(t), m = TH.motionOf(t), spec = m && TH.MOTION[sc.b.id], speed = m ? TH.SPEEDS[m.speedIdx] : 1;
+    const fx = TH.effectView(t, { w: +cam.w / 100, h: +cam.h / 100 }), m = TH.motionOf(t), spec = m && TH.MOTION[sc.b.id], speed = m ? TH.SPEEDS[m.speedIdx] : 1;
     const setMotion = patch => this.setTheme({ motion: { ...(t.motion || {}), ...patch } });
     const countCfg = m && spec.controls.includes('count') ? TH.COUNT_CONTROLS[sc.b.effect] : null, extraKey = m ? spec.controls.find(k => TH.EXTRA_CONTROLS[k]) : null, extra = extraKey ? TH.EXTRA_CONTROLS[extraKey] : null;
     const images = TH.IMAGE_BACKGROUNDS.filter(id => id !== 'custom' || S.customBg).map(id => ({ id: 'image:' + id, name: BGS[id].label, kind: 'image', src: id === 'custom' ? S.customBg : BGS[id].src }));
@@ -3032,7 +3032,8 @@ class Component extends DCLogic {
       viewTabs: [{ label: 'Slide', ...tab(S.view === 'slide'), onClick: () => this.setState({ view: 'slide' }) }, { label: 'Wireframe', ...tab(S.view === 'wire'), onClick: () => this.setState({ view: 'wire' }) }],
       viewHint: isWire ? 'Every slide on the looping canvas. Click to select, double-click to open.' : 'What viewers see. Arrow keys move around the tree.',
       stageAreaBg: isPresent ? '#05070c' : '#16181D', showStage: !isWire && !mapView, showWire: isWire, showMap: !!mapView,
-      base: th.bg.image ? (th.tone === 'dark' ? '#0b1220' : '#F5F3EE') : th.bg.css, bgCss: cssUrl(B.src) ? `url("${B.src}") center / 100% 100% no-repeat` : 'none', opacity: finite(S.opacity) ? +S.opacity : 1, tiles, cam,
+      // base: behind the canvas, a plain colour (the theme's deep one), so no stage-sized gradient shows through
+      base: th.bg.image ? (th.tone === 'dark' ? '#0b1220' : '#F5F3EE') : th.bg.deep, bgCss: cssUrl(B.src) ? `url("${B.src}") center / 100% 100% no-repeat` : 'none', opacity: finite(S.opacity) ? +S.opacity : 1, tiles, cam,
       curCam: camOf(cur), camTransition: `transform ${S.speed}ms ${ease}`,
       hasPrev: !!active, planeA, planeB, planeTr: active && S.phase === 'run' ? `transform ${S.speed}ms ${ease}, opacity ${S.speed}ms ease` : 'none',
       ink: th.palette.text,
@@ -3064,7 +3065,7 @@ class Component extends DCLogic {
       bgRepeatBtns: [['x', 'Across'], ['xy', 'Tile'], ['none', 'Once']].map(([v, label]) => ({ label, ...tab((S.bgRepeat || 'x') === v), onClick: () => this.setState({ bgRepeat: v }) })),
       onUpload: e => this.onUpload(e), offset: S.offset, offsetLabel: Math.round(S.offset * 100) + '%', onOffset: e => this.setState({ offset: +e.target.value }),
       opacityLabel: Math.round(S.opacity * 100) + '%', onOpacity: e => this.setState({ opacity: +e.target.value }),
-      ...this.themeVals(th),
+      ...this.themeVals(th, cam),
     };
   }
 }

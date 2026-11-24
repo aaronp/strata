@@ -2444,7 +2444,7 @@ test("theme: surface draws through Layers' whole-slide card; moving backgrounds 
   expect(v.canvasBg.cls).toBe("anim"); expect(v.canvasBg.dur).toBe("16.0s"); expect(v.isMotion).toBe(true);
   v.setSpeed({ target: { value: "7" } }); v = c.renderVals(); expect(v.canvasBg.dur).toBe("32.0s"); expect(c.state.theme.motion.speedIdx).toBe(7);
   c.setTheme({ background: "bubbles" }); v = c.renderVals();
-  expect(c.state.theme.motion).toBeUndefined(); expect(v.fx.isBubbles).toBe(true); expect(v.fx.bubbles.length).toBe(18);
+  expect(c.state.theme.motion).toBeUndefined(); expect(v.fx.isBubbles).toBe(true); expect(v.fx.bubbles.length).toBe(Math.round(18 * (+v.cam.w / 100) * (+v.cam.h / 100)));   // 18 per stage, across the canvas
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
   expect(html.match(/<dc-import name="Layers"[^>]*>/g)!.every(t => t.includes('surface="{{ surface }}"'))).toBe(true);
 });
@@ -2648,4 +2648,20 @@ test("a click on the already-selected text box starts editing it; a first click 
   c.startDrag(ev, "md-body-1", "move"); on.pointermove({ clientX: 30, clientY: 30 }); on.pointerup();
   expect(c.state.editing ?? null).toBeNull();                                                                     // a drag never edits
   click("md-title"); expect(c.state.editing ?? null).toBeNull();                                                  // another layer: select first
+});
+
+test("the theme background and its effects belong to the canvas: effects pan inside the camera, the stage behind is plain", async () => {
+  await writeMd("four", "# A\n\n# B\n\n# C\n\n# D\n");
+  const { c } = await mount("?deck=four"); c.setTheme({ background: "gears" });
+  const v = c.renderVals();
+  expect(v.base).toBe("#12151A"); expect(v.base).not.toContain("gradient");   // the stage's own background: the theme's deep colour
+  const w = +v.cam.w / 100, xs = v.fx.gearGroups.map((g: any) => parseFloat(g.left) * w / 100);
+  expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(1);                 // laid out across the canvas, not one stage
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  const cam = html.indexOf("transform:{{ curCam }}"), opens = (s: string) => (s.match(/<div\b/g) || []).length - (s.match(/<\/div>/g) || []).length;
+  for (const k of ["fx.isBubbles", "fx.isSunset", "fx.isGears"]) {
+    const at = html.indexOf(k, cam); expect(at).toBeGreaterThan(cam);
+    expect(opens(html.slice(html.lastIndexOf("<div", cam), at))).toBeGreaterThan(0);   // still inside the camera div
+    expect(html.indexOf(k)).toBe(at);                                           // and drawn nowhere else
+  }
 });

@@ -142,7 +142,7 @@ export function resolveTheme(t0: Partial<Theme> | null = {}) {
   if (id.startsWith("image:")) return { palette, fonts, surface, tone, bg: { css: "none", size: "cover", image: id.slice(6) } };
   const { b, colours: c } = schemeOf(t);
   const built = (STYLES as any)[b.style].build(c, tone);
-  return { palette, fonts, surface, tone, bg: { css: built.css as string, size: built.size as string, ...("effect" in b ? { motion: b.effect as string } : {}) } as { css: string; size: string; image?: string; motion?: string } };
+  return { palette, fonts, surface, tone, bg: { css: built.css as string, size: built.size as string, deep: c.deep, ...("effect" in b ? { motion: b.effect as string } : {}) } as { css: string; size: string; deep?: string; image?: string; motion?: string } };
 }
 
 const TOKENS = ["primary", "secondary", "tertiary", "impact", "text", "muted", "onPrimary"];
@@ -178,12 +178,12 @@ export const EXTRA_CONTROLS: Record<string, { label: string; options: { value: s
 };
 const GEAR_SCALE: Record<string, number> = { small: 0.65, medium: 1, large: 1.4 };
 const GEAR_DEPTH = 14;
-// Gear chains anchored to canvas corners. Each gear after the first meshes with the one before it, at `angle` degrees.
-const GEAR_CHAINS: Record<string, { left: string; top: string; gears: { R: number; teeth: number; angle?: number }[] }> = {
-  bl: { left: "5%", top: "76%", gears: [{ R: 150, teeth: 18 }, { R: 96, teeth: 12, angle: -28 }, { R: 60, teeth: 7, angle: 12 }] },
-  tr: { left: "90%", top: "14%", gears: [{ R: 120, teeth: 14 }, { R: 60, teeth: 7, angle: 136 }] },
-  br: { left: "95%", top: "94%", gears: [{ R: 110, teeth: 13 }, { R: 72, teeth: 9, angle: 200 }] },
-  tl: { left: "3%", top: "5%", gears: [{ R: 84, teeth: 10 }] },
+// Gear chains anchored to the corners of each stage-sized cell of the canvas (left/top: fractions of one stage). Each gear after the first meshes with the one before it, at `angle` degrees.
+const GEAR_CHAINS: Record<string, { left: number; top: number; gears: { R: number; teeth: number; angle?: number }[] }> = {
+  bl: { left: 0.05, top: 0.76, gears: [{ R: 150, teeth: 18 }, { R: 96, teeth: 12, angle: -28 }, { R: 60, teeth: 7, angle: 12 }] },
+  tr: { left: 0.9, top: 0.14, gears: [{ R: 120, teeth: 14 }, { R: 60, teeth: 7, angle: 136 }] },
+  br: { left: 0.95, top: 0.94, gears: [{ R: 110, teeth: 13 }, { R: 72, teeth: 9, angle: 200 }] },
+  tl: { left: 0.03, top: 0.05, gears: [{ R: 84, teeth: 10 }] },
 };
 // The order gears are added as the count goes up: [chain, how many gears of that chain are then shown].
 const GEAR_ORDER: [string, number][] = [["bl", 1], ["tr", 1], ["bl", 2], ["tr", 2], ["br", 1], ["bl", 3], ["br", 2], ["tl", 1]];
@@ -192,10 +192,11 @@ function seededRandom(seed: number) {
   let s = seed >>> 0;
   return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
 }
-function makeBubbles(count: number, baseSeconds: number, factor: number, seed: number) {
-  const rnd = seededRandom(seed);
-  return Array.from({ length: count }, () => {
-    const size = 8 + rnd() * 28, left = rnd() * 96, dur = baseSeconds * (0.7 + rnd() * 0.6) * factor, delay = -(rnd() * dur);
+// Canvas = w × h stages. count is per stage; the rise covers the canvas height in h × the time, so it moves at the same speed.
+function makeBubbles(count: number, baseSeconds: number, factor: number, seed: number, w = 1, h = 1) {
+  const rnd = seededRandom(seed), n = Math.min(Math.round(count * w * h), 600);   // ponytail: capped for the DOM; a huge canvas thins out past 600
+  return Array.from({ length: n }, () => {
+    const size = 8 + rnd() * 28, left = rnd() * (100 - 4 / w), dur = baseSeconds * (0.7 + rnd() * 0.6) * factor * h, delay = -(rnd() * dur);
     return { left: left.toFixed(1) + "%", size: size.toFixed(1) + "px", dur: dur.toFixed(2) + "s", delay: delay.toFixed(2) + "s" };
   });
 }
@@ -207,10 +208,11 @@ function gearPath(teeth: number, R: number, depth: number, hole: number) {
   return "M" + pts.join(" L") + " Z M" + h + " 0 A" + h + " " + h + " 0 1 0 -" + h + " 0 A" + h + " " + h + " 0 1 0 " + h + " 0 Z";
 }
 export const GEAR_SWATCH_PATH = gearPath(10, 46, 12, 13);
-function layoutGears(count: number, baseSeconds: number, factor: number) {
+// The stage's corner groups, repeated in every stage-sized cell of a w × h canvas, so any view shows the same gears as one stage.
+function layoutGears(count: number, baseSeconds: number, factor: number, w = 1, h = 1) {
   const shown: Record<string, number> = {};
   GEAR_ORDER.slice(0, count).forEach(([k, n]) => { shown[k] = n; });
-  return Object.keys(shown).map((key) => {
+  const groups = Object.keys(shown).map((key) => {
     const chain = GEAR_CHAINS[key]; let x = 0, y = 0;
     const gears = chain.gears.slice(0, shown[key]).map((g, i, list) => {
       if (i > 0) { const prev = list[i - 1], dist = prev.R + g.R - GEAR_DEPTH, rad = ((g.angle || 0) * Math.PI) / 180; x += dist * Math.cos(rad); y += dist * Math.sin(rad); }
@@ -218,8 +220,12 @@ function layoutGears(count: number, baseSeconds: number, factor: number) {
         x: (x - g.R).toFixed(1) + "px", y: (y - g.R).toFixed(1) + "px", phase: i === 0 ? 0 : 180 / g.teeth,
         dur: (baseSeconds * factor * (g.teeth / 18)).toFixed(1) + "s", d: gearPath(g.teeth, g.R, GEAR_DEPTH, g.R * 0.28) };
     });
-    return { left: chain.left, top: chain.top, gears };
+    return { chain, gears };
   });
+  const out: { left: string; top: string; gears: typeof groups[number]["gears"] }[] = [];
+  for (let i = 0; i < Math.ceil(w); i++) for (let j = 0; j < Math.ceil(h); j++)
+    for (const g of groups) out.push({ left: ((i + g.chain.left) / w * 100).toFixed(3) + "%", top: ((j + g.chain.top) / h * 100).toFixed(3) + "%", gears: g.gears });
+  return out;
 }
 
 // The motion settings of a theme's background (defaults under the theme's own), or null for a still one. Bad values fall back.
@@ -233,7 +239,9 @@ export function motionOf(t0: Partial<Theme> | null = {}) {
 const clampN = (v: unknown, lo: number, hi: number, d: number) => (typeof v === "number" && v >= lo && v <= hi ? v : d);
 
 // What the canvas draws for a theme's moving background: the background-position animation (cls, dur) and the bubbles/sunset/gears overlays.
-export function effectView(t0: Partial<Theme> | null = {}) {
+// canvas: the camera plane's size in stage widths/heights; the overlays are laid out across all of it (they pan with the background).
+export function effectView(t0: Partial<Theme> | null = {}, canvas: { w: number; h: number } = { w: 1, h: 1 }) {
+  const cw = canvas.w >= 1 ? canvas.w : 1, ch = canvas.h >= 1 ? canvas.h : 1;
   const t: Partial<Theme> = t0 ?? {}, m = motionOf(t);
   const view = { cls: "", dur: "0s", isBubbles: false, isSunset: false, isGears: false, sunOn: false, opacity: 1, horizon: "transparent",
     bubbles: [] as ReturnType<typeof makeBubbles>, gearGroups: [] as ReturnType<typeof layoutGears>, gearScale: 1, gearFill: "transparent", gearStroke: "transparent",
@@ -243,9 +251,9 @@ export function effectView(t0: Partial<Theme> | null = {}) {
   Object.assign(view, { dur: (spec.base * factor).toFixed(1) + "s", opacity: spec.controls.includes("opacity") ? clampN(m.opacity, 0, 100, 100) / 100 : 1 });
   if (b.effect === "flow") view.cls = "anim";
   if (b.effect === "sunset") Object.assign(view, { cls: "sky", isSunset: true, sunOn: m.sun !== "hide", horizon: hexA(c.deep, 0.9) });
-  if (b.effect === "bubbles") Object.assign(view, { isBubbles: true, bubbles: makeBubbles(clampN(m.count, 0, 60, 18), spec.base, factor, 7),
+  if (b.effect === "bubbles") Object.assign(view, { isBubbles: true, bubbles: makeBubbles(clampN(m.count, 0, 60, 18), spec.base, factor, 7, cw, ch),
     tintEdge: sc.tone === "dark" ? "rgba(255,255,255,0.5)" : hexA(c.accent, 0.5), tintHi: sc.tone === "dark" ? "rgba(255,255,255,0.35)" : "rgba(255,255,255,0.9)", tintLo: hexA(c.accent, 0.08) });
-  if (b.effect === "gears") Object.assign(view, { isGears: true, gearScale: Object.hasOwn(GEAR_SCALE, m.size) ? GEAR_SCALE[m.size] : 1, gearGroups: layoutGears(clampN(m.count, 0, 8, 4), spec.base, factor),
+  if (b.effect === "gears") Object.assign(view, { isGears: true, gearScale: Object.hasOwn(GEAR_SCALE, m.size) ? GEAR_SCALE[m.size] : 1, gearGroups: layoutGears(clampN(m.count, 0, 8, 4), spec.base, factor, cw, ch),
     gearFill: hexA(c.accent, 0.07), gearStroke: hexA(c.accent, 0.8) });
   return view;
 }

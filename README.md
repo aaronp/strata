@@ -55,46 +55,55 @@ Strata is a presentation tool where slides form a **tree**, not a line. Viewers 
 Each slide is built from positioned **layers** (text, image, shape, icon, component), laid out by a **template** and coloured by the deck's **theme**. A slide can reveal its layers in **build steps**: each layer has a step number (0 = always shown), each step has a transition (Fade, Rise, Slide in, Grow, Wipe, Wave, Pop or Cut), and the slide has one timing. Elements only appear; nothing moves or morphs between steps.
 
 ## About the design files
-The files in `design/` are **design references built in HTML**: working prototypes that show the intended look and behaviour. They are not production code to copy. The task is to **rebuild this in a real app**. Recommended stack if starting fresh: **React + TypeScript + Vite**, a state store (Zustand or Redux Toolkit) with undo/redo built on immutable snapshots, and plain CSS transitions / Web Animations API for tweening. Persist to localStorage first, with a JSON export/import; a backend can come later.
+The files in `design/` are **design references built in HTML**: working prototypes that show the intended look and behaviour. They are not production code to copy. The task is to **rebuild this in a real app**. Recommended stack if starting fresh: **React + TypeScript + Vite**, a state store (Zustand or Redux Toolkit) with undo/redo built on immutable snapshots, and plain CSS transitions for the build reveals. Persist to localStorage first, with a JSON export/import; a backend can come later.
 
 `strata.dc.html` is the current version. It's a "Design Component": a template with `{{ }}` holes plus a `class Component` logic block inside a `<script data-dc-script>` tag. **Read the logic class: it is the spec for all behaviour.** `support.js` is the prototype's runtime only; don't port it. Older `Strata*.dc.html` versions are superseded and not included.
 
 ## Fidelity
 **High-fidelity for behaviour and layout; mid-fidelity for visual polish.** Match the interaction model, data model, parallax maths and transition system exactly. Colours and type below are final for the editor chrome.
 
-## Data model (as in the prototype)
+## Data model
+The layout file (`<name>-layout.json`) is `version: 2`; any other version is ignored ("Old layout file ignored") and the deck uses defaults.
 ```ts
-type Deck = {
-  nodes: Record<string, SlideNode>;   // 'ROOT' is a hidden root; its children are the top-level row
-  bg: 'balloons' | 'london' | 'sea' | 'space' | 'forest' | 'sky' | 'ocean' | 'none' | 'custom';   // default 'balloons' customBg?: string /*dataURL*/; customAspect: number;
-  opacity: number;        // background opacity 0–1
-  base: string;           // colour or CSS gradient behind the background; the Canvas tab's Basic theme sets bg 'none' and picks this, Fun picks an image
-  offset: number;         // horizontal background offset (background loops infinitely)
-  rowGap?: number;        // row step − 1: top edge to top edge is h·(1+rowGap); 0 = rows abut, < 0 overlaps (parallax)
-  gap: number;            // column step − 1: left edge to left edge is w·(1+gap); 0 = slides abut (background moves in sync), < 0 overlaps (parallax)
-  tdef: Partial<Record<Action, Timing>>;   // deck-wide transition defaults
-  images: Record<string, string>;          // imgKey -> dataURL (stored separately in the prototype)
+type LayoutFile = {
+  version: 2;
+  deck: {
+    theme: Theme;
+    layouts?: Record<string, Template>; layoutDefaults?: Record<string, string>;   // templates by id; default template per slide shape
+    styles?: Record<string, TextStyle>;   // only what differs from the built-ins
+    customBg?: string /*dataURL*/; customAspect: number; opacity: number; offset: number;
+    gap: number; rowGap?: number;         // column / row step − 1 (0 = slides abut, < 0 overlaps)
+    speed: number; titlePage: boolean;
+    images: Record<string, string>;       // imgKey -> dataURL
+  };
+  slides: Record<string, SlideOverride>;  // by slide id; absent = defaults
 };
-type SlideNode = {
-  id: string; title: string; body: string /*notes*/; children: string[];
-  frames?: Frame[];                 // absent = one frame with default layers
-  ftrans?: Record<FrameId, Record<LayerId, LayerTrans>>; // keyed by the FROM frame of each A→B pair
-  showFrames?: boolean;             // show frame-progress dots on the slide
+type Theme = {
+  background: string;                     // e.g. 'image:sky'
+  scheme: string;                         // 'original', a preset or 'custom'
+  palette: string;                        // sets primary, secondary, tertiary, impact, text, muted, onPrimary
+  fonts: string;                          // a heading / body / mono set
+  surface: 'clear' | 'frosted' | 'card';
 };
-type Frame = { id: string; layers: Layer[] };    // array order = z-order (later = on top)
+type SlideOverride = {
+  layers?: Layer[];                       // array order = z-order (later = on top); md-* layers are filled from the markdown
+  template?: string; layout?: string; barStyle?: 'band' | 'underline' | 'none'; side?: 'left' | 'right';
+  steps?: Record<LayerId, number>;        // layer -> build step; absent or 0 = always shown
+  trans?: Record<number, TransId>;        // step -> transition, default 'fade'
+  build?: { dur: 250 | 500 | 900; ease: string; earlier: 'keep' | 'dim'; replace: boolean };   // one timing per slide
+  showSteps?: boolean;                    // step dots in Present
+};
+type TransId = 'fade' | 'rise' | 'slide' | 'scale' | 'wipe' | 'wave' | 'pop' | 'none';
 type Layer = {
-  id: string; type: 'text' | 'image' | 'shape' | 'icon';
+  id: string; type: 'text' | 'image' | 'shape' | 'icon' | 'component';
   x: number; y: number; w: number; h: number;   // % of the 16:9 slide
   rot?: number; opacity?: number; hidden?: boolean;
   link?: { kind: 'url'; url: string } | { kind: 'slide'; id: string };
-  // text: text, font, size, weight, color, align, valign, lh, ls, bullets ('none'|'disc'|'num'|…), gap
-  // image: imgKey, fit; shape: shape ('rect'|'ellipse'|…), fill, radius; icon: icon, color, sw
+  // text: text, style, font ('head'|'body'|'mono'), size, weight, color (a token or hex), align, valign, lh, bullets
+  // image: imgKey, fit; shape: shape, fill (a token), fillOpacity, border; icon: icon, color
 };
-type Action = 'move' | 'scale' | 'rotate' | 'colour' | 'size' | 'fade';
-type Timing = { ease: 'linear'|'in'|'out'|'both'|'spring'; dur: number /*ms*/; delay: number /*ms*/ };
-type LayerTrans = Partial<Record<Action, Timing>> & { path?: { c1: Pt; c2: Pt } }; // bezier control points in slide %
 ```
-A layer keeps the **same `id`** across frames; that's how it's matched for tweening. Duplicating a frame copies its layers with their ids.
+The deck's nodes (id, title, notes, children) come from the markdown, not the layout file. Theme colours reach slides as tokens (`primary`, `secondary`, `tertiary`, `impact`, `text`, `muted`, `onPrimary`), so changing the theme restyles every slide. Elements only appear on a step; nothing moves between steps. A step's transition and the slide's timing (default 500 ms, Ease out, earlier items dimmed to 45%, detail panels replace) are the only animation settings. See `builds.ts`.
 
 ## Core behaviour
 
@@ -139,21 +148,14 @@ A layer keeps the **same `id`** across frames; that's how it's matched for tween
     - **Timing · whole slide:** Quick 250 / Normal 500 / Slow 900 ms; Ease out, Springy or Linear. Changing it replays the selected step.
     - **List behaviour** (list slides): earlier list items Keep or Dim (to 45%); detail panels Replace previous or Build up.
     - **Show step dots in Present.**
-    - **Frame strip** (under the stage): ◀ ▶, Play / Pause and a chip per step (Frame n, its transition). A chip or ◀ ▶ previews that step on the stage; Play walks the steps (one every duration + 1.1 s) and stops at the end. Leaving the tab or Esc ends ordering, play and the preview.
+    - **Step strip** (under the stage): ◀ ▶, Play / Pause and a chip per step (Step n, its transition). A chip or ◀ ▶ previews that step on the stage; Play walks the steps (one every duration + 1.1 s) and stops at the end. Leaving the tab or Esc ends ordering, play and the preview.
     - Linked-in slides refuse ordering and transition changes ("Linked slides are read-only here…"), but preview works.
 - **Undo / redo:** ⌘Z / ⇧⌘Z / ⌘Y covers node, layer, step, transition and template edits (theme and text style edits aren't on undo).
 
-### Transition maths
-- Easing curves: linear `(0,0,1,1)`, in `(.55,0,1,.45)`, out `(0,.55,.45,1)`, both `(.65,0,.35,1)`, spring `(.34,1.56,.64,1)`.
-- Timing fallback: per-layer action → legacy per-layer → deck default → `{ease:'both', dur:600, delay:0}`.
-- Straight moves are CSS transitions on left/top/width/height. **Curved** moves are animated per frame: progress is eased, position comes from a cubic bezier between the two centres, and size is interpolated using the Scale timing. Going backwards plays the same curve reversed.
-- Layers present in only one frame fade in or out where they sit.
-
 ## Design tokens (editor chrome)
-- Paper `#f2eee5`, panel `#fbf9f4`, card `#fff`, line `#e0d9cb`, soft line `#f0ebe0`, tag background `#ece6d9`
-- Ink `#1d1b17`, muted `#6b6458`, accent red `#d9432b` (current frame), destructive `#a8301d`
-- Selection blue `#1f6fb8`, blue tints `#eef3f9` / `#d6e2ef` / `#9db8d3`, deep blue text `#1f4f80` / `#3d5a78`
-- Slide base colour options start with `#0b1220`
+- Dark palette: page `#16181D`, panel `#1B1E24`, control `#23262E`, line `#2C3039`, active `#343944`
+- Text `#E8EAEE`, secondary text `#C3C8D2`, muted `#9AA1AD`
+- Accent `#7AA2FF` (text on accent `#0B1020`), selected card `#2A3A5C`, current step amber `#FBBF24`
 - Type:
   - UI: **Bricolage Grotesque** 14px (headers 600–800)
   - Labels: **JetBrains Mono** 10–11px, uppercase, letter-spacing .14em

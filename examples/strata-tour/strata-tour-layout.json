@@ -1,7 +1,13 @@
 {
   "version": 2,
   "deck": {
-    "theme": { "background": "image:sky", "scheme": "original", "palette": "midnight", "fonts": "technical", "surface": "clear" },
+    "theme": {
+      "background": "image:sky",
+      "scheme": "original",
+      "palette": "midnight",
+      "fonts": "technical",
+      "surface": "clear"
+    },
     "customBg": null,
     "customAspect": 1,
     "opacity": 1,
@@ -12,5 +18,21 @@
     "rowGap": -0.7,
     "images": {}
   },
-  "slides": {}
+  "slides": {
+    "keys": {
+      "steps": {
+        "md-list-1-1": 1,
+        "md-list-1-2": 2,
+        "md-list-1-3": 3,
+        "md-list-1-4": 4
+      },
+      "trans": {
+        "1": "rise",
+        "2": "rise",
+        "3": "rise",
+        "4": "rise"
+      },
+      "showSteps": true
+    }
+  }
 }

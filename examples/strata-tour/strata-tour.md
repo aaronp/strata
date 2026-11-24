@@ -53,9 +53,9 @@ Wrap paragraphs in a block comment…
 # Layouts
 slug: layouts
 
-The markdown holds the words; `strata-tour-layout.json` beside it holds everything else: layouts, per-slide overrides, styles, frames, the background.
+The markdown holds the words; `strata-tour-layout.json` beside it holds everything else: the theme, layouts, per-slide overrides, text styles, build steps.
 
-In the Slide tab, **This slide** edits just this slide; **Layout** edits the shared layout for every slide with the same blocks. Content no layout region claims still shows, with a ⚠️ badge: click it to give it a place.
+In the Slides tab, **This slide** edits just this slide; **Layout** edits the shared layout for every slide with the same blocks. Content no layout region claims still shows, with a ⚠️ badge: click it to give it a place.
 
 # Links
 slug: links
@@ -79,7 +79,7 @@ A slide can take its children from other markdown files. Press ↓: the slides b
 # Presenting
 slug: keys
 
-- ← → siblings, ↑ ↓ levels
+- ← → siblings, ↑ ↓ levels (on a slide with build steps, → reveals the next step first, ← goes back one)
 - Space / Shift+Space step through every slide in order
 - / searches, T cycles Slides · Tree · Radial
 - B shows or hides the breadcrumbs, F toggles fit

@@ -1504,14 +1504,19 @@ test("Slides tab: clicking a template applies it; the title bar option draws or 
   c.reenrich(); expect(layerOf(c, "s", "md-list-1-1").x).toBe(69);
 });
 
-test("Slides tab: the template's placeholders; clicking one, or a markdown layer on the stage, opens Content", async () => {
+test("Slides tab: the template's placeholders; clicking one opens Content; a markdown layer on the stage leaves the tab alone", async () => {
   await writeMd("talk", "# T\nslug: t\n\nOne.\n\nTwo.\n");
   const { c } = await mount("?deck=talk"); c.setState({ cur: "t", rtab: "slides" }); c.applyLayout("t", "t-two");
   let v = c.renderVals(); expect(v.placeholders.map((p: any) => p.name)).toEqual(["Title", "Body 1", "Body 2"]);
   v.placeholders[1].pick(); expect(c.state.rtab).toBe("content");
   c.setState({ rtab: "slides" }); c.stageRef.current = { getBoundingClientRect: () => ({ left: 0, top: 0, width: 100, height: 100 }) };
   c.renderVals().overlays.find((o: any) => o.lid === "md-title").onDown({ stopPropagation() {}, button: 0, clientX: 5, clientY: 5 });
-  expect(c.state.rtab).toBe("content"); expect(c.state.layerSel).toBe("md-title");
+  expect(c.state.rtab).toBe("slides"); expect(c.state.layerSel).toBe("md-title");
+  c.setState({ rtab: "theme" }); c.renderVals().overlays.find((o: any) => o.lid === "md-body-1").onDown({ stopPropagation() {}, button: 0, clientX: 5, clientY: 5 });
+  expect(c.state.rtab).toBe("theme"); expect(c.state.layerSel).toBe("md-body-1");
+  c.addLayer("text", { x: 10, y: 10, w: 20, h: 10 }); const own = c.state.layerSel; c.setState({ rtab: "theme", layerSel: null });
+  c.renderVals().overlays.find((o: any) => o.lid === own).onDown({ stopPropagation() {}, button: 0, clientX: 5, clientY: 5 });
+  expect(c.state.rtab).toBe("slides"); expect(c.state.layerSel).toBe(own);   // not a markdown layer: its properties show
 });
 
 const STAGE100 = { getBoundingClientRect: () => ({ left: 0, top: 0, width: 100, height: 100 }) };

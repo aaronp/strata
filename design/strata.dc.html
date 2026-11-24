@@ -2412,7 +2412,7 @@ class Component extends DCLogic {
     const ids = this.selIds(), group = mode === 'move' && ids.length > 1 && ids.includes(lid);
     const orig = group ? this.layersOf(cid).filter(l => ids.includes(l.id)) : null;
     const again = mode === 'move' && !group && o.type === 'text' && this.state.layerSel === lid && !(this.state.layerSet || []).length;   // a click on the selected text box edits it
-    const rtab = isMd({ id: lid }) ? 'content' : 'slides';   // a markdown layer's words are edited in Content
+    const rtab = isMd({ id: lid }) ? this.state.rtab : 'slides';   // selecting a markdown layer leaves the tab alone; any other shows its properties
     this.setState(group ? { editing: null, rtab } : { layerSel: lid, layerSet: [], editing: null, rtab });
     const sx = ev.clientX, sy = ev.clientY; let moved = false;
     const move = e => {

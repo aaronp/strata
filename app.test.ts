@@ -616,6 +616,15 @@ test("a v2 layout's steps load; in Present → walks the steps, then the slides;
   c.setState({ preview: true }); expect(body().build).toMatchObject({ opacity: 0 });       // unless a preview is playing
 });
 
+test("in build mode (no preview) → and Space move between slides and leave at alone; stepBuild still works directly", async () => {
+  await writeMd("talk", TALK, STEPPED);
+  const { c } = await mount("?deck=talk"); c.setState({ mode: "build", cur: "intro", at: 0 });
+  key(c, "ArrowRight"); expect(c.state.cur).toBe("next"); expect(c.state.at).toBe(0);
+  c.setState({ cur: "intro", at: 0 }); c.step(1); expect(c.state.cur).toBe("detail"); expect(c.state.at).toBe(0);
+  c.setState({ cur: "intro", at: 0 }); expect(c.stepBuild(1)).toBe(true); expect(c.state.at).toBe(1);
+  c.setState({ preview: true, at: 0 }); key(c, "ArrowRight"); expect([c.state.cur, c.state.at]).toEqual(["intro", 1]);
+});
+
 test("steps with gaps walk 1 → 3 → 7; stepBuild is false at either end", async () => {
   await writeMd("talk", "# A\nslug: a\n\n- one\n- two\n- three\n");
   const { c } = await mount("?deck=talk");

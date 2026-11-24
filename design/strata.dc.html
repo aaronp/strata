@@ -1915,6 +1915,7 @@ class Component extends DCLogic {
     if (to === undefined) return false;
     this.goStep(to); return true;
   }
+  stepsShown() { return this.state.mode === 'present' || !!this.state.preview; }   // arrows walk steps only where steps are visible; editing moves between slides
   goStep(n) { this.setState({ at: n, editing: null }); }
   updLayer(id, lid, patch) { this.setLayers(id, ls => ls.map(l => l.id === lid ? { ...l, ...patch } : l)); }
   setStyle(id, patch) { this.setState(s => ({ styles: { ...(s.styles || {}), [id]: { ...((s.styles || {})[id] || {}), ...patch } } })); }
@@ -2134,9 +2135,9 @@ class Component extends DCLogic {
     this.t = setTimeout(() => this.setState({ prev: null, phase: 'idle' }), S.speed + 60);
   }
   go(dir) { const id = this.state.cur; if (dir === 'down' && this.unloaded(id)) { this.loadChildren(id).then(() => this.state.cur === id && this.go('down')); return; }   // unless the viewer moved meanwhile
-    if ((dir === 'right' && this.stepBuild(1)) || (dir === 'left' && this.stepBuild(-1))) return; const D = this.derive(); this.nav(this.neighbour(this.state.cur, dir, D), dir); }
+    if (this.stepsShown() && ((dir === 'right' && this.stepBuild(1)) || (dir === 'left' && this.stepBuild(-1)))) return; const D = this.derive(); this.nav(this.neighbour(this.state.cur, dir, D), dir); }
   step(delta) {
-    if (this.stepBuild(delta)) return; const cur0 = this.curId();
+    if (this.stepsShown() && this.stepBuild(delta)) return; const cur0 = this.curId();
     if (delta > 0 && this.unloaded(cur0)) { this.loadChildren(cur0).then(() => this.curId() === cur0 && this.step(delta)); return; }   // next into a first child is going down
     const D = this.derive(), cur = this.curId();
     const order = this.state.titlePage ? ['ROOT', ...D.order] : D.order, dep = x => x === 'ROOT' ? -1 : D.depth[x];

@@ -2535,3 +2535,17 @@ test("a deck using every feature (images, components, links, shapes, styles, tem
   const draft = { md: "# X\n", layout: { ...A, deck: { ...A.deck, images: { a: "data:image/bmp;base64,AA", b: "data:image/x-icon;base64,AA" } } } };   // scratch decks keep data: uploads of any image type
   const s = await mount("", { store: { "strata-v8": JSON.stringify(draft) } }); expect(Object.keys(s.c.state.images).sort()).toEqual(["a", "b"]);
 });
+
+test("a click on the already-selected text box starts editing it; a first click or a drag only selects", async () => {
+  await writeMd("talk", "# Intro\nslug: intro\n\nHello there.\n");
+  const { c, listeners: on } = await mount("?deck=talk");
+  c.stageRef.current = { getBoundingClientRect: () => ({ left: 0, top: 0, width: 100, height: 100 }) };
+  const ev = { stopPropagation() {}, button: 0, clientX: 10, clientY: 10 };
+  const click = (lid: string) => { c.startDrag(ev, lid, "move"); on.pointerup(); };
+  click("md-body-1"); expect(c.state.layerSel).toBe("md-body-1"); expect(c.state.editing ?? null).toBeNull();   // first click selects
+  click("md-body-1"); expect(c.state.editing).toBe("md-body-1");                                                // second click edits
+  c.setState({ editing: null }); c._mdEdit = null;
+  c.startDrag(ev, "md-body-1", "move"); on.pointermove({ clientX: 30, clientY: 30 }); on.pointerup();
+  expect(c.state.editing ?? null).toBeNull();                                                                     // a drag never edits
+  click("md-title"); expect(c.state.editing ?? null).toBeNull();                                                  // another layer: select first
+});

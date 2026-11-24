@@ -2411,6 +2411,7 @@ class Component extends DCLogic {
     const cid = this.curId(); const o = this.layersOf(cid).find(l => l.id === lid); if (!o) return;
     const ids = this.selIds(), group = mode === 'move' && ids.length > 1 && ids.includes(lid);
     const orig = group ? this.layersOf(cid).filter(l => ids.includes(l.id)) : null;
+    const again = mode === 'move' && !group && o.type === 'text' && this.state.layerSel === lid && !(this.state.layerSet || []).length;   // a click on the selected text box edits it
     const rtab = isMd({ id: lid }) ? 'content' : 'slides';   // a markdown layer's words are edited in Content
     this.setState(group ? { editing: null, rtab } : { layerSel: lid, layerSet: [], editing: null, rtab });
     const sx = ev.clientX, sy = ev.clientY; let moved = false;
@@ -2435,10 +2436,11 @@ class Component extends DCLogic {
       }
       this.updLayer(cid, lid, p); this.setState({ guides });
     };
-    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); this.setState({ guides: {} }); if (group && !moved) this.setSelection([lid]); };
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); this.setState({ guides: {} }); if (group && !moved) this.setSelection([lid]); if (again && !moved) this.startEdit(lid); };
     window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
   }
   startEdit(lid) {
+    if (this.state.editing === lid) return;   // already editing (the click before a double-click started it)
     const N = this.flushMd() || this.state.nodes, l = (N[this.curId()] ? this.layersOfNode(N[this.curId()]) : []).find(x => x.id === lid); if (!l || isGen(l)) return;
     if (isMd(l)) {   // title, paragraph and bullet words edit in place and write back to the markdown; the rest is edited in Content
       const kind = l.block === 'title' ? 'title' : l.kind === 'item' ? 'item' : l.block === 'body' ? (l.group ? 'group' : 'body') : null;

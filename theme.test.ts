@@ -61,3 +61,19 @@ test("effects lay out across the whole canvas (w × h stage sizes), not once per
   expect(effectView({ background: "gears" }).gearGroups.map(g => g.left)).toEqual(["5.000%", "90.000%"]);   // one stage: the old corners
   expect(resolveTheme({ background: "dusk" }).bg.deep).toBe("#1E1B4B");
 });
+test("effects are resolution-independent: sizes in cqw of the canvas (a 1600px-wide stage = 100cqw / canvas.w), positions in %", async () => {
+  const { effectView } = await import("./theme");
+  const cq = (s: string) => { expect(s).toMatch(/^-?[\d.]+cqw$/); return parseFloat(s); };
+  // one stage: the old px look, with the stage as 100cqw (1600px wide, as Layers' cqw sizes)
+  const sun1 = effectView({ background: "sunset" }), sun3 = effectView({ background: "sunset" }, { w: 3, h: 2 });
+  expect(sun1.sunSize).toBe("16.250cqw"); expect(sun1.sunHalf).toBe("-8.125cqw");                 // was 260px, -130px
+  expect(cq(sun3.sunSize)).toBeCloseTo(16.25 / 3, 3);                                               // same disc on a 3-stage-wide canvas
+  const g1 = effectView({ background: "gears", motion: { count: 1 } }).gearGroups[0].gears[0];
+  expect(g1).toMatchObject({ w: "18.750cqw", x: "-9.375cqw", y: "-9.375cqw" });                    // R 150: was 300px wide at -150px
+  const gl = effectView({ background: "gears", motion: { count: 1, size: "large" } }, { w: 2, h: 1 }).gearGroups[0].gears[0];
+  expect(cq(gl.w)).toBeCloseTo(18.75 * 1.4 / 2, 3);                                                // the size option scales it; half the share of a 2-wide canvas
+  const b1 = effectView({ background: "bubbles" }).bubbles, b2 = effectView({ background: "bubbles" }, { w: 2, h: 1 }).bubbles;
+  for (const u of b1) { const s = cq(u.size); expect(s).toBeGreaterThanOrEqual(8 / 16); expect(s).toBeLessThanOrEqual(36 / 16); expect(u.left).toMatch(/%$/); }   // 8–36px
+  expect(cq(b2[0].size)).toBeCloseTo(cq(b1[0].size) / 2, 2);
+  for (const v of [sun1, effectView({ background: "gears" }), effectView({ background: "bubbles" })]) expect(JSON.stringify(v)).not.toMatch(/\dpx/);
+});

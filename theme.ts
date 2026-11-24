@@ -192,12 +192,16 @@ function seededRandom(seed: number) {
   let s = seed >>> 0;
   return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
 }
+// Effect sizes are drawn in cqw of the canvas-sized effects container (container-type:size), so one markup works at any scale (stage, wireframe).
+// They were designed in px on a stage FX_REF_W px wide, as Layers' cqw sizes (px / 16 = cqw of one 1600px stage). Raise it to shrink every effect.
+const FX_REF_W = 1600;
+const cqw = (px: number, w: number) => (px / FX_REF_W * 100 / w).toFixed(3) + "cqw";   // px on one stage → cqw of a w-stage-wide canvas
 // Canvas = w × h stages. count is per stage; the rise covers the canvas height in h × the time, so it moves at the same speed.
 function makeBubbles(count: number, baseSeconds: number, factor: number, seed: number, w = 1, h = 1) {
   const rnd = seededRandom(seed), n = Math.min(Math.round(count * w * h), 600);   // ponytail: capped for the DOM; a huge canvas thins out past 600
   return Array.from({ length: n }, () => {
     const size = 8 + rnd() * 28, left = rnd() * (100 - 4 / w), dur = baseSeconds * (0.7 + rnd() * 0.6) * factor * h, delay = -(rnd() * dur);
-    return { left: left.toFixed(1) + "%", size: size.toFixed(1) + "px", dur: dur.toFixed(2) + "s", delay: delay.toFixed(2) + "s" };
+    return { left: left.toFixed(1) + "%", size: cqw(size, w), dur: dur.toFixed(2) + "s", delay: delay.toFixed(2) + "s" };
   });
 }
 function gearPath(teeth: number, R: number, depth: number, hole: number) {
@@ -209,15 +213,15 @@ function gearPath(teeth: number, R: number, depth: number, hole: number) {
 }
 export const GEAR_SWATCH_PATH = gearPath(10, 46, 12, 13);
 // The stage's corner groups, repeated in every stage-sized cell of a w × h canvas, so any view shows the same gears as one stage.
-function layoutGears(count: number, baseSeconds: number, factor: number, w = 1, h = 1) {
+function layoutGears(count: number, baseSeconds: number, factor: number, w = 1, h = 1, scale = 1) {
   const shown: Record<string, number> = {};
   GEAR_ORDER.slice(0, count).forEach(([k, n]) => { shown[k] = n; });
   const groups = Object.keys(shown).map((key) => {
     const chain = GEAR_CHAINS[key]; let x = 0, y = 0;
     const gears = chain.gears.slice(0, shown[key]).map((g, i, list) => {
       if (i > 0) { const prev = list[i - 1], dist = prev.R + g.R - GEAR_DEPTH, rad = ((g.angle || 0) * Math.PI) / 180; x += dist * Math.cos(rad); y += dist * Math.sin(rad); }
-      return { cls: i % 2 === 0 ? "spin" : "spinr", w: g.R * 2, vb: -g.R + " " + -g.R + " " + g.R * 2 + " " + g.R * 2,
-        x: (x - g.R).toFixed(1) + "px", y: (y - g.R).toFixed(1) + "px", phase: i === 0 ? 0 : 180 / g.teeth,
+      return { cls: i % 2 === 0 ? "spin" : "spinr", w: cqw(g.R * 2 * scale, w), vb: -g.R + " " + -g.R + " " + g.R * 2 + " " + g.R * 2,
+        x: cqw((x - g.R) * scale, w), y: cqw((y - g.R) * scale, w), phase: i === 0 ? 0 : 180 / g.teeth,
         dur: (baseSeconds * factor * (g.teeth / 18)).toFixed(1) + "s", d: gearPath(g.teeth, g.R, GEAR_DEPTH, g.R * 0.28) };
     });
     return { chain, gears };
@@ -245,7 +249,7 @@ export function effectView(t0: Partial<Theme> | null = {}, canvas: { w: number; 
   const t: Partial<Theme> = t0 ?? {}, m = motionOf(t);
   const view = { cls: "", dur: "0s", isBubbles: false, isSunset: false, isGears: false, sunOn: false, opacity: 1, horizon: "transparent",
     bubbles: [] as ReturnType<typeof makeBubbles>, gearGroups: [] as ReturnType<typeof layoutGears>, gearScale: 1, gearFill: "transparent", gearStroke: "transparent",
-    tintEdge: "transparent", tintHi: "transparent", tintLo: "transparent" };
+    tintEdge: "transparent", tintHi: "transparent", tintLo: "transparent", edge: cqw(1, cw), sunSize: cqw(260, cw), sunHalf: cqw(-130, cw) };
   if (!m) return view;
   const sc = schemeOf(t), b = sc.b as any, c = sc.colours, spec = (MOTION as any)[b.id], factor = 1 / SPEEDS[m.speedIdx];
   Object.assign(view, { dur: (spec.base * factor).toFixed(1) + "s", opacity: spec.controls.includes("opacity") ? clampN(m.opacity, 0, 100, 100) / 100 : 1 });
@@ -253,7 +257,8 @@ export function effectView(t0: Partial<Theme> | null = {}, canvas: { w: number; 
   if (b.effect === "sunset") Object.assign(view, { cls: "sky", isSunset: true, sunOn: m.sun !== "hide", horizon: hexA(c.deep, 0.9) });
   if (b.effect === "bubbles") Object.assign(view, { isBubbles: true, bubbles: makeBubbles(clampN(m.count, 0, 60, 18), spec.base, factor, 7, cw, ch),
     tintEdge: sc.tone === "dark" ? "rgba(255,255,255,0.5)" : hexA(c.accent, 0.5), tintHi: sc.tone === "dark" ? "rgba(255,255,255,0.35)" : "rgba(255,255,255,0.9)", tintLo: hexA(c.accent, 0.08) });
-  if (b.effect === "gears") Object.assign(view, { isGears: true, gearScale: Object.hasOwn(GEAR_SCALE, m.size) ? GEAR_SCALE[m.size] : 1, gearGroups: layoutGears(clampN(m.count, 0, 8, 4), spec.base, factor, cw, ch),
-    gearFill: hexA(c.accent, 0.07), gearStroke: hexA(c.accent, 0.8) });
+  if (b.effect === "gears") { const gearScale = Object.hasOwn(GEAR_SCALE, m.size) ? GEAR_SCALE[m.size] : 1;
+    Object.assign(view, { isGears: true, gearScale, gearGroups: layoutGears(clampN(m.count, 0, 8, 4), spec.base, factor, cw, ch, gearScale),
+    gearFill: hexA(c.accent, 0.07), gearStroke: hexA(c.accent, 0.8) }); }
   return view;
 }

@@ -20,7 +20,7 @@ input,select,textarea,button{font:inherit;color:inherit}
 select option{background:#23262E;color:#E8EAEE}
 @keyframes drift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
 .anim{animation:drift 16s ease-in-out infinite}
-@keyframes rise{0%{top:110%;opacity:0;transform:translateX(0)}12%{opacity:1}50%{transform:translateX(14px)}88%{opacity:1}100%{top:-12%;opacity:0;transform:translateX(-8px)}}
+@keyframes rise{0%{top:110%;opacity:0;transform:translateX(0)}12%{opacity:1}50%{transform:translateX(60%)}88%{opacity:1}100%{top:-12%;opacity:0;transform:translateX(-35%)}}
 .bubble{position:absolute;top:110%;animation:rise 14s linear infinite}
 @keyframes sky{0%{background-position:50% 0%}50%{background-position:50% 100%}100%{background-position:50% 0%}}
 .sky{animation:sky 40s ease-in-out infinite}
@@ -197,18 +197,18 @@ select option{background:#23262E;color:#E8EAEE}
                 <sc-for list="{{ tiles }}" as="tl" hint-placeholder-count="0">
                   <div style="position:absolute;top:{{ tl.t }}%;height:{{ tl.h }}%;left:{{ tl.l }}%;width:calc({{ tl.w }}% + 2px);background:{{ bgCss }};opacity:{{ opacity }}"></div>
                 </sc-for>
-                <div aria-hidden="true" style="position:absolute;inset:0;overflow:hidden;pointer-events:none">
+                <div aria-hidden="true" style="position:absolute;inset:0;overflow:hidden;pointer-events:none;container-type:size">
                   <sc-if value="{{ fx.isBubbles }}">
                     <div style="position:absolute;inset:0;opacity:{{ fx.opacity }}">
                       <sc-for list="{{ fx.bubbles }}" as="u" hint-placeholder-count="12">
-                        <span class="bubble" style="left:{{ u.left }};width:{{ u.size }};height:{{ u.size }};border-radius:50%;border:1px solid {{ fx.tintEdge }};background:radial-gradient(circle at 32% 30%, {{ fx.tintHi }}, {{ fx.tintLo }} 62%);animation-duration:{{ u.dur }};animation-delay:{{ u.delay }}"></span>
+                        <span class="bubble" style="left:{{ u.left }};width:{{ u.size }};height:{{ u.size }};border-radius:50%;border:{{ fx.edge }} solid {{ fx.tintEdge }};background:radial-gradient(circle at 32% 30%, {{ fx.tintHi }}, {{ fx.tintLo }} 62%);animation-duration:{{ u.dur }};animation-delay:{{ u.delay }}"></span>
                       </sc-for>
                     </div>
                   </sc-if>
                   <sc-if value="{{ fx.isSunset }}">
                     <sc-if value="{{ fx.sunOn }}">
                       <span class="sunx" style="opacity:{{ fx.opacity }};animation-duration:{{ canvasBg.dur }}">
-                        <span class="suny" style="left:-130px;width:260px;height:260px;margin-top:-130px;background:radial-gradient(circle, rgba(255,236,179,0.97) 0%, rgba(253,186,116,0.8) 30%, rgba(251,146,60,0) 70%);animation-duration:{{ canvasBg.dur }}"></span>
+                        <span class="suny" style="left:{{ fx.sunHalf }};width:{{ fx.sunSize }};height:{{ fx.sunSize }};margin-top:{{ fx.sunHalf }};background:radial-gradient(circle, rgba(255,236,179,0.97) 0%, rgba(253,186,116,0.8) 30%, rgba(251,146,60,0) 70%);animation-duration:{{ canvasBg.dur }}"></span>
                       </span>
                     </sc-if>
                     <span style="position:absolute;left:0;right:0;bottom:0;height:24%;background:linear-gradient(180deg, transparent 0%, {{ fx.horizon }} 100%)"></span>
@@ -216,9 +216,9 @@ select option{background:#23262E;color:#E8EAEE}
                   <sc-if value="{{ fx.isGears }}">
                     <div style="position:absolute;inset:0;opacity:{{ fx.opacity }}">
                       <sc-for list="{{ fx.gearGroups }}" as="grp" hint-placeholder-count="2">
-                        <div style="position:absolute;left:{{ grp.left }};top:{{ grp.top }};width:0;height:0;transform:scale({{ fx.gearScale }});transform-origin:0 0">
+                        <div style="position:absolute;left:{{ grp.left }};top:{{ grp.top }};width:0;height:0">
                           <sc-for list="{{ grp.gears }}" as="g" hint-placeholder-count="2">
-                            <svg class="{{ g.cls }}" width="{{ g.w }}" height="{{ g.w }}" viewBox="{{ g.vb }}" style="position:absolute;left:{{ g.x }};top:{{ g.y }};animation-duration:{{ g.dur }}"><g transform="rotate({{ g.phase }})"><path d="{{ g.d }}" fill="{{ fx.gearFill }}" stroke="{{ fx.gearStroke }}" stroke-width="2" fill-rule="evenodd"></path></g></svg>
+                            <svg class="{{ g.cls }}" viewBox="{{ g.vb }}" style="position:absolute;width:{{ g.w }};height:{{ g.w }};left:{{ g.x }};top:{{ g.y }};animation-duration:{{ g.dur }}"><g transform="rotate({{ g.phase }})"><path d="{{ g.d }}" fill="{{ fx.gearFill }}" stroke="{{ fx.gearStroke }}" stroke-width="2" fill-rule="evenodd"></path></g></svg>
                           </sc-for>
                         </div>
                       </sc-for>
@@ -401,6 +401,34 @@ select option{background:#23262E;color:#E8EAEE}
               <sc-for list="{{ tiles }}" as="tl" hint-placeholder-count="0">
                 <div style="position:absolute;top:{{ tl.t }}%;height:{{ tl.h }}%;left:{{ tl.l }}%;width:{{ tl.w }}%;background:{{ bgCss }};opacity:{{ opacity }};box-shadow:inset 1px 0 0 rgba(251,249,244,.25)"></div>
               </sc-for>
+              <div aria-hidden="true" style="position:absolute;inset:0;overflow:hidden;pointer-events:none;container-type:size">
+                <sc-if value="{{ fx.isBubbles }}">
+                  <div style="position:absolute;inset:0;opacity:{{ fx.opacity }}">
+                    <sc-for list="{{ fx.bubbles }}" as="u" hint-placeholder-count="12">
+                      <span class="bubble" style="left:{{ u.left }};width:{{ u.size }};height:{{ u.size }};border-radius:50%;border:{{ fx.edge }} solid {{ fx.tintEdge }};background:radial-gradient(circle at 32% 30%, {{ fx.tintHi }}, {{ fx.tintLo }} 62%);animation-duration:{{ u.dur }};animation-delay:{{ u.delay }}"></span>
+                    </sc-for>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ fx.isSunset }}">
+                  <sc-if value="{{ fx.sunOn }}">
+                    <span class="sunx" style="opacity:{{ fx.opacity }};animation-duration:{{ canvasBg.dur }}">
+                      <span class="suny" style="left:{{ fx.sunHalf }};width:{{ fx.sunSize }};height:{{ fx.sunSize }};margin-top:{{ fx.sunHalf }};background:radial-gradient(circle, rgba(255,236,179,0.97) 0%, rgba(253,186,116,0.8) 30%, rgba(251,146,60,0) 70%);animation-duration:{{ canvasBg.dur }}"></span>
+                    </span>
+                  </sc-if>
+                  <span style="position:absolute;left:0;right:0;bottom:0;height:24%;background:linear-gradient(180deg, transparent 0%, {{ fx.horizon }} 100%)"></span>
+                </sc-if>
+                <sc-if value="{{ fx.isGears }}">
+                  <div style="position:absolute;inset:0;opacity:{{ fx.opacity }}">
+                    <sc-for list="{{ fx.gearGroups }}" as="grp" hint-placeholder-count="2">
+                      <div style="position:absolute;left:{{ grp.left }};top:{{ grp.top }};width:0;height:0">
+                        <sc-for list="{{ grp.gears }}" as="g" hint-placeholder-count="2">
+                          <svg class="{{ g.cls }}" viewBox="{{ g.vb }}" style="position:absolute;width:{{ g.w }};height:{{ g.w }};left:{{ g.x }};top:{{ g.y }};animation-duration:{{ g.dur }}"><g transform="rotate({{ g.phase }})"><path d="{{ g.d }}" fill="{{ fx.gearFill }}" stroke="{{ fx.gearStroke }}" stroke-width="2" fill-rule="evenodd"></path></g></svg>
+                        </sc-for>
+                      </div>
+                    </sc-for>
+                  </div>
+                </sc-if>
+              </div>
               <svg width="100%" height="100%" style="position:absolute;inset:0;overflow:visible;pointer-events:none">
                 <sc-for list="{{ wireLines }}" as="wl" hint-placeholder-count="0">
                   <line x1="{{ wl.x1 }}" y1="{{ wl.y1 }}" x2="{{ wl.x2 }}" y2="{{ wl.y2 }}" style="stroke:#E8EAEE;stroke-width:1.5;opacity:.75"></line>
@@ -2628,6 +2656,8 @@ class Component extends DCLogic {
     // A new background or scheme whose tone flips (dark ↔ light) brings a palette of that tone: its pair, else the first.
     const change = patch => { const n = { ...t, ...patch }, r = TH.schemeOf(n), pal = TH.PALETTES.find(p => p.id === n.palette) || th.palette;
       this.setTheme(String(n.background).startsWith('image:') || pal.tone === r.tone ? patch : { ...patch, palette: r.pairs || TH.PALETTES.find(p => p.tone === r.tone).id }); };
+    // The stage and the wireframe draw fx with one markup (sizes in cqw of the canvas).
+    // ponytail: tree thumbnails and present map cards show only canvasBg: fx per card is 18 bubbles × canvas stages × every card, all animating. Add when cards are few or fx gets a static mode.
     const fx = TH.effectView(t, { w: +cam.w / 100, h: +cam.h / 100 }), m = TH.motionOf(t), spec = m && TH.MOTION[sc.b.id], speed = m ? TH.SPEEDS[m.speedIdx] : 1;
     const setMotion = patch => this.setTheme({ motion: { ...(t.motion || {}), ...patch } });
     const countCfg = m && spec.controls.includes('count') ? TH.COUNT_CONTROLS[sc.b.effect] : null, extraKey = m ? spec.controls.find(k => TH.EXTRA_CONTROLS[k]) : null, extra = extraKey ? TH.EXTRA_CONTROLS[extraKey] : null;

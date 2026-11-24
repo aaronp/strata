@@ -2662,6 +2662,23 @@ test("the theme background and its effects belong to the canvas: effects pan ins
   for (const k of ["fx.isBubbles", "fx.isSunset", "fx.isGears"]) {
     const at = html.indexOf(k, cam); expect(at).toBeGreaterThan(cam);
     expect(opens(html.slice(html.lastIndexOf("<div", cam), at))).toBeGreaterThan(0);   // still inside the camera div
-    expect(html.indexOf(k)).toBe(at);                                           // and drawn nowhere else
+    expect(html.indexOf(k)).toBe(at);                                           // the first copy is the stage's
   }
+});
+
+test("the wireframe draws the whole background with its effects, from the same markup as the stage, under the slide outlines", async () => {
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  const block = (from: number) => { const a = html.indexOf('<div aria-hidden="true"', from), open = html.indexOf("fx.isBubbles", a);
+    expect(open).toBeGreaterThan(a); let depth = 0, i = a;
+    for (const m of html.slice(a).matchAll(/<div\b|<\/div>/g)) { depth += m[0] === "</div>" ? -1 : 1; if (!depth) { i = a + m.index! + 6; break; } }
+    return { a, text: html.slice(a, i) }; };
+  const stage = block(html.indexOf("transform:{{ curCam }}")), wireAt = html.indexOf('<sc-if value="{{ showWire }}">'), wire = block(wireAt);
+  expect(wire.a).toBeGreaterThan(wireAt);
+  expect(wire.text.replace(/\s+/g, " ")).toBe(stage.text.replace(/\s+/g, " "));   // one markup, any scale
+  expect(stage.text).toContain("container-type:size");                          // sizes are cqw of the canvas
+  expect(stage.text).not.toMatch(/\d\s*px|\{\{ fx.gearScale/);
+  const canvas = html.lastIndexOf("aspect-ratio:{{ canvasRatio }}", wire.a);
+  expect(canvas).toBeGreaterThan(wireAt);                                       // inside the wireframe's canvas element
+  expect(html.indexOf("wireRects", wire.a)).toBeGreaterThan(wire.a);           // slide outlines come after: drawn above
+  for (const k of ["fx.isBubbles", "fx.isSunset", "fx.isGears"]) expect(html.split(k).length - 1).toBe(2);   // stage + wireframe only
 });

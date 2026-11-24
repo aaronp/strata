@@ -72,22 +72,26 @@ type LayoutFile = {
     layouts?: Record<string, Template>; layoutDefaults?: Record<string, string>;   // templates by id; default template per slide shape
     styles?: Record<string, TextStyle>;   // only what differs from the built-ins
     customBg?: string /*dataURL*/; customAspect: number; opacity: number; offset: number;
+    bgScale?: number; bgRepeat?: string; bgY?: number;   // custom-image background: scale, repeat, vertical position
+    titleView?: { zoom: number; x: number; y: number };   // the title page's view of the canvas
+    spacing?: 'even' | 'fit';             // Canvas: Even steps (default) or Fit subtrees
     gap: number; rowGap?: number;         // column / row step − 1 (0 = slides abut, < 0 overlaps)
     speed: number; titlePage: boolean;
     images: Record<string, string>;       // imgKey -> dataURL
   };
-  slides: Record<string, SlideOverride>;  // by slide id; absent = defaults
+  slides: Record<string, SlideOverride>;  // by slide id; absent = defaults. slides.ROOT is stored whole
 };
 type Theme = {
   background: string;                     // e.g. 'image:sky'
-  scheme: string;                         // 'original', a preset or 'custom'
+  scheme: string | { deep: string; mid: string; accent: string };   // 'original', a preset id, or a saved custom object
+  motion?: Record<string, number | string>;   // settings for moving backgrounds (speed, count, opacity, …)
   palette: string;                        // sets primary, secondary, tertiary, impact, text, muted, onPrimary
   fonts: string;                          // a heading / body / mono set
   surface: 'clear' | 'frosted' | 'card';
 };
 type SlideOverride = {
   layers?: Layer[];                       // array order = z-order (later = on top); md-* layers are filled from the markdown
-  template?: string; layout?: string; barStyle?: 'band' | 'underline' | 'none'; side?: 'left' | 'right';
+  template?: string; layout?: string; barStyle?: 'band' | 'rule' | 'none'   // 'rule' is labelled Underline in the UI; side?: 'left' | 'right';
   steps?: Record<LayerId, number>;        // layer -> build step; absent or 0 = always shown
   trans?: Record<number, TransId>;        // step -> transition, default 'fade'
   build?: { dur: 250 | 500 | 900; ease: string; earlier: 'keep' | 'dim'; replace: boolean };   // one timing per slide

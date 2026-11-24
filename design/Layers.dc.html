@@ -34,14 +34,14 @@
           <iframe data-lid="{{ e.lid }}" sandbox="allow-scripts" src="{{ e.src }}" title="{{ e.name }}" style="display:block;width:100%;height:100%;border:0;background:transparent;pointer-events:{{ e.pe }}"></iframe>
         </sc-if>
         <sc-if value="{{ e.placeholder }}">
-          <div style="width:100%;height:100%;display:grid;place-items:center;border-radius:1cqw;background:rgba(29,27,23,.78);color:#fbf9f4;font-family:'JetBrains Mono',monospace;font-size:1.4cqw;letter-spacing:.06em;overflow:hidden;white-space:nowrap">⧉ {{ e.name }}</div>
+          <div style="width:100%;height:100%;display:grid;place-items:center;border-radius:1cqw;background:rgba(27,30,36,.85);color:#C3C8D2;font-family:'JetBrains Mono',monospace;font-size:1.4cqw;letter-spacing:.06em;overflow:hidden;white-space:nowrap">⧉ {{ e.name }}</div>
         </sc-if>
       </sc-if>
       <sc-if value="{{ e.isImage }}">
         <div style="position:relative;width:100%;height:100%;border-radius:{{ e.radius }}cqw;overflow:hidden;background:{{ e.boxBg }}">
           <sc-if value="{{ e.hasImg }}"><div style="position:absolute;inset:0;background:{{ e.imgBg }};transform:scale({{ e.zoom }});transform-origin:{{ e.focus }}"></div></sc-if>
           <sc-if value="{{ e.showLabel }}">
-            <div style="position:absolute;inset:0;display:grid;place-items:center;padding:4%;text-align:center;font-family:'JetBrains Mono',monospace;font-size:1.1cqw;letter-spacing:.06em;text-transform:uppercase;color:#4a443a">Double-click or drop an image</div>
+            <div style="position:absolute;inset:0;display:grid;place-items:center;padding:4%;text-align:center;font-family:'JetBrains Mono',monospace;font-size:1.1cqw;letter-spacing:.06em;text-transform:uppercase;color:#9AA1AD">Double-click or drop an image</div>
           </sc-if>
         </div>
       </sc-if>
@@ -123,7 +123,7 @@ class Component extends DCLogic {
       // Zoom scales the image about its focus point; the focus also chooses which part shows when the image is cropped.
       const fx = l.focusX ?? 50, fy = l.focusY ?? 50;
       return { ...base, radius: (l.radius || 0) / 16, hasImg: !!u, imgBg: u ? `url("${u}") ${fx}% ${fy}% / ${l.fit === 'contain' ? 'contain' : 'cover'} no-repeat` : 'none',
-        zoom: l.zoom || 1, focus: `${fx}% ${fy}%`, boxBg: u ? 'transparent' : (p.showEmpty ? 'repeating-linear-gradient(45deg,#e4ddcf 0 12px,#efeae0 12px 24px)' : 'rgba(251,249,244,.18)'), showLabel: !u && !!p.showEmpty };
+        zoom: l.zoom || 1, focus: `${fx}% ${fy}%`, boxBg: u ? 'transparent' : (p.showEmpty ? 'repeating-linear-gradient(45deg,#23262E 0 12px,#2C3039 12px 24px)' : 'rgba(251,249,244,.18)'), showLabel: !u && !!p.showEmpty };
     });
     return { items, slideCard: card.mode === 'slide', slideBg: cardFill, slideBlur: cardBlur };
   }

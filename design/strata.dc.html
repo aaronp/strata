@@ -11,61 +11,61 @@
 <helmet>
 <title>Strata v7 — layered slides</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=DM+Serif+Display&family=Newsreader:opsz,wght@6..72,400;6..72,600&family=Caveat:wght@500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=DM+Serif+Display&family=Newsreader:opsz,wght@6..72,400;6..72,600&family=Caveat:wght@500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
-html,body{margin:0;height:100%;background:#f2eee5;color:#1d1b17}
+html,body{margin:0;height:100%;background:#16181D;color:#E8EAEE}
 *{box-sizing:border-box}
-a{color:#d9432b}a:hover{color:#a8301d}
+a{color:#7AA2FF}a:hover{color:#AFC6FF}
 input,textarea,button{font:inherit;color:inherit}
 </style>
 </helmet>
-<div style="position:relative;height:100vh;display:flex;flex-direction:column;font-family:'Bricolage Grotesque',sans-serif;font-size:14px;background:#f2eee5;color:#1d1b17">
+<div style="position:relative;height:100vh;display:flex;flex-direction:column;font-family:Inter,system-ui,sans-serif;font-size:14px;background:#16181D;color:#E8EAEE">
   <input type="file" accept="image/*,.svg" ref="{{ imgInputRef }}" onChange="{{ onImgFile }}" style="display:none">
   <input type="file" multiple accept=".md,.markdown,.txt,.json" ref="{{ openInputRef }}" onChange="{{ onOpenFile }}" style="display:none">
   <sc-if value="{{ isPresent }}"><div onMouseEnter="{{ onHdrEnter }}" style="position:fixed;left:0;right:0;top:0;height:10px;z-index:49"></div></sc-if>
-  <header onMouseEnter="{{ onHdrEnter }}" onMouseLeave="{{ onHdrLeave }}" style="height:52px;flex:none;display:flex;align-items:center;gap:14px;padding:0 16px;border-bottom:1px solid #e0d9cb;background:#fbf9f4;{{ hdrStyle }}">
+  <header onMouseEnter="{{ onHdrEnter }}" onMouseLeave="{{ onHdrLeave }}" style="height:52px;flex:none;display:flex;align-items:center;gap:14px;padding:0 16px;border-bottom:1px solid #2C3039;background:#1B1E24;{{ hdrStyle }}">
     <div style="display:flex;align-items:center;gap:10px;min-width:0">
       <div style="display:flex;align-items:center;gap:10px">
-        <div style="position:relative;width:22px;height:16px;flex:none;border:2px solid currentColor;border-radius:3px"><div style="position:absolute;left:3px;top:3px;width:8px;height:6px;background:#d9432b;border-radius:1px"></div></div>
-        <div style="font-weight:800;font-size:18px;letter-spacing:-.02em">Strata</div>
+        <div style="position:relative;width:22px;height:16px;flex:none;border:2px solid currentColor;border-radius:3px"><div style="position:absolute;left:3px;top:3px;width:8px;height:6px;background:#7AA2FF;border-radius:1px"></div></div>
+        <div style="font-weight:700;font-size:18px;letter-spacing:-.01em;font-family:'Space Grotesk',Inter,sans-serif">Strata</div>
       </div>
       <div style="position:relative;flex:none">
-        <button onClick="{{ toggleFileMenu }}" aria-haspopup="menu" aria-expanded="{{ fileMenu }}" style="height:30px;padding:0 10px;border:0;border-radius:8px;background:transparent;cursor:pointer;font-size:13px;white-space:nowrap" style-hover="background:#ece6d9">File ▾</button>
+        <button onClick="{{ toggleFileMenu }}" aria-haspopup="menu" aria-expanded="{{ fileMenu }}" style="height:30px;padding:0 10px;border:0;border-radius:8px;background:transparent;cursor:pointer;font-size:13px;white-space:nowrap" style-hover="background:#23262E">File ▾</button>
         <sc-if value="{{ fileMenu }}">
           <div onClick="{{ closeFileMenu }}" style="position:fixed;inset:0;z-index:69"></div>
-          <div role="menu" style="position:absolute;z-index:70;top:calc(100% + 6px);left:0;min-width:240px;display:flex;flex-direction:column;padding:6px;border:1px solid #e0d9cb;border-radius:12px;background:#fbf9f4;box-shadow:0 20px 50px rgba(0,0,0,.22);max-height:70vh;overflow:auto">
+          <div role="menu" style="position:absolute;z-index:70;top:calc(100% + 6px);left:0;min-width:240px;display:flex;flex-direction:column;padding:6px;border:1px solid #2C3039;border-radius:12px;background:#1B1E24;box-shadow:0 20px 50px rgba(0,0,0,.22);max-height:70vh;overflow:auto">
             <sc-for list="{{ fileItems }}" as="fi" hint-placeholder-count="6">
-              <button role="menuitem" onClick="{{ fi.pick }}" style="display:flex;align-items:baseline;justify-content:space-between;gap:16px;padding:7px 10px;border:0;border-radius:8px;background:transparent;cursor:pointer;text-align:left;font-size:13px" style-hover="background:#ece6d9"><span>{{ fi.label }}</span><small style="color:#6b6458;font-size:11px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ fi.hint }}</small></button>
+              <button role="menuitem" onClick="{{ fi.pick }}" style="display:flex;align-items:baseline;justify-content:space-between;gap:16px;padding:7px 10px;border:0;border-radius:8px;background:transparent;cursor:pointer;text-align:left;font-size:13px" style-hover="background:#23262E"><span>{{ fi.label }}</span><small style="color:#9AA1AD;font-size:11px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ fi.hint }}</small></button>
             </sc-for>
-            <hr style="border:0;border-top:1px solid #e0d9cb;margin:6px 4px;width:auto">
+            <hr style="border:0;border-top:1px solid #2C3039;margin:6px 4px;width:auto">
             <sc-for list="{{ deckItems }}" as="di" hint-placeholder-count="3">
-              <a role="menuitem" href="{{ di.href }}" style="display:flex;align-items:baseline;justify-content:space-between;gap:16px;padding:7px 10px;border-radius:8px;color:inherit;text-decoration:none;font-size:13px;font-weight:{{ di.weight }}" style-hover="background:#ece6d9"><span>{{ di.label }}</span><small style="color:#6b6458;font-family:'JetBrains Mono',monospace;font-size:10px">{{ di.hint }}</small></a>
+              <a role="menuitem" href="{{ di.href }}" style="display:flex;align-items:baseline;justify-content:space-between;gap:16px;padding:7px 10px;border-radius:8px;color:inherit;text-decoration:none;font-size:13px;font-weight:{{ di.weight }}" style-hover="background:#23262E"><span>{{ di.label }}</span><small style="color:#9AA1AD;font-family:'JetBrains Mono',monospace;font-size:10px">{{ di.hint }}</small></a>
             </sc-for>
           </div>
         </sc-if>
       </div>
-      <div style="color:#6b6458;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">/ {{ deckTitle }}</div>
+      <div style="color:#9AA1AD;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">/ {{ deckTitle }}</div>
     </div>
     <div style="flex:1"></div>
-    <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#6b6458;white-space:nowrap">{{ keyHint }}</span>
+    <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#9AA1AD;white-space:nowrap">{{ keyHint }}</span>
     <sc-if value="{{ isBuild }}">
       <div style="display:flex;gap:4px;flex:none">
-        <button onClick="{{ undo }}" title="Undo (⌘Z)" style="height:30px;padding:0 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;white-space:nowrap;opacity:{{ undoOp }}" style-hover="background:#f5f1e8">↶ Undo</button>
-        <button onClick="{{ redo }}" title="Redo (⇧⌘Z)" style="height:30px;padding:0 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;white-space:nowrap;opacity:{{ redoOp }}" style-hover="background:#f5f1e8">↷ Redo</button>
+        <button onClick="{{ undo }}" title="Undo (⌘Z)" style="height:30px;padding:0 10px;border:1px solid #2C3039;border-radius:8px;background:#23262E;cursor:pointer;font-size:13px;white-space:nowrap;opacity:{{ undoOp }}" style-hover="background:#2C3039">↶ Undo</button>
+        <button onClick="{{ redo }}" title="Redo (⇧⌘Z)" style="height:30px;padding:0 10px;border:1px solid #2C3039;border-radius:8px;background:#23262E;cursor:pointer;font-size:13px;white-space:nowrap;opacity:{{ redoOp }}" style-hover="background:#2C3039">↷ Redo</button>
         <sc-if value="{{ hasDeck }}">
-          <button onClick="{{ save }}" title="Save to decks/ (⌘S)" style="height:30px;padding:0 12px;border:1px solid #1d1b17;border-radius:8px;background:#1d1b17;color:#fbf9f4;cursor:pointer;font-size:13px;white-space:nowrap" style-hover="background:#3a362f">{{ saveLabel }}</button>
+          <button onClick="{{ save }}" title="Save to decks/ (⌘S)" style="height:30px;padding:0 12px;border:1px solid #7AA2FF;border-radius:8px;background:#7AA2FF;color:#0B1020;cursor:pointer;font-size:13px;white-space:nowrap" style-hover="background:#A9C0FF">{{ saveLabel }}</button>
         </sc-if>
       </div>
     </sc-if>
     <sc-if value="{{ isPresent }}">
       <div style="position:relative;width:240px;flex:none">
-        <input ref="{{ searchRef }}" value="{{ query }}" onChange="{{ onQuery }}" onFocus="{{ onSearchFocus }}" onBlur="{{ onSearchBlur }}" placeholder="Jump to…  ( / )" style="width:100%;padding:8px 14px;border:0;border-radius:999px;background:rgba(251,249,244,.92);outline:none">
+        <input ref="{{ searchRef }}" value="{{ query }}" onChange="{{ onQuery }}" onFocus="{{ onSearchFocus }}" onBlur="{{ onSearchBlur }}" placeholder="Jump to…  ( / )" style="width:100%;padding:8px 14px;border:0;border-radius:999px;background:rgba(27,30,36,.92);outline:none">
         <sc-if value="{{ hasResults }}">
-          <div style="position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:60;display:flex;flex-direction:column;padding:6px;border-radius:12px;background:rgba(251,249,244,.97);box-shadow:0 12px 40px -12px rgba(0,0,0,.4);max-height:300px;overflow:auto">
+          <div style="position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:60;display:flex;flex-direction:column;padding:6px;border-radius:12px;background:rgba(27,30,36,.97);box-shadow:0 12px 40px -12px rgba(0,0,0,.4);max-height:300px;overflow:auto">
             <sc-for list="{{ results }}" as="rs" hint-placeholder-count="0">
-              <button onClick="{{ rs.onClick }}" style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:7px 10px;border:0;border-radius:8px;background:transparent;cursor:pointer;text-align:left" style-hover="background:#ece6d9">
+              <button onClick="{{ rs.onClick }}" style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:7px 10px;border:0;border-radius:8px;background:transparent;cursor:pointer;text-align:left" style-hover="background:#23262E">
                 <span style="font-weight:600">{{ rs.title }}</span>
-                <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#6b6458">{{ rs.path }}</span>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9AA1AD">{{ rs.path }}</span>
               </button>
             </sc-for>
           </div>
@@ -74,54 +74,54 @@ input,textarea,button{font:inherit;color:inherit}
     </sc-if>
     <sc-if value="{{ isPresent }}">
       <div style="position:relative;flex:none">
-        <button onClick="{{ onViewMenu }}" title="Slides, Tree or Radial; breadcrumbs; size (T, B, F)" style="height:30px;padding:0 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer;font-size:12.5px;white-space:nowrap">View ▾</button>
+        <button onClick="{{ onViewMenu }}" title="Slides, Tree or Radial; breadcrumbs; size (T, B, F)" style="height:30px;padding:0 10px;border:1px solid #2C3039;border-radius:8px;background:#23262E;cursor:pointer;font-size:12.5px;white-space:nowrap">View ▾</button>
         <sc-if value="{{ viewMenuOpen }}">
           <div onClick="{{ onViewMenuClose }}" style="position:fixed;inset:0;z-index:70"></div>
-          <div style="position:absolute;right:0;top:calc(100% + 6px);z-index:71;min-width:180px;padding:6px;border-radius:10px;background:#fbf9f4;box-shadow:0 12px 40px -12px rgba(0,0,0,.4)">
-            <sc-for list="{{ viewItems }}" as="vi" hint-placeholder-count="5"><button onClick="{{ vi.onClick }}" style="display:flex;align-items:center;gap:8px;width:100%;padding:6px 8px;border:0;border-top:{{ vi.sep }};border-radius:6px;background:none;text-align:left;cursor:pointer;font-size:13px"><span style="width:14px;flex:none;color:#d9432b">{{ vi.mark }}</span>{{ vi.label }}</button></sc-for>
-            <label title="Off, fade out after 1–5s (shown on each transition), or always on (B toggles)" style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-top:1px solid #e0d9cb;font-size:13px"><span style="width:14px;flex:none"></span>Breadcrumbs<select value="{{ crumbMode }}" onChange="{{ onCrumbMode }}" style="margin-left:auto;height:24px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;font-size:12px;cursor:pointer"><sc-for list="{{ crumbModes }}" as="o" hint-placeholder-count="7"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select></label>
+          <div style="position:absolute;right:0;top:calc(100% + 6px);z-index:71;min-width:180px;padding:6px;border-radius:10px;background:#1B1E24;box-shadow:0 12px 40px -12px rgba(0,0,0,.4)">
+            <sc-for list="{{ viewItems }}" as="vi" hint-placeholder-count="5"><button onClick="{{ vi.onClick }}" style="display:flex;align-items:center;gap:8px;width:100%;padding:6px 8px;border:0;border-top:{{ vi.sep }};border-radius:6px;background:none;text-align:left;cursor:pointer;font-size:13px"><span style="width:14px;flex:none;color:#7AA2FF">{{ vi.mark }}</span>{{ vi.label }}</button></sc-for>
+            <label title="Off, fade out after 1–5s (shown on each transition), or always on (B toggles)" style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-top:1px solid #2C3039;font-size:13px"><span style="width:14px;flex:none"></span>Breadcrumbs<select value="{{ crumbMode }}" onChange="{{ onCrumbMode }}" style="margin-left:auto;height:24px;border:1px solid #2C3039;border-radius:6px;background:#23262E;font-size:12px;cursor:pointer"><sc-for list="{{ crumbModes }}" as="o" hint-placeholder-count="7"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select></label>
           </div>
         </sc-if>
       </div>
     </sc-if>
-    <div style="display:flex;gap:2px;padding:3px;border-radius:10px;background:#ece6d9;flex:none">
+    <div style="display:flex;gap:2px;padding:3px;border-radius:10px;background:#23262E;flex:none">
       <sc-for list="{{ modeTabs }}" as="t" hint-placeholder-count="2">
         <button onClick="{{ t.onClick }}" style="padding:6px 16px;border:0;border-radius:8px;cursor:pointer;background:{{ t.bg }};color:{{ t.color }};box-shadow:{{ t.shadow }};font-weight:600;white-space:nowrap">{{ t.label }}</button>
       </sc-for>
     </div>
   </header>
   <sc-if value="{{ draftPrompt }}">
-    <div style="flex:none;display:flex;align-items:center;gap:10px;padding:8px 16px;border-bottom:1px solid #e8d9a8;background:#fbf3d9;font-size:13px">
+    <div style="flex:none;display:flex;align-items:center;gap:10px;padding:8px 16px;border-bottom:1px solid #5A4410;background:#3A2F14;font-size:13px">
       <span style="flex:1">You have local changes to this deck</span>
-      <button onClick="{{ onUseDraft }}" style="height:28px;padding:0 12px;border:1px solid #1d1b17;border-radius:8px;background:#1d1b17;color:#fbf9f4;cursor:pointer;font-size:13px">Use my draft</button>
-      <button onClick="{{ onDiscardDraft }}" style="height:28px;padding:0 12px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer;font-size:13px">Discard</button>
+      <button onClick="{{ onUseDraft }}" style="height:28px;padding:0 12px;border:1px solid #7AA2FF;border-radius:8px;background:#7AA2FF;color:#0B1020;cursor:pointer;font-size:13px">Use my draft</button>
+      <button onClick="{{ onDiscardDraft }}" style="height:28px;padding:0 12px;border:1px solid #2C3039;border-radius:8px;background:#23262E;cursor:pointer;font-size:13px">Discard</button>
     </div>
   </sc-if>
 
   <div style="flex:1;min-height:0;display:flex">
     <sc-if value="{{ isBuild }}" hint-placeholder-val="{{ true }}">
-      <aside style="position:relative;width:{{ navW }}px;flex:none;min-height:0;display:flex;flex-direction:column;border-right:1px solid #e0d9cb;background:#fbf9f4">
-        <div onPointerDown="{{ onNavResize }}" title="Drag to resize" style="position:absolute;right:-4px;top:0;bottom:0;width:8px;cursor:col-resize;z-index:20" style-hover="background:rgba(217,67,43,.25)"></div>
+      <aside style="position:relative;width:{{ navW }}px;flex:none;min-height:0;display:flex;flex-direction:column;border-right:1px solid #2C3039;background:#1B1E24">
+        <div onPointerDown="{{ onNavResize }}" title="Drag to resize" style="position:absolute;right:-4px;top:0;bottom:0;width:8px;cursor:col-resize;z-index:20" style-hover="background:rgba(122,162,255,.25)"></div>
         <div style="padding:12px 12px 8px;display:flex;flex-direction:column;gap:8px">
           <div style="display:flex;align-items:center;justify-content:space-between">
-            <span style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#6b6458">Slide tree · {{ slideCount }}</span>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#9AA1AD">Slide tree · {{ slideCount }}</span>
           </div>
-          <input value="{{ query }}" onChange="{{ onQuery }}" placeholder="Filter…  (Enter jumps to first match)" data-role="filter" style="width:100%;padding:7px 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;outline:none">
+          <input value="{{ query }}" onChange="{{ onQuery }}" placeholder="Filter…  (Enter jumps to first match)" data-role="filter" style="width:100%;padding:7px 10px;border:1px solid #2C3039;border-radius:8px;background:#23262E;outline:none">
           <div style="display:flex;align-items:center;gap:4px">
-            <button onClick="{{ treeZoomOut }}" title="Zoom out (⌘/Ctrl + scroll)" style="width:26px;height:24px;padding:0;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer;font-size:14px">−</button>
-            <button onClick="{{ treeZoomReset }}" title="Reset zoom to 100%" style="min-width:48px;height:24px;padding:0 6px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px">{{ treeZoomLabel }}</button>
-            <button onClick="{{ treeZoomIn }}" title="Zoom in (⌘/Ctrl + scroll)" style="width:26px;height:24px;padding:0;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer;font-size:14px">+</button>
-            <button onClick="{{ treeZoomFit }}" title="Fit the tree's width" style="height:24px;padding:0 8px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer;font-size:12px">Fit</button>
+            <button onClick="{{ treeZoomOut }}" title="Zoom out (⌘/Ctrl + scroll)" style="width:26px;height:24px;padding:0;border:1px solid #2C3039;border-radius:6px;background:#23262E;cursor:pointer;font-size:14px">−</button>
+            <button onClick="{{ treeZoomReset }}" title="Reset zoom to 100%" style="min-width:48px;height:24px;padding:0 6px;border:1px solid #2C3039;border-radius:6px;background:#23262E;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px">{{ treeZoomLabel }}</button>
+            <button onClick="{{ treeZoomIn }}" title="Zoom in (⌘/Ctrl + scroll)" style="width:26px;height:24px;padding:0;border:1px solid #2C3039;border-radius:6px;background:#23262E;cursor:pointer;font-size:14px">+</button>
+            <button onClick="{{ treeZoomFit }}" title="Fit the tree's width" style="height:24px;padding:0 8px;border:1px solid #2C3039;border-radius:6px;background:#23262E;cursor:pointer;font-size:12px">Fit</button>
             <span style="flex:1"></span>
-            <button onClick="{{ toggleFocus }}" title="Focus: show only the parents, siblings and children of the current slide" style="height:24px;padding:0 10px;border:1px solid #1d1b17;border-radius:999px;background:{{ focusBg }};color:{{ focusColor }};cursor:pointer;font-size:12px;font-weight:600">Focus</button>
+            <button onClick="{{ toggleFocus }}" title="Focus: show only the parents, siblings and children of the current slide" style="height:24px;padding:0 10px;border:1px solid #7AA2FF;border-radius:999px;background:{{ focusBg }};color:{{ focusColor }};cursor:pointer;font-size:12px;font-weight:600">Focus</button>
           </div>
         </div>
-        <div ref="{{ treeRef }}" style="flex:1;overflow:auto;background:#f4f0e7;border-top:1px solid #e0d9cb">
+        <div ref="{{ treeRef }}" style="flex:1;overflow:auto;background:#2C3039;border-top:1px solid #2C3039">
           <div style="position:relative;width:{{ treeWz }}px;height:{{ treeHz }}px">
           <div style="position:absolute;left:0;top:0;width:{{ treeW }}px;height:{{ treeH }}px;transform:scale({{ treeZoom }});transform-origin:0 0">
             <svg width="{{ treeW }}" height="{{ treeH }}" style="position:absolute;left:0;top:0;pointer-events:none">
               <sc-for list="{{ treeEdges }}" as="te" hint-placeholder-count="0">
-                <path d="{{ te.d }}" style="fill:none;stroke:#b9b1a2;stroke-width:1.5"></path>
+                <path d="{{ te.d }}" style="fill:none;stroke:#9AA1AD;stroke-width:1.5"></path>
               </sc-for>
             </svg>
             <sc-for list="{{ treeNodes }}" as="n" hint-placeholder-count="6">
@@ -135,7 +135,7 @@ input,textarea,button{font:inherit;color:inherit}
                   <dc-import name="Layers" card="{{ deckCard }}" cards="true" layers="{{ n.layers }}" images="{{ images }}" ink="{{ ink }}" shadow="{{ inkShadow }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
                 </div>
                 <div style="margin-top:3px;display:flex;align-items:center;gap:2px">
-                  <sc-if value="{{ n.hasKids }}"><button onClick="{{ n.onToggle }}" title="{{ n.toggleTitle }}" style="flex:none;min-width:18px;height:16px;padding:0 4px;border:1px solid #cfc6b4;border-radius:5px;background:#fff;color:#1d1b17;cursor:pointer;font-size:11px;line-height:14px;font-weight:700;white-space:nowrap">{{ n.toggleLabel }}</button></sc-if>
+                  <sc-if value="{{ n.hasKids }}"><button onClick="{{ n.onToggle }}" title="{{ n.toggleTitle }}" style="flex:none;min-width:18px;height:16px;padding:0 4px;border:1px solid #343944;border-radius:5px;background:#23262E;color:#E8EAEE;cursor:pointer;font-size:11px;line-height:14px;font-weight:700;white-space:nowrap">{{ n.toggleLabel }}</button></sc-if>
                   <div style="flex:1;min-width:0;font-size:10.5px;line-height:1.1;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:{{ n.weight }}">{{ n.title }}</div>
                 </div>
               </div>
@@ -143,7 +143,7 @@ input,textarea,button{font:inherit;color:inherit}
           </div>
           </div>
         </div>
-        <div style="flex:none;padding:8px 12px 10px;border-top:1px solid #e0d9cb;display:flex;flex-wrap:wrap;gap:4px 12px;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#6b6458">
+        <div style="flex:none;padding:8px 12px 10px;border-top:1px solid #2C3039;display:flex;flex-wrap:wrap;gap:4px 12px;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#9AA1AD">
           <span>Arrows move</span><span>Click jumps</span>
         </div>
       </aside>
@@ -151,13 +151,13 @@ input,textarea,button{font:inherit;color:inherit}
 
     <main style="position:relative;flex:1;min-width:0;min-height:0;overflow:hidden;display:flex;flex-direction:column;background:{{ stageAreaBg }}">
       <sc-if value="{{ isBuild }}">
-        <div style="flex:none;display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid #e0d9cb;background:#fbf9f4;min-width:0;overflow:hidden">
-          <div style="flex:none;display:flex;gap:2px;padding:3px;border-radius:9px;background:#ece6d9">
+        <div style="flex:none;display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid #2C3039;background:#1B1E24;min-width:0;overflow:hidden">
+          <div style="flex:none;display:flex;gap:2px;padding:3px;border-radius:9px;background:#23262E">
             <sc-for list="{{ viewTabs }}" as="v" hint-placeholder-count="2">
               <button onClick="{{ v.onClick }}" style="padding:5px 13px;border:0;border-radius:7px;cursor:pointer;background:{{ v.bg }};box-shadow:{{ v.shadow }};font-size:13px;font-weight:600;white-space:nowrap">{{ v.label }}</button>
             </sc-for>
           </div>
-          <span style="font-size:12px;color:#6b6458;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">{{ viewHint }}</span>
+          <span style="font-size:12px;color:#9AA1AD;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">{{ viewHint }}</span>
         </div>
       </sc-if>
 
@@ -175,7 +175,7 @@ input,textarea,button{font:inherit;color:inherit}
                   <dc-import name="Layers" card="{{ deckCard }}" layers="{{ prevLayers }}" images="{{ images }}" ink="{{ ink }}" shadow="{{ inkShadow }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
                 </div>
               </sc-if>
-              <sc-if value="{{ emptyMsg }}"><div style="position:absolute;inset:0;z-index:2;display:grid;place-items:center;background:{{ base }};color:#6b6458;font-size:15px">{{ emptyMsg }}</div></sc-if>
+              <sc-if value="{{ emptyMsg }}"><div style="position:absolute;inset:0;z-index:2;display:grid;place-items:center;background:{{ base }};color:#9AA1AD;font-size:15px">{{ emptyMsg }}</div></sc-if>
               <div data-stage="main" onClick="{{ onStageLinkClick }}" style="position:absolute;inset:0;transform:{{ planeB.t }};opacity:{{ planeB.o }};transition:{{ planeTr }}">
                 <dc-import name="Layers" card="{{ deckCard }}" live="{{ cur }}" links="{{ isPresent }}" layers="{{ stageLayers }}" images="{{ images }}" ink="{{ ink }}" shadow="{{ inkShadow }}" editing-id="{{ editingId }}" show-empty="{{ editable }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
               </div>
@@ -189,64 +189,64 @@ input,textarea,button{font:inherit;color:inherit}
               <sc-if value="{{ showLinkSpots }}">
                 <div style="position:absolute;inset:0;z-index:6;pointer-events:none">
                   <sc-for list="{{ linkSpots }}" as="ls" hint-placeholder-count="0">
-                    <div onClick="{{ ls.onClick }}" title="{{ ls.title }}" style="position:absolute;left:{{ ls.l }}%;top:{{ ls.t }}%;width:{{ ls.w }}%;height:{{ ls.h }}%;transform:rotate({{ ls.rot }}deg);border-radius:6px;cursor:pointer;pointer-events:auto" style-hover="box-shadow:0 0 0 2px rgba(251,249,244,.85), 0 0 0 4px rgba(217,67,43,.55);background:rgba(251,249,244,.06)"></div>
+                    <div onClick="{{ ls.onClick }}" title="{{ ls.title }}" style="position:absolute;left:{{ ls.l }}%;top:{{ ls.t }}%;width:{{ ls.w }}%;height:{{ ls.h }}%;transform:rotate({{ ls.rot }}deg);border-radius:6px;cursor:pointer;pointer-events:auto" style-hover="box-shadow:0 0 0 2px rgba(251,249,244,.85), 0 0 0 4px rgba(122,162,255,.55);background:rgba(251,249,244,.06)"></div>
                   </sc-for>
                 </div>
               </sc-if>
               <sc-if value="{{ editable }}">
                 <div onPointerDown="{{ onStageDown }}" onDragOver="{{ allowDrop }}" onDrop="{{ onStageDrop }}" style="position:absolute;inset:0;z-index:5;user-select:none">
-                  <sc-if value="{{ guideV }}"><div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#d9432b;pointer-events:none"></div></sc-if>
-                  <sc-if value="{{ guideH }}"><div style="position:absolute;top:50%;left:0;right:0;height:1px;background:#d9432b;pointer-events:none"></div></sc-if>
+                  <sc-if value="{{ guideV }}"><div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#7AA2FF;pointer-events:none"></div></sc-if>
+                  <sc-if value="{{ guideH }}"><div style="position:absolute;top:50%;left:0;right:0;height:1px;background:#7AA2FF;pointer-events:none"></div></sc-if>
                   <sc-for list="{{ overlays }}" as="o" hint-placeholder-count="0">
                     <div onPointerDown="{{ o.onDown }}" onDoubleClick="{{ o.onDbl }}" onDragOver="{{ allowDrop }}" onDrop="{{ o.onDrop }}" style="position:absolute;left:{{ o.l }}%;top:{{ o.t }}%;width:{{ o.w }}%;height:{{ o.h }}%;transform:rotate({{ o.rot }}deg);outline:{{ o.outline }};outline-offset:1px;cursor:move;z-index:{{ o.z }};pointer-events:{{ o.pe }}" style-hover="box-shadow:0 0 0 1px rgba(251,249,244,.8), 0 0 0 2px rgba(0,0,0,.3)">
                       <sc-if value="{{ o.single }}">
-                        <div style="position:absolute;left:-2px;bottom:calc(100% + 6px);padding:2px 6px;border-radius:4px;background:#1f6fb8;color:#fff;font-family:'JetBrains Mono',monospace;font-size:10px;white-space:nowrap;pointer-events:none">{{ o.label }}</div>
-                        <div onPointerDown="{{ o.onNW }}" style="position:absolute;left:-7px;top:-7px;width:11px;height:11px;border-radius:3px;background:#fff;border:2px solid #1f6fb8;cursor:nwse-resize"></div>
-                        <div onPointerDown="{{ o.onNE }}" style="position:absolute;right:-7px;top:-7px;width:11px;height:11px;border-radius:3px;background:#fff;border:2px solid #1f6fb8;cursor:nesw-resize"></div>
-                        <div onPointerDown="{{ o.onSW }}" style="position:absolute;left:-7px;bottom:-7px;width:11px;height:11px;border-radius:3px;background:#fff;border:2px solid #1f6fb8;cursor:nesw-resize"></div>
-                        <div onPointerDown="{{ o.onSE }}" style="position:absolute;right:-7px;bottom:-7px;width:11px;height:11px;border-radius:3px;background:#fff;border:2px solid #1f6fb8;cursor:nwse-resize"></div>
-                        <div onPointerDown="{{ o.onW }}" style="position:absolute;left:-7px;top:calc(50% - 6px);width:11px;height:11px;border-radius:3px;background:#fff;border:2px solid #1f6fb8;cursor:ew-resize"></div>
-                        <div onPointerDown="{{ o.onE }}" style="position:absolute;right:-7px;top:calc(50% - 6px);width:11px;height:11px;border-radius:3px;background:#fff;border:2px solid #1f6fb8;cursor:ew-resize"></div>
+                        <div style="position:absolute;left:-2px;bottom:calc(100% + 6px);padding:2px 6px;border-radius:4px;background:#7AA2FF;color:#0B1020;font-family:'JetBrains Mono',monospace;font-size:10px;white-space:nowrap;pointer-events:none">{{ o.label }}</div>
+                        <div onPointerDown="{{ o.onNW }}" style="position:absolute;left:-7px;top:-7px;width:11px;height:11px;border-radius:3px;background:#23262E;border:2px solid #7AA2FF;cursor:nwse-resize"></div>
+                        <div onPointerDown="{{ o.onNE }}" style="position:absolute;right:-7px;top:-7px;width:11px;height:11px;border-radius:3px;background:#23262E;border:2px solid #7AA2FF;cursor:nesw-resize"></div>
+                        <div onPointerDown="{{ o.onSW }}" style="position:absolute;left:-7px;bottom:-7px;width:11px;height:11px;border-radius:3px;background:#23262E;border:2px solid #7AA2FF;cursor:nesw-resize"></div>
+                        <div onPointerDown="{{ o.onSE }}" style="position:absolute;right:-7px;bottom:-7px;width:11px;height:11px;border-radius:3px;background:#23262E;border:2px solid #7AA2FF;cursor:nwse-resize"></div>
+                        <div onPointerDown="{{ o.onW }}" style="position:absolute;left:-7px;top:calc(50% - 6px);width:11px;height:11px;border-radius:3px;background:#23262E;border:2px solid #7AA2FF;cursor:ew-resize"></div>
+                        <div onPointerDown="{{ o.onE }}" style="position:absolute;right:-7px;top:calc(50% - 6px);width:11px;height:11px;border-radius:3px;background:#23262E;border:2px solid #7AA2FF;cursor:ew-resize"></div>
                       </sc-if>
                     </div>
                   </sc-for>
-                  <button onPointerDown="{{ stopProp }}" onClick="{{ onAddAfter }}" title="Add a slide after this one (→)" style="position:absolute;right:6px;top:calc(50% - 13px);z-index:960;width:26px;height:26px;padding:0;border:0;border-radius:999px;background:#fbf9f4;color:#1d1b17;box-shadow:0 1px 4px rgba(0,0,0,.35);cursor:pointer;font-size:17px;font-weight:700;line-height:26px;opacity:.55" style-hover="opacity:1">+</button>
-                  <button onPointerDown="{{ stopProp }}" onClick="{{ onAddBelow }}" title="Add a slide below this one (↓)" style="position:absolute;left:calc(50% - 13px);bottom:6px;z-index:960;width:26px;height:26px;padding:0;border:0;border-radius:999px;background:#fbf9f4;color:#1d1b17;box-shadow:0 1px 4px rgba(0,0,0,.35);cursor:pointer;font-size:17px;font-weight:700;line-height:26px;opacity:.55" style-hover="opacity:1">+</button>
+                  <button onPointerDown="{{ stopProp }}" onClick="{{ onAddAfter }}" title="Add a slide after this one (→)" style="position:absolute;right:6px;top:calc(50% - 13px);z-index:960;width:26px;height:26px;padding:0;border:0;border-radius:999px;background:#E8EAEE;color:#16181D;box-shadow:0 1px 4px rgba(0,0,0,.35);cursor:pointer;font-size:17px;font-weight:700;line-height:26px;opacity:.55" style-hover="opacity:1">+</button>
+                  <button onPointerDown="{{ stopProp }}" onClick="{{ onAddBelow }}" title="Add a slide below this one (↓)" style="position:absolute;left:calc(50% - 13px);bottom:6px;z-index:960;width:26px;height:26px;padding:0;border:0;border-radius:999px;background:#E8EAEE;color:#16181D;box-shadow:0 1px 4px rgba(0,0,0,.35);cursor:pointer;font-size:17px;font-weight:700;line-height:26px;opacity:.55" style-hover="opacity:1">+</button>
                   <sc-for list="{{ warnBadges }}" as="wb" hint-placeholder-count="0">
-                    <button onPointerDown="{{ wb.onDown }}" onClick="{{ wb.onClick }}" title="{{ wb.title }}" style="position:absolute;left:{{ wb.x }}%;top:{{ wb.y }}%;z-index:950;margin:-10px 0 0 -10px;width:22px;height:22px;padding:0;border:0;border-radius:999px;background:#fbf9f4;box-shadow:0 1px 4px rgba(0,0,0,.35);cursor:pointer;font-size:12px;line-height:22px">⚠️</button>
+                    <button onPointerDown="{{ wb.onDown }}" onClick="{{ wb.onClick }}" title="{{ wb.title }}" style="position:absolute;left:{{ wb.x }}%;top:{{ wb.y }}%;z-index:950;margin:-10px 0 0 -10px;width:22px;height:22px;padding:0;border:0;border-radius:999px;background:#1B1E24;box-shadow:0 1px 4px rgba(0,0,0,.35);cursor:pointer;font-size:12px;line-height:22px">⚠️</button>
                   </sc-for>
                   <sc-if value="{{ hasGroup }}">
-                    <div style="position:absolute;left:{{ grp.l }}%;top:{{ grp.t }}%;width:{{ grp.w }}%;height:{{ grp.h }}%;outline:1.5px dashed #1f6fb8;outline-offset:3px;pointer-events:none;z-index:900">
-                      <div style="position:absolute;left:-2px;bottom:calc(100% + 8px);padding:2px 6px;border-radius:4px;background:#1f6fb8;color:#fff;font-family:'JetBrains Mono',monospace;font-size:10px;white-space:nowrap">{{ grp.label }}</div>
+                    <div style="position:absolute;left:{{ grp.l }}%;top:{{ grp.t }}%;width:{{ grp.w }}%;height:{{ grp.h }}%;outline:1.5px dashed #7AA2FF;outline-offset:3px;pointer-events:none;z-index:900">
+                      <div style="position:absolute;left:-2px;bottom:calc(100% + 8px);padding:2px 6px;border-radius:4px;background:#7AA2FF;color:#0B1020;font-family:'JetBrains Mono',monospace;font-size:10px;white-space:nowrap">{{ grp.label }}</div>
                       <sc-for list="{{ grpHandles }}" as="gh" hint-placeholder-count="8">
-                        <div onPointerDown="{{ gh.onDown }}" style="position:absolute;left:{{ gh.l }};top:{{ gh.t }};width:11px;height:11px;margin:-6px 0 0 -6px;border-radius:3px;background:#fff;border:2px solid #1f6fb8;cursor:{{ gh.cursor }};pointer-events:auto"></div>
+                        <div onPointerDown="{{ gh.onDown }}" style="position:absolute;left:{{ gh.l }};top:{{ gh.t }};width:11px;height:11px;margin:-6px 0 0 -6px;border-radius:3px;background:#23262E;border:2px solid #7AA2FF;cursor:{{ gh.cursor }};pointer-events:auto"></div>
                       </sc-for>
                     </div>
                   </sc-if>
                   <sc-if value="{{ hasMarquee }}">
-                    <div style="position:absolute;left:{{ mq.l }}%;top:{{ mq.t }}%;width:{{ mq.w }}%;height:{{ mq.h }}%;border:1px solid #1f6fb8;background:rgba(31,111,184,.12);pointer-events:none;z-index:901"></div>
+                    <div style="position:absolute;left:{{ mq.l }}%;top:{{ mq.t }}%;width:{{ mq.w }}%;height:{{ mq.h }}%;border:1px solid #7AA2FF;background:rgba(122,162,255,.12);pointer-events:none;z-index:901"></div>
                   </sc-if>
                   <sc-if value="{{ isEditingText }}">
-                    <textarea ref="{{ editRef }}" value="{{ ed.text }}" onChange="{{ onEditText }}" onBlur="{{ stopEditing }}" onSelect="{{ onEditSel }}" onKeyUp="{{ onEditSel }}" onPointerUp="{{ onEditSel }}" onPointerDown="{{ stopProp }}" style="position:absolute;left:{{ ed.l }}%;top:{{ ed.t }}%;width:{{ ed.w }}%;height:{{ ed.h }}%;padding:0;margin:0;border:0;outline:2px solid #1f6fb8;outline-offset:1px;background:rgba(10,14,28,.25);resize:none;overflow:hidden;font-family:{{ ed.font }};font-size:{{ ed.fs }}cqw;font-weight:{{ ed.weight }};color:{{ ed.color }};text-align:{{ ed.align }};line-height:{{ ed.lh }};z-index:999"></textarea>
+                    <textarea ref="{{ editRef }}" value="{{ ed.text }}" onChange="{{ onEditText }}" onBlur="{{ stopEditing }}" onSelect="{{ onEditSel }}" onKeyUp="{{ onEditSel }}" onPointerUp="{{ onEditSel }}" onPointerDown="{{ stopProp }}" style="position:absolute;left:{{ ed.l }}%;top:{{ ed.t }}%;width:{{ ed.w }}%;height:{{ ed.h }}%;padding:0;margin:0;border:0;outline:2px solid #7AA2FF;outline-offset:1px;background:rgba(10,14,28,.25);resize:none;overflow:hidden;font-family:{{ ed.font }};font-size:{{ ed.fs }}cqw;font-weight:{{ ed.weight }};color:{{ ed.color }};text-align:{{ ed.align }};line-height:{{ ed.lh }};z-index:999"></textarea>
                   </sc-if>
                   <sc-if value="{{ isEditingRich }}">
-                    <div ref="{{ wysRef }}" contenteditable="true" data-role="wysiwyg" spellcheck="true" onBlur="{{ stopEditing }}" onPointerDown="{{ stopProp }}" style="position:absolute;left:{{ ed.l }}%;top:{{ ed.t }}%;width:{{ ed.w }}%;min-height:{{ ed.h }}%;padding:0;margin:0;outline:2px solid #1f6fb8;outline-offset:1px;background:rgba(10,14,28,.12);white-space:pre-wrap;overflow-wrap:anywhere;font-family:{{ ed.font }};font-size:{{ ed.fs }}cqw;font-weight:{{ ed.weight }};color:{{ ed.color }};text-align:{{ ed.align }};line-height:{{ ed.lh }};z-index:999;cursor:text"></div>
+                    <div ref="{{ wysRef }}" contenteditable="true" data-role="wysiwyg" spellcheck="true" onBlur="{{ stopEditing }}" onPointerDown="{{ stopProp }}" style="position:absolute;left:{{ ed.l }}%;top:{{ ed.t }}%;width:{{ ed.w }}%;min-height:{{ ed.h }}%;padding:0;margin:0;outline:2px solid #7AA2FF;outline-offset:1px;background:rgba(10,14,28,.12);white-space:pre-wrap;overflow-wrap:anywhere;font-family:{{ ed.font }};font-size:{{ ed.fs }}cqw;font-weight:{{ ed.weight }};color:{{ ed.color }};text-align:{{ ed.align }};line-height:{{ ed.lh }};z-index:999;cursor:text"></div>
                   </sc-if>
                     <sc-if value="{{ fmtShow }}">
-                      <div data-role="fmtbar" onPointerDown="{{ stopProp }}" onBlur="{{ onFmtBlur }}" style="position:absolute;{{ fmtPos }};z-index:30;display:flex;align-items:center;gap:4px;padding:4px;border-radius:9px;background:#fbf9f4;box-shadow:0 4px 14px rgba(0,0,0,.25)">
-                        <button onPointerDown="{{ fmtDown }}" onMouseDown="{{ fmtDown }}" onClick="{{ onFmtMode }}" title="Switch between formatted editing and markup" style="height:26px;padding:0 6px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px">{{ fmtModeLabel }}</button>
-                        <button onPointerDown="{{ fmtDown }}" onMouseDown="{{ fmtDown }}" onClick="{{ onFmtBold }}" title="Bold (⌘B)" style="width:26px;height:26px;padding:0;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer;font-weight:800">B</button>
-                        <button onPointerDown="{{ fmtDown }}" onMouseDown="{{ fmtDown }}" onClick="{{ onFmtItalic }}" title="Italic (⌘I)" style="width:26px;height:26px;padding:0;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer;font-style:italic;font-family:serif">I</button>
-                        <select value="" onChange="{{ onFmtStyle }}" title="Style for the selection" style="height:26px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;font-size:12px"><sc-for list="{{ fmtStyleOpts }}" as="o" hint-placeholder-count="5"><option value="{{ o.v }}" disabled="{{ o.off }}">{{ o.l }}</option></sc-for></select>
-                        <select value="" onChange="{{ onFmtSize }}" title="Size for the selection" style="height:26px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;font-size:12px"><sc-for list="{{ fmtSizeOpts }}" as="o" hint-placeholder-count="5"><option value="{{ o.v }}" disabled="{{ o.off }}">{{ o.l }}</option></sc-for></select>
-                        <select value="" onChange="{{ onFmtLink }}" title="Link the selection to a slide or a web page" style="height:26px;max-width:110px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;font-size:12px"><sc-for list="{{ fmtLinkOpts }}" as="o" hint-placeholder-count="5"><option value="{{ o.v }}" disabled="{{ o.off }}">{{ o.l }}</option></sc-for></select>
-                        <sc-if value="{{ fmtUrl }}"><input value="{{ fmtUrlVal }}" onChange="{{ onFmtUrlVal }}" placeholder="https://…" style="width:150px;height:26px;padding:0 6px;border:1px solid #e0d9cb;border-radius:6px;font-size:12px"><button onPointerDown="{{ fmtDown }}" onMouseDown="{{ fmtDown }}" onClick="{{ onFmtUrlApply }}" style="height:26px;padding:0 7px;border:0;border-radius:6px;background:#1d1b17;color:#fbf9f4;cursor:pointer;font-size:12px">Link</button></sc-if>
-                        <input type="color" onChange="{{ onFmtColor }}" title="Colour for the selection" style="width:28px;height:26px;padding:0;border:1px solid #e0d9cb;border-radius:6px;background:#fff">
-                        <button onPointerDown="{{ fmtDown }}" onMouseDown="{{ fmtDown }}" onClick="{{ onFmtClear }}" title="Clear formatting (the selection, or all if nothing is selected)" style="height:26px;padding:0 7px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer;font-size:12px">⌫ Clear</button>
+                      <div data-role="fmtbar" onPointerDown="{{ stopProp }}" onBlur="{{ onFmtBlur }}" style="position:absolute;{{ fmtPos }};z-index:30;display:flex;align-items:center;gap:4px;padding:4px;border-radius:9px;background:#1B1E24;box-shadow:0 4px 14px rgba(0,0,0,.25)">
+                        <button onPointerDown="{{ fmtDown }}" onMouseDown="{{ fmtDown }}" onClick="{{ onFmtMode }}" title="Switch between formatted editing and markup" style="height:26px;padding:0 6px;border:1px solid #2C3039;border-radius:6px;background:#23262E;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px">{{ fmtModeLabel }}</button>
+                        <button onPointerDown="{{ fmtDown }}" onMouseDown="{{ fmtDown }}" onClick="{{ onFmtBold }}" title="Bold (⌘B)" style="width:26px;height:26px;padding:0;border:1px solid #2C3039;border-radius:6px;background:#23262E;cursor:pointer;font-weight:800">B</button>
+                        <button onPointerDown="{{ fmtDown }}" onMouseDown="{{ fmtDown }}" onClick="{{ onFmtItalic }}" title="Italic (⌘I)" style="width:26px;height:26px;padding:0;border:1px solid #2C3039;border-radius:6px;background:#23262E;cursor:pointer;font-style:italic;font-family:serif">I</button>
+                        <select value="" onChange="{{ onFmtStyle }}" title="Style for the selection" style="height:26px;border:1px solid #2C3039;border-radius:6px;background:#23262E;font-size:12px"><sc-for list="{{ fmtStyleOpts }}" as="o" hint-placeholder-count="5"><option value="{{ o.v }}" disabled="{{ o.off }}">{{ o.l }}</option></sc-for></select>
+                        <select value="" onChange="{{ onFmtSize }}" title="Size for the selection" style="height:26px;border:1px solid #2C3039;border-radius:6px;background:#23262E;font-size:12px"><sc-for list="{{ fmtSizeOpts }}" as="o" hint-placeholder-count="5"><option value="{{ o.v }}" disabled="{{ o.off }}">{{ o.l }}</option></sc-for></select>
+                        <select value="" onChange="{{ onFmtLink }}" title="Link the selection to a slide or a web page" style="height:26px;max-width:110px;border:1px solid #2C3039;border-radius:6px;background:#23262E;font-size:12px"><sc-for list="{{ fmtLinkOpts }}" as="o" hint-placeholder-count="5"><option value="{{ o.v }}" disabled="{{ o.off }}">{{ o.l }}</option></sc-for></select>
+                        <sc-if value="{{ fmtUrl }}"><input value="{{ fmtUrlVal }}" onChange="{{ onFmtUrlVal }}" placeholder="https://…" style="width:150px;height:26px;padding:0 6px;border:1px solid #2C3039;border-radius:6px;font-size:12px"><button onPointerDown="{{ fmtDown }}" onMouseDown="{{ fmtDown }}" onClick="{{ onFmtUrlApply }}" style="height:26px;padding:0 7px;border:0;border-radius:6px;background:#7AA2FF;color:#0B1020;cursor:pointer;font-size:12px">Link</button></sc-if>
+                        <input type="color" onChange="{{ onFmtColor }}" title="Colour for the selection" style="width:28px;height:26px;padding:0;border:1px solid #2C3039;border-radius:6px;background:#23262E">
+                        <button onPointerDown="{{ fmtDown }}" onMouseDown="{{ fmtDown }}" onClick="{{ onFmtClear }}" title="Clear formatting (the selection, or all if nothing is selected)" style="height:26px;padding:0 7px;border:1px solid #2C3039;border-radius:6px;background:#23262E;cursor:pointer;font-size:12px">⌫ Clear</button>
                       </div>
                     </sc-if>
                     <sc-if value="{{ linkPopShow }}">
-                      <div data-role="fmtbar" onPointerDown="{{ stopProp }}" style="position:absolute;{{ linkPopPos }};z-index:31;display:flex;align-items:center;gap:6px;padding:5px 7px;border-radius:9px;background:#1d1b17;color:#fbf9f4;font-size:12px;box-shadow:0 4px 14px rgba(0,0,0,.3)">
+                      <div data-role="fmtbar" onPointerDown="{{ stopProp }}" style="position:absolute;{{ linkPopPos }};z-index:31;display:flex;align-items:center;gap:6px;padding:5px 7px;border-radius:9px;background:#7AA2FF;color:#0B1020;font-size:12px;box-shadow:0 4px 14px rgba(0,0,0,.3)">
                         <span style="white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis">{{ linkPopLabel }}</span>
                         <sc-if value="{{ linkPick }}"><select value="" onChange="{{ onLinkPick }}" style="height:24px;max-width:150px;border:0;border-radius:5px;font-size:12px"><sc-for list="{{ fmtLinkOpts }}" as="o" hint-placeholder-count="5"><option value="{{ o.v }}" disabled="{{ o.off }}">{{ o.l }}</option></sc-for></select></sc-if>
                         <button onPointerDown="{{ fmtDown }}" onMouseDown="{{ fmtDown }}" onClick="{{ onLinkPopChange }}" style="padding:2px 7px;border:1px solid rgba(251,249,244,.4);border-radius:5px;background:none;color:inherit;cursor:pointer">Change</button>
@@ -273,7 +273,7 @@ input,textarea,button{font:inherit;color:inherit}
                   </sc-for>
                 </div>
                 <sc-if value="{{ row.hasLink }}">
-                  <div style="position:absolute;left:{{ row.linkX }}px;top:{{ row.linkTop }}px;width:2px;height:14px;background:#d9432b"></div>
+                  <div style="position:absolute;left:{{ row.linkX }}px;top:{{ row.linkTop }}px;width:2px;height:14px;background:#7AA2FF"></div>
                 </sc-if>
               </sc-for>
               <sc-if value="{{ hasDownHint }}">
@@ -286,17 +286,17 @@ input,textarea,button{font:inherit;color:inherit}
           </nav>
           </sc-if>
           <sc-if value="{{ hasLeft }}">
-            <button onClick="{{ goLeft }}" title="{{ leftTitle }}" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);width:44px;height:44px;border:0;border-radius:50%;background:rgba(251,249,244,.9);cursor:pointer;font-size:17px" style-hover="background:#fff">←</button>
+            <button onClick="{{ goLeft }}" title="{{ leftTitle }}" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);width:44px;height:44px;border:0;border-radius:50%;background:rgba(27,30,36,.9);cursor:pointer;font-size:17px" style-hover="background:#23262E">←</button>
           </sc-if>
           <sc-if value="{{ hasRight }}">
-            <button onClick="{{ goRight }}" title="{{ rightTitle }}" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);width:44px;height:44px;border:0;border-radius:50%;background:rgba(251,249,244,.9);cursor:pointer;font-size:17px" style-hover="background:#fff">→</button>
+            <button onClick="{{ goRight }}" title="{{ rightTitle }}" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);width:44px;height:44px;border:0;border-radius:50%;background:rgba(27,30,36,.9);cursor:pointer;font-size:17px" style-hover="background:#23262E">→</button>
           </sc-if>
           <div style="position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:flex;align-items:center;gap:8px;max-width:calc(100% - 130px)">
             <sc-if value="{{ hasUp }}">
-              <button onClick="{{ goUp }}" style="display:flex;align-items:center;gap:7px;padding:7px 13px;border:0;border-radius:999px;background:rgba(251,249,244,.9);cursor:pointer;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0" style-hover="background:#fff"><span style="font-family:'JetBrains Mono',monospace">↑</span>{{ upTitle }}</button>
+              <button onClick="{{ goUp }}" style="display:flex;align-items:center;gap:7px;padding:7px 13px;border:0;border-radius:999px;background:rgba(27,30,36,.9);cursor:pointer;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0" style-hover="background:#23262E"><span style="font-family:'JetBrains Mono',monospace">↑</span>{{ upTitle }}</button>
             </sc-if>
             <sc-if value="{{ hasDown }}">
-              <button onClick="{{ goDown }}" style="display:flex;align-items:center;gap:7px;padding:7px 13px;border:0;border-radius:999px;background:#1d1b17;color:#fbf9f4;cursor:pointer;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0" style-hover="background:#38342c"><span style="font-family:'JetBrains Mono',monospace">↓</span>{{ downLabel }}</button>
+              <button onClick="{{ goDown }}" style="display:flex;align-items:center;gap:7px;padding:7px 13px;border:0;border-radius:999px;background:#7AA2FF;color:#0B1020;cursor:pointer;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0" style-hover="background:#A9C0FF"><span style="font-family:'JetBrains Mono',monospace">↓</span>{{ downLabel }}</button>
             </sc-if>
           </div>
         </sc-if>
@@ -314,16 +314,16 @@ input,textarea,button{font:inherit;color:inherit}
                       </div>
                       <dc-import name="Layers" card="{{ deckCard }}" cards="true" layers="{{ mc.layers }}" images="{{ images }}" ink="{{ ink }}" shadow="{{ inkShadow }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
                     </div>
-                    <div style="margin-top:5px;font-size:12px;font-weight:600;color:#fbf9f4;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ mc.name }}</div>
+                    <div style="margin-top:5px;font-size:12px;font-weight:600;color:#E8EAEE;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ mc.name }}</div>
                   </div>
                 </sc-for>
               </div>
             </div>
           </div>
           <div style="position:absolute;right:14px;bottom:14px;display:flex;gap:4px;z-index:5">
-            <button onClick="{{ onMapZoomOut }}" style="width:30px;height:30px;border:0;border-radius:8px;background:rgba(251,249,244,.9);cursor:pointer">−</button>
-            <button onClick="{{ onMapFit }}" style="height:30px;padding:0 10px;border:0;border-radius:8px;background:rgba(251,249,244,.9);cursor:pointer;font-size:12.5px">Fit</button>
-            <button onClick="{{ onMapZoomIn }}" style="width:30px;height:30px;border:0;border-radius:8px;background:rgba(251,249,244,.9);cursor:pointer">+</button>
+            <button onClick="{{ onMapZoomOut }}" style="width:30px;height:30px;border:0;border-radius:8px;background:rgba(27,30,36,.9);cursor:pointer">−</button>
+            <button onClick="{{ onMapFit }}" style="height:30px;padding:0 10px;border:0;border-radius:8px;background:rgba(27,30,36,.9);cursor:pointer;font-size:12.5px">Fit</button>
+            <button onClick="{{ onMapZoomIn }}" style="width:30px;height:30px;border:0;border-radius:8px;background:rgba(27,30,36,.9);cursor:pointer">+</button>
           </div>
         </sc-if>
         <sc-if value="{{ showWire }}">
@@ -334,16 +334,16 @@ input,textarea,button{font:inherit;color:inherit}
               </sc-for>
               <svg width="100%" height="100%" style="position:absolute;inset:0;overflow:visible;pointer-events:none">
                 <sc-for list="{{ wireLines }}" as="wl" hint-placeholder-count="0">
-                  <line x1="{{ wl.x1 }}" y1="{{ wl.y1 }}" x2="{{ wl.x2 }}" y2="{{ wl.y2 }}" style="stroke:#fbf9f4;stroke-width:1.5;opacity:.75"></line>
+                  <line x1="{{ wl.x1 }}" y1="{{ wl.y1 }}" x2="{{ wl.x2 }}" y2="{{ wl.y2 }}" style="stroke:#E8EAEE;stroke-width:1.5;opacity:.75"></line>
                 </sc-for>
               </svg>
               <sc-for list="{{ wireRects }}" as="wr" hint-placeholder-count="0">
                 <div onClick="{{ wr.onClick }}" onDoubleClick="{{ wr.onOpen }}" title="{{ wr.full }}" style="position:absolute;left:{{ wr.l }}%;top:{{ wr.t }}%;width:{{ wr.w }}%;height:{{ wr.h }}%;border:{{ wr.border }};background:{{ wr.fill }};border-radius:3px;cursor:pointer;overflow:hidden">
-                  <div style="position:absolute;left:5px;top:4px;right:5px;font-size:11px;font-weight:600;line-height:1.1;color:#fbf9f4;text-shadow:0 1px 3px rgba(0,0,0,.7);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ wr.title }}</div>
+                  <div style="position:absolute;left:5px;top:4px;right:5px;font-size:11px;font-weight:600;line-height:1.1;color:#E8EAEE;text-shadow:0 1px 3px rgba(0,0,0,.7);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ wr.title }}</div>
                 </div>
               </sc-for>
               <sc-if value="{{ titleFrame.show }}">
-                <div title="Title page view" style="position:absolute;left:{{ titleFrame.l }}%;top:{{ titleFrame.t }}%;width:{{ titleFrame.w }}%;height:{{ titleFrame.h }}%;border:2px dashed #fbf9f4;border-radius:3px;box-sizing:border-box;pointer-events:none"></div>
+                <div title="Title page view" style="position:absolute;left:{{ titleFrame.l }}%;top:{{ titleFrame.t }}%;width:{{ titleFrame.w }}%;height:{{ titleFrame.h }}%;border:2px dashed #1B1E24;border-radius:3px;box-sizing:border-box;pointer-events:none"></div>
               </sc-if>
             </div>
           </div>
@@ -352,54 +352,54 @@ input,textarea,button{font:inherit;color:inherit}
     </main>
 
     <sc-if value="{{ isBuild }}">
-      <aside style="position:relative;width:{{ rightW }}px;flex:none;min-height:0;display:flex;flex-direction:column;border-left:1px solid #e0d9cb;background:#fbf9f4">
-        <div onPointerDown="{{ onRightResize }}" title="Drag to resize" style="position:absolute;left:-4px;top:0;bottom:0;width:8px;cursor:col-resize;z-index:20" style-hover="background:rgba(217,67,43,.25)"></div>
-        <div style="flex:none;display:flex;gap:2px;margin:10px 12px 0;padding:3px;border-radius:9px;background:#ece6d9">
-          <sc-for list="{{ rTabs }}" as="rt" hint-placeholder-count="3">
+      <aside style="position:relative;width:{{ rightW }}px;flex:none;min-height:0;display:flex;flex-direction:column;border-left:1px solid #2C3039;background:#1B1E24">
+        <div onPointerDown="{{ onRightResize }}" title="Drag to resize" style="position:absolute;left:-4px;top:0;bottom:0;width:8px;cursor:col-resize;z-index:20" style-hover="background:rgba(122,162,255,.25)"></div>
+        <div style="flex:none;display:flex;gap:2px;margin:10px 12px 0;padding:3px;border-radius:9px;background:#23262E">
+          <sc-for list="{{ rTabs }}" as="rt" hint-placeholder-count="4">
             <button onClick="{{ rt.onClick }}" style="flex:1;padding:6px 0;border:0;border-radius:7px;cursor:pointer;background:{{ rt.bg }};box-shadow:{{ rt.shadow }};font-size:13px;font-weight:600;white-space:nowrap">{{ rt.label }}</button>
           </sc-for>
         </div>
         <div style="flex:1;min-height:0;overflow:auto;padding:14px 14px 24px;display:flex;flex-direction:column;gap:16px">
           <sc-if value="{{ tabContent }}">
-            <div style="flex:1;min-height:0;display:flex;flex-direction:column;border:1px solid #e0d9cb;border-radius:10px;overflow:hidden;background:#fff">
-              <textarea ref="{{ mdRef }}" value="{{ mdText }}" onInput="{{ onMdInput }}" spellcheck="false" data-role="md" style="flex:1;min-height:0;resize:none;border:0;outline:none;padding:12px;background:#fff;color:#1d1b17;font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:20px;white-space:pre;overflow:auto"></textarea>
-              <sc-if value="{{ hasMdIssues }}"><pre data-role="md-issues" style="flex:none;margin:0;max-height:96px;overflow:auto;padding:6px 12px;border-top:1px solid #e0d9cb;background:#fff6e0;color:#8a5a00;font-family:'JetBrains Mono',monospace;font-size:11px">{{ mdIssuesText }}</pre></sc-if>
+            <div style="flex:1;min-height:0;display:flex;flex-direction:column;border:1px solid #2C3039;border-radius:10px;overflow:hidden;background:#23262E">
+              <textarea ref="{{ mdRef }}" value="{{ mdText }}" onInput="{{ onMdInput }}" spellcheck="false" data-role="md" style="flex:1;min-height:0;resize:none;border:0;outline:none;padding:12px;background:#23262E;color:#E8EAEE;font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:20px;white-space:pre;overflow:auto"></textarea>
+              <sc-if value="{{ hasMdIssues }}"><pre data-role="md-issues" style="flex:none;margin:0;max-height:96px;overflow:auto;padding:6px 12px;border-top:1px solid #2C3039;background:#3A2F14;color:#FBBF24;font-family:'JetBrains Mono',monospace;font-size:11px">{{ mdIssuesText }}</pre></sc-if>
             </div>
           </sc-if>
-          <sc-if value="{{ tabSlide }}">
+          <sc-if value="{{ tabSlides }}">
             <sc-if value="{{ fromDeck }}">
-              <div style="padding:8px 10px;border:1px solid #d6e2ef;border-radius:8px;background:#eef3f9;font-size:12.5px;line-height:1.45;color:#1f4f80">From <b>{{ fromDeck }}</b>: read-only here. <a href="{{ fromHref }}">Open</a> it to edit or export.</div>
+              <div style="padding:8px 10px;border:1px solid #343944;border-radius:8px;background:#2A3A5C;font-size:12.5px;line-height:1.45;color:#AFC6FF">From <b>{{ fromDeck }}</b>: read-only here. <a href="{{ fromHref }}">Open</a> it to edit or export.</div>
             </sc-if>
             <sc-if value="{{ ownSlide }}">
             <label style="display:flex;flex-direction:column;gap:5px">
-              <span style="font-size:12px;color:#6b6458">Slide name · tree and breadcrumbs</span>
+              <span style="font-size:12px;color:#9AA1AD">Slide name · tree and breadcrumbs</span>
               <div style="display:flex;gap:6px;align-items:center">
-                <input ref="{{ titleRef }}" value="{{ cur.title }}" onChange="{{ onTitle }}" placeholder="Slide name" style="flex:1;min-width:0;padding:8px 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;font-weight:600;outline:none">
+                <input ref="{{ titleRef }}" value="{{ cur.title }}" onChange="{{ onTitle }}" placeholder="Slide name" style="flex:1;min-width:0;padding:8px 10px;border:1px solid #2C3039;border-radius:8px;background:#23262E;font-weight:600;outline:none">
               </div>
             </label>
             <sc-if value="{{ isTitlePage }}">
-              <div style="display:flex;flex-direction:column;gap:8px;padding:10px;border:1px solid #e0d9cb;border-radius:10px;background:#fff">
-                <span style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#1d1b17">Title view · whole canvas</span>
+              <div style="display:flex;flex-direction:column;gap:8px;padding:10px;border:1px solid #2C3039;border-radius:10px;background:#23262E">
+                <span style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#E8EAEE">Title view · whole canvas</span>
                 <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
-                  <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>Zoom</span><span style="font-family:'JetBrains Mono',monospace">{{ tvZoomLabel }}</span></span>
-                  <input type="range" min="1" max="{{ tvZoomMax }}" step="0.05" value="{{ tvZoom }}" onChange="{{ onTvZoom }}" style="accent-color:#1d1b17;width:100%;min-width:0">
+                  <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Zoom</span><span style="font-family:'JetBrains Mono',monospace">{{ tvZoomLabel }}</span></span>
+                  <input type="range" min="1" max="{{ tvZoomMax }}" step="0.05" value="{{ tvZoom }}" onChange="{{ onTvZoom }}" style="accent-color:#E8EAEE;width:100%;min-width:0">
                 </label>
                 <div style="display:flex;gap:6px">
-                  <button onClick="{{ tvFit }}" style="flex:1;padding:5px 0;border:1px solid #e0d9cb;border-radius:7px;background:#fff;cursor:pointer;font-size:12.5px">Fit</button>
-                  <button onClick="{{ tvCover }}" style="flex:1;padding:5px 0;border:1px solid #e0d9cb;border-radius:7px;background:#fff;cursor:pointer;font-size:12.5px">Cover</button>
+                  <button onClick="{{ tvFit }}" style="flex:1;padding:5px 0;border:1px solid #2C3039;border-radius:7px;background:#23262E;cursor:pointer;font-size:12.5px">Fit</button>
+                  <button onClick="{{ tvCover }}" style="flex:1;padding:5px 0;border:1px solid #2C3039;border-radius:7px;background:#23262E;cursor:pointer;font-size:12.5px">Cover</button>
                 </div>
                 <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
-                  <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>Pan X</span><span style="font-family:'JetBrains Mono',monospace">{{ tvXLabel }}</span></span>
-                  <input type="range" min="0" max="1" step="0.01" value="{{ tvX }}" onChange="{{ onTvX }}" style="accent-color:#1d1b17;width:100%;min-width:0">
+                  <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Pan X</span><span style="font-family:'JetBrains Mono',monospace">{{ tvXLabel }}</span></span>
+                  <input type="range" min="0" max="1" step="0.01" value="{{ tvX }}" onChange="{{ onTvX }}" style="accent-color:#E8EAEE;width:100%;min-width:0">
                 </label>
                 <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
-                  <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>Pan Y</span><span style="font-family:'JetBrains Mono',monospace">{{ tvYLabel }}</span></span>
-                  <input type="range" min="0" max="1" step="0.01" value="{{ tvY }}" onChange="{{ onTvY }}" style="accent-color:#1d1b17;width:100%;min-width:0">
+                  <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Pan Y</span><span style="font-family:'JetBrains Mono',monospace">{{ tvYLabel }}</span></span>
+                  <input type="range" min="0" max="1" step="0.01" value="{{ tvY }}" onChange="{{ onTvY }}" style="accent-color:#E8EAEE;width:100%;min-width:0">
                 </label>
-                <span style="font-size:12px;line-height:1.45;color:#6b6458">{{ tvHint }}</span>
+                <span style="font-size:12px;line-height:1.45;color:#9AA1AD">{{ tvHint }}</span>
               </div>
             </sc-if>
-            <div style="display:flex;gap:2px;padding:3px;border-radius:9px;background:#ece6d9">
+            <div style="display:flex;gap:2px;padding:3px;border-radius:9px;background:#23262E">
               <sc-for list="{{ stabBtns }}" as="st" hint-placeholder-count="3">
                 <button onClick="{{ st.onClick }}" style="flex:1;padding:5px 0;border:0;border-radius:7px;cursor:pointer;background:{{ st.bg }};color:{{ st.color }};box-shadow:{{ st.shadow }};font-size:12.5px;font-weight:600;white-space:nowrap">{{ st.label }}</button>
               </sc-for>
@@ -407,49 +407,49 @@ input,textarea,button{font:inherit;color:inherit}
             <sc-if value="{{ stabLayout }}">
               <div style="display:flex;flex-direction:column;gap:10px">
                 <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center">
-                  <sc-for list="{{ layChips }}" as="ch" hint-placeholder-count="2"><span style="padding:2px 7px;border-radius:999px;background:#ece6d9;font-family:'JetBrains Mono',monospace;font-size:11px">{{ ch }}</span></sc-for>
+                  <sc-for list="{{ layChips }}" as="ch" hint-placeholder-count="2"><span style="padding:2px 7px;border-radius:999px;background:#23262E;font-family:'JetBrains Mono',monospace;font-size:11px">{{ ch }}</span></sc-for>
                 </div>
-                <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:#3d5a78">
+                <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:#9AA1AD">
                   <span style="flex:1">{{ layStatus }}</span>
-                  <sc-if value="{{ layCustom }}"><button onClick="{{ onLayReset }}" style="padding:3px 8px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer;font-size:12px">↺ Reset to default</button></sc-if>
+                  <sc-if value="{{ layCustom }}"><button onClick="{{ onLayReset }}" style="padding:3px 8px;border:1px solid #2C3039;border-radius:6px;background:#23262E;cursor:pointer;font-size:12px">↺ Reset to default</button></sc-if>
                 </div>
                 <sc-if value="{{ layEditable }}">
-                <div title="Where hand edits go: this slide's own override, or the shared layout every slide of this type follows" style="display:flex;gap:2px;padding:3px;border-radius:9px;background:#ece6d9">
+                <div title="Where hand edits go: this slide's own override, or the shared layout every slide of this type follows" style="display:flex;gap:2px;padding:3px;border-radius:9px;background:#23262E">
                   <sc-for list="{{ applyItems }}" as="ap" hint-placeholder-count="2">
                     <button onClick="{{ ap.onClick }}" style="flex:1;padding:4px 0;border:0;border-radius:7px;cursor:pointer;background:{{ ap.bg }};color:{{ ap.color }};box-shadow:{{ ap.shadow }};font-size:12px;font-weight:600">{{ ap.label }}</button>
                   </sc-for>
                 </div>
-                <sc-if value="{{ layNoTiles }}"><span style="font-size:12px;line-height:1.45;color:#6b6458">No layout for this type yet: arrange this slide and press Save as layout.</span></sc-if>
+                <sc-if value="{{ layNoTiles }}"><span style="font-size:12px;line-height:1.45;color:#9AA1AD">No layout for this type yet: arrange this slide and press Save as layout.</span></sc-if>
                 <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px">
                   <sc-for list="{{ layTiles }}" as="lt" hint-placeholder-count="2">
-                    <div style="display:flex;flex-direction:column;gap:4px;padding:5px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;min-width:0">
+                    <div style="display:flex;flex-direction:column;gap:4px;padding:5px;border:1px solid #2C3039;border-radius:8px;background:#23262E;min-width:0">
                       <div style="position:relative;width:100%;aspect-ratio:16/9;border-radius:4px;overflow:hidden;background:{{ base }}">
                         <dc-import name="Layers" card="{{ deckCard }}" cards="true" layers="{{ lt.layers }}" images="{{ images }}" ink="{{ ink }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
                       </div>
                       <div style="display:flex;align-items:center;gap:4px;min-width:0">
-                        <sc-if value="{{ lt.star }}"><span title="This type's default" style="color:#d9432b">★</span></sc-if>
+                        <sc-if value="{{ lt.star }}"><span title="This type's default" style="color:#7AA2FF">★</span></sc-if>
                         <input value="{{ lt.name }}" onChange="{{ lt.onName }}" style="flex:1;min-width:0;height:22px;padding:0 4px;border:1px solid transparent;border-radius:4px;font-size:12px;font-weight:600;background:transparent">
-                        <sc-if value="{{ lt.canDelete }}"><button onClick="{{ lt.onDelete }}" title="Delete this layout (its slides keep their arrangement)" style="border:0;background:none;color:#a8301d;cursor:pointer">✕</button></sc-if>
+                        <sc-if value="{{ lt.canDelete }}"><button onClick="{{ lt.onDelete }}" title="Delete this layout (its slides keep their arrangement)" style="border:0;background:none;color:#AFC6FF;cursor:pointer">✕</button></sc-if>
                       </div>
                       <div style="display:flex;gap:4px">
-                        <button onClick="{{ lt.onApply }}" style="flex:1;padding:3px 0;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer;font-size:11.5px">Apply</button>
-                        <button onClick="{{ lt.onApplyAll }}" title="Make this the default for this type and update every slide of the type that isn't custom" style="flex:1;padding:3px 0;border:0;border-radius:6px;background:#1d1b17;color:#fbf9f4;cursor:pointer;font-size:11.5px">Apply to all</button>
+                        <button onClick="{{ lt.onApply }}" style="flex:1;padding:3px 0;border:1px solid #2C3039;border-radius:6px;background:#23262E;cursor:pointer;font-size:11.5px">Apply</button>
+                        <button onClick="{{ lt.onApplyAll }}" title="Make this the default for this type and update every slide of the type that isn't custom" style="flex:1;padding:3px 0;border:0;border-radius:6px;background:#7AA2FF;color:#0B1020;cursor:pointer;font-size:11.5px">Apply to all</button>
                       </div>
-                      <button onClick="{{ lt.onToggle }}" style="align-self:flex-start;padding:0;border:0;background:none;color:#1f4f80;cursor:pointer;font-size:11.5px">{{ lt.count }}</button>
-                      <sc-if value="{{ lt.open }}"><sc-for list="{{ lt.regions }}" as="rg" hint-placeholder-count="2"><input value="{{ rg.value }}" onChange="{{ rg.onChange }}" title="Region name ({{ rg.label }})" style="min-width:0;height:20px;padding:0 4px;border:1px solid #e0d9cb;border-radius:4px;font-size:11px"></sc-for><div style="display:flex;flex-direction:column;gap:2px"><sc-for list="{{ lt.slides }}" as="ls" hint-placeholder-count="2"><button onClick="{{ ls.onClick }}" style="padding:0;border:0;background:none;text-align:left;color:#1d1b17;cursor:pointer;font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">→ {{ ls.name }}</button></sc-for></div></sc-if>
+                      <button onClick="{{ lt.onToggle }}" style="align-self:flex-start;padding:0;border:0;background:none;color:#AFC6FF;cursor:pointer;font-size:11.5px">{{ lt.count }}</button>
+                      <sc-if value="{{ lt.open }}"><sc-for list="{{ lt.regions }}" as="rg" hint-placeholder-count="2"><input value="{{ rg.value }}" onChange="{{ rg.onChange }}" title="Region name ({{ rg.label }})" style="min-width:0;height:20px;padding:0 4px;border:1px solid #2C3039;border-radius:4px;font-size:11px"></sc-for><div style="display:flex;flex-direction:column;gap:2px"><sc-for list="{{ lt.slides }}" as="ls" hint-placeholder-count="2"><button onClick="{{ ls.onClick }}" style="padding:0;border:0;background:none;text-align:left;color:#E8EAEE;cursor:pointer;font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">→ {{ ls.name }}</button></sc-for></div></sc-if>
                     </div>
                   </sc-for>
                 </div>
                 <div style="display:flex;flex-wrap:wrap;gap:6px">
-                  <button onClick="{{ onLaySave }}" style="padding:5px 10px;border:1px solid #e0d9cb;border-radius:7px;background:#fff;cursor:pointer;font-size:12.5px">Save as layout</button>
-                  <sc-if value="{{ layCanUpdate }}"><button onClick="{{ onLayUpdate }}" style="padding:5px 10px;border:1px solid #e0d9cb;border-radius:7px;background:#fff;cursor:pointer;font-size:12.5px">{{ layUpdateLabel }}</button></sc-if>
+                  <button onClick="{{ onLaySave }}" style="padding:5px 10px;border:1px solid #2C3039;border-radius:7px;background:#23262E;cursor:pointer;font-size:12.5px">Save as layout</button>
+                  <sc-if value="{{ layCanUpdate }}"><button onClick="{{ onLayUpdate }}" style="padding:5px 10px;border:1px solid #2C3039;border-radius:7px;background:#23262E;cursor:pointer;font-size:12.5px">{{ layUpdateLabel }}</button></sc-if>
                 </div>
-                <button onClick="{{ onLayAllToggle }}" style="align-self:flex-start;padding:0;border:0;background:none;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#6b6458">All layouts</button>
+                <button onClick="{{ onLayAllToggle }}" style="align-self:flex-start;padding:0;border:0;background:none;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#9AA1AD">All layouts</button>
                 <sc-if value="{{ layAllOpen }}">
                   <div style="display:flex;flex-direction:column;gap:6px">
                     <sc-for list="{{ layAll }}" as="la" hint-placeholder-count="3">
-                      <div style="display:flex;flex-direction:column;gap:2px;padding:4px 0;border-top:1px solid #f0ebe0">
-                        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><b style="font-size:12px">{{ la.name }}</b><sc-for list="{{ la.chips }}" as="ch" hint-placeholder-count="2"><span style="padding:1px 6px;border-radius:999px;background:#ece6d9;font-family:'JetBrains Mono',monospace;font-size:10.5px">{{ ch }}</span></sc-for><button onClick="{{ la.onToggle }}" style="margin-left:auto;padding:0;border:0;background:none;color:#1f4f80;cursor:pointer;font-size:11.5px">{{ la.count }}</button></div>
+                      <div style="display:flex;flex-direction:column;gap:2px;padding:4px 0;border-top:1px solid #2C3039">
+                        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><b style="font-size:12px">{{ la.name }}</b><sc-for list="{{ la.chips }}" as="ch" hint-placeholder-count="2"><span style="padding:1px 6px;border-radius:999px;background:#23262E;font-family:'JetBrains Mono',monospace;font-size:10.5px">{{ ch }}</span></sc-for><button onClick="{{ la.onToggle }}" style="margin-left:auto;padding:0;border:0;background:none;color:#AFC6FF;cursor:pointer;font-size:11.5px">{{ la.count }}</button></div>
                         <sc-if value="{{ la.open }}"><sc-for list="{{ la.slides }}" as="ls" hint-placeholder-count="2"><button onClick="{{ ls.onClick }}" style="padding:0 0 0 8px;border:0;background:none;text-align:left;cursor:pointer;font-size:11.5px">→ {{ ls.name }}</button></sc-for></sc-if>
                 </sc-if>
                       </div>
@@ -462,217 +462,217 @@ input,textarea,button{font:inherit;color:inherit}
               <div style="display:flex;flex-direction:column;gap:6px;padding:0 10px 10px">
               <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px">
                 <sc-for list="{{ addBtns }}" as="ab" hint-placeholder-count="4">
-                  <button onClick="{{ ab.onClick }}" style="padding:6px 0;border:1px solid #e0d9cb;border-radius:7px;background:#fff;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap" style-hover="background:#f5f1e8">{{ ab.label }}</button>
+                  <button onClick="{{ ab.onClick }}" style="padding:6px 0;border:1px solid #2C3039;border-radius:7px;background:#23262E;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap" style-hover="background:#2C3039">{{ ab.label }}</button>
                 </sc-for>
               </div>
-              <div style="display:flex;flex-direction:column;border:1px solid #e0d9cb;border-radius:9px;background:#fff;overflow:hidden">
+              <div style="display:flex;flex-direction:column;border:1px solid #2C3039;border-radius:9px;background:#23262E;overflow:hidden">
                 <sc-for list="{{ layerRows }}" as="lr" hint-placeholder-count="2">
-                  <div onClick="{{ lr.onClick }}" style="display:flex;align-items:center;gap:6px;height:32px;padding:0 4px 0 8px;border-bottom:1px solid #f0ebe0;background:{{ lr.bg }};cursor:pointer;opacity:{{ lr.opacity }}">
-                    <span style="width:20px;height:20px;flex:none;display:grid;place-items:center;border-radius:5px;background:#ece6d9;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700">{{ lr.glyph }}</span>
+                  <div onClick="{{ lr.onClick }}" style="display:flex;align-items:center;gap:6px;height:32px;padding:0 4px 0 8px;border-bottom:1px solid #2C3039;background:{{ lr.bg }};cursor:pointer;opacity:{{ lr.opacity }}">
+                    <span style="width:20px;height:20px;flex:none;display:grid;place-items:center;border-radius:5px;background:#23262E;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700">{{ lr.glyph }}</span>
                     <span style="flex:1;min-width:0;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:{{ lr.weight }}">{{ lr.name }}</span>
-                    <button onClick="{{ lr.onEye }}" title="{{ lr.eyeTitle }}" style="width:22px;height:22px;padding:0;border:0;border-radius:5px;background:transparent;cursor:pointer;font-size:11px;opacity:.7" style-hover="background:#ece6d9">{{ lr.eye }}</button>
-                    <button onClick="{{ lr.onUp }}" title="Bring forward" style="width:22px;height:22px;padding:0;border:0;border-radius:5px;background:transparent;cursor:pointer;font-size:11px;opacity:{{ lr.upOp }}" style-hover="background:#ece6d9">▲</button>
-                    <button onClick="{{ lr.onDown }}" title="Send backward" style="width:22px;height:22px;padding:0;border:0;border-radius:5px;background:transparent;cursor:pointer;font-size:11px;opacity:{{ lr.downOp }}" style-hover="background:#ece6d9">▼</button>
+                    <button onClick="{{ lr.onEye }}" title="{{ lr.eyeTitle }}" style="width:22px;height:22px;padding:0;border:0;border-radius:5px;background:transparent;cursor:pointer;font-size:11px;opacity:.7" style-hover="background:#23262E">{{ lr.eye }}</button>
+                    <button onClick="{{ lr.onUp }}" title="Bring forward" style="width:22px;height:22px;padding:0;border:0;border-radius:5px;background:transparent;cursor:pointer;font-size:11px;opacity:{{ lr.upOp }}" style-hover="background:#23262E">▲</button>
+                    <button onClick="{{ lr.onDown }}" title="Send backward" style="width:22px;height:22px;padding:0;border:0;border-radius:5px;background:transparent;cursor:pointer;font-size:11px;opacity:{{ lr.downOp }}" style-hover="background:#23262E">▼</button>
                   </div>
                 </sc-for>
-                <sc-if value="{{ noLayers }}"><div style="padding:10px;font-size:12px;color:#6b6458">No layers yet.</div></sc-if>
+                <sc-if value="{{ noLayers }}"><div style="padding:10px;font-size:12px;color:#9AA1AD">No layers yet.</div></sc-if>
               </div>
               </div>
             </sc-if>
             <sc-if value="{{ layerPane }}">
             <sc-if value="{{ hasLayer }}">
-              <div style="display:flex;flex-direction:column;gap:12px;padding-top:12px;border-top:1px solid #e0d9cb">
+              <div style="display:flex;flex-direction:column;gap:12px;padding-top:12px;border-top:1px solid #2C3039">
                 <div style="display:flex;align-items:center;gap:6px">
-                  <span style="flex:1;font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#1f6fb8">{{ lyLabel }}</span>
-                  <button onClick="{{ dupLayer }}" title="Duplicate (⌘D)" style="padding:4px 8px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer;font-size:12px" style-hover="background:#f5f1e8">Duplicate</button>
-                  <button onClick="{{ delLayer }}" title="Delete (⌫)" style="padding:4px 8px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer;font-size:12px;color:#a8301d" style-hover="background:#f5f1e8">Delete</button>
+                  <span style="flex:1;font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#7AA2FF">{{ lyLabel }}</span>
+                  <button onClick="{{ dupLayer }}" title="Duplicate (⌘D)" style="padding:4px 8px;border:1px solid #2C3039;border-radius:6px;background:#23262E;cursor:pointer;font-size:12px" style-hover="background:#2C3039">Duplicate</button>
+                  <button onClick="{{ delLayer }}" title="Delete (⌫)" style="padding:4px 8px;border:1px solid #2C3039;border-radius:6px;background:#23262E;cursor:pointer;font-size:12px;color:#AFC6FF" style-hover="background:#2C3039">Delete</button>
                 </div>
                 <sc-if value="{{ lyIsText }}">
-                  <textarea value="{{ ly.text }}" onChange="{{ onLyText }}" rows="4" placeholder="One line per bullet" style="padding:8px 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;resize:vertical;line-height:1.4;outline:none"></textarea>
+                  <textarea value="{{ ly.text }}" onChange="{{ onLyText }}" rows="4" placeholder="One line per bullet" style="padding:8px 10px;border:1px solid #2C3039;border-radius:8px;background:#23262E;resize:vertical;line-height:1.4;outline:none"></textarea>
                   <div style="display:flex;align-items:center;gap:6px">
-                    <span style="width:44px;font-size:12px;color:#6b6458">Style</span>
-                    <select value="{{ lyStyle }}" onChange="{{ onLyStyle }}" style="flex:1;min-width:0;height:28px;padding:0 4px;border:1px solid #e0d9cb;border-radius:6px;background:#fff">
+                    <span style="width:44px;font-size:12px;color:#9AA1AD">Style</span>
+                    <select value="{{ lyStyle }}" onChange="{{ onLyStyle }}" style="flex:1;min-width:0;height:28px;padding:0 4px;border:1px solid #2C3039;border-radius:6px;background:#23262E">
                       <sc-for list="{{ styleOpts }}" as="o" hint-placeholder-count="5"><option value="{{ o.v }}">{{ o.l }}</option></sc-for>
                     </select>
                   </div>
                   <sc-if value="{{ lyStyled }}">
                     <div style="display:flex;align-items:center;gap:6px">
-                      <span style="font-size:12px;color:#6b6458;flex:none">Edits apply to</span>
-                      <div style="flex:1;display:flex;gap:2px;padding:3px;border-radius:9px;background:#ece6d9">
+                      <span style="font-size:12px;color:#9AA1AD;flex:none">Edits apply to</span>
+                      <div style="flex:1;display:flex;gap:2px;padding:3px;border-radius:9px;background:#23262E">
                         <sc-for list="{{ styleTargetBtns }}" as="sb" hint-placeholder-count="2">
                           <button onClick="{{ sb.onClick }}" style="flex:1;padding:4px 6px;border:0;border-radius:7px;cursor:pointer;background:{{ sb.bg }};color:{{ sb.color }};box-shadow:{{ sb.shadow }};font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ sb.label }}</button>
                         </sc-for>
                       </div>
                     </div>
-                    <sc-if value="{{ lyHasOverrides }}"><button onClick="{{ onClearOverrides }}" title="Remove this layer's own settings so it follows the style" style="align-self:flex-start;padding:3px 8px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer;font-size:11.5px">Clear overrides</button></sc-if>
+                    <sc-if value="{{ lyHasOverrides }}"><button onClick="{{ onClearOverrides }}" title="Remove this layer's own settings so it follows the style" style="align-self:flex-start;padding:3px 8px;border:1px solid #2C3039;border-radius:6px;background:#23262E;cursor:pointer;font-size:11.5px">Clear overrides</button></sc-if>
                   </sc-if>
                   <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px 10px">
                     <sc-for list="{{ textFields }}" as="tf" hint-placeholder-count="8">
                       <label style="display:grid;grid-template-columns:44px minmax(0,1fr) auto;align-items:center;gap:6px;min-width:0">
-                        <span style="font-size:12px;color:#6b6458;white-space:nowrap">{{ tf.label }}</span>
+                        <span style="font-size:12px;color:#9AA1AD;white-space:nowrap">{{ tf.label }}</span>
                         <sc-if value="{{ tf.isSel }}">
-                        <select value="{{ tf.value }}" onChange="{{ tf.onChange }}" style="width:100%;min-width:0;height:28px;padding:0 4px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;outline:none;font-size:12px;cursor:pointer">
+                        <select value="{{ tf.value }}" onChange="{{ tf.onChange }}" style="width:100%;min-width:0;height:28px;padding:0 4px;border:1px solid #2C3039;border-radius:6px;background:#23262E;outline:none;font-size:12px;cursor:pointer">
                           <sc-for list="{{ tf.opts }}" as="o" hint-placeholder-count="3">
                             <option value="{{ o.v }}">{{ o.l }}</option>
                           </sc-for>
                         </select>
                         </sc-if>
-                        <sc-if value="{{ tf.num }}"><span style="display:flex;align-items:center;gap:4px;min-width:0"><input type="number" step="{{ tf.step }}" min="{{ tf.min }}" value="{{ tf.value }}" onChange="{{ tf.onChange }}" style="width:100%;min-width:0;height:28px;padding:0 6px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;font-size:13px"><span style="flex:none;font-size:11px;color:#6b6458">{{ tf.unit }}</span></span></sc-if>
-                        <sc-if value="{{ tf.over }}"><button onClick="{{ tf.onReset }}" title="Remove this layer's override (use the style)" style="padding:0 4px;border:0;background:none;cursor:pointer;color:#6b6458">↺</button></sc-if>
+                        <sc-if value="{{ tf.num }}"><span style="display:flex;align-items:center;gap:4px;min-width:0"><input type="number" step="{{ tf.step }}" min="{{ tf.min }}" value="{{ tf.value }}" onChange="{{ tf.onChange }}" style="width:100%;min-width:0;height:28px;padding:0 6px;border:1px solid #2C3039;border-radius:6px;background:#23262E;font-size:13px"><span style="flex:none;font-size:11px;color:#9AA1AD">{{ tf.unit }}</span></span></sc-if>
+                        <sc-if value="{{ tf.over }}"><button onClick="{{ tf.onReset }}" title="Remove this layer's override (use the style)" style="padding:0 4px;border:0;background:none;cursor:pointer;color:#9AA1AD">↺</button></sc-if>
                       </label>
                     </sc-for>
                   </div>
-                  <div style="display:flex;flex-direction:column;border:1px solid #e0d9cb;border-radius:8px;background:#fff">
+                  <div style="display:flex;flex-direction:column;border:1px solid #2C3039;border-radius:8px;background:#23262E">
                     <div onClick="{{ sec.box.toggle }}" style="display:flex;align-items:center;gap:8px;padding:8px 10px;cursor:pointer;user-select:none">
-                      <span style="width:12px;flex:none;font-size:10px;color:#6b6458">{{ sec.box.caret }}</span>
-                      <span style="flex:1;font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#1d1b17">{{ boxTitle }}</span>
-                      <span style="font-size:11.5px;color:#6b6458">{{ boxModeLabel }}</span>
-                      <sc-if value="{{ boxOver }}"><button onClick="{{ onBoxReset }}" title="Remove this layer's container override" style="padding:0 4px;border:0;background:none;cursor:pointer;color:#6b6458">↺</button></sc-if>
+                      <span style="width:12px;flex:none;font-size:10px;color:#9AA1AD">{{ sec.box.caret }}</span>
+                      <span style="flex:1;font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#E8EAEE">{{ boxTitle }}</span>
+                      <span style="font-size:11.5px;color:#9AA1AD">{{ boxModeLabel }}</span>
+                      <sc-if value="{{ boxOver }}"><button onClick="{{ onBoxReset }}" title="Remove this layer's container override" style="padding:0 4px;border:0;background:none;cursor:pointer;color:#9AA1AD">↺</button></sc-if>
                     </div>
                     <sc-if value="{{ sec.box.open }}">
                       <div style="display:flex;flex-direction:column;gap:8px;padding:0 10px 10px">
-                        <div style="display:flex;gap:2px;padding:3px;border-radius:9px;background:#ece6d9">
+                        <div style="display:flex;gap:2px;padding:3px;border-radius:9px;background:#23262E">
                           <sc-for list="{{ boxModes }}" as="bm" hint-placeholder-count="3">
                             <button onClick="{{ bm.onClick }}" style="flex:1;padding:5px 6px;border:0;border-radius:7px;cursor:pointer;background:{{ bm.bg }};color:{{ bm.color }};box-shadow:{{ bm.shadow }};font-size:12.5px;white-space:nowrap">{{ bm.label }}</button>
                           </sc-for>
                         </div>
                         <div style="display:flex;gap:14px;flex-wrap:wrap">
                           <sc-for list="{{ boxColors }}" as="bc" hint-placeholder-count="2">
-                            <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#6b6458">{{ bc.label }}<input type="color" value="{{ bc.value }}" onChange="{{ bc.onChange }}" style="width:28px;height:24px;padding:0;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer"></label>
+                            <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#9AA1AD">{{ bc.label }}<input type="color" value="{{ bc.value }}" onChange="{{ bc.onChange }}" style="width:28px;height:24px;padding:0;border:1px solid #2C3039;border-radius:6px;background:#23262E;cursor:pointer"></label>
                           </sc-for>
                         </div>
                         <sc-for list="{{ boxFields }}" as="bf" hint-placeholder-count="5">
                           <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
-                            <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>{{ bf.label }}</span><span style="font-family:'JetBrains Mono',monospace">{{ bf.valLabel }}</span></span>
-                            <input type="range" min="{{ bf.min }}" max="{{ bf.max }}" step="{{ bf.step }}" value="{{ bf.value }}" onChange="{{ bf.onChange }}" style="accent-color:#1d1b17;width:100%;min-width:0">
+                            <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>{{ bf.label }}</span><span style="font-family:'JetBrains Mono',monospace">{{ bf.valLabel }}</span></span>
+                            <input type="range" min="{{ bf.min }}" max="{{ bf.max }}" step="{{ bf.step }}" value="{{ bf.value }}" onChange="{{ bf.onChange }}" style="accent-color:#E8EAEE;width:100%;min-width:0">
                           </label>
                         </sc-for>
                       </div>
                     </sc-if>
                   </div>
-                  <span style="font-size:12px;color:#6b6458">{{ colorLabel }} <sc-if value="{{ colorOver }}"><button onClick="{{ onColorReset }}" title="Remove this layer's colour override" style="padding:0 4px;border:0;background:none;cursor:pointer;color:#6b6458">↺</button></sc-if></span>
+                  <span style="font-size:12px;color:#9AA1AD">{{ colorLabel }} <sc-if value="{{ colorOver }}"><button onClick="{{ onColorReset }}" title="Remove this layer's colour override" style="padding:0 4px;border:0;background:none;cursor:pointer;color:#9AA1AD">↺</button></sc-if></span>
                   <div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center">
                 <sc-for list="{{ swatches }}" as="sw" hint-placeholder-count="10">
-                  <button onClick="{{ sw.onClick }}" title="{{ sw.title }}" style="width:22px;height:22px;padding:0;border-radius:6px;cursor:pointer;background:{{ sw.bg }};border:{{ sw.border }};font-size:9px;font-weight:700;color:#6b6458">{{ sw.label }}</button>
+                  <button onClick="{{ sw.onClick }}" title="{{ sw.title }}" style="width:22px;height:22px;padding:0;border-radius:6px;cursor:pointer;background:{{ sw.bg }};border:{{ sw.border }};font-size:9px;font-weight:700;color:#9AA1AD">{{ sw.label }}</button>
                 </sc-for>
-                <input type="color" value="{{ colorHex }}" onChange="{{ onColorPick }}" style="width:28px;height:24px;padding:0;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer">
+                <input type="color" value="{{ colorHex }}" onChange="{{ onColorPick }}" style="width:28px;height:24px;padding:0;border:1px solid #2C3039;border-radius:6px;background:#23262E;cursor:pointer">
               </div>
                 </sc-if>
                 <sc-if value="{{ lyIsComponent }}">
-                  <label style="display:flex;flex-direction:column;gap:4px"><span style="font-size:12px;color:#6b6458">Name</span>
-                    <input value="{{ compName }}" onChange="{{ onCompName }}" placeholder="Component" style="padding:7px 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;outline:none"></label>
-                  <span style="font-size:12px;line-height:1.45;color:#6b6458">Paste a snippet (HTML, CSS and JS), then Apply. It runs sandboxed and talks to the slide through <code>strata</code>; Copy AI guide has the details.</span>
-                  <textarea value="{{ compCode }}" onChange="{{ onCompCode }}" rows="14" spellcheck="false" style="width:100%;padding:8px 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;font-family:'JetBrains Mono',monospace;font-size:11.5px;line-height:1.45;outline:none;resize:vertical"></textarea>
-                  <sc-if value="{{ hasCompErr }}"><span style="font-family:'JetBrains Mono',monospace;font-size:11.5px;color:#a8301d">⚠ {{ compErrText }}</span></sc-if>
-                  <sc-if value="{{ compDirty }}"><span style="font-size:11.5px;color:#a8301d">● Unapplied changes: press Apply to run them</span></sc-if>
+                  <label style="display:flex;flex-direction:column;gap:4px"><span style="font-size:12px;color:#9AA1AD">Name</span>
+                    <input value="{{ compName }}" onChange="{{ onCompName }}" placeholder="Component" style="padding:7px 10px;border:1px solid #2C3039;border-radius:8px;background:#23262E;outline:none"></label>
+                  <span style="font-size:12px;line-height:1.45;color:#9AA1AD">Paste a snippet (HTML, CSS and JS), then Apply. It runs sandboxed and talks to the slide through <code>strata</code>; Copy AI guide has the details.</span>
+                  <textarea value="{{ compCode }}" onChange="{{ onCompCode }}" rows="14" spellcheck="false" style="width:100%;padding:8px 10px;border:1px solid #2C3039;border-radius:8px;background:#23262E;font-family:'JetBrains Mono',monospace;font-size:11.5px;line-height:1.45;outline:none;resize:vertical"></textarea>
+                  <sc-if value="{{ hasCompErr }}"><span style="font-family:'JetBrains Mono',monospace;font-size:11.5px;color:#AFC6FF">⚠ {{ compErrText }}</span></sc-if>
+                  <sc-if value="{{ compDirty }}"><span style="font-size:11.5px;color:#AFC6FF">● Unapplied changes: press Apply to run them</span></sc-if>
                   <div style="display:flex;flex-wrap:wrap;gap:6px">
-                    <button onClick="{{ onCompApply }}" style="padding:6px 12px;border:0;border-radius:8px;background:#1d1b17;color:#fbf9f4;cursor:pointer;font-size:12.5px">Apply</button>
-                    <button onClick="{{ onCompRevert }}" style="padding:6px 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer;font-size:12.5px">Revert</button>
-                    <button onClick="{{ onCompInteract }}" title="Let clicks reach the component on the stage" style="padding:6px 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer;font-size:12.5px">{{ interactLabel }}</button>
-                    <button onClick="{{ onCopyCompGuide }}" style="padding:6px 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer;font-size:12.5px">Copy AI guide</button>
+                    <button onClick="{{ onCompApply }}" style="padding:6px 12px;border:0;border-radius:8px;background:#7AA2FF;color:#0B1020;cursor:pointer;font-size:12.5px">Apply</button>
+                    <button onClick="{{ onCompRevert }}" style="padding:6px 10px;border:1px solid #2C3039;border-radius:8px;background:#23262E;cursor:pointer;font-size:12.5px">Revert</button>
+                    <button onClick="{{ onCompInteract }}" title="Let clicks reach the component on the stage" style="padding:6px 10px;border:1px solid #2C3039;border-radius:8px;background:#23262E;cursor:pointer;font-size:12.5px">{{ interactLabel }}</button>
+                    <button onClick="{{ onCopyCompGuide }}" style="padding:6px 10px;border:1px solid #2C3039;border-radius:8px;background:#23262E;cursor:pointer;font-size:12.5px">Copy AI guide</button>
                   </div>
                 </sc-if>
                 <sc-if value="{{ lyIsImage }}">
-                  <div style="height:110px;border-radius:8px;border:1px solid #e0d9cb;background:{{ lyThumb }}"></div>
-                  <sc-if value="{{ clipMsgOn }}"><span style="font-size:11.5px;color:#a8301d">{{ clipMsg }}</span></sc-if>
+                  <div style="height:110px;border-radius:8px;border:1px solid #2C3039;background:{{ lyThumb }}"></div>
+                  <sc-if value="{{ clipMsgOn }}"><span style="font-size:11.5px;color:#AFC6FF">{{ clipMsg }}</span></sc-if>
                   <div style="display:flex;gap:6px">
-                    <button onClick="{{ chooseImage }}" style="flex:1;padding:7px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer;font-weight:600" style-hover="background:#f5f1e8">Choose image…</button>
-                    <button onClick="{{ pasteImage }}" title="{{ pasteTitle }}" style="padding:7px 10px;border:1px solid {{ pasteBorder }};border-radius:8px;background:{{ pasteBg }};color:{{ pasteColor }};cursor:pointer;font-weight:600;white-space:nowrap" style-hover="background:#f5f1e8">⎘ Paste</button>
-                    <button onClick="{{ clearImage }}" style="padding:7px 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer" style-hover="background:#f5f1e8">Clear</button>
+                    <button onClick="{{ chooseImage }}" style="flex:1;padding:7px;border:1px solid #2C3039;border-radius:8px;background:#23262E;cursor:pointer;font-weight:600" style-hover="background:#2C3039">Choose image…</button>
+                    <button onClick="{{ pasteImage }}" title="{{ pasteTitle }}" style="padding:7px 10px;border:1px solid {{ pasteBorder }};border-radius:8px;background:{{ pasteBg }};color:{{ pasteColor }};cursor:pointer;font-weight:600;white-space:nowrap" style-hover="background:#2C3039">⎘ Paste</button>
+                    <button onClick="{{ clearImage }}" style="padding:7px 10px;border:1px solid #2C3039;border-radius:8px;background:#23262E;cursor:pointer" style-hover="background:#2C3039">Clear</button>
                   </div>
-                  <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px;padding:3px;border-radius:8px;background:#ece6d9">
+                  <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px;padding:3px;border-radius:8px;background:#23262E">
                 <sc-for list="{{ fitBtns }}" as="o" hint-placeholder-count="3">
                   <button onClick="{{ o.onClick }}" title="{{ o.title }}" style="padding:5px 0;border:0;border-radius:6px;cursor:pointer;background:{{ o.bg }};box-shadow:{{ o.shadow }};font-size:12px;font-weight:{{ o.weight }};font-family:{{ o.font }};white-space:nowrap;overflow:hidden">{{ o.label }}</button>
                 </sc-for>
               </div>
               <sc-for list="{{ imgFields }}" as="im" hint-placeholder-count="3">
                 <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
-                  <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>{{ im.label }}</span><span style="font-family:'JetBrains Mono',monospace">{{ im.valLabel }}</span></span>
-                  <input type="range" min="{{ im.min }}" max="{{ im.max }}" step="{{ im.step }}" value="{{ im.value }}" onChange="{{ im.onChange }}" style="accent-color:#1d1b17;width:100%;min-width:0">
+                  <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>{{ im.label }}</span><span style="font-family:'JetBrains Mono',monospace">{{ im.valLabel }}</span></span>
+                  <input type="range" min="{{ im.min }}" max="{{ im.max }}" step="{{ im.step }}" value="{{ im.value }}" onChange="{{ im.onChange }}" style="accent-color:#E8EAEE;width:100%;min-width:0">
                 </label>
               </sc-for>
                   <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
-                <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>Corner radius</span><span style="font-family:'JetBrains Mono',monospace">{{ radiusLabel }}</span></span>
-                <input type="range" min="0" max="200" step="1" value="{{ lyRadius }}" onChange="{{ onLyRadius }}" style="accent-color:#1d1b17;width:100%;min-width:0">
+                <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Corner radius</span><span style="font-family:'JetBrains Mono',monospace">{{ radiusLabel }}</span></span>
+                <input type="range" min="0" max="200" step="1" value="{{ lyRadius }}" onChange="{{ onLyRadius }}" style="accent-color:#E8EAEE;width:100%;min-width:0">
               </label>
                 </sc-if>
                 <sc-if value="{{ lyIsShape }}">
-                  <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:2px;padding:3px;border-radius:8px;background:#ece6d9">
+                  <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:2px;padding:3px;border-radius:8px;background:#23262E">
                 <sc-for list="{{ shapeBtns }}" as="o" hint-placeholder-count="3">
                   <button onClick="{{ o.onClick }}" title="{{ o.title }}" style="padding:5px 0;border:0;border-radius:6px;cursor:pointer;background:{{ o.bg }};box-shadow:{{ o.shadow }};font-size:12px;font-weight:{{ o.weight }};font-family:{{ o.font }};white-space:nowrap;overflow:hidden">{{ o.label }}</button>
                 </sc-for>
               </div>
-                  <span style="font-size:12px;color:#6b6458">Fill</span>
+                  <span style="font-size:12px;color:#9AA1AD">Fill</span>
                   <div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center">
                 <sc-for list="{{ swatches }}" as="sw" hint-placeholder-count="10">
-                  <button onClick="{{ sw.onClick }}" title="{{ sw.title }}" style="width:22px;height:22px;padding:0;border-radius:6px;cursor:pointer;background:{{ sw.bg }};border:{{ sw.border }};font-size:9px;font-weight:700;color:#6b6458">{{ sw.label }}</button>
+                  <button onClick="{{ sw.onClick }}" title="{{ sw.title }}" style="width:22px;height:22px;padding:0;border-radius:6px;cursor:pointer;background:{{ sw.bg }};border:{{ sw.border }};font-size:9px;font-weight:700;color:#9AA1AD">{{ sw.label }}</button>
                 </sc-for>
-                <input type="color" value="{{ colorHex }}" onChange="{{ onColorPick }}" style="width:28px;height:24px;padding:0;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer">
+                <input type="color" value="{{ colorHex }}" onChange="{{ onColorPick }}" style="width:28px;height:24px;padding:0;border:1px solid #2C3039;border-radius:6px;background:#23262E;cursor:pointer">
               </div>
                   <sc-if value="{{ lyIsRect }}"><label style="display:flex;flex-direction:column;gap:4px;min-width:0">
-                <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>Corner radius</span><span style="font-family:'JetBrains Mono',monospace">{{ radiusLabel }}</span></span>
-                <input type="range" min="0" max="200" step="1" value="{{ lyRadius }}" onChange="{{ onLyRadius }}" style="accent-color:#1d1b17;width:100%;min-width:0">
+                <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Corner radius</span><span style="font-family:'JetBrains Mono',monospace">{{ radiusLabel }}</span></span>
+                <input type="range" min="0" max="200" step="1" value="{{ lyRadius }}" onChange="{{ onLyRadius }}" style="accent-color:#E8EAEE;width:100%;min-width:0">
               </label></sc-if>
                 </sc-if>
                 <sc-if value="{{ lyIsIcon }}">
                   <div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:4px">
                     <sc-for list="{{ iconBtns }}" as="ic" hint-placeholder-count="12">
-                      <button onClick="{{ ic.onClick }}" title="{{ ic.name }}" style="aspect-ratio:1;padding:5px;border-radius:7px;border:{{ ic.border }};background:#fff;cursor:pointer">
-                        <svg viewBox="0 0 24 24" width="100%" height="100%" style="display:block"><path d="{{ ic.path }}" style="fill:none;stroke:#1d1b17;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"></path></svg>
+                      <button onClick="{{ ic.onClick }}" title="{{ ic.name }}" style="aspect-ratio:1;padding:5px;border-radius:7px;border:{{ ic.border }};background:#23262E;cursor:pointer">
+                        <svg viewBox="0 0 24 24" width="100%" height="100%" style="display:block"><path d="{{ ic.path }}" style="fill:none;stroke:#E8EAEE;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"></path></svg>
                       </button>
                     </sc-for>
                   </div>
-                  <span style="font-size:12px;color:#6b6458">Colour</span>
+                  <span style="font-size:12px;color:#9AA1AD">Colour</span>
                   <div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center">
                 <sc-for list="{{ swatches }}" as="sw" hint-placeholder-count="10">
-                  <button onClick="{{ sw.onClick }}" title="{{ sw.title }}" style="width:22px;height:22px;padding:0;border-radius:6px;cursor:pointer;background:{{ sw.bg }};border:{{ sw.border }};font-size:9px;font-weight:700;color:#6b6458">{{ sw.label }}</button>
+                  <button onClick="{{ sw.onClick }}" title="{{ sw.title }}" style="width:22px;height:22px;padding:0;border-radius:6px;cursor:pointer;background:{{ sw.bg }};border:{{ sw.border }};font-size:9px;font-weight:700;color:#9AA1AD">{{ sw.label }}</button>
                 </sc-for>
-                <input type="color" value="{{ colorHex }}" onChange="{{ onColorPick }}" style="width:28px;height:24px;padding:0;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer">
+                <input type="color" value="{{ colorHex }}" onChange="{{ onColorPick }}" style="width:28px;height:24px;padding:0;border:1px solid #2C3039;border-radius:6px;background:#23262E;cursor:pointer">
               </div>
                   <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
-                <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>Stroke</span><span style="font-family:'JetBrains Mono',monospace">{{ swLabel }}</span></span>
-                <input type="range" min="0.5" max="4" step="0.1" value="{{ lySw }}" onChange="{{ onLySw }}" style="accent-color:#1d1b17;width:100%;min-width:0">
+                <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Stroke</span><span style="font-family:'JetBrains Mono',monospace">{{ swLabel }}</span></span>
+                <input type="range" min="0.5" max="4" step="0.1" value="{{ lySw }}" onChange="{{ onLySw }}" style="accent-color:#E8EAEE;width:100%;min-width:0">
               </label>
                 </sc-if>
-                <div style="display:flex;flex-direction:column;gap:8px;padding:10px 12px;border-radius:9px;background:#eef3f9;border:1px solid #d6e2ef">
-                  <span style="font-size:12px;font-weight:700;color:#1f4f80">Link</span>
-                  <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:2px;padding:3px;border-radius:8px;background:#dfe8f2">
+                <div style="display:flex;flex-direction:column;gap:8px;padding:10px 12px;border-radius:9px;background:#2A3A5C;border:1px solid #343944">
+                  <span style="font-size:12px;font-weight:700;color:#AFC6FF">Link</span>
+                  <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:2px;padding:3px;border-radius:8px;background:#23262E">
                     <sc-for list="{{ linkBtns }}" as="o" hint-placeholder-count="3">
                       <button onClick="{{ o.onClick }}" style="padding:5px 0;border:0;border-radius:6px;cursor:pointer;background:{{ o.bg }};box-shadow:{{ o.shadow }};font-size:12px;font-weight:600;white-space:nowrap">{{ o.label }}</button>
                     </sc-for>
                   </div>
                   <sc-if value="{{ linkIsUrl }}">
-                    <input value="{{ linkUrl }}" onChange="{{ onLinkUrl }}" placeholder="https://example.com" style="padding:7px 9px;border:1px solid #d6e2ef;border-radius:7px;background:#fff;outline:none;font-family:'JetBrains Mono',monospace;font-size:12px">
-                    <span style="font-size:11.5px;color:#3d5a78">Opens in a new tab when clicked in Present.</span>
+                    <input value="{{ linkUrl }}" onChange="{{ onLinkUrl }}" placeholder="https://example.com" style="padding:7px 9px;border:1px solid #343944;border-radius:7px;background:#23262E;outline:none;font-family:'JetBrains Mono',monospace;font-size:12px">
+                    <span style="font-size:11.5px;color:#9AA1AD">Opens in a new tab when clicked in Present.</span>
                   </sc-if>
                   <sc-if value="{{ linkIsSlide }}">
-                    <select value="{{ linkSlide }}" onChange="{{ onLinkSlide }}" style="padding:7px 8px;border:1px solid #d6e2ef;border-radius:7px;background:#fff;outline:none;font-size:13px">
+                    <select value="{{ linkSlide }}" onChange="{{ onLinkSlide }}" style="padding:7px 8px;border:1px solid #343944;border-radius:7px;background:#23262E;outline:none;font-size:13px">
                       <sc-for list="{{ slideOptions }}" as="so" hint-placeholder-count="4">
                         <option value="{{ so.id }}">{{ so.label }}</option>
                       </sc-for>
                     </select>
                     <div style="display:flex;align-items:center;gap:8px">
-                      <span style="flex:1;font-size:11.5px;color:#3d5a78">Jumps there when clicked in Present.</span>
-                      <button onClick="{{ followLink }}" style="padding:4px 8px;border:1px solid #d6e2ef;border-radius:6px;background:#fff;cursor:pointer;font-size:12px;white-space:nowrap" style-hover="background:#f5f9fd">Go there →</button>
+                      <span style="flex:1;font-size:11.5px;color:#9AA1AD">Jumps there when clicked in Present.</span>
+                      <button onClick="{{ followLink }}" style="padding:4px 8px;border:1px solid #343944;border-radius:6px;background:#23262E;cursor:pointer;font-size:12px;white-space:nowrap" style-hover="background:#23262E">Go there →</button>
                     </div>
                   </sc-if>
                 </div>
                 <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px">
                   <sc-for list="{{ geoFields }}" as="g" hint-placeholder-count="4">
                     <label style="display:flex;flex-direction:column;gap:3px">
-                      <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#6b6458">{{ g.label }}</span>
-                      <input type="number" step="0.5" value="{{ g.value }}" onChange="{{ g.onChange }}" style="width:100%;padding:5px 6px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;outline:none;font-family:'JetBrains Mono',monospace;font-size:12px">
+                      <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9AA1AD">{{ g.label }}</span>
+                      <input type="number" step="0.5" value="{{ g.value }}" onChange="{{ g.onChange }}" style="width:100%;padding:5px 6px;border:1px solid #2C3039;border-radius:6px;background:#23262E;outline:none;font-family:'JetBrains Mono',monospace;font-size:12px">
                     </label>
                   </sc-for>
                 </div>
                 <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">
                   <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
-                <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>Rotate</span><span style="font-family:'JetBrains Mono',monospace">{{ rotLabel }}</span></span>
-                <input type="range" min="-180" max="180" step="1" value="{{ lyRot }}" onChange="{{ onLyRot }}" style="accent-color:#1d1b17;width:100%;min-width:0">
+                <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Rotate</span><span style="font-family:'JetBrains Mono',monospace">{{ rotLabel }}</span></span>
+                <input type="range" min="-180" max="180" step="1" value="{{ lyRot }}" onChange="{{ onLyRot }}" style="accent-color:#E8EAEE;width:100%;min-width:0">
               </label>
                   <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
-                <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>Opacity</span><span style="font-family:'JetBrains Mono',monospace">{{ opLabel }}</span></span>
-                <input type="range" min="0" max="1" step="0.05" value="{{ lyOp }}" onChange="{{ onLyOp }}" style="accent-color:#1d1b17;width:100%;min-width:0">
+                <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Opacity</span><span style="font-family:'JetBrains Mono',monospace">{{ opLabel }}</span></span>
+                <input type="range" min="0" max="1" step="0.05" value="{{ lyOp }}" onChange="{{ onLyOp }}" style="accent-color:#E8EAEE;width:100%;min-width:0">
               </label>
                 </div>
               </div>
@@ -680,17 +680,17 @@ input,textarea,button{font:inherit;color:inherit}
             <sc-if value="{{ hasMulti }}">
               <div style="display:flex;align-items:center;gap:8px">
                 <span style="flex:1;font-weight:600">{{ multiLabel }}</span>
-                <button onClick="{{ onDupSel }}" style="padding:6px 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer;font-size:12.5px">⧉ Duplicate</button>
-                <button onClick="{{ onDelSel }}" style="padding:6px 10px;border:1px solid #e0d9cb;border-radius:8px;background:#fff;cursor:pointer;font-size:12.5px;color:#a8301d">Delete</button>
+                <button onClick="{{ onDupSel }}" style="padding:6px 10px;border:1px solid #2C3039;border-radius:8px;background:#23262E;cursor:pointer;font-size:12.5px">⧉ Duplicate</button>
+                <button onClick="{{ onDelSel }}" style="padding:6px 10px;border:1px solid #2C3039;border-radius:8px;background:#23262E;cursor:pointer;font-size:12.5px;color:#AFC6FF">Delete</button>
               </div>
-              <span style="font-size:12px;line-height:1.5;color:#6b6458">Drag any selected layer to move them together; use the dashed box's handles to resize the group (Shift keeps proportions). Shift-click adds or removes a layer; ⌘A selects all.</span>
+              <span style="font-size:12px;line-height:1.5;color:#9AA1AD">Drag any selected layer to move them together; use the dashed box's handles to resize the group (Shift keeps proportions). Shift-click adds or removes a layer; ⌘A selects all.</span>
             </sc-if>
             <sc-if value="{{ noLayerSel }}">
-              <span style="font-size:12px;line-height:1.5;color:#6b6458">Select a layer on the slide or in the list. Drag to move, use the handles to resize (Shift keeps proportions), double-click text to type. Drop image files straight onto the slide.</span>
+              <span style="font-size:12px;line-height:1.5;color:#9AA1AD">Select a layer on the slide or in the list. Drag to move, use the handles to resize (Shift keeps proportions), double-click text to type. Drop image files straight onto the slide.</span>
             </sc-if>
-            <div style="display:flex;align-items:center;gap:8px;padding-top:12px;border-top:1px solid #e0d9cb">
-              <span style="font-size:12px;color:#6b6458;flex:1">Default text colour (deck)</span>
-              <div style="display:flex;gap:2px;padding:3px;border-radius:8px;background:#ece6d9">
+            <div style="display:flex;align-items:center;gap:8px;padding-top:12px;border-top:1px solid #2C3039">
+              <span style="font-size:12px;color:#9AA1AD;flex:1">Default text colour (deck)</span>
+              <div style="display:flex;gap:2px;padding:3px;border-radius:8px;background:#23262E">
                 <sc-for list="{{ toneBtns }}" as="tb" hint-placeholder-count="2">
                   <button onClick="{{ tb.onClick }}" style="padding:4px 10px;border:0;border-radius:6px;cursor:pointer;background:{{ tb.bg }};box-shadow:{{ tb.shadow }};font-size:12px;font-weight:600">{{ tb.label }}</button>
                 </sc-for>
@@ -700,145 +700,148 @@ input,textarea,button{font:inherit;color:inherit}
             </sc-if>
           </sc-if>
 
-          <sc-if value="{{ tabCanvas }}">
+          <sc-if value="{{ tabTheme }}">
             <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
-              <input type="checkbox" checked="{{ titlePage }}" onChange="{{ onTitlePage }}" style="accent-color:#1d1b17">Title page · the whole canvas as a first slide
+              <input type="checkbox" checked="{{ titlePage }}" onChange="{{ onTitlePage }}" style="accent-color:#E8EAEE">Title page · the whole canvas as a first slide
             </label>
-            <div style="display:flex;flex-direction:column;border:1px solid #e0d9cb;border-radius:10px;background:#fff">
+            <div style="display:flex;flex-direction:column;border:1px solid #2C3039;border-radius:10px;background:#23262E">
               <div onClick="{{ sec.spacing.toggle }}" style="display:flex;align-items:center;gap:8px;padding:9px 10px;cursor:pointer;user-select:none">
-                <span style="width:12px;flex:none;font-size:10px;color:#6b6458">{{ sec.spacing.caret }}</span>
-                <span style="flex:1;min-width:0;font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#1d1b17">Spacing</span>
+                <span style="width:12px;flex:none;font-size:10px;color:#9AA1AD">{{ sec.spacing.caret }}</span>
+                <span style="flex:1;min-width:0;font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#E8EAEE">Spacing</span>
               </div>
               <sc-if value="{{ sec.spacing.open }}">
               <div style="display:flex;flex-direction:column;gap:12px;padding:0 10px 10px">
             <div style="display:flex;align-items:center;gap:8px">
-              <span style="font-size:12px;color:#6b6458;flex:1" title="Even steps: every move between neighbours or levels shifts the background the same amount (branches may overlap on the canvas). Fit subtrees: each slide makes room for everything below it.">Spacing</span>
-              <div style="display:flex;gap:2px;padding:3px;border-radius:9px;background:#ece6d9">
+              <span style="font-size:12px;color:#9AA1AD;flex:1" title="Even steps: every move between neighbours or levels shifts the background the same amount (branches may overlap on the canvas). Fit subtrees: each slide makes room for everything below it.">Spacing</span>
+              <div style="display:flex;gap:2px;padding:3px;border-radius:9px;background:#23262E">
                 <sc-for list="{{ spacingBtns }}" as="sb" hint-placeholder-count="2">
                   <button onClick="{{ sb.onClick }}" style="padding:4px 10px;border:0;border-radius:7px;cursor:pointer;background:{{ sb.bg }};color:{{ sb.color }};box-shadow:{{ sb.shadow }};font-size:12.5px;white-space:nowrap">{{ sb.label }}</button>
                 </sc-for>
               </div>
             </div>
             <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
-              <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>Row step (top edge to top edge)</span><span style="font-family:'JetBrains Mono',monospace">{{ rowStepLabel }}</span></span>
-              <input type="range" min="0.1" max="3" step="0.05" value="{{ rowStep }}" onChange="{{ onRowStep }}" title="100%: the next row starts at this one's bottom edge, so slides and background move together; less or more adds parallax" style="accent-color:#1d1b17;width:100%;min-width:0">
+              <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Row step (top edge to top edge)</span><span style="font-family:'JetBrains Mono',monospace">{{ rowStepLabel }}</span></span>
+              <input type="range" min="0.1" max="3" step="0.05" value="{{ rowStep }}" onChange="{{ onRowStep }}" title="100%: the next row starts at this one's bottom edge, so slides and background move together; less or more adds parallax" style="accent-color:#E8EAEE;width:100%;min-width:0">
             </label>
             <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
-              <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>Column step (left edge to left edge)</span><span style="font-family:'JetBrains Mono',monospace">{{ gapLabel }}</span></span>
-              <input type="range" min="0.1" max="3" step="0.05" value="{{ gapStep }}" onChange="{{ onGap }}" title="100%: the next slide starts at this one's right edge, so slides and background move together; less or more adds parallax" style="accent-color:#1d1b17;width:100%;min-width:0">
+              <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Column step (left edge to left edge)</span><span style="font-family:'JetBrains Mono',monospace">{{ gapLabel }}</span></span>
+              <input type="range" min="0.1" max="3" step="0.05" value="{{ gapStep }}" onChange="{{ onGap }}" title="100%: the next slide starts at this one's right edge, so slides and background move together; less or more adds parallax" style="accent-color:#E8EAEE;width:100%;min-width:0">
             </label>
-            <div style="display:flex;flex-direction:column;gap:6px;padding:10px 12px;border-radius:9px;background:#f2eee5;font-size:12px;line-height:1.45">
+            <div style="display:flex;flex-direction:column;gap:6px;padding:10px 12px;border-radius:9px;background:#16181D;font-size:12px;line-height:1.45">
               <span>{{ levelInfo }}</span>
-              <span style="color:#6b6458">{{ sizeInfo }}</span>
+              <span style="color:#9AA1AD">{{ sizeInfo }}</span>
             </div>
             <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
-              <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>Transition time</span><span style="font-family:'JetBrains Mono',monospace">{{ speedLabel }}</span></span>
-              <input type="range" min="0" max="2000" step="50" value="{{ speed }}" onChange="{{ onSpeed }}" style="accent-color:#1d1b17;width:100%;min-width:0">
+              <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Transition time</span><span style="font-family:'JetBrains Mono',monospace">{{ speedLabel }}</span></span>
+              <input type="range" min="0" max="2000" step="50" value="{{ speed }}" onChange="{{ onSpeed }}" style="accent-color:#E8EAEE;width:100%;min-width:0">
             </label>
               </div>
               </sc-if>
             </div>
-            <span style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#6b6458">Text styles</span>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#9AA1AD">Text styles</span>
             <div style="display:flex;flex-direction:column;gap:4px">
               <sc-for list="{{ styleRows }}" as="sr" hint-placeholder-count="4">
                 <div style="display:flex;align-items:center;gap:6px">
-                  <input value="{{ sr.name }}" onChange="{{ sr.onName }}" title="Style name (its id stays {{ sr.id }})" style="flex:1;min-width:0;height:28px;padding:0 8px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;font-size:12.5px">
-                  <span style="flex:none;font-size:11.5px;color:#6b6458;width:64px;text-align:right">{{ sr.count }}</span>
-                  <sc-if value="{{ sr.canDelete }}"><button onClick="{{ sr.onDelete }}" title="Delete: layers using it keep their look and become Custom" style="flex:none;width:22px;height:22px;padding:0;border:0;background:none;cursor:pointer;color:#a8301d">✕</button></sc-if>
+                  <input value="{{ sr.name }}" onChange="{{ sr.onName }}" title="Style name (its id stays {{ sr.id }})" style="flex:1;min-width:0;height:28px;padding:0 8px;border:1px solid #2C3039;border-radius:6px;background:#23262E;font-size:12.5px">
+                  <span style="flex:none;font-size:11.5px;color:#9AA1AD;width:64px;text-align:right">{{ sr.count }}</span>
+                  <sc-if value="{{ sr.canDelete }}"><button onClick="{{ sr.onDelete }}" title="Delete: layers using it keep their look and become Custom" style="flex:none;width:22px;height:22px;padding:0;border:0;background:none;cursor:pointer;color:#AFC6FF">✕</button></sc-if>
                 </div>
               </sc-for>
-              <button onClick="{{ onNewStyle }}" disabled="{{ newStyleOff }}" title="Make a style from the selected text layer's look" style="align-self:flex-start;padding:5px 10px;border:1px solid #e0d9cb;border-radius:7px;background:#fff;cursor:pointer;font-size:12.5px">+ New style from selected layer</button>
+              <button onClick="{{ onNewStyle }}" disabled="{{ newStyleOff }}" title="Make a style from the selected text layer's look" style="align-self:flex-start;padding:5px 10px;border:1px solid #2C3039;border-radius:7px;background:#23262E;cursor:pointer;font-size:12.5px">+ New style from selected layer</button>
             </div>
             <div style="display:flex;align-items:center;gap:8px">
-              <span style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#6b6458;flex:1">Background</span>
-              <div style="display:flex;gap:2px;padding:3px;border-radius:9px;background:#ece6d9">
+              <span style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#9AA1AD;flex:1">Background</span>
+              <div style="display:flex;gap:2px;padding:3px;border-radius:9px;background:#23262E">
                 <sc-for list="{{ themeBtns }}" as="th" hint-placeholder-count="2">
                   <button onClick="{{ th.onClick }}" style="padding:4px 10px;border:0;border-radius:7px;cursor:pointer;background:{{ th.bg }};color:{{ th.color }};box-shadow:{{ th.shadow }};font-size:12.5px;white-space:nowrap">{{ th.label }}</button>
                 </sc-for>
               </div>
             </div>
             <sc-if value="{{ themeBasic }}">
-              <span style="font-size:12px;color:#6b6458">Plain colours and gradients, the same behind every slide</span>
+              <span style="font-size:12px;color:#9AA1AD">Plain colours and gradients, the same behind every slide</span>
               <div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px">
                 <sc-for list="{{ baseSwatches }}" as="sw" hint-placeholder-count="6">
                   <button onClick="{{ sw.onClick }}" title="{{ sw.value }}" style="height:32px;padding:0;border-radius:6px;cursor:pointer;background:{{ sw.value }};border:{{ sw.border }}"></button>
                 </sc-for>
               </div>
               <div style="display:flex;align-items:center;gap:8px">
-                <span style="font-size:12px;color:#6b6458;flex:1">Custom colour</span>
-                <input type="color" value="{{ baseColor }}" onChange="{{ onBaseColor }}" style="width:28px;height:24px;padding:0;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer">
+                <span style="font-size:12px;color:#9AA1AD;flex:1">Custom colour</span>
+                <input type="color" value="{{ baseColor }}" onChange="{{ onBaseColor }}" style="width:28px;height:24px;padding:0;border:1px solid #2C3039;border-radius:6px;background:#23262E;cursor:pointer">
               </div>
             </sc-if>
             <sc-if value="{{ themeFun }}">
-            <span style="font-size:12px;color:#6b6458">Canvas image · loops left to right</span>
+            <span style="font-size:12px;color:#9AA1AD">Canvas image · loops left to right</span>
             <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px">
               <sc-for list="{{ bgTiles }}" as="b" hint-placeholder-count="3">
-                <button onClick="{{ b.onClick }}" title="{{ b.label }}" style="display:flex;flex-direction:column;gap:4px;padding:4px;border-radius:8px;border:{{ b.border }};background:#fff;cursor:pointer">
+                <button onClick="{{ b.onClick }}" title="{{ b.label }}" style="display:flex;flex-direction:column;gap:4px;padding:4px;border-radius:8px;border:{{ b.border }};background:#23262E;cursor:pointer">
                   <div style="height:48px;border-radius:4px;background:{{ b.thumb }}"></div>
                   <span style="font-size:11px;font-weight:600">{{ b.label }}</span>
                 </button>
               </sc-for>
-              <label title="Upload" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:74px;border-radius:8px;border:1.5px dashed #cfc6b4;cursor:pointer;color:#6b6458;font-size:11px">
-                <span style="font-size:16px;color:#1d1b17">+</span><span>Upload</span>
+              <label title="Upload" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:74px;border-radius:8px;border:1.5px dashed #343944;cursor:pointer;color:#9AA1AD;font-size:11px">
+                <span style="font-size:16px;color:#E8EAEE">+</span><span>Upload</span>
                 <input type="file" accept="image/*,.svg" onChange="{{ onUpload }}" style="display:none">
               </label>
             </div>
             <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
-              <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>Horizontal offset</span><span style="font-family:'JetBrains Mono',monospace">{{ offsetLabel }}</span></span>
-              <input type="range" min="0" max="1" step="0.01" value="{{ offset }}" onChange="{{ onOffset }}" style="accent-color:#1d1b17;width:100%;min-width:0">
+              <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Horizontal offset</span><span style="font-family:'JetBrains Mono',monospace">{{ offsetLabel }}</span></span>
+              <input type="range" min="0" max="1" step="0.01" value="{{ offset }}" onChange="{{ onOffset }}" style="accent-color:#E8EAEE;width:100%;min-width:0">
             </label>
             <sc-if value="{{ hasBgImage }}">
               <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
-                <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>Scale · image height vs canvas</span><span style="font-family:'JetBrains Mono',monospace">{{ bgScaleLabel }}</span></span>
-                <input type="range" min="0.25" max="3" step="0.05" value="{{ bgScale }}" onChange="{{ onBgScale }}" style="accent-color:#1d1b17;width:100%;min-width:0">
+                <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Scale · image height vs canvas</span><span style="font-family:'JetBrains Mono',monospace">{{ bgScaleLabel }}</span></span>
+                <input type="range" min="0.25" max="3" step="0.05" value="{{ bgScale }}" onChange="{{ onBgScale }}" style="accent-color:#E8EAEE;width:100%;min-width:0">
               </label>
               <div style="display:flex;align-items:center;gap:8px">
-                <span style="font-size:12px;color:#6b6458;flex:1">Repeat</span>
-                <div style="display:flex;gap:2px;padding:3px;border-radius:9px;background:#ece6d9">
+                <span style="font-size:12px;color:#9AA1AD;flex:1">Repeat</span>
+                <div style="display:flex;gap:2px;padding:3px;border-radius:9px;background:#23262E">
                   <sc-for list="{{ bgRepeatBtns }}" as="br" hint-placeholder-count="3">
                     <button onClick="{{ br.onClick }}" style="padding:4px 10px;border:0;border-radius:7px;cursor:pointer;background:{{ br.bg }};color:{{ br.color }};box-shadow:{{ br.shadow }};font-size:12.5px;white-space:nowrap">{{ br.label }}</button>
                   </sc-for>
                 </div>
               </div>
               <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
-                <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>Vertical position</span><span style="font-family:'JetBrains Mono',monospace">{{ bgYLabel }}</span></span>
-                <input type="range" min="0" max="1" step="0.01" value="{{ bgY }}" onChange="{{ onBgY }}" style="accent-color:#1d1b17;width:100%;min-width:0">
+                <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Vertical position</span><span style="font-family:'JetBrains Mono',monospace">{{ bgYLabel }}</span></span>
+                <input type="range" min="0" max="1" step="0.01" value="{{ bgY }}" onChange="{{ onBgY }}" style="accent-color:#E8EAEE;width:100%;min-width:0">
               </label>
             </sc-if>
             <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
-              <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>Opacity</span><span style="font-family:'JetBrains Mono',monospace">{{ opacityLabel }}</span></span>
-              <input type="range" min="0" max="1" step="0.05" value="{{ opacity }}" onChange="{{ onOpacity }}" style="accent-color:#1d1b17;width:100%;min-width:0">
+              <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Opacity</span><span style="font-family:'JetBrains Mono',monospace">{{ opacityLabel }}</span></span>
+              <input type="range" min="0" max="1" step="0.05" value="{{ opacity }}" onChange="{{ onOpacity }}" style="accent-color:#E8EAEE;width:100%;min-width:0">
             </label>
             </sc-if>
-            <div style="display:flex;flex-direction:column;gap:8px;padding-top:8px;border-top:1px solid #f0ebe0">
-              <span style="font-size:12px;color:#6b6458">Readability · a card behind text, or over the whole slide</span>
-              <div style="display:flex;gap:2px;padding:3px;border-radius:9px;background:#ece6d9">
+            <div style="display:flex;flex-direction:column;gap:8px;padding-top:8px;border-top:1px solid #2C3039">
+              <span style="font-size:12px;color:#9AA1AD">Readability · a card behind text, or over the whole slide</span>
+              <div style="display:flex;gap:2px;padding:3px;border-radius:9px;background:#23262E">
                 <sc-for list="{{ cardModes }}" as="cm" hint-placeholder-count="3">
                   <button onClick="{{ cm.onClick }}" style="flex:1;padding:5px 6px;border:0;border-radius:7px;cursor:pointer;background:{{ cm.bg }};color:{{ cm.color }};box-shadow:{{ cm.shadow }};font-size:12.5px;white-space:nowrap">{{ cm.label }}</button>
                 </sc-for>
               </div>
               <sc-if value="{{ cardOn }}">
                 <div style="display:flex;align-items:center;gap:8px">
-                  <span style="font-size:12px;color:#6b6458;flex:1">Colour</span>
-                  <input type="color" value="{{ cardColor }}" onChange="{{ onCardColor }}" style="width:28px;height:24px;padding:0;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer">
+                  <span style="font-size:12px;color:#9AA1AD;flex:1">Colour</span>
+                  <input type="color" value="{{ cardColor }}" onChange="{{ onCardColor }}" style="width:28px;height:24px;padding:0;border:1px solid #2C3039;border-radius:6px;background:#23262E;cursor:pointer">
                 </div>
                 <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
-                  <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>Card opacity</span><span style="font-family:'JetBrains Mono',monospace">{{ cardOpLabel }}</span></span>
-                  <input type="range" min="0" max="1" step="0.05" value="{{ cardOp }}" onChange="{{ onCardOp }}" style="accent-color:#1d1b17;width:100%;min-width:0">
+                  <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Card opacity</span><span style="font-family:'JetBrains Mono',monospace">{{ cardOpLabel }}</span></span>
+                  <input type="range" min="0" max="1" step="0.05" value="{{ cardOp }}" onChange="{{ onCardOp }}" style="accent-color:#E8EAEE;width:100%;min-width:0">
                 </label>
                 <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
-                  <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>Blur</span><span style="font-family:'JetBrains Mono',monospace">{{ cardBlurLabel }}</span></span>
-                  <input type="range" min="0" max="24" step="1" value="{{ cardBlur }}" onChange="{{ onCardBlur }}" style="accent-color:#1d1b17;width:100%;min-width:0">
+                  <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Blur</span><span style="font-family:'JetBrains Mono',monospace">{{ cardBlurLabel }}</span></span>
+                  <input type="range" min="0" max="24" step="1" value="{{ cardBlur }}" onChange="{{ onCardBlur }}" style="accent-color:#E8EAEE;width:100%;min-width:0">
                 </label>
               </sc-if>
             </div>
             <div style="display:flex;align-items:center;gap:8px">
-              <span style="font-size:12px;color:#6b6458;flex:1">Behind the image</span>
+              <span style="font-size:12px;color:#9AA1AD;flex:1">Behind the image</span>
               <sc-for list="{{ baseSwatches }}" as="bs" hint-placeholder-count="4">
                 <button onClick="{{ bs.onClick }}" style="width:22px;height:22px;padding:0;border-radius:6px;cursor:pointer;background:{{ bs.value }};border:{{ bs.border }}"></button>
               </sc-for>
             </div>
-            <span style="font-size:12px;line-height:1.45;color:#6b6458">The image's height is the canvas height. It repeats sideways as far as the tree needs. Offset slides the repeat left so a different part sits under the first slide.</span>
+            <span style="font-size:12px;line-height:1.45;color:#9AA1AD">The image's height is the canvas height. It repeats sideways as far as the tree needs. Offset slides the repeat left so a different part sits under the first slide.</span>
+          </sc-if>
+          <sc-if value="{{ tabBuilds }}">
+            <h2 style="margin:0;font-family:'Space Grotesk',Inter,sans-serif;font-size:14px;font-weight:600;color:#E8EAEE">Builds</h2>
           </sc-if>
         </div>
       </aside>
@@ -859,8 +862,8 @@ const BGS = {
   custom: { label: 'Mine', src: null, aspect: 1 },
 };
 // Basic theme: plain colours and gradients (any CSS background works, since base is used as `background:`).
-const BASES = ['#0b1220', '#1d1b17', '#f4f0e7', '#ffffff', '#1f3a5f', '#2d4a3e',
-  'linear-gradient(135deg, #0b1220, #1f3a5f)', 'linear-gradient(135deg, #1d1b17, #4a3f35)', 'linear-gradient(135deg, #f4f0e7, #dfe7ef)',
+const BASES = ['#0b1220', '#E8EAEE', '#2C3039', '#ffffff', '#1f3a5f', '#2d4a3e',
+  'linear-gradient(135deg, #0b1220, #1f3a5f)', 'linear-gradient(135deg, #E8EAEE, #4a3f35)', 'linear-gradient(135deg, #2C3039, #dfe7ef)',
   'linear-gradient(135deg, #ff9a8b, #ff6a88, #ff99ac)', 'linear-gradient(135deg, #43cea2, #185a9d)', 'radial-gradient(circle at 30% 20%, #3b2a6b, #0b1220)'];
 const DIRS = { left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1], jump: [0, 0] };
 const KEY = 'strata-v8', VA = 16 / 9, H = 100;
@@ -1372,7 +1375,7 @@ class Component extends DCLogic {
   treeRef = React.createRef(); mdRef = React.createRef(); titleRef = React.createRef(); searchRef = React.createRef(); stageRef = React.createRef(); editRef = React.createRef(); wysRef = React.createRef(); imgInputRef = React.createRef(); openInputRef = React.createRef();
 
   componentDidMount() {
-    if (!STATIC) try { const ui = JSON.parse(localStorage.getItem(UIKEY) || 'null'); if (ui) this.setState(ui); } catch (e) {}
+    if (!STATIC) try { const ui = JSON.parse(localStorage.getItem(UIKEY) || 'null'); if (ui) this.setState({ ...ui, rtab: ['content', 'theme', 'slides', 'builds'].includes(ui.rtab) ? ui.rtab : 'content' }); } catch (e) {}
     if (SRC) this.loadDeck();
     else if (SRC_ARG) this.setState({ saveMsg: "Can't load " + SRC_ARG + ': must be https:' });
     else try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && typeof s.md === 'string') this.adopt(s.md, s.layout); } catch (e) {}   // scratch deck
@@ -1987,7 +1990,7 @@ class Component extends DCLogic {
       icon: { x: 45, y: 41, w: 10, h: 17.78, icon: 'star', fill: null, sw: 1.8 },
       component: { x: 20, y: 15, w: 60, h: 70, name: 'Component', code: COMPONENT_DEFAULT } };
     const l = { id: lid, type, rot: 0, opacity: 1, ...D0[type], ...(extra || {}) };
-    this.setLayers(id, ls => [...ls, l]); this.setState({ layerSel: lid, rtab: 'slide', view: 'slide' });
+    this.setLayers(id, ls => [...ls, l]); this.setState({ layerSel: lid, rtab: 'slides', view: 'slide' });
     if (type === 'text') setTimeout(() => this.startEdit(lid), 40);
     return l;
   }
@@ -2053,7 +2056,7 @@ class Component extends DCLogic {
     const cid = this.curId(); const o = this.layersOf(cid).find(l => l.id === lid); if (!o) return;
     const ids = this.selIds(), group = mode === 'move' && ids.length > 1 && ids.includes(lid);
     const orig = group ? this.layersOf(cid).filter(l => ids.includes(l.id)) : null;
-    this.setState(group ? { editing: null, rtab: 'slide' } : { layerSel: lid, layerSet: [], editing: null, rtab: 'slide' });
+    this.setState(group ? { editing: null, rtab: 'slides' } : { layerSel: lid, layerSet: [], editing: null, rtab: 'slides' });
     const sx = ev.clientX, sy = ev.clientY; let moved = false;
     const move = e => {
       const dx = (e.clientX - sx) / r.width * 100, dy = (e.clientY - sy) / r.height * 100;
@@ -2206,7 +2209,8 @@ class Component extends DCLogic {
     const cur = this.curId(); const curN = N[cur]; const isPresent = S.mode === 'present'; const isWire = !isPresent && S.view === 'wire', mapView = isPresent && (S.presentView === 'tree' || S.presentView === 'radial') ? S.presentView : null;   // present: the deck as a tree or radial map
     const q = S.query.trim().toLowerCase(); const name = id => N[id].title || (id === 'ROOT' ? 'Title page' : 'Untitled');
     const pathOf = id => { const p = []; let x = id; while (x && x !== 'ROOT') { p.unshift(x); x = D.parent[x]; } return p; };
-    const tab = on => ({ bg: on ? '#fbf9f4' : 'transparent', color: on ? '#1d1b17' : '#6b6458', shadow: on ? '0 1px 3px rgba(0,0,0,.12)' : 'none' });
+    const rtab = ['content', 'theme', 'slides', 'builds'].includes(S.rtab) ? S.rtab : 'content';   // any other saved tab opens Content
+    const tab = on => ({ bg: on ? '#343944' : 'transparent', color: on ? '#FFFFFF' : '#C3C8D2', shadow: 'none' });
     const match = {}; D.order.forEach(id => { if (!q || (N[id].title + ' ' + N[id].body).toLowerCase().includes(q)) match[id] = true; });
     const light = S.tone === 'light'; const ease = 'cubic-bezier(.65,0,.25,1)';
     const sibs = cur === 'ROOT' ? ['ROOT'] : N[D.parent[cur]].children; const ci = sibs.indexOf(cur);
@@ -2230,7 +2234,7 @@ class Component extends DCLogic {
       hasKids: id !== 'ROOT' && (N[id].children.length > 0 || this.unloaded(id)), ring: N[id]._from ? '0 0 0 2px #9db8d3' : '0 1px 3px rgba(0,0,0,.18)', from: N[id]._from ? 'From ' + N[id]._from : name(id), toggleLabel: this.unloaded(id) ? '▸ more' : TV.kids(id).length ? '▾' : '▸ ' + countUnder(id), toggleTitle: this.unloaded(id) ? 'Load the linked slides' : TV.kids(id).length ? 'Collapse' : 'Expand',
       // A slide whose children are hidden only by Focus: clicking its toggle goes there instead of collapsing.
       onToggle: e => { e.stopPropagation(); if (this.unloaded(id)) this.loadChildren(id); else if (S.treeFocus && !TV.kids(id).length && TV.expanded(id)) this.nav(id, 'jump'); else this.toggleCollapse(id); },
-      full: name(id), cam: camOf(id), layers: this.shown(id, this.layersOf(id)), selected: id === cur, outline: id === cur ? '2px solid #d9432b' : 'none',
+      full: name(id), cam: camOf(id), layers: this.shown(id, this.layersOf(id)), selected: id === cur, outline: id === cur ? '2px solid #7AA2FF' : 'none',
       weight: id === cur ? 700 : 500, opacity: q && !match[id] ? 0.35 : 1,
       onClick: () => this.nav(id, 'jump') }));
     const treeEdges = TV.vis.filter(id => tp[D.parent[id]]).map(id => { const a = tp[D.parent[id]], b = tp[id]; const x1 = a.x + TW / 2, y1 = a.y + 60, x2 = b.x + TW / 2, y2 = b.y - 2; return { d: `M${x1} ${y1}V${y1 + 12}H${x2}V${y2}` }; });
@@ -2247,23 +2251,23 @@ class Component extends DCLogic {
     const label = id => { if (id === 'ROOT') return 'Title page'; const s = N[D.parent[id]].children; return `Level ${D.depth[id] + 1} · ${s.indexOf(id) + 1} / ${s.length}`; };
     const steps = sibs.map((sid, i) => { const done = i < ci, now = i === ci;
       return { title: now ? short(name(sid), 28) : '', pad: now ? '4px 11px 4px 4px' : '4px', full: name(sid), mark: done ? '✓' : String(i + 1), opacity: done || now ? 1 : 0.5,
-        lineDisplay: i === 0 ? 'none' : 'block', lineColor: i <= ci ? '#d9432b' : 'rgba(251,249,244,.9)', bg: now ? '#1d1b17' : 'rgba(251,249,244,.92)', color: now ? '#fbf9f4' : '#1d1b17',
-        dotBg: done ? '#d9432b' : now ? '#fbf9f4' : 'transparent', dotColor: done ? '#fff' : '#1d1b17', dotBorder: done || now ? '0' : '1.5px solid #1d1b17', onClick: () => this.nav(sid, i < ci ? 'left' : 'right') }; });
+        lineDisplay: i === 0 ? 'none' : 'block', lineColor: i <= ci ? '#7AA2FF' : 'rgba(232,234,238,.5)', bg: now ? '#7AA2FF' : 'rgba(27,30,36,.92)', color: now ? '#0B1020' : '#E8EAEE',
+        dotBg: done ? '#7AA2FF' : now ? '#0B1020' : 'transparent', dotColor: done ? '#0B1020' : '#E8EAEE', dotBorder: done || now ? '0' : '1.5px solid #E8EAEE', onClick: () => this.nav(sid, i < ci ? 'left' : 'right') }; });
     const downT = this.neighbour(cur, 'down', D); const upT = this.neighbour(cur, 'up', D);
     // two-row breadcrumb stack: one row per level on the path, child rows indented under their parent's dot
     const CP = 48, CRH = 34, CS = 42, CD = 17;
     const home = S.titlePage && cur !== 'ROOT' ? 1 : 0;
-    const homeStep = { title: '', pad: '4px', full: name('ROOT'), mark: '⌂', opacity: 1, lineDisplay: 'none', lineColor: '#d9432b', bg: 'rgba(251,249,244,.92)', color: '#1d1b17',
-      dotBg: 'transparent', dotColor: '#1d1b17', dotBorder: '1.5px solid #1d1b17', onClick: () => this.nav('ROOT', 'up') };
+    const homeStep = { title: '', pad: '4px', full: name('ROOT'), mark: '⌂', opacity: 1, lineDisplay: 'none', lineColor: '#7AA2FF', bg: 'rgba(27,30,36,.92)', color: '#E8EAEE',
+      dotBg: 'transparent', dotColor: '#E8EAEE', dotBorder: '1.5px solid #E8EAEE', onClick: () => this.nav('ROOT', 'up') };
     const path0 = cur === 'ROOT' ? [null] : pathOf(cur); let indent = 0;
     const crumbRows = path0.map((pid, k) => {
       const rowSibs = pid ? N[D.parent[pid]].children : N.ROOT.children; const ix = rowSibs.indexOf(pid); const isCur = k === path0.length - 1; const off = k === 0 ? home : 0;
       const row = { indent, top: k * CP, opacity: isCur ? 1 : 0.92, hasLink: k > 0, linkX: indent + CD - 1, linkTop: k * CP - (CP - CRH),
         steps: (off ? [homeStep] : []).concat(rowSibs.map((sid, j) => { const done = j < ix, on = j === ix;
           return { title: (on ? short(name(sid), isCur ? 28 : 20) : '') + (this.unloaded(sid) ? ' ▸ more' : ''), pad: on ? '4px 11px 4px 4px' : '4px', full: name(sid), mark: done ? '✓' : String(j + 1), opacity: done || on ? 1 : 0.5,
-            lineDisplay: j === 0 && !off ? 'none' : 'block', lineColor: j <= ix ? '#d9432b' : 'rgba(251,249,244,.9)',
-            bg: on ? (isCur ? '#1d1b17' : '#fbf9f4') : 'rgba(251,249,244,.92)', color: on && isCur ? '#fbf9f4' : '#1d1b17',
-            dotBg: done ? '#d9432b' : on ? (isCur ? '#fbf9f4' : '#1d1b17') : 'transparent', dotColor: done ? '#fff' : on && !isCur ? '#fbf9f4' : '#1d1b17', dotBorder: done || on ? '0' : '1.5px solid #1d1b17',
+            lineDisplay: j === 0 && !off ? 'none' : 'block', lineColor: j <= ix ? '#7AA2FF' : 'rgba(232,234,238,.5)',
+            bg: on ? (isCur ? '#7AA2FF' : '#343944') : 'rgba(27,30,36,.92)', color: on && isCur ? '#0B1020' : '#E8EAEE',
+            dotBg: done ? '#7AA2FF' : on ? (isCur ? '#0B1020' : '#E8EAEE') : 'transparent', dotColor: done ? '#0B1020' : on && !isCur ? '#16181D' : '#E8EAEE', dotBorder: done || on ? '0' : '1.5px solid #E8EAEE',
             onClick: () => { if (sid === cur) return; if (isCur) this.nav(sid, j < ix ? 'left' : 'right'); else this.nav(sid, sid === pid ? 'up' : 'jump'); } }; })) };
       indent += CS * (ix + off); return row;
     });
@@ -2277,7 +2281,7 @@ class Component extends DCLogic {
     // wireframe
     const pct = r => ({ l: f3(r.x / CW * 100), t: f3(r.y / H * 100), w: f3(r.w / CW * 100), h: f3(r.h / H * 100) });
     const wireRects = D.order.map(id => { const on = id === cur, row = D.parent[id] === D.parent[cur];
-      return { ...pct(L.rect[id]), title: name(id), full: name(id), border: on ? '2px solid #d9432b' : row ? '1.5px solid #e0a019' : '1px solid rgba(251,249,244,.7)', fill: on ? 'rgba(217,67,43,.2)' : 'rgba(251,249,244,.06)',
+      return { ...pct(L.rect[id]), title: name(id), full: name(id), border: on ? '2px solid #7AA2FF' : row ? '1.5px solid #e0a019' : '1px solid rgba(251,249,244,.7)', fill: on ? 'rgba(122,162,255,.2)' : 'rgba(251,249,244,.06)',
         onClick: () => this.nav(id, 'jump'), onOpen: () => this.setState({ view: 'slide' }) }; });
     const wireLinesSafe = [];
     D.order.filter(id => D.parent[id] !== 'ROOT').forEach(id => { const a = L.rect[D.parent[id]], b = L.rect[id];
@@ -2303,18 +2307,18 @@ class Component extends DCLogic {
     const lname = l => l.type === 'text' ? short(plainText(l.text).split('\n')[0] || 'Text', 24) : l.type === 'image' ? 'Image' : l.type === 'shape' ? ({ rect: 'Rectangle', ellipse: 'Ellipse', triangle: 'Triangle' }[l.shape] || 'Shape') : l.type === 'component' ? '⧉ ' + (l.name || 'Component') : 'Icon · ' + (l.icon || '');
     const selIds = this.selIds(), multi = selIds.length > 1, hits = S.marqueeHits || [], mh = this._mh || {};
     const overlays = curLayers.map((l, i) => ({ l: l.x, t: l.y, w: l.w, h: Math.max(l.h, mh[l.id] || 0), rot: l.rot || 0, z: i + 1, pe: S.interact === l.id && S.layerSel === l.id ? 'none' : 'auto', selected: selIds.includes(l.id), single: !multi && l.id === S.layerSel, hidden: !!l.hidden,
-      outline: selIds.includes(l.id) || hits.includes(l.id) ? '2px solid #1f6fb8' : 'none', label: lname(l) + (l.link ? (l.link.type === 'url' ? '  ↗ ' + short(l.link.url || 'web link', 26) : '  → ' + short(N[l.link.id] ? name(l.link.id) : 'missing slide', 22)) : ''),
+      outline: selIds.includes(l.id) || hits.includes(l.id) ? '2px solid #7AA2FF' : 'none', label: lname(l) + (l.link ? (l.link.type === 'url' ? '  ↗ ' + short(l.link.url || 'web link', 26) : '  → ' + short(N[l.link.id] ? name(l.link.id) : 'missing slide', 22)) : ''),
       onDown: ev => this.startDrag(ev, l.id, 'move'), onDbl: ev => { ev.stopPropagation(); this.startEdit(l.id); }, onDrop: ev => this.dropOn(ev, l.id),
       onNW: ev => this.startDrag(ev, l.id, 'nw'), onNE: ev => this.startDrag(ev, l.id, 'ne'), onSW: ev => this.startDrag(ev, l.id, 'sw'), onSE: ev => this.startDrag(ev, l.id, 'se'),
       onW: ev => this.startDrag(ev, l.id, 'w'), onE: ev => this.startDrag(ev, l.id, 'e'), gen: isGen(l) })).filter(o => !o.hidden && !o.gen);   // generated layers aren't stage objects
     const edL = S.editing ? curLayers.find(l => l.id === S.editing) : null;
     const edR = edL && this.resolveLayer(edL, cur);
     const ed = edR ? { text: edR.text, l: edR.x, t: edR.y, w: edR.w, h: edR.h, font: FONT_CSS[edR.font] || FONT_CSS.grot, fs: (edR.size || 40) / 16, weight: edR.weight || 400, color: edR.color || (light ? '#fbf9f4' : '#15171c'), align: edR.align || 'left', lh: edR.lh || 1.2 } : {};
-    const layerRows = curLayers.map((l, i) => ({ l, i })).filter(({ l }) => !isGen(l)).reverse().map(({ l, i }) => ({ name: lname(l), glyph: { text: 'T', image: 'IMG', shape: '■', icon: '★', component: '⧉' }[l.type], bg: selIds.includes(l.id) ? '#eef3f9' : '#fff', weight: selIds.includes(l.id) ? 700 : 500, opacity: l.hidden ? 0.45 : 1,
+    const layerRows = curLayers.map((l, i) => ({ l, i })).filter(({ l }) => !isGen(l)).reverse().map(({ l, i }) => ({ name: lname(l), glyph: { text: 'T', image: 'IMG', shape: '■', icon: '★', component: '⧉' }[l.type], bg: selIds.includes(l.id) ? '#2A3A5C' : '#23262E', weight: selIds.includes(l.id) ? 700 : 500, opacity: l.hidden ? 0.45 : 1,
       eye: l.hidden ? '◌' : '◉', eyeTitle: l.hidden ? 'Show' : 'Hide', upOp: i < curLayers.length - 1 ? 0.8 : 0.25, downOp: i > 0 ? 0.8 : 0.25,
       onClick: e => { if (e && (e.shiftKey || e.metaKey || e.ctrlKey)) this.selectToggle(l.id); else this.setSelection([l.id]); this.setState({ view: 'slide' }); }, onEye: e => { e.stopPropagation(); this.updLayer(cur, l.id, { hidden: !l.hidden }); },
       onUp: e => { e.stopPropagation(); this.zLayer(l.id, 1); }, onDown: e => { e.stopPropagation(); this.zLayer(l.id, -1); } }));
-    const tabOn = (on, extra) => ({ bg: on ? '#fbf9f4' : 'transparent', shadow: on ? '0 1px 3px rgba(0,0,0,.12)' : 'none', weight: 600, font: 'inherit', ...(extra || {}) });
+    const tabOn = (on, extra) => ({ bg: on ? '#343944' : 'transparent', shadow: 'none', weight: 600, font: 'inherit', ...(extra || {}) });
     const colorKey = ly && ly.type === 'text' ? 'color' : 'fill';
     const curColor = lv ? lv[colorKey] : null;
     const layerVals = {
@@ -2344,7 +2348,7 @@ class Component extends DCLogic {
       ly: lv ? { ...lv, size: lv.size || 40, lh: lv.lh || 1.2 } : {}, lyLabel: ly ? lname(ly) : '',
       lyIsText: !!ly && ly.type === 'text', lyIsImage: !!ly && ly.type === 'image',
       pasteImage: () => ly && this.pasteFromClipboard(cur, ly.id), pasteTitle: S.clipMsg || (S.clipImg ? 'Paste the image on your clipboard' : 'Paste image from clipboard (or Ctrl/⌘+V)'),
-      pasteBg: S.clipImg ? '#1d1b17' : '#fff', pasteColor: S.clipImg ? '#fbf9f4' : '#1d1b17', pasteBorder: S.clipImg ? '#1d1b17' : '#e0d9cb',
+      pasteBg: S.clipImg ? '#7AA2FF' : '#23262E', pasteColor: S.clipImg ? '#0B1020' : '#E8EAEE', pasteBorder: S.clipImg ? '#7AA2FF' : '#2C3039',
       clipMsgOn: !!S.clipMsg && !!ly && ly.type === 'image', clipMsg: S.clipMsg || '', lyIsShape: !!ly && ly.type === 'shape', lyIsIcon: !!ly && ly.type === 'icon', lyIsRect: !!ly && ly.shape === 'rect',
       dupLayer: () => ly && this.dupLayer(ly.id), delLayer: () => ly && this.delLayer(ly.id),
       onLyText: e => upL({ text: e.target.value }), onLySize: e => upL({ size: +e.target.value }), sizeLabel: ly ? (ly.size || 40) + '' : '',
@@ -2355,17 +2359,17 @@ class Component extends DCLogic {
       bulletBtns: [['none', 'None'], ['disc', '•'], ['dash', '–'], ['number', '1.'], ['check', '✓'], ['arrow', '→']].map(([b, label]) => ({ label, title: b === 'none' ? 'No bullets' : 'Bullets: ' + b, ...tabOn(ly && (ly.bullets || 'none') === b), onClick: () => upL({ bullets: b }) })),
       lhLabel: ly ? (ly.lh || 1.2).toFixed(2) : '', onLyLh: e => upL({ lh: +e.target.value }),
       lyGap: ly ? (ly.gap ?? 0.15) : 0, gapLabel2: ly ? (ly.gap ?? 0.15).toFixed(2) + 'em' : '', onLyGap: e => upL({ gap: +e.target.value }),
-      swatches: [{ label: 'A', title: 'Deck default', bg: '#fff', border: ly && !curColor ? '2px solid #1f6fb8' : '1px solid rgba(29,27,23,.2)', onClick: () => upL({ [colorKey]: null }) }]
-        .concat(SWATCH.map(v => ({ label: '', title: v, bg: v, border: curColor === v ? '2px solid #1f6fb8' : '1px solid rgba(29,27,23,.2)', onClick: () => upL({ [colorKey]: v }) }))),
+      swatches: [{ label: 'A', title: 'Deck default', bg: '#23262E', border: ly && !curColor ? '2px solid #7AA2FF' : '1px solid #343944', onClick: () => upL({ [colorKey]: null }) }]
+        .concat(SWATCH.map(v => ({ label: '', title: v, bg: v, border: curColor === v ? '2px solid #7AA2FF' : '1px solid #343944', onClick: () => upL({ [colorKey]: v }) }))),
       colorHex: toHex(curColor), onColorPick: e => upL({ [colorKey]: e.target.value }),
-      lyThumb: ly && ly.imgKey && S.images[ly.imgKey] ? `#efeae0 url("${S.images[ly.imgKey]}") center / contain no-repeat` : 'repeating-linear-gradient(45deg,#e4ddcf 0 10px,#efeae0 10px 20px)',
+      lyThumb: ly && ly.imgKey && S.images[ly.imgKey] ? `#23262E url("${S.images[ly.imgKey]}") center / contain no-repeat` : 'repeating-linear-gradient(45deg,#2C3039 0 10px,#23262E 10px 20px)',
       chooseImage: () => ly && this.chooseImage(ly.id), clearImage: () => upL({ imgKey: null }),
       imgFields: ly && ly.type === 'image' ? [['Zoom', 'zoom', 1, 4, 0.05, 1, v => Math.round(v * 100) + '%'], ['Horizontal focus', 'focusX', 0, 100, 1, 50, v => v + '%'], ['Vertical focus', 'focusY', 0, 100, 1, 50, v => v + '%']]
         .map(([label, k, min, max, step, def, fmt]) => ({ label, min, max, step, value: ly[k] ?? def, valLabel: fmt(ly[k] ?? def), onChange: e => upL({ [k]: +e.target.value }) })) : [],
       fitBtns: [['cover', 'Fill frame'], ['contain', 'Fit inside']].map(([f, label]) => ({ label, title: label, ...tabOn(ly && (ly.fit || 'cover') === f), onClick: () => upL({ fit: f }) })),
       lyRadius: ly ? (ly.radius || 0) : 0, radiusLabel: ly ? (ly.radius || 0) + '' : '', onLyRadius: e => upL({ radius: +e.target.value }),
       shapeBtns: [['rect', 'Rectangle'], ['ellipse', 'Ellipse'], ['triangle', 'Triangle']].map(([k, label]) => ({ label, title: label, ...tabOn(ly && ly.shape === k), onClick: () => upL({ shape: k }) })),
-      iconBtns: Object.entries(ICONS).map(([name, path]) => ({ name, path, border: ly && ly.icon === name ? '2px solid #1f6fb8' : '1px solid #e0d9cb', onClick: () => upL({ icon: name }) })),
+      iconBtns: Object.entries(ICONS).map(([name, path]) => ({ name, path, border: ly && ly.icon === name ? '2px solid #7AA2FF' : '1px solid #2C3039', onClick: () => upL({ icon: name }) })),
       lySw: ly ? (ly.sw || 1.8) : 1.8, swLabel: ly ? (ly.sw || 1.8).toFixed(1) : '', onLySw: e => upL({ sw: +e.target.value }),
       geoFields: ly ? [['X', 'x'], ['Y', 'y'], ['W', 'w'], ['H', 'h']].map(([label, k]) => ({ label: label + ' %', value: rd(ly[k]), onChange: e => { const v = parseFloat(e.target.value); if (!isNaN(v)) upL({ [k]: v }); } })) : [],
       lyRot: ly ? (ly.rot || 0) : 0, rotLabel: ly ? (ly.rot || 0) + '°' : '', onLyRot: e => upL({ rot: +e.target.value }),
@@ -2435,7 +2439,7 @@ class Component extends DCLogic {
     const keyName = k => k[0].toUpperCase() + k.slice(1), chipsOf = m => Object.keys(m).sort().map(k => keyName(k) + ' ×' + m[k]);
     const users = {}; for (const k of this.ownSlideIds()) { const e = this.effectiveLayout(k); if (e) (users[e.id] = users[e.id] || []).push(k); }
     const defId = (S.layoutDefaults || {})[sigK], firstFit = Object.values(LAY).find(x => fitsTemplate(curLayers, x));
-    const listOf = lid => (users[lid] || []).map(k => ({ name: name(k), onClick: () => { this.nav(k, 'jump'); this.setState({ rtab: 'slide', stab: 'layout' }); } }));
+    const listOf = lid => (users[lid] || []).map(k => ({ name: name(k), onClick: () => { this.nav(k, 'jump'); this.setState({ rtab: 'slides', stab: 'layout' }); } }));
     const tileOf = L => ({ id: L.id, name: L.name, star: L.id === (fitsTemplate(curLayers, LAY[defId]) ? defId : firstFit && firstFit.id), count: (users[L.id] || []).length + ' slides',
       open: S.layOpen === L.id, slides: listOf(L.id), onToggle: () => this.setState({ layOpen: S.layOpen === L.id ? null : L.id }),
       onApply: () => this.applyLayout(cur, L.id), onApplyAll: () => this.applyToAll(L.id), onName: e => this.renameLayout(L.id, e.target.value),
@@ -2448,7 +2452,7 @@ class Component extends DCLogic {
       const roots = S.titlePage ? ['ROOT'] : N.ROOT.children, M = (mapView === 'radial' ? radialMap : treeMap)(N, roots), onPath = new Set(pathOf(cur));
       mapW = M.w; mapH = M.h;
       mapCards = (S.titlePage ? ['ROOT'] : []).concat(D.order).filter(id => M.pos[id]).map(id => ({ id, name: name(id), x: M.pos[id].x, y: M.pos[id].y, cur: id === cur,
-        cam: camOf(id), layers: this.shown(id, this.layersOf(id)), outline: id === cur ? '3px solid #d9432b' : onPath.has(id) ? '2px solid #e0a019' : '1px solid rgba(251,249,244,.25)',
+        cam: camOf(id), layers: this.shown(id, this.layersOf(id)), outline: id === cur ? '3px solid #7AA2FF' : onPath.has(id) ? '2px solid #e0a019' : '1px solid rgba(251,249,244,.25)',
         onClick: () => { this.nav(id, 'jump'); this.setState({ presentView: 'slides' }); } }));
       for (const id in M.pos) { const pid = D.parent[id]; const a = pid && M.pos[pid], b = M.pos[id]; if (!a) continue;
         if (mapView === 'radial') mapEdges.push({ d: `M${a.x + MAP_W / 2} ${a.y + MAP_H / 2}L${b.x + MAP_W / 2} ${b.y + MAP_H / 2}` });
@@ -2509,7 +2513,7 @@ class Component extends DCLogic {
       onMapZoomIn: () => this.setState({ mapZoom: Math.min(3, mapZ * 1.25) }), onMapZoomOut: () => this.setState({ mapZoom: Math.max(0.02, mapZ / 1.25) }), onMapFit: () => this.setState({ mapZoom: null }),
       viewMenuOpen: !!S.viewMenu, onViewMenu: () => this.setState({ viewMenu: !S.viewMenu }), onViewMenuClose: () => this.setState(closeMenu),
       viewItems: [['slides', 'Slides'], ['tree', 'Tree'], ['radial', 'Radial']].map(([v, label]) => ({ label, on: pv === v, mark: pv === v ? '●' : '', sep: 'none', onClick: () => this.setState({ presentView: v, mapZoom: null, ...closeMenu }) }))
-        .concat([{ label: 'Max size', on: S.presentFit === 'max', mark: S.presentFit === 'max' ? '✓' : '', sep: '1px solid #e0d9cb', onClick: () => this.setState({ presentFit: S.presentFit === 'max' ? 'fit' : 'max' }) }]),
+        .concat([{ label: 'Max size', on: S.presentFit === 'max', mark: S.presentFit === 'max' ? '✓' : '', sep: '1px solid #2C3039', onClick: () => this.setState({ presentFit: S.presentFit === 'max' ? 'fit' : 'max' }) }]),
       crumbMode: S.showCrumbs === false ? 'off' : S.showCrumbs === 'fade' ? String(S.crumbFade || 2) : 'on',   // fade = show on a transition, hide after Ns
       crumbModes: ['off', '1', '2', '3', '4', '5', 'on'].map(v => ({ v, l: v === 'off' ? 'Off' : v === 'on' ? 'On' : v + 's' })),
       onCrumbMode: e => { const v = e.target.value; if (v === 'off' || v === 'on') this.setState({ showCrumbs: v === 'on' }); else { this.setState({ showCrumbs: 'fade', crumbFade: +v }); this.litCrumbs(); } },
@@ -2562,12 +2566,12 @@ class Component extends DCLogic {
       navW: Math.max(200, Math.min(S.navW, (typeof window !== 'undefined' ? window.innerWidth : 1400) - (this.state.rightW || 300) - 380)), onNavResize: e => this.navResize(e),
       treeZoom: S.treeZoom || 1, treeZoomLabel: Math.round((S.treeZoom || 1) * 100) + '%', treeZoomIn: () => this.treeZoomStep(1), treeZoomOut: () => this.treeZoomStep(-1),
       treeZoomReset: () => this.setTreeZoom(1), treeZoomFit: () => this.treeZoomFit(), toggleFocus: () => this.setState(s => ({ treeFocus: !s.treeFocus })),
-      focusBg: S.treeFocus ? '#1d1b17' : '#fff', focusColor: S.treeFocus ? '#fbf9f4' : '#1d1b17',
+      focusBg: S.treeFocus ? '#7AA2FF' : '#23262E', focusColor: S.treeFocus ? '#0B1020' : '#E8EAEE',
       treeWz: Math.ceil((TPX * 2 + Math.max(1, leaf) * COLW + 20) * (S.treeZoom || 1)), treeHz: Math.ceil((TPY + (D.levels + r0) * ROWH + 20) * (S.treeZoom || 1)),
       treeRef: this.treeRef, treeW: TPX * 2 + Math.max(1, leaf) * COLW + 20, treeH: TPY + (D.levels + r0) * ROWH + 20, treeNodes, treeEdges: topEdge.concat(treeEdges),
       viewTabs: [{ label: 'Slide', ...tab(S.view === 'slide'), onClick: () => this.setState({ view: 'slide' }) }, { label: 'Wireframe', ...tab(S.view === 'wire'), onClick: () => this.setState({ view: 'wire' }) }],
       viewHint: isWire ? 'Every slide on the looping canvas. Click to select, double-click to open.' : 'What viewers see. Arrow keys move around the tree.',
-      stageAreaBg: isPresent ? '#05070c' : '#e6e0d3', showStage: !isWire && !mapView, showWire: isWire, showMap: !!mapView,
+      stageAreaBg: isPresent ? '#05070c' : '#16181D', showStage: !isWire && !mapView, showWire: isWire, showMap: !!mapView,
       base: S.base, bgCss: B.src ? `url("${B.src}") center / 100% 100% no-repeat` : 'none', opacity: S.opacity, tiles, cam,
       curCam: camOf(cur), camTransition: `transform ${S.speed}ms ${ease}`,
       hasPrev: !!active, planeA, planeB, planeTr: active && S.phase === 'run' ? `transform ${S.speed}ms ${ease}, opacity ${S.speed}ms ease` : 'none',
@@ -2575,7 +2579,7 @@ class Component extends DCLogic {
       prevTitle: active ? name(S.prev) : '', prevBody: active ? N[S.prev].body : '', prevLabel: active ? label(S.prev) : '',
       cur: curN, curTitle: name(cur), curBody: curN.body, curLabel: label(cur),
       crumbRows, crumbTx, crumbTy, crumbH, hasDownHint: !!downHint, downHint: downHint || {},
-      steps, stepsBg: isPresent ? 'rgba(251,249,244,.18)' : 'rgba(29,27,23,.08)', sepColor: isPresent ? '#fbf9f4' : '#6b6458', navRight: isPresent ? '270px' : '14px',
+      steps, stepsBg: isPresent ? 'rgba(251,249,244,.18)' : 'rgba(232,234,238,.1)', sepColor: isPresent ? '#E8EAEE' : '#9AA1AD', navRight: isPresent ? '270px' : '14px',
       searchRef: this.searchRef, results, hasResults: results.length > 0,
       hasLeft: ci > 0 || (stepNav && atCur > 0), leftTitle: stepNav && atCur > 0 ? 'Previous step' : ci > 0 ? name(sibs[ci - 1]) : '', goLeft: () => this.go('left'),
       hasRight: ci < sibs.length - 1 || (stepNav && atCur < lastStep), rightTitle: stepNav && atCur < lastStep ? 'Next step' : ci < sibs.length - 1 ? name(sibs[ci + 1]) : '', goRight: () => this.go('right'),
@@ -2584,8 +2588,8 @@ class Component extends DCLogic {
 
       canvasRatio: f3(CW / H), wireRects, titleFrame, wireLines: wireLinesSafe.map(([x1, y1, x2, y2]) => ({ x1: f3(x1) + '%', y1: f3(y1) + '%', x2: f3(x2) + '%', y2: f3(y2) + '%' })),
 
-      rTabs: [['content', 'Content'], ['slide', 'Slide'], ['canvas', 'Canvas']].map(([id, label]) => ({ label, ...tab((S.rtab === 'layout' ? 'canvas' : S.rtab) === id), onClick: () => this.setState({ rtab: id }) })),   // an old saved 'layout' tab opens Canvas
-      tabContent: S.rtab === 'content', tabSlide: S.rtab === 'slide', tabCanvas: S.rtab === 'canvas' || S.rtab === 'layout',
+      rTabs: [['content', 'Content'], ['theme', 'Theme'], ['slides', 'Slides'], ['builds', 'Builds']].map(([id, label]) => ({ label, ...tab(rtab === id), onClick: () => this.setState({ rtab: id }) })),
+      tabContent: rtab === 'content', tabTheme: rtab === 'theme', tabSlides: rtab === 'slides', tabBuilds: rtab === 'builds',
       titleRef: this.titleRef, onTitle: e => this.setNode(cur, { title: e.target.value }), onBody: e => this.setNode(cur, { body: e.target.value }),
       toneBtns: [['light', 'Light'], ['dark', 'Dark']].map(([id, l]) => ({ label: l, ...tab(S.tone === id), onClick: () => this.setState({ tone: id }) })),
       rowStep: L.rowStep, rowStepLabel: Math.round(L.rowStep * 100) + '% of a slide', onRowStep: e => this.setState({ rowGap: +e.target.value - 1 }),   // stored as rowGap = step − 1
@@ -2595,7 +2599,7 @@ class Component extends DCLogic {
       sizeInfo: B.src ? `One copy of the image is ${(tileW / L.w).toFixed(2)} slides wide; the tree spans ${(L.CW / L.w).toFixed(1)} slides.` : `The tree spans ${(L.CW / L.w).toFixed(1)} slides.`,
       speed: S.speed, speedLabel: S.speed + 'ms', onSpeed: e => this.setState({ speed: +e.target.value }),
       bgTiles: ['balloons', 'london', 'sea', 'space', 'forest', 'sky', 'ocean'].concat(S.customBg ? ['custom'] : []).map(id => { const src = id === 'custom' ? S.customBg : BGS[id].src;
-        return { label: BGS[id].label, border: S.bg === id ? '2px solid #1d1b17' : '1px solid #e0d9cb', thumb: src ? `#e9e3d6 url("${src}") center 20% / cover` : '#efeae0', onClick: () => this.setState({ bg: id }) }; }),
+        return { label: BGS[id].label, border: S.bg === id ? '2px solid #7AA2FF' : '1px solid #2C3039', thumb: src ? `#2C3039 url("${src}") center 20% / cover` : '#23262E', onClick: () => this.setState({ bg: id }) }; }),
       hasBgImage: !!B.src, bgScale: S.bgScale || 1, bgScaleLabel: Math.round((S.bgScale || 1) * 100) + '%', onBgScale: e => this.setState({ bgScale: +e.target.value }),
       bgY: S.bgY || 0, bgYLabel: Math.round((S.bgY || 0) * 100) + '%', onBgY: e => this.setState({ bgY: +e.target.value }),
       bgRepeatBtns: [['x', 'Across'], ['xy', 'Tile'], ['none', 'Once']].map(([v, label]) => ({ label, ...tab((S.bgRepeat || 'x') === v), onClick: () => this.setState({ bgRepeat: v }) })),
@@ -2605,7 +2609,7 @@ class Component extends DCLogic {
       themeBasic: S.bg === 'none', themeFun: S.bg !== 'none',
       themeBtns: [['fun', 'Fun'], ['basic', 'Basic']].map(([id, label]) => ({ label, ...tab((S.bg === 'none' ? 'basic' : 'fun') === id),
         onClick: () => this.setState({ bg: id === 'basic' ? 'none' : S.bg === 'none' ? 'balloons' : S.bg }) })),
-      baseSwatches: BASES.map(v => ({ value: v, border: S.base === v ? '2px solid #d9432b' : '1px solid rgba(29,27,23,.2)', onClick: () => this.setState({ bg: 'none', base: v }) })),
+      baseSwatches: BASES.map(v => ({ value: v, border: S.base === v ? '2px solid #7AA2FF' : '1px solid #343944', onClick: () => this.setState({ bg: 'none', base: v }) })),
       baseColor: /^#[0-9a-f]{6}$/i.test(S.base) ? S.base : '#ffffff', onBaseColor: e => this.setState({ bg: 'none', base: e.target.value }),
     };
   }

@@ -742,7 +742,7 @@ test("a repeated error doesn't re-render; Interact only applies while the compon
 test("regression: every tree node carries its selection, thumbnail framing and layers", async () => {
   const c = await treeDeck();
   const n = c.renderVals().treeNodes.find((t: any) => t.title === "A");
-  expect(n).toMatchObject({ selected: true, outline: "2px solid #d9432b", full: "A" });
+  expect(n).toMatchObject({ selected: true, outline: "2px solid #7AA2FF", full: "A" });
   expect(typeof n.cam).toBe("string");
   expect(Array.isArray(n.layers)).toBe(true);
 });
@@ -1517,14 +1517,20 @@ test("layouts: the full-bleed slot goes to the back", async () => {
   expect(html).toContain('<sc-if value="{{ layEditable }}">'); expect(html).toContain("{{ layNoTiles }}");
 });
 
-test("right panel: Content, Slide and Canvas tabs; spacing settings are a Spacing section in Canvas; an old saved 'layout' tab opens Canvas", async () => {
+test("right panel: Content, Theme, Slides and Builds tabs; Canvas content (spacing) lives in Theme; any other saved tab opens Content", async () => {
   await deckTalk(); const { c } = await mount("?deck=talk");
-  let v = c.renderVals(); expect(v.rTabs.map((t: any) => t.label)).toEqual(["Content", "Slide", "Canvas"]);
-  c.setState({ rtab: "layout" }); v = c.renderVals(); expect(v.tabCanvas).toBe(true); expect(v.tabSlide).toBe(false);
+  let v = c.renderVals(); expect(v.rTabs.map((t: any) => t.label)).toEqual(["Content", "Theme", "Slides", "Builds"]);
+  for (const [i, k] of [[1, "tabTheme"], [2, "tabSlides"], [3, "tabBuilds"], [0, "tabContent"]] as const) {
+    c.renderVals().rTabs[i].onClick(); v = c.renderVals();
+    expect(c.state.rtab).toBe(["content", "theme", "slides", "builds"][i]); expect(v[k]).toBe(true);
+    expect(["tabContent", "tabTheme", "tabSlides", "tabBuilds"].filter(t => v[t])).toEqual([k]);
+  }
+  c.setState({ rtab: "canvas" }); v = c.renderVals(); expect(v.tabContent).toBe(true); expect(v.tabTheme).toBe(false);
+  c.setState({ rtab: "theme" }); v = c.renderVals();
   expect(v.sec.spacing.open).toBe(true); v.sec.spacing.toggle(); expect(c.renderVals().sec.spacing.open).toBe(false);
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
-  const canvas = html.slice(html.indexOf('<sc-if value="{{ tabCanvas }}">'));
-  expect(canvas).toContain('onClick="{{ sec.spacing.toggle }}"'); expect(canvas).toContain('value="{{ rowStep }}"'); expect(html).not.toContain("{{ tabLayout }}");
+  const theme = html.slice(html.indexOf('<sc-if value="{{ tabTheme }}">'));
+  expect(theme).toContain('onClick="{{ sec.spacing.toggle }}"'); expect(theme).toContain('value="{{ rowStep }}"'); expect(html).not.toContain("{{ tabCanvas }}");
 });
 
 test("present: Max/Fit sizing (button and F), Jump to lives in the header, header auto-hides and shows on hover or search", async () => {
@@ -1566,7 +1572,7 @@ test("present View menu: layout (Slides / Tree / Radial), breadcrumbs, max size;
   const at = (n: string) => v.mapCards.find((m: any) => m.name === n);
   expect(v.mapCards.map((m: any) => m.name)).toEqual(["A", "A1", "A1x", "A2", "B"]);
   expect(at("A").x).toBeCloseTo((at("A1").x + at("A2").x) / 2); expect(at("A1").x).toBeCloseTo(at("A1x").x);   // parents centred over children
-  expect(at("A1").y).toBeGreaterThan(at("A").y); expect(at("A1").outline).toContain("#d9432b");
+  expect(at("A1").y).toBeGreaterThan(at("A").y); expect(at("A1").outline).toContain("#7AA2FF");
   expect(v.mapCards.every((m: any) => m.layers.length > 0)).toBe(true); expect(v.mapEdges.length).toBe(3);
   c.onKey({ key: "t", target: {}, preventDefault() {} }); v = c.renderVals();
   const ctr = (m: any) => [m.x + v.mapCardW / 2 - v.mapW / 2, m.y + v.mapCardH / 2 - v.mapH / 2], r = (m: any) => Math.hypot(...ctr(m));
@@ -1673,14 +1679,14 @@ test("content tab: first and the default; holds the textarea and issues; no sepa
   await writeMd("talk", TALK);
   const { c, store } = await mount("?deck=talk");
   expect(c.state.rtab).toBe("content"); let v = c.renderVals();
-  expect(v.rTabs.map((t: any) => t.label)).toEqual(["Content", "Slide", "Canvas"]); expect(v.tabContent).toBe(true); expect(v.tabSlide).toBe(false);
+  expect(v.rTabs.map((t: any) => t.label)).toEqual(["Content", "Theme", "Slides", "Builds"]); expect(v.tabContent).toBe(true); expect(v.tabSlides).toBe(false);
   for (const k of ["showMd", "mdW", "onMdResize", "onToggleMd", "mdBtnBg"]) expect(v[k]).toBeUndefined();
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
-  const tab = html.split('<sc-if value="{{ tabContent }}">')[1].split('<sc-if value="{{ tabSlide }}">')[0];
+  const tab = html.split('<sc-if value="{{ tabContent }}">')[1].split('<sc-if value="{{ tabSlides }}">')[0];
   expect(tab).toContain('value="{{ mdText }}"'); expect(tab).toContain("{{ mdIssuesText }}");
   expect(html.split('value="{{ mdText }}"').length).toBe(2); expect(html).not.toContain("{{ onToggleMd }}"); expect(html).not.toContain("{{ onMdResize }}");
   c.componentDidUpdate(); expect(JSON.parse(store["strata-ui"]).mdOpen).toBeUndefined();
-  c.setState({ rtab: "slide" }); c.componentDidUpdate();
+  c.setState({ rtab: "slides" }); c.componentDidUpdate();
   const ta: any = { scrollTop: 0 }; c.mdRef.current = ta; c.setState({ cur: "next" }); c.componentDidUpdate(); ta.scrollTop = 0;
   v = c.renderVals(); v.rTabs[0].onClick(); c.componentDidUpdate();
   expect(ta.scrollTop).toBe((c.state.nodes.next._line - 1) * 20);

@@ -1813,12 +1813,79 @@ test("tree: no add/delete controls; Enter in build mode doesn't change nodes", a
   expect(c.state.nodes).toBe(before);
 });
 
-test("md layer not editable on slide; an extra text layer still is", async () => {
-  await writeMd("talk", TALK);
-  const { c } = await mount("?deck=talk");
-  c.startEdit("md-title"); expect(c.state.editing ?? null).toBeNull();
-  c.setLayers("intro", (ls: any[]) => [...ls, { id: "x1", type: "text", text: "hi", x: 0, y: 0, w: 10, h: 10 }]);
+// ---- in-place markdown editing ----
+const INL = "# Intro **big**\nslug: intro\n<!-- children: ./x.md -->\n\nFirst line\nsecond line.\n\n- one\n  * two\n- three\n\n[link:next][Next]\n\n# Next\nslug: next\n";
+// Opens the in-place editor on an md layer, types `text` (what the editor's saveWys does) and commits by ending editing.
+const inPlace = (c: any, id: string, lid: string, text: string) => {
+  c.setState({ cur: id }); c.startEdit(lid); expect(c.state.editing).toBe(lid);
+  c.updLayer(id, lid, { text }); c.componentDidUpdate();
+  c.setState({ editing: null }); c.componentDidUpdate();
+};
+test("in place: a title edit rewrites only its heading line (level, slug and children comment kept), at once, as one undo step", async () => {
+  await writeMd("talk", INL); const { c } = await mount("?deck=talk"); await Bun.sleep(150);
+  const n = c._past.length;
+  inPlace(c, "intro", "md-title", "Hello *there*");
+  expect(c.state.md).toBe(INL.replace("# Intro **big**", "# Hello *there*"));
+  expect(c.state.nodes.intro.title).toBe("Hello there");   // re-enriched straight away
+  expect(c.state.nodes.intro.custom).toBeUndefined();       // a words edit isn't a layout edit
+  expect(c._past.length).toBe(n + 1);
+  c.undo(); c.componentDidUpdate();
+  expect(c.state.md).toBe(INL); expect(layerOf(c, "intro", "md-title").text).toBe("Intro **big**");
+  c.redo(); c.componentDidUpdate(); expect(c.state.md).toContain("# Hello *there*");
+});
+test("in place: a paragraph edit rewrites its lines; Enter in it is a line break; emptied it goes", async () => {
+  await writeMd("talk", INL); const { c } = await mount("?deck=talk");
+  inPlace(c, "intro", "md-body-1", "New **words**\nnext");
+  expect(c.state.md).toBe(INL.replace("First line\nsecond line.", "New **words**\nnext"));
+  expect(layerOf(c, "intro", "md-body-1").text).toBe("New **words** next");
+  inPlace(c, "intro", "md-body-1", "");
+  expect(c.state.md).toBe(INL.replace("First line\nsecond line.\n\n", ""));
+});
+test("in place: a bullet edit rewrites only its line (marker and indent kept); Enter adds a bullet; emptied it goes; steps elsewhere survive", async () => {
+  await writeMd("talk", INL); const { c } = await mount("?deck=talk");
+  c.setNode("intro", { steps: { "md-list-1-3": 2 } }); c.componentDidUpdate();
+  inPlace(c, "intro", "md-list-1-2", "TWO");
+  expect(c.state.md).toBe(INL.replace("  * two", "  * TWO"));
+  expect(c.state.nodes.intro.steps).toEqual({ "md-list-1-3": 2 });
+  inPlace(c, "intro", "md-list-1-1", "one\nnew");
+  expect(c.state.md).toBe(INL.replace("  * two", "- new\n  * TWO"));
+  expect(layerOf(c, "intro", "md-list-1-2").text).toBe("new"); expect(layerOf(c, "intro", "md-list-1-4").text).toBe("three");
+  inPlace(c, "intro", "md-list-1-2", "");
+  expect(c.state.md).toBe(INL.replace("  * two", "  * TWO"));
+});
+test("in place: an emptied heading is refused; an unchanged commit leaves the markdown alone", async () => {
+  const MD0 = "# A\nslug: a\n\nSee [x](https://e.org).\n";
+  await writeMd("talk", MD0); const { c } = await mount("?deck=talk"); await Bun.sleep(150);
+  const n = c._past.length;
+  inPlace(c, "a", "md-title", "  ");
+  expect(c.state.md).toBe(MD0); expect(layerOf(c, "a", "md-title").text).toBe("A");
+  expect(c.state.note).toBe("A slide needs a title — delete it in Content"); expect(c._past.length).toBe(n);
+  c.setState({ cur: "a" }); c.startEdit("md-body-1"); c.setState({ editing: null }); c.componentDidUpdate();   // shown as [x]{href=…}: not written back untouched
+  expect(c.state.md).toBe(MD0); expect(c._past.length).toBe(n);
+});
+test("in place: Enter in a heading is ignored", async () => {
+  await writeMd("talk", INL); const { c } = await mount("?deck=talk");
+  const w = new Window(); const root = w.document.createElement("div"); w.document.body.appendChild(root); c.wysRef.current = root;
+  c.setState({ cur: "intro" }); c.startEdit("md-title"); c.componentDidUpdate();
+  c.constructor.rich.setOffsets(root, 2, 2);
+  const ev = new w.InputEvent("beforeinput", { inputType: "insertParagraph", cancelable: true }); root.dispatchEvent(ev);
+  expect(ev.defaultPrevented).toBe(true); expect(layerOf(c, "intro", "md-title").text).toBe("Intro **big**");
+});
+test("in place: links block, sources, images, gen layers and linked slides don't open the editor; an extra text layer still does", async () => {
+  await writeMd("talk", INL + "\n![i](p.png)\n\n[S](https://s.org)\n"); const { c } = await mount("?deck=talk"); c.setState({ cur: "intro" });
+  c.startEdit("md-links"); expect(c.state.editing ?? null).toBeNull();
+  c.setState({ cur: "next" }); for (const l of ["md-image-1", "md-sources"]) { c.startEdit(l); expect(c.state.editing ?? null).toBeNull(); }
+  c.setLayers("next", (ls: any[]) => [...ls, { id: "x1", type: "text", text: "hi", x: 0, y: 0, w: 10, h: 10 }]);
   c.startEdit("x1"); expect(c.state.editing).toBe("x1");
+  const { c: h } = await linked(); await down(h, "a");
+  h.startEdit("md-title"); expect(h.state.editing ?? null).toBeNull(); expect(h.state.note).toBe("Linked slides are read-only here: change them in their own markdown file");
+});
+test("in place: line positions aren't saved to the layout file", async () => {
+  await writeMd("talk", INL); const { c } = await mount("?deck=talk");
+  expect(layerOf(c, "intro", "md-list-1-2")).toMatchObject({ line: 9, endLine: 9 });
+  nudge(c, "intro", "md-title", 3);
+  const saved = c.constructor.md.layoutOf(c.state.nodes, c.state).slides.intro.layers;
+  expect(saved.some((l: any) => "line" in l || "endLine" in l)).toBe(false);
 });
 
 // ---- apply choice and warning badges ----

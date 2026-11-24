@@ -200,3 +200,15 @@ test("insertSlide adds a sibling after the subtree, or a last child below", asyn
   expect(twice.slug).toBe("new-slide-2");
   expect(insertSlide("", 0, "below").md).toBe("# New slide\nslug: new-slide\n");
 });
+
+test("blocks carry endLine; lists carry each item's line", () => {
+  const md = "# T\nslug: t\n\nOne\ntwo\nthree\n\n- a\n- [link:t][T]\n  * b\n\n<!-- block -->\nx\n\ny\n<!-- /block -->\n\n![i](p.png)\n";
+  const s = parseMarkdown(md).sections[0];
+  expect(s.line).toBe(1);   // the heading is one line
+  const [body, links, list, group, img] = s.blocks;   // the links block is placed at its first chip, before the list ends
+  expect(body).toMatchObject({ key: "body", line: 4, endLine: 6 });
+  expect(list).toMatchObject({ key: "list", text: "a\nb", line: 8, endLine: 10, items: [8, 10] });
+  expect(links).toMatchObject({ key: "links", line: 9, endLine: 9 });
+  expect(group).toMatchObject({ key: "body", text: "x\n\ny", line: 13, endLine: 15 });
+  expect(img).toMatchObject({ key: "image", line: 18, endLine: 18 });
+});

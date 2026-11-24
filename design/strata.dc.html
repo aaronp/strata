@@ -1211,7 +1211,7 @@ const sided = (L, n = {}) => L && n.side === 'right' && (L.opts || []).includes(
 // A slide's own build and template settings: kept for every slide that has them, with or without a layer override.
 const SLIDE_KEEP = ['steps', 'trans', 'build', 'showSteps', 'barStyle', 'side'];
 const keepOf = o => Object.fromEntries(SLIDE_KEEP.filter(k => o && o[k] != null).map(k => [k, o[k]]));
-const MD_CONTENT = ['text', 'src', 'imgKey', 'alt'];   // what markdown owns on an md-* layer (a layer's link and bullets are the user's)
+const MD_CONTENT = ['text', 'src', 'imgKey', 'alt', 'line', 'endLine'];   // what markdown owns on an md-* layer (a layer's link and bullets are the user's); line/endLine: its source lines, for in-place edits
 const CHIP_BOX = { bg: '#ffffff', bgOpacity: 0.75, blur: 0, border: 0, borderColor: '#ffffff', radius: 12, pad: 12 };   // link chips draw their own container
 const bodySize = t => Math.max(22, Math.min(40, Math.round(40 - (t.length - 120) / 20)));
 const isMd = l => String(l.id).startsWith('md-');
@@ -1221,12 +1221,12 @@ function blockLayers(sec, depth, prefix = '', src = null, styles = BUILTIN_STYLE
   const own = new Set((sec.inline || []).map(c => c.target).filter(Boolean));   // in-file targets get the namespace; unresolved refs stay as written
   const pre = t => prefix ? t.replace(/\]\{([^}]*)\}/g, (m, a) => ']{' + a.split(/\s+/).map(k => { const v = /^link=(\S+)$/.exec(k); return v && own.has(v[1]) ? 'link=' + prefix + v[1] : k; }).join(' ') + '}') : t;
   const esc = t => t.replace(/[\\*[\]{}]/g, c => '\\' + c), n = {};
-  const L = [{ id: 'md-title', type: 'text', block: 'title', style: 'h' + h, text: pre(sec.title), ...HEAD[0], opacity: 1 }];
+  const L = [{ id: 'md-title', type: 'text', block: 'title', style: 'h' + h, text: pre(sec.title), ...HEAD[0], opacity: 1, line: sec.line, endLine: sec.line }];
   for (const b of sec.blocks) {
     const i = n[b.key] = (n[b.key] || 0) + 1, id = 'md-' + b.key + '-' + i;
     const txt = (t, more) => ({ type: 'text', block: b.key, style: 'body', text: pre(t), ...B(6, 24, sec.links.length ? 56 : 88, 60), opacity: 1, size: bodySize(t), ...more });
-    if (b.key === 'body') L.push({ id, ...txt(b.text) });
-    else if (b.key === 'list') b.text.split('\n').forEach((t, j) => L.push({ id: id + '-' + (j + 1), ...txt(t, { list: i, item: j + 1, kind: 'item', bullets: 'disc' }) }));
+    if (b.key === 'body') L.push({ id, ...txt(b.text, { line: b.line, endLine: b.endLine }) });
+    else if (b.key === 'list') b.text.split('\n').forEach((t, j) => L.push({ id: id + '-' + (j + 1), ...txt(t, { list: i, item: j + 1, kind: 'item', bullets: 'disc', line: b.items[j], endLine: b.items[j] }) }));
     else if (b.key === 'links') L.push({ id: 'md-links', type: 'text', block: 'links', style: 'bullets', text: sec.links.map(k => `[${esc(k.label)}]{link=${k.target ? prefix + k.target : k.ref}}`).join('\n'),
       ...B(66, 24, 28, Math.min(62, 4 + sec.links.length * 8)), opacity: 1, size: 22, weight: 600, color: '#15171c', card: 'custom', box: CHIP_BOX });
     else if (b.key === 'sources') L.push({ id: 'md-sources', type: 'text', block: 'sources', text: b.text, ...SOURCES_BOX, opacity: 1,
@@ -1760,11 +1760,11 @@ class Component extends DCLogic {
   }
   // Rebuild nodes from the markdown, keeping baseNodes' layout (overrides, ROOT). Neither an undo step nor a hand edit.
   // A current slide that's gone moves to its nearest surviving ancestor, else the first slide.
-  reenrich(baseNodes = this.state.nodes, deck = {}) {   // deck: layouts/layoutDefaults about to be set (undo), not yet in state
+  reenrich(baseNodes = this.state.nodes, deck = {}, md = this.state.md) {   // deck: layouts/layoutDefaults about to be set (undo), not yet in state; md likewise
     clearTimeout(this._mdT);
     const S = this.state, L = layoutOf(baseNodes, { ...S, ...deck }, this._linkedOv);
     L.slides = { ...this._goneOv, ...L.slides };   // an override whose slide is gone (an id mid-edit) comes back with the id, for the session
-    const r = this.enrichMd(S.md, L), nodes = r.nodes, up = {};
+    const r = this.enrichMd(md, L), nodes = r.nodes, up = {};
     this._goneOv = Object.fromEntries(Object.entries(L.slides).filter(([k]) => k !== 'ROOT' && !nodes[k]));
     for (const k in S.nodes) for (const c of S.nodes[k].children || []) up[c] = k;
     let cur = S.cur; while (cur && cur !== 'ROOT' && !nodes[cur]) cur = up[cur] || cur.slice(0, Math.max(0, cur.lastIndexOf('.')));
@@ -1778,7 +1778,7 @@ class Component extends DCLogic {
   // Apply to Layout: a slide with no extras and a layout updates that layout instead. A hand-edited unplaced (_warn) block is placed: the override keeps it.
   markCustom() {
     const S = this.state, prev = this._lastNodes;
-    if (!prev || S.nodes === prev) return;
+    if (!prev || S.nodes === prev || this._mdEdit) return;   // typing into a markdown layer edits words, not the layout
     if (this._layoutNodes && S.nodes === this._layoutNodes) { this._layoutNodes = null; return; }
     const ro = Object.keys(S.nodes).find(k => { const n = S.nodes[k], p = prev[k]; return p && n._from && n.layers !== p.layers; });
     if (ro) { const nodes = { ...S.nodes }; for (const k in nodes) if (nodes[k]._from && prev[k]) nodes[k] = prev[k];   // linked slides are read-only: put them back
@@ -1899,6 +1899,7 @@ class Component extends DCLogic {
   }
   componentDidUpdate() {
     this.syncThemeFonts();
+    if (this._mdEdit && this.state.editing !== this._mdEdit.lid) { this.commitMd(); return; }   // the re-enrich's update does the rest
     if (!this.markCustom()) this.histTrack();
     const S = this.state;
     // Scratch deck: markdown + layout in the browser. Remote (?src=): edits since load are a draft, kept until downloaded or discarded.
@@ -1927,6 +1928,7 @@ class Component extends DCLogic {
     if (root !== this._wysEl) { this._wysEl = root; this._wysFor = null;
       if (root && root.addEventListener) {
         root.addEventListener('beforeinput', e => { if (e.inputType === 'historyUndo' || e.inputType === 'historyRedo') { e.preventDefault(); if (e.inputType === 'historyUndo') this.undo(); else this.redo(); return; }
+          if (/^insert(Paragraph|LineBreak)$/.test(e.inputType) && this._mdEdit && this._mdEdit.kind === 'title') { e.preventDefault(); return; }   // a heading is one line
           const r = wysBefore(root, this._wysLines || [[]], e); if (!r) return; e.preventDefault(); this._wysLines = r.lines; this.saveWys(); this._wysSel = { start: r.start, end: r.end }; this.rebuildWys(r.start, r.end); });
         root.addEventListener('input', () => { if (this._composing) return; this._wysLines = readLines(root, this._wysBuilt || this._wysLines || [[]]); this.saveWys(); });
         root.addEventListener('compositionstart', () => { this._composing = true; });
@@ -2096,7 +2098,7 @@ class Component extends DCLogic {
   }
   isUnder(id, anc) { const D = this.derive(); for (let x = id; x; x = D.parent[x]) if (x === anc) return true; return false; }
   // The Content tab: the slide's heading line goes to the top of the textarea (20px lines).
-  scrollMd() { const t = this.mdRef.current, n = this.state.nodes[this.state.cur]; if (t && n && n._line && !n._from) t.scrollTop = (n._line - 1) * 20; }
+  scrollMd(line) { const t = this.mdRef.current, n = this.state.nodes[this.state.cur], at = line || (n && !n._from && n._line); if (t && at) t.scrollTop = (at - 1) * 20; }
   // Browser download seam (tests replace it).
   download(name, text, type = 'text/plain') {
     const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; a.click(); URL.revokeObjectURL(a.href);
@@ -2126,10 +2128,12 @@ class Component extends DCLogic {
     this._burst = false;
     const keep = (s, n) => s.editing && n && this.layersOfNode(n).some(l => l.id === s.editing) ? s.editing : null;   // undo while editing keeps the editor open
     this.setState(s => ({ ...deck, layerSel: null, editing: keep(s, nodes[s.cur]), prev: null, phase: 'idle' }));
-    this.reenrich(nodes, deck);   // the layout comes back; the markdown stays as it is now
+    this.reenrich(nodes, deck, deck.md);   // the layout comes back; the markdown stays as it is now, unless the entry is an in-place edit (it carries md)
   }
-  undo() { if (!this._past.length) return; this._future.push({ nodes: this.state.nodes, ...this.histDeck() }); this.restore(this._past.pop()); }
-  redo() { if (!this._future.length) return; this._past.push({ nodes: this.state.nodes, ...this.histDeck() }); this.restore(this._future.pop()); }
+  // An entry with md (an in-place markdown edit) swaps the markdown too.
+  histSwap(from, to) { const e = from.pop(); to.push({ nodes: this.state.nodes, ...this.histDeck(), ...('md' in e ? { md: this.state.md } : {}) }); this.restore(e); }
+  undo() { if (this._past.length) this.histSwap(this._past, this._future); }
+  redo() { if (this._future.length) this.histSwap(this._future, this._past); }
 
   // A layout applied to one node: its counted boxes; layout recorded, custom cleared. Null for linked-in slides.
   layoutPatch(n, L) { if (!L || n._from) return null; const ls0 = this.layersOfNode(n).filter(l => !isGen(l));
@@ -2431,9 +2435,26 @@ class Component extends DCLogic {
     window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
   }
   startEdit(lid) {
-    const l = this.layersOf(this.curId()).find(x => x.id === lid); if (!l || isMd(l) || isGen(l)) return;   // markdown owns its layers' content
+    const l = this.layersOf(this.curId()).find(x => x.id === lid); if (!l || isGen(l)) return;
+    if (isMd(l)) {   // title, paragraph and bullet words edit in place and write back to the markdown; the rest is edited in Content
+      const kind = l.block === 'title' ? 'title' : l.kind === 'item' ? 'item' : l.block === 'body' ? 'body' : null;
+      if (!kind || !l.line || this.roCur()) return;
+      const S = this.state; this._mdEdit = { id: this.curId(), lid, kind, text: l.text, md: S.md, nodes: S.nodes, deck: this.histDeck(), past: this._past.length };
+    }
     if (l.type === 'text') { this.setState({ editing: lid, layerSel: lid }); setTimeout(() => { const t = this.editRef.current; if (t) { t.focus(); t.select(); } }, 40); }
     else if (l.type === 'image') this.chooseImage(lid);
+  }
+  // Ending an in-place markdown edit: the layer's text replaces its source lines, re-enriched at once, as one undo step (markdown and layout).
+  commitMd() {
+    const E = this._mdEdit; this._mdEdit = null;
+    const S = this.state, l = this.layersOf(E.id).find(x => x.id === E.lid), text = l ? String(l.text ?? '') : E.text;
+    this._past.length = Math.min(this._past.length, E.past); this._burst = false;   // the typing's own steps fold into this one
+    const md = text === E.text || !l ? S.md : MD.writeBlock(S.md, E.kind, l.line, l.endLine, text);
+    if (md === null) this.flash('A slide needs a title — delete it in Content');
+    else if (md !== S.md) { this._past.push({ nodes: E.nodes, ...E.deck, md: E.md }); if (this._past.length > 100) this._past.shift(); this._future = []; }
+    const out = md === null ? S.md : md;
+    this.setState({ md: out }); this.reenrich(S.nodes, {}, out);
+    if (l && out !== S.md) this.scrollMd(l.line);
   }
   chooseImage(lid) { this._imgTarget = { sid: this.curId(), lid }; const i = this.imgInputRef.current; if (i) i.click(); }
   readImage(file, cb) {

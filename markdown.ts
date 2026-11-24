@@ -3,7 +3,7 @@ export type Issue = { line: number; msg: string };
 export type Chip = { label: string; ref: string; line: number; target?: string; into?: string; path?: string[]; via?: string };
 export type Source = { text: string; url: string };
 export type BlockKey = "body" | "list" | "links" | "sources" | "image";
-export type Block = { key: BlockKey; text: string; line: number; url?: string; alt?: string };   // url/alt for image; text is inline markup
+export type Block = { key: BlockKey; text: string; line: number; endLine: number; items?: number[]; url?: string; alt?: string };   // lines are 1-based, endLine inclusive; items: a list's item lines (one per text line); url/alt for image; text is inline markup
 export type Section = {
   slug: string; title: string; line: number; depth: number;
   body: string;          // raw markdown body (slide notes)
@@ -57,36 +57,36 @@ function parseBody(lines: Line[]) {
   const special = (t: string, line: number) => {
     const only = CHIP_ONLY.exec(t), spanOnly = /^\[((?:\\.|[^\]\\])*)\]\{link=([^}\s]+)\}$/.exec(t);   // a line that is only an inline slide link is a chip too
     const chip = only ? { ref: only[1].trim(), label: only[2].trim(), line } : spanOnly ? { ref: spanOnly[2], label: spanOnly[1].replace(/\\([*[\]{}\\])/g, "$1"), line } : null;
-    if (chip) { links.push(chip); if (!lb) blocks.push(lb = { key: "links", text: "", line }); lb.text = links.map(l => l.label).join("\n"); return true; }
+    if (chip) { links.push(chip); if (!lb) blocks.push(lb = { key: "links", text: "", line, endLine: line }); lb.text = links.map(l => l.label).join("\n"); return true; }
     const exts = [...t.matchAll(EXT)];
     if (!exts.length || t.replace(EXT, "").replace(/[·|,;\s]/g, "")) return false;
     exts.forEach(m => sources.push({ text: m[1], url: m[2] }));
-    if (!sb) blocks.push(sb = { key: "sources", text: "", line });
+    if (!sb) blocks.push(sb = { key: "sources", text: "", line, endLine: line });
     sb.text = sources.map(s => `[${s.text}]{href=${s.url}}`).join("\n");
     return true;
   };
   const para = (blk: Line[]) => {
     if (blk.every(l => ITEM.test(l.text))) {
-      const items: string[] = [];
-      blk.forEach(l => { const t = ITEM.exec(l.text)![1].trim(); if (!special(t, l.line)) items.push(rewrite(t, l.line)); });
-      if (items.length) blocks.push({ key: "list", text: items.join("\n"), line: blk[0].line });
+      const items: string[] = [], at: number[] = [];
+      blk.forEach(l => { const t = ITEM.exec(l.text)![1].trim(); if (!special(t, l.line)) { items.push(rewrite(t, l.line)); at.push(l.line); } });
+      if (items.length) blocks.push({ key: "list", text: items.join("\n"), line: blk[0].line, endLine: blk[blk.length - 1].line, items: at });
       return;
     }
     let txt: Line[] = [];
     const flushText = () => {
       const t = txt.map(l => l.text.trim()).join(" ");
-      if (txt.length && !special(t, txt[0].line)) blocks.push({ key: "body", text: rewrite(t, txt[0].line), line: txt[0].line });
+      if (txt.length && !special(t, txt[0].line)) blocks.push({ key: "body", text: rewrite(t, txt[0].line), line: txt[0].line, endLine: txt[txt.length - 1].line });
       txt = [];
     };
     for (const l of blk) {
       const im = IMG.exec(l.text.trim());
-      if (im) { flushText(); blocks.push({ key: "image", text: im[1], line: l.line, url: im[2], alt: im[1] }); } else txt.push(l);
+      if (im) { flushText(); blocks.push({ key: "image", text: im[1], line: l.line, endLine: l.line, url: im[2], alt: im[1] }); } else txt.push(l);
     }
     flushText();
   };
   const group = (g: Line[]) => {
-    const first = g.find(l => l.text.trim());
-    if (first) blocks.push({ key: "body", text: g.map(l => rewrite(l.text.trim(), l.line)).join("\n").trim(), line: first.line });
+    const full = g.filter(l => l.text.trim());
+    if (full.length) blocks.push({ key: "body", text: g.map(l => rewrite(l.text.trim(), l.line)).join("\n").trim(), line: full[0].line, endLine: full[full.length - 1].line });
   };
   let cur: Line[] = [], grp: Line[] | null = null;
   const flush = () => { if (cur.length) para(cur); cur = []; };
@@ -189,4 +189,25 @@ export function insertSlide(md: string, line: number, where: "after" | "below"):
   if (end) { lines.splice(end.line - 1, 0, ...block); return { md: lines.join("\n"), slug }; }
   const body = md.replace(/\s*$/, "");
   return { md: (body ? body + "\n\n" : "") + block.join("\n"), slug };
+}
+
+// Writes an in-place edit back: `text` (inline markup, lines split on \n) replaces lines line..endLine of md.
+// title: the heading line, keeping its #s (one line; empty is refused: null). item: one list line per text line, keeping marker and indent; empty lines go.
+// body: the paragraph's lines (empty: removed, with one blank line after it). Other lines are untouched.
+export function writeBlock(md: string, kind: "title" | "body" | "item", line: number, endLine: number, text: string): string | null {
+  const lines = md.split("\n"), old = lines[line - 1] ?? "", rows = text.split("\n").map(r => r.trim());
+  let put: string[];
+  if (kind === "title") {
+    const t = rows.filter(Boolean).join(" ");
+    if (!plainText(t).trim()) return null;
+    put = [(/^#{1,6}/.exec(old)?.[0] ?? "#") + " " + t];
+  } else if (kind === "item") put = rows.filter(Boolean).map(r => (/^\s*[-*]\s+/.exec(old)?.[0] ?? "- ") + r);
+  else {
+    while (rows.length && !rows[0]) rows.shift();
+    while (rows.length && !rows[rows.length - 1]) rows.pop();
+    put = rows;
+  }
+  const gap = !put.length && kind === "body" && !lines[line - 2]?.trim() && !lines[endLine]?.trim() && endLine < lines.length - 1 ? 1 : 0;   // don't leave two blank lines
+  lines.splice(line - 1, endLine - line + 1 + gap, ...put);
+  return lines.join("\n");
 }

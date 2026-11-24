@@ -2028,7 +2028,7 @@ class Component extends DCLogic {
       } }
     if (root && root.ownerDocument && S.editing && S.editMode !== 'markup') {
       const l = this.layersOf(this.curId()).find(x => x.id === S.editing), text = l ? String(l.text ?? '') : '';
-      if (this._wysFor !== S.editing) { this._wysFor = S.editing; this._wysLines = linesOf(text); this._wysText = text; this.rebuildWys(); root.focus && root.focus(); const end = toPlain(this._wysLines).length; setOffsets(root, end, end); }
+      if (this._wysFor !== S.editing) { this._wysFor = S.editing; this._wysLines = linesOf(text); this._wysText = text; this.rebuildWys(); root.focus && root.focus(); const end = toPlain(this._wysLines).length; setOffsets(root, /^##[^#\n]+##$/.test(text) ? 0 : end, end); }   // a ##placeholder## opens selected, so typing replaces it
       else if (l && text !== this._wysText) { this._wysLines = linesOf(text); this._wysText = text; const o = this._wysSel || { start: 0, end: 0 }; this.rebuildWys(o.start, o.end); }   // undo/redo or an outside change
     } else if (!S.editing) { this._wysFor = null; this._wysLines = null; }
     // Present map views: open scrolled to the current slide.

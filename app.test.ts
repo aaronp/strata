@@ -2874,3 +2874,15 @@ test("Deck default text colour (null) leaves the bullet marker on its default", 
   expect(c.resolveLayer({ id: "x", type: "text", text: "a", style: "bullets", color: null, x: 0, y: 0, w: 10, h: 10 }, "t").markColor).toBe("#93C5FD");
 });
 
+
+test("in place: opening a ##placeholder## selects all of it, so typing replaces it; other text puts the cursor at the end", async () => {
+  await writeMd("talk", "# Intro\nslug: intro\n\n##Text##\n\nHello there.\n");
+  const { c } = await mount("?deck=talk");
+  const w = new Window(); const root = w.document.createElement("div"); w.document.body.appendChild(root); c.wysRef.current = root;
+  const sel = () => c.constructor.rich.getOffsets(root);
+  c.setState({ cur: "intro" }); c.startEdit("md-body-1"); c.componentDidUpdate();
+  expect(sel()).toEqual({ start: 0, end: 8 });
+  c.setState({ editing: null }); c._mdEdit = null; c.componentDidUpdate();
+  c.startEdit("md-body-2"); c.componentDidUpdate();
+  expect(sel()).toEqual({ start: 12, end: 12 });
+});

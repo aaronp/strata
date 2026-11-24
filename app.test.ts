@@ -2044,3 +2044,11 @@ test("Basic theme: plain colours and gradients with no image; Fun brings the ima
   c.renderVals().onBaseColor({ target: { value: "#123456" } }); expect(c.state.base).toBe("#123456");
   theme("Fun").onClick(); expect(c.state.bg).toBe("balloons");
 });
+
+test("dark chrome: select shares the font/colour reset; every template input/select sets a background", async () => {
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  expect(html).toMatch(/input,select,textarea,button\{font:inherit;color:inherit\}/);
+  const tpl = html.slice(0, html.indexOf("<script type=\"text/x-dc\"") > 0 ? html.indexOf("<script type=\"text/x-dc\"") : html.length);
+  const bare = [...tpl.matchAll(/<(?:input|select)\b[^>]*>/g)].map(m => m[0]).filter(t => !/type="(checkbox|range|radio|file)"/.test(t) && !/background/.test(t));
+  expect(bare).toEqual([]);
+});

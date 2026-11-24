@@ -16,7 +16,8 @@
 html,body{margin:0;height:100%;background:#16181D;color:#E8EAEE}
 *{box-sizing:border-box}
 a{color:#7AA2FF}a:hover{color:#AFC6FF}
-input,textarea,button{font:inherit;color:inherit}
+input,select,textarea,button{font:inherit;color:inherit}
+select option{background:#23262E;color:#E8EAEE}
 </style>
 </helmet>
 <div style="position:relative;height:100vh;display:flex;flex-direction:column;font-family:Inter,system-ui,sans-serif;font-size:14px;background:#16181D;color:#E8EAEE">
@@ -240,7 +241,7 @@ input,textarea,button{font:inherit;color:inherit}
                         <select value="" onChange="{{ onFmtStyle }}" title="Style for the selection" style="height:26px;border:1px solid #2C3039;border-radius:6px;background:#23262E;font-size:12px"><sc-for list="{{ fmtStyleOpts }}" as="o" hint-placeholder-count="5"><option value="{{ o.v }}" disabled="{{ o.off }}">{{ o.l }}</option></sc-for></select>
                         <select value="" onChange="{{ onFmtSize }}" title="Size for the selection" style="height:26px;border:1px solid #2C3039;border-radius:6px;background:#23262E;font-size:12px"><sc-for list="{{ fmtSizeOpts }}" as="o" hint-placeholder-count="5"><option value="{{ o.v }}" disabled="{{ o.off }}">{{ o.l }}</option></sc-for></select>
                         <select value="" onChange="{{ onFmtLink }}" title="Link the selection to a slide or a web page" style="height:26px;max-width:110px;border:1px solid #2C3039;border-radius:6px;background:#23262E;font-size:12px"><sc-for list="{{ fmtLinkOpts }}" as="o" hint-placeholder-count="5"><option value="{{ o.v }}" disabled="{{ o.off }}">{{ o.l }}</option></sc-for></select>
-                        <sc-if value="{{ fmtUrl }}"><input value="{{ fmtUrlVal }}" onChange="{{ onFmtUrlVal }}" placeholder="https://…" style="width:150px;height:26px;padding:0 6px;border:1px solid #2C3039;border-radius:6px;font-size:12px"><button onPointerDown="{{ fmtDown }}" onMouseDown="{{ fmtDown }}" onClick="{{ onFmtUrlApply }}" style="height:26px;padding:0 7px;border:0;border-radius:6px;background:#7AA2FF;color:#0B1020;cursor:pointer;font-size:12px">Link</button></sc-if>
+                        <sc-if value="{{ fmtUrl }}"><input value="{{ fmtUrlVal }}" onChange="{{ onFmtUrlVal }}" placeholder="https://…" style="background:#23262E;width:150px;height:26px;padding:0 6px;border:1px solid #2C3039;border-radius:6px;font-size:12px"><button onPointerDown="{{ fmtDown }}" onMouseDown="{{ fmtDown }}" onClick="{{ onFmtUrlApply }}" style="height:26px;padding:0 7px;border:0;border-radius:6px;background:#7AA2FF;color:#0B1020;cursor:pointer;font-size:12px">Link</button></sc-if>
                         <input type="color" onChange="{{ onFmtColor }}" title="Colour for the selection" style="width:28px;height:26px;padding:0;border:1px solid #2C3039;border-radius:6px;background:#23262E">
                         <button onPointerDown="{{ fmtDown }}" onMouseDown="{{ fmtDown }}" onClick="{{ onFmtClear }}" title="Clear formatting (the selection, or all if nothing is selected)" style="height:26px;padding:0 7px;border:1px solid #2C3039;border-radius:6px;background:#23262E;cursor:pointer;font-size:12px">⌫ Clear</button>
                       </div>
@@ -248,7 +249,7 @@ input,textarea,button{font:inherit;color:inherit}
                     <sc-if value="{{ linkPopShow }}">
                       <div data-role="fmtbar" onPointerDown="{{ stopProp }}" style="position:absolute;{{ linkPopPos }};z-index:31;display:flex;align-items:center;gap:6px;padding:5px 7px;border-radius:9px;background:#7AA2FF;color:#0B1020;font-size:12px;box-shadow:0 4px 14px rgba(0,0,0,.3)">
                         <span style="white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis">{{ linkPopLabel }}</span>
-                        <sc-if value="{{ linkPick }}"><select value="" onChange="{{ onLinkPick }}" style="height:24px;max-width:150px;border:0;border-radius:5px;font-size:12px"><sc-for list="{{ fmtLinkOpts }}" as="o" hint-placeholder-count="5"><option value="{{ o.v }}" disabled="{{ o.off }}">{{ o.l }}</option></sc-for></select></sc-if>
+                        <sc-if value="{{ linkPick }}"><select value="" onChange="{{ onLinkPick }}" style="background:#23262E;height:24px;max-width:150px;border:0;border-radius:5px;font-size:12px"><sc-for list="{{ fmtLinkOpts }}" as="o" hint-placeholder-count="5"><option value="{{ o.v }}" disabled="{{ o.off }}">{{ o.l }}</option></sc-for></select></sc-if>
                         <button onPointerDown="{{ fmtDown }}" onMouseDown="{{ fmtDown }}" onClick="{{ onLinkPopChange }}" style="padding:2px 7px;border:1px solid rgba(251,249,244,.4);border-radius:5px;background:none;color:inherit;cursor:pointer">Change</button>
                         <button onPointerDown="{{ fmtDown }}" onMouseDown="{{ fmtDown }}" onClick="{{ onLinkPopRemove }}" style="padding:2px 7px;border:1px solid rgba(251,249,244,.4);border-radius:5px;background:none;color:inherit;cursor:pointer">Remove</button>
                       </div>
@@ -382,7 +383,7 @@ input,textarea,button{font:inherit;color:inherit}
                 <span style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#E8EAEE">Title view · whole canvas</span>
                 <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
                   <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Zoom</span><span style="font-family:'JetBrains Mono',monospace">{{ tvZoomLabel }}</span></span>
-                  <input type="range" min="1" max="{{ tvZoomMax }}" step="0.05" value="{{ tvZoom }}" onChange="{{ onTvZoom }}" style="accent-color:#E8EAEE;width:100%;min-width:0">
+                  <input type="range" min="1" max="{{ tvZoomMax }}" step="0.05" value="{{ tvZoom }}" onChange="{{ onTvZoom }}" style="accent-color:#7AA2FF;width:100%;min-width:0">
                 </label>
                 <div style="display:flex;gap:6px">
                   <button onClick="{{ tvFit }}" style="flex:1;padding:5px 0;border:1px solid #2C3039;border-radius:7px;background:#23262E;cursor:pointer;font-size:12.5px">Fit</button>
@@ -390,11 +391,11 @@ input,textarea,button{font:inherit;color:inherit}
                 </div>
                 <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
                   <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Pan X</span><span style="font-family:'JetBrains Mono',monospace">{{ tvXLabel }}</span></span>
-                  <input type="range" min="0" max="1" step="0.01" value="{{ tvX }}" onChange="{{ onTvX }}" style="accent-color:#E8EAEE;width:100%;min-width:0">
+                  <input type="range" min="0" max="1" step="0.01" value="{{ tvX }}" onChange="{{ onTvX }}" style="accent-color:#7AA2FF;width:100%;min-width:0">
                 </label>
                 <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
                   <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Pan Y</span><span style="font-family:'JetBrains Mono',monospace">{{ tvYLabel }}</span></span>
-                  <input type="range" min="0" max="1" step="0.01" value="{{ tvY }}" onChange="{{ onTvY }}" style="accent-color:#E8EAEE;width:100%;min-width:0">
+                  <input type="range" min="0" max="1" step="0.01" value="{{ tvY }}" onChange="{{ onTvY }}" style="accent-color:#7AA2FF;width:100%;min-width:0">
                 </label>
                 <span style="font-size:12px;line-height:1.45;color:#9AA1AD">{{ tvHint }}</span>
               </div>
@@ -436,7 +437,7 @@ input,textarea,button{font:inherit;color:inherit}
                         <button onClick="{{ lt.onApplyAll }}" title="Make this the default for this type and update every slide of the type that isn't custom" style="flex:1;padding:3px 0;border:0;border-radius:6px;background:#7AA2FF;color:#0B1020;cursor:pointer;font-size:11.5px">Apply to all</button>
                       </div>
                       <button onClick="{{ lt.onToggle }}" style="align-self:flex-start;padding:0;border:0;background:none;color:#AFC6FF;cursor:pointer;font-size:11.5px">{{ lt.count }}</button>
-                      <sc-if value="{{ lt.open }}"><sc-for list="{{ lt.regions }}" as="rg" hint-placeholder-count="2"><input value="{{ rg.value }}" onChange="{{ rg.onChange }}" title="Region name ({{ rg.label }})" style="min-width:0;height:20px;padding:0 4px;border:1px solid #2C3039;border-radius:4px;font-size:11px"></sc-for><div style="display:flex;flex-direction:column;gap:2px"><sc-for list="{{ lt.slides }}" as="ls" hint-placeholder-count="2"><button onClick="{{ ls.onClick }}" style="padding:0;border:0;background:none;text-align:left;color:#E8EAEE;cursor:pointer;font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">→ {{ ls.name }}</button></sc-for></div></sc-if>
+                      <sc-if value="{{ lt.open }}"><sc-for list="{{ lt.regions }}" as="rg" hint-placeholder-count="2"><input value="{{ rg.value }}" onChange="{{ rg.onChange }}" title="Region name ({{ rg.label }})" style="background:#23262E;min-width:0;height:20px;padding:0 4px;border:1px solid #2C3039;border-radius:4px;font-size:11px"></sc-for><div style="display:flex;flex-direction:column;gap:2px"><sc-for list="{{ lt.slides }}" as="ls" hint-placeholder-count="2"><button onClick="{{ ls.onClick }}" style="padding:0;border:0;background:none;text-align:left;color:#E8EAEE;cursor:pointer;font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">→ {{ ls.name }}</button></sc-for></div></sc-if>
                     </div>
                   </sc-for>
                 </div>
@@ -544,7 +545,7 @@ input,textarea,button{font:inherit;color:inherit}
                         <sc-for list="{{ boxFields }}" as="bf" hint-placeholder-count="5">
                           <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
                             <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>{{ bf.label }}</span><span style="font-family:'JetBrains Mono',monospace">{{ bf.valLabel }}</span></span>
-                            <input type="range" min="{{ bf.min }}" max="{{ bf.max }}" step="{{ bf.step }}" value="{{ bf.value }}" onChange="{{ bf.onChange }}" style="accent-color:#E8EAEE;width:100%;min-width:0">
+                            <input type="range" min="{{ bf.min }}" max="{{ bf.max }}" step="{{ bf.step }}" value="{{ bf.value }}" onChange="{{ bf.onChange }}" style="accent-color:#7AA2FF;width:100%;min-width:0">
                           </label>
                         </sc-for>
                       </div>
@@ -588,12 +589,12 @@ input,textarea,button{font:inherit;color:inherit}
               <sc-for list="{{ imgFields }}" as="im" hint-placeholder-count="3">
                 <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
                   <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>{{ im.label }}</span><span style="font-family:'JetBrains Mono',monospace">{{ im.valLabel }}</span></span>
-                  <input type="range" min="{{ im.min }}" max="{{ im.max }}" step="{{ im.step }}" value="{{ im.value }}" onChange="{{ im.onChange }}" style="accent-color:#E8EAEE;width:100%;min-width:0">
+                  <input type="range" min="{{ im.min }}" max="{{ im.max }}" step="{{ im.step }}" value="{{ im.value }}" onChange="{{ im.onChange }}" style="accent-color:#7AA2FF;width:100%;min-width:0">
                 </label>
               </sc-for>
                   <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
                 <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Corner radius</span><span style="font-family:'JetBrains Mono',monospace">{{ radiusLabel }}</span></span>
-                <input type="range" min="0" max="200" step="1" value="{{ lyRadius }}" onChange="{{ onLyRadius }}" style="accent-color:#E8EAEE;width:100%;min-width:0">
+                <input type="range" min="0" max="200" step="1" value="{{ lyRadius }}" onChange="{{ onLyRadius }}" style="accent-color:#7AA2FF;width:100%;min-width:0">
               </label>
                 </sc-if>
                 <sc-if value="{{ lyIsShape }}">
@@ -611,7 +612,7 @@ input,textarea,button{font:inherit;color:inherit}
               </div>
                   <sc-if value="{{ lyIsRect }}"><label style="display:flex;flex-direction:column;gap:4px;min-width:0">
                 <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Corner radius</span><span style="font-family:'JetBrains Mono',monospace">{{ radiusLabel }}</span></span>
-                <input type="range" min="0" max="200" step="1" value="{{ lyRadius }}" onChange="{{ onLyRadius }}" style="accent-color:#E8EAEE;width:100%;min-width:0">
+                <input type="range" min="0" max="200" step="1" value="{{ lyRadius }}" onChange="{{ onLyRadius }}" style="accent-color:#7AA2FF;width:100%;min-width:0">
               </label></sc-if>
                 </sc-if>
                 <sc-if value="{{ lyIsIcon }}">
@@ -631,7 +632,7 @@ input,textarea,button{font:inherit;color:inherit}
               </div>
                   <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
                 <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Stroke</span><span style="font-family:'JetBrains Mono',monospace">{{ swLabel }}</span></span>
-                <input type="range" min="0.5" max="4" step="0.1" value="{{ lySw }}" onChange="{{ onLySw }}" style="accent-color:#E8EAEE;width:100%;min-width:0">
+                <input type="range" min="0.5" max="4" step="0.1" value="{{ lySw }}" onChange="{{ onLySw }}" style="accent-color:#7AA2FF;width:100%;min-width:0">
               </label>
                 </sc-if>
                 <div style="display:flex;flex-direction:column;gap:8px;padding:10px 12px;border-radius:9px;background:#2A3A5C;border:1px solid #343944">
@@ -668,11 +669,11 @@ input,textarea,button{font:inherit;color:inherit}
                 <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">
                   <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
                 <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Rotate</span><span style="font-family:'JetBrains Mono',monospace">{{ rotLabel }}</span></span>
-                <input type="range" min="-180" max="180" step="1" value="{{ lyRot }}" onChange="{{ onLyRot }}" style="accent-color:#E8EAEE;width:100%;min-width:0">
+                <input type="range" min="-180" max="180" step="1" value="{{ lyRot }}" onChange="{{ onLyRot }}" style="accent-color:#7AA2FF;width:100%;min-width:0">
               </label>
                   <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
                 <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Opacity</span><span style="font-family:'JetBrains Mono',monospace">{{ opLabel }}</span></span>
-                <input type="range" min="0" max="1" step="0.05" value="{{ lyOp }}" onChange="{{ onLyOp }}" style="accent-color:#E8EAEE;width:100%;min-width:0">
+                <input type="range" min="0" max="1" step="0.05" value="{{ lyOp }}" onChange="{{ onLyOp }}" style="accent-color:#7AA2FF;width:100%;min-width:0">
               </label>
                 </div>
               </div>
@@ -702,7 +703,7 @@ input,textarea,button{font:inherit;color:inherit}
 
           <sc-if value="{{ tabTheme }}">
             <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
-              <input type="checkbox" checked="{{ titlePage }}" onChange="{{ onTitlePage }}" style="accent-color:#E8EAEE">Title page · the whole canvas as a first slide
+              <input type="checkbox" checked="{{ titlePage }}" onChange="{{ onTitlePage }}" style="accent-color:#7AA2FF">Title page · the whole canvas as a first slide
             </label>
             <div style="display:flex;flex-direction:column;border:1px solid #2C3039;border-radius:10px;background:#23262E">
               <div onClick="{{ sec.spacing.toggle }}" style="display:flex;align-items:center;gap:8px;padding:9px 10px;cursor:pointer;user-select:none">
@@ -721,11 +722,11 @@ input,textarea,button{font:inherit;color:inherit}
             </div>
             <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
               <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Row step (top edge to top edge)</span><span style="font-family:'JetBrains Mono',monospace">{{ rowStepLabel }}</span></span>
-              <input type="range" min="0.1" max="3" step="0.05" value="{{ rowStep }}" onChange="{{ onRowStep }}" title="100%: the next row starts at this one's bottom edge, so slides and background move together; less or more adds parallax" style="accent-color:#E8EAEE;width:100%;min-width:0">
+              <input type="range" min="0.1" max="3" step="0.05" value="{{ rowStep }}" onChange="{{ onRowStep }}" title="100%: the next row starts at this one's bottom edge, so slides and background move together; less or more adds parallax" style="accent-color:#7AA2FF;width:100%;min-width:0">
             </label>
             <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
               <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Column step (left edge to left edge)</span><span style="font-family:'JetBrains Mono',monospace">{{ gapLabel }}</span></span>
-              <input type="range" min="0.1" max="3" step="0.05" value="{{ gapStep }}" onChange="{{ onGap }}" title="100%: the next slide starts at this one's right edge, so slides and background move together; less or more adds parallax" style="accent-color:#E8EAEE;width:100%;min-width:0">
+              <input type="range" min="0.1" max="3" step="0.05" value="{{ gapStep }}" onChange="{{ onGap }}" title="100%: the next slide starts at this one's right edge, so slides and background move together; less or more adds parallax" style="accent-color:#7AA2FF;width:100%;min-width:0">
             </label>
             <div style="display:flex;flex-direction:column;gap:6px;padding:10px 12px;border-radius:9px;background:#16181D;font-size:12px;line-height:1.45">
               <span>{{ levelInfo }}</span>
@@ -733,7 +734,7 @@ input,textarea,button{font:inherit;color:inherit}
             </div>
             <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
               <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Transition time</span><span style="font-family:'JetBrains Mono',monospace">{{ speedLabel }}</span></span>
-              <input type="range" min="0" max="2000" step="50" value="{{ speed }}" onChange="{{ onSpeed }}" style="accent-color:#E8EAEE;width:100%;min-width:0">
+              <input type="range" min="0" max="2000" step="50" value="{{ speed }}" onChange="{{ onSpeed }}" style="accent-color:#7AA2FF;width:100%;min-width:0">
             </label>
               </div>
               </sc-if>
@@ -785,12 +786,12 @@ input,textarea,button{font:inherit;color:inherit}
             </div>
             <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
               <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Horizontal offset</span><span style="font-family:'JetBrains Mono',monospace">{{ offsetLabel }}</span></span>
-              <input type="range" min="0" max="1" step="0.01" value="{{ offset }}" onChange="{{ onOffset }}" style="accent-color:#E8EAEE;width:100%;min-width:0">
+              <input type="range" min="0" max="1" step="0.01" value="{{ offset }}" onChange="{{ onOffset }}" style="accent-color:#7AA2FF;width:100%;min-width:0">
             </label>
             <sc-if value="{{ hasBgImage }}">
               <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
                 <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Scale · image height vs canvas</span><span style="font-family:'JetBrains Mono',monospace">{{ bgScaleLabel }}</span></span>
-                <input type="range" min="0.25" max="3" step="0.05" value="{{ bgScale }}" onChange="{{ onBgScale }}" style="accent-color:#E8EAEE;width:100%;min-width:0">
+                <input type="range" min="0.25" max="3" step="0.05" value="{{ bgScale }}" onChange="{{ onBgScale }}" style="accent-color:#7AA2FF;width:100%;min-width:0">
               </label>
               <div style="display:flex;align-items:center;gap:8px">
                 <span style="font-size:12px;color:#9AA1AD;flex:1">Repeat</span>
@@ -802,12 +803,12 @@ input,textarea,button{font:inherit;color:inherit}
               </div>
               <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
                 <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Vertical position</span><span style="font-family:'JetBrains Mono',monospace">{{ bgYLabel }}</span></span>
-                <input type="range" min="0" max="1" step="0.01" value="{{ bgY }}" onChange="{{ onBgY }}" style="accent-color:#E8EAEE;width:100%;min-width:0">
+                <input type="range" min="0" max="1" step="0.01" value="{{ bgY }}" onChange="{{ onBgY }}" style="accent-color:#7AA2FF;width:100%;min-width:0">
               </label>
             </sc-if>
             <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
               <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Opacity</span><span style="font-family:'JetBrains Mono',monospace">{{ opacityLabel }}</span></span>
-              <input type="range" min="0" max="1" step="0.05" value="{{ opacity }}" onChange="{{ onOpacity }}" style="accent-color:#E8EAEE;width:100%;min-width:0">
+              <input type="range" min="0" max="1" step="0.05" value="{{ opacity }}" onChange="{{ onOpacity }}" style="accent-color:#7AA2FF;width:100%;min-width:0">
             </label>
             </sc-if>
             <div style="display:flex;flex-direction:column;gap:8px;padding-top:8px;border-top:1px solid #2C3039">
@@ -824,11 +825,11 @@ input,textarea,button{font:inherit;color:inherit}
                 </div>
                 <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
                   <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Card opacity</span><span style="font-family:'JetBrains Mono',monospace">{{ cardOpLabel }}</span></span>
-                  <input type="range" min="0" max="1" step="0.05" value="{{ cardOp }}" onChange="{{ onCardOp }}" style="accent-color:#E8EAEE;width:100%;min-width:0">
+                  <input type="range" min="0" max="1" step="0.05" value="{{ cardOp }}" onChange="{{ onCardOp }}" style="accent-color:#7AA2FF;width:100%;min-width:0">
                 </label>
                 <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
                   <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Blur</span><span style="font-family:'JetBrains Mono',monospace">{{ cardBlurLabel }}</span></span>
-                  <input type="range" min="0" max="24" step="1" value="{{ cardBlur }}" onChange="{{ onCardBlur }}" style="accent-color:#E8EAEE;width:100%;min-width:0">
+                  <input type="range" min="0" max="24" step="1" value="{{ cardBlur }}" onChange="{{ onCardBlur }}" style="accent-color:#7AA2FF;width:100%;min-width:0">
                 </label>
               </sc-if>
             </div>

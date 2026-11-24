@@ -2846,3 +2846,49 @@ test("light palettes: card fill, frame border and list panel are visible (≥1.3
     for (const k of [1, 2, 3]) expect(ratio(rgbOf(r("t", "gen-num-" + k).color), bg)).toBeGreaterThanOrEqual(3);
   }
 });
+
+// ---- old decks, the default layout and style picks with template keys ----
+test("an old custom slide's template-equal values load as the template's: a switch removes them; kind 'detail' goes with List + detail (N1)", async () => {
+  const old = { version: 2, deck: {}, slides: {
+    t: { custom: true, layout: "t-statement", layers: [{ id: "md-title", type: "text", block: "title", x: 8, y: 14.2, w: 84, h: 5, font: "mono", size: 15, weight: 500, valign: "top" },
+      { id: "md-body-1", type: "text", block: "body", x: 8, y: 36.5, w: 84, h: 13.5 }, { id: "md-body-2", type: "text", block: "body", x: 8, y: 50, w: 84, h: 13.5, color: "impact" }, { id: "x1", type: "shape", kind: "rect", x: 1, y: 1, w: 2, h: 2 }] },
+    s: { custom: true, layout: "t-split", layers: [{ id: "md-title", type: "text", block: "title", x: 5, y: 6, w: 90, h: 12 },
+      { id: "md-list-1-1", type: "text", block: "list", list: 1, item: 1, kind: "item", x: 3, y: 29.2, w: 28, h: 30 }, { id: "md-list-1-2", type: "text", block: "list", list: 1, item: 2, kind: "item", x: 3, y: 60, w: 28, h: 30 },
+      { id: "md-body-1", type: "text", block: "body", kind: "detail", x: 38, y: 29.2, w: 58, h: 64.8 }, { id: "md-body-2", type: "text", block: "body", kind: "detail", x: 38, y: 29.2, w: 58, h: 64.8 }, { id: "x2", type: "shape", kind: "rect", x: 1, y: 1, w: 2, h: 2 }] } } };
+  await writeMd("talk", "# T\nslug: t\n\nA.\n\nB.\n\n# S\nslug: s\n\n- a\n- b\n\nA.\n\nB.\n", old); const { c } = await mount("?deck=talk");
+  expect(layerOf(c, "t", "md-title")).toMatchObject({ font: "mono", size: 15 }); expect(layerOf(c, "t", "md-body-2").color).toBe("impact");   // the old look loads as it was
+  c.applyLayout("t", "stacked-2");
+  const ti = layerOf(c, "t", "md-title"); expect([ti.font, ti.size, ti.weight, ti.valign]).toEqual([undefined, undefined, undefined, undefined]);
+  expect(layerOf(c, "t", "md-body-2").color).toBeUndefined();
+  expect(c.layersOf("s").filter((l: any) => l.block === "body").every((l: any) => l.kind === "detail")).toBe(true);
+  c.applyLayout("s", "text-list");
+  expect(c.layersOf("s").filter((l: any) => l.block === "body").map((l: any) => l.kind)).toEqual([undefined, undefined]);
+  expect(layerOf(c, "s", "md-list-1-1").kind).toBe("item");   // the markdown's own kind stays
+});
+
+test("switching to the shape's default layout keeps a slide with the user's own edits custom, so they last (no data loss)", async () => {
+  await writeMd("talk", THREE); const { c } = await mount("?deck=talk");
+  c.applyLayout("t", "t-cards"); c.updLayer("t", "md-body-2", { color: "#00ff00" }); c.componentDidUpdate();
+  c.applyLayout("t", "stacked-3"); expect(c.state.nodes.t.custom).toBe(true);
+  c.reenrich(); expect(layerOf(c, "t", "md-body-2").color).toBe("#00ff00");
+  expect(c.constructor.md.layoutOf(c.state.nodes, c.state).slides.t.layers.find((l: any) => l.id === "md-body-2").color).toBe("#00ff00");
+  await writeMd("t2", THREE); const m = (await mount("?deck=t2")).c;
+  m.applyLayout("t", "t-cards"); expect(m.state.nodes.t.custom).toBe(true);
+  m.applyLayout("t", "stacked-3"); expect(m.state.nodes.t.custom).toBeFalsy();   // nothing of the user's: back to the default
+});
+
+test("Custom in the style picker makes the written values the user's; deleting a style writes its winning values as the user's (N3, N4)", async () => {
+  await writeMd("talk", "# U\nslug: u\n\nSub.\n\n# V\nslug: v\n\nSub.\n"); const { c } = await mount("?deck=talk");
+  c.setStyle("body", { color: "#ff0000" }); c.applyLayout("u", "t-title-sub"); c.chooseStyle("u", "md-body-1", ""); c.componentDidUpdate();
+  expect(layerOf(c, "u", "md-body-1")).toMatchObject({ color: "#ff0000" }); expect(layerOf(c, "u", "md-body-1")._tpl).toBeUndefined();
+  c.applyLayout("u", "stacked-1"); expect(layerOf(c, "u", "md-body-1").color).toBe("#ff0000");
+  c.setStyle("mine", { name: "Mine", color: "#0000ff" }); c.applyLayout("v", "t-title-sub"); c.chooseStyle("v", "md-body-1", "mine"); c.componentDidUpdate();
+  expect(c.resolveLayer(layerOf(c, "v", "md-body-1"), "v").color).toBe("#0000ff");
+  c.deleteStyle("mine"); expect(layerOf(c, "v", "md-body-1").color).toBe("#0000ff"); expect(layerOf(c, "v", "md-body-1")._tpl).toBeUndefined();
+  c.applyLayout("v", "stacked-1"); expect(layerOf(c, "v", "md-body-1").color).toBe("#0000ff");
+});
+
+test("Deck default text colour (null) leaves the bullet marker on its default", async () => {
+  await writeMd("talk", "# T\nslug: t\n\nOne.\n"); const { c } = await mount("?deck=talk"); c.setTheme({ palette: "midnight" });
+  expect(c.resolveLayer({ id: "x", type: "text", text: "a", style: "bullets", color: null, x: 0, y: 0, w: 10, h: 10 }, "t").markColor).toBe("#93C5FD");
+});

@@ -717,7 +717,7 @@ test("a repeated error doesn't re-render; Interact only applies while the compon
   expect(c.renderVals().overlays[0].pe).toBe("auto");
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
   expect(html).toContain('<sc-if value="{{ compDirty }}">');
-  expect((html.match(/cards="true"/g) || []).length).toBe(3);   // tree, layout previews, present tree view
+  expect((html.match(/cards="true"/g) || []).length).toBe(2);   // tree, present tree view
 });
 
 test("regression: every tree node carries its selection, thumbnail framing and layers", async () => {
@@ -956,27 +956,6 @@ test("choosing a style clears overrides; Custom writes the resolved values back;
   c.undo(); c.componentDidUpdate(); expect(c.layersOf("s")[1]).toMatchObject({ style: "h1", size: 50 });
   c.chooseStyle("s", "a", ""); c.componentDidUpdate();
   const a = c.layersOf("s")[0]; expect(a.style).toBeFalsy(); expect(a).toMatchObject({ size: 64, weight: 800, valign: "middle" });
-});
-
-test("This layer mode writes an override (marked, ↺ resets); Style mode edits the style for every layer using it", async () => {
-  const c = await styledDeck();
-  c.setState({ layerSel: "a" }); let v = c.renderVals();
-  expect(v.lyStyle).toBe("h1"); expect(v.lyStyled).toBe(true); expect(v.styleOpts.map((o: any) => o.l)).toEqual(["Custom", "H1", "H2", "H3", "Body", "Bullets"]);
-  const size = () => c.renderVals().textFields.find((f: any) => f.label.startsWith("Size"));   // an overridden label reads "Size •"
-  size().onChange({ target: { value: "72" } });
-  expect(c.layersOf("s")[0].size).toBe(72); expect(size().over).toBe(true); expect(c.renderVals().lyHasOverrides).toBe(true);
-  size().onReset(); expect(c.layersOf("s")[0].size).toBeUndefined(); expect(size().over).toBe(false);
-  c.renderVals().styleTargetBtns[1].onClick(); expect(c.state.styleTarget).toBe("style");
-  size().onChange({ target: { value: "80" } });
-  expect(c.state.styles).toEqual({ h1: { size: 80 } }); expect(c.layersOf("s")[0].size).toBeUndefined();
-  expect(c.resolveLayer(c.layersOf("s")[0], "s").size).toBe(80);
-  expect(c.resolveLayer(c.layersOf("s")[1], "s").size).toBe(50);              // b overrides size, so it keeps its own
-  c.renderVals().textFields.find((f: any) => f.label.startsWith("Weight")).onChange({ target: { value: "600" } });
-  expect(c.resolveLayer(c.layersOf("s")[1], "s").weight).toBe(600);           // b follows the style for weight
-  c.setState({ styleTarget: "layer", layerSel: "b" }); c.renderVals().onClearOverrides();
-  expect(c.layersOf("s")[1].size).toBeUndefined();
-  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
-  for (const h of ["{{ styleOpts }}", "{{ styleTargetBtns }}", "{{ tf.onReset }}", "{{ onClearOverrides }}"]) expect(html).toContain(h);
 });
 
 test("+ Text creates a Body layer", async () => {
@@ -1310,19 +1289,6 @@ test("Bullets is a built-in style: dot bullets with roomy lines", async () => {
   expect(c.styles().bullets).toMatchObject({ name: "Bullets", bullets: "disc", font: "body", color: "text" });
 });
 
-test("Size, Line height and Gap are number inputs; typed values override (or edit the style); invalid input is ignored", async () => {
-  const c = await styledDeck(); c.setState({ layerSel: "c" });
-  const f = (n: string) => c.renderVals().textFields.find((x: any) => x.label.startsWith(n));
-  expect(["Size", "Line ht", "Gap"].map(n => [f(n).num, f(n).step, f(n).min])).toEqual([[true, 1, 1], [true, 0.05, 0.5], [true, 0.05, 0]]);
-  expect(f("Weight").num).toBeFalsy(); expect(f("Weight").isSel).toBe(true);
-  f("Size").onChange({ target: { value: "37" } }); expect(c.layersOf("s")[2].size).toBe(37);
-  f("Gap").onChange({ target: { value: "0.3" } }); expect(c.layersOf("s")[2].gap).toBe(0.3);
-  for (const bad of ["", "abc", "-2"]) f("Line ht").onChange({ target: { value: bad } }); expect(c.layersOf("s")[2].lh).toBeUndefined();
-  c.setState({ layerSel: "a", styleTarget: "style" }); f("Size").onChange({ target: { value: "70" } }); expect(c.state.styles.h1.size).toBe(70);
-  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
-  expect(html).toContain('type="number" step="{{ tf.step }}" min="{{ tf.min }}"');
-});
-
 // ---- layouts ----
 const lay = async () => (await mount("")).c.constructor.lay;
 const LTX = (id: string, style: string | undefined, x: number, y: number, extra: object = {}) => ({ id, type: "text", text: id, x, y, w: 10, h: 10, ...(style ? { style } : {}), ...extra });
@@ -1434,20 +1400,111 @@ test("layout actions: apply, apply to all (default slides only), reset, save as,
   expect(c.state.nodes.b).toMatchObject({ custom: true }); expect(c.state.nodes.b.layout).toBeUndefined(); expect(at("b").x).toBe(72);
 });
 
-test("Layout panel: shape chips, status, matching tiles with default star, counts and jump lists, actions, all layouts", async () => {
-  await writeMd("talk", TWO("A") + TWO("B"), { version: 2, deck: { layoutDefaults: { "body:2,title:1": "cols-2" } }, slides: {} });
-  const { c } = await mount("?deck=talk");
-  c.setState({ cur: "a", stab: "layout" }); let v = c.renderVals();
-  expect(v.layChips).toEqual(["Body ×2", "Title ×1"]); expect(v.layStatus).toBe("Default · Two columns");
-  expect(v.layTiles.map((t: any) => [t.id, t.star, t.count])).toEqual([["stacked-2", false, "0 slides"], ["cols-2", true, "2 slides"], ["t-two", false, "0 slides"], ["t-statement", false, "0 slides"]]);
-  expect(v.layTiles[1].layers.find((l: any) => l.id === "md-body-2")).toMatchObject({ x: 52, _lines: expect.anything() });   // preview: this slide's content, resolved
-  v.layTiles[1].onToggle(); v = c.renderVals(); expect(v.layTiles[1].slides.map((s: any) => s.name)).toEqual(["A", "B"]);
-  v.layTiles[1].slides[1].onClick(); expect(c.state.cur).toBe("b"); expect(c.state.stab).toBe("layout");
-  c.setNode("b", { custom: true }); c.setState({ cur: "b" }); v = c.renderVals(); expect(v.layStatus).toBe("This slide · Two columns"); expect(v.layCustom).toBe(true);
-  v.layTiles[0].onApplyAll(); expect(c.state.layoutDefaults["body:2,title:1"]).toBe("stacked-2");
-  expect(c.renderVals().layAll.length).toBeGreaterThanOrEqual(13); expect(c.renderVals().layCanUpdate).toBe(true);
+test("Slides tab: templates that fit this slide come first, then the rest; thumbnails draw a template's icon or its slot boxes", async () => {
+  await writeMd("talk", "# T\nslug: t\n\n- a\n- b\n");
+  const { c } = await mount("?deck=talk"); c.setState({ cur: "t", rtab: "slides" }); const v = c.renderVals();
+  const fits = v.tplFits.map((t: any) => t.id), rest = v.tplOthers.map((t: any) => t.id);
+  expect(fits).toEqual(["list", "t-bar"]);
+  for (const id of fits) expect(c.constructor.lay.fitsTemplate(c.layersOf("t"), c.layouts()[id])).toBe(true);
+  for (const id of rest) expect(c.constructor.lay.fitsTemplate(c.layersOf("t"), c.layouts()[id])).toBe(false);
+  expect([...fits, ...rest].sort()).toEqual(Object.keys(c.layouts()).sort());
+  expect(v.tplFits[0]).toMatchObject({ name: "Title + list", on: true }); expect(v.tplFits[1].on).toBe(false);
+  expect(v.tplFits[1].rects[0]).toMatchObject({ l: 0, t: 0, w: 100, h: 24 });                                       // t-bar: the prototype's icon
+  expect(v.tplFits[0].rects.map((r: any) => [r.l, r.t, r.w, r.h])).toEqual([[6, 6, 88, 14], [6, 24, 88, 66]]);      // list: its slots
+  expect(v.layStatus).toBe("Default · Title + list"); expect(v.tplName).toBe("Title + list");
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
-  for (const h of ["{{ layTiles }}", "{{ layStatus }}", "{{ onLaySave }}", "{{ onLayUpdate }}", "{{ layAll }}"]) expect(html).toContain(h);
+  for (const h of ["{{ tplFits }}", "{{ tplOthers }}", "{{ onLaySave }}", "{{ onLayUpdate }}", "{{ onLayApplyAll }}", "{{ applyItems }}", "{{ placeholders }}"]) expect(html).toContain(h);
+  expect(html).not.toMatch(/\bstab\b/);
+});
+
+test("Slides tab: clicking a template applies it; the title bar option draws or removes the generated band; list side mirrors List + detail", async () => {
+  await writeMd("talk", "# T\nslug: t\n\n- a\n- b\n\n# S\nslug: s\n\n- a\n- b\n\nA.\n\nB.\n");
+  const { c } = await mount("?deck=talk"); c.setState({ cur: "t", rtab: "slides" });
+  c.renderVals().tplFits.find((t: any) => t.id === "t-bar").pick(); c.componentDidUpdate();
+  expect(c.state.nodes.t.layout).toBe("t-bar"); expect(layerOf(c, "t", "gen-bar")).toMatchObject({ type: "shape", x: 0, y: 0, w: 100 });
+  let v = c.renderVals();
+  expect(v.hasBarOpt).toBe(true); expect(v.hasSideOpt).toBe(false); expect(v.barOpts.map((o: any) => [o.label, o.on])).toEqual([["Band", true], ["Underline", false], ["None", false]]);
+  expect(v.layerRows.length).toBe(c.layersOf("t").length - 1); expect(v.overlays.some((o: any) => o.lid === "gen-bar")).toBe(false);   // generated: not a stage object
+  v.barOpts[2].pick(); c.componentDidUpdate();
+  expect(c.state.nodes.t.barStyle).toBe("none"); expect(layerOf(c, "t", "gen-bar")).toBeUndefined();
+  c.renderVals().barOpts[1].pick(); c.componentDidUpdate(); expect(layerOf(c, "t", "gen-bar")).toMatchObject({ token: "primary" });
+  c.reenrich(); expect(c.state.nodes.t.barStyle).toBe("rule"); expect(layerOf(c, "t", "gen-bar")).toMatchObject({ token: "primary" });   // kept with the slide
+  expect(JSON.stringify(c.constructor.md.layoutOf(c.state.nodes))).not.toContain("gen-bar");
+  c.setState({ cur: "s" }); v = c.renderVals(); expect(c.state.nodes.s.layout).toBe("t-split"); expect(v.hasSideOpt).toBe(true);
+  expect(v.sideOpts.map((o: any) => o.label)).toEqual(["List left", "List right"]);
+  v.sideOpts[1].pick(); c.componentDidUpdate();
+  expect(c.state.nodes.s.side).toBe("right"); expect(layerOf(c, "s", "md-list-1-1").x).toBe(69); expect(layerOf(c, "s", "md-body-1").x).toBe(4);
+  c.reenrich(); expect(layerOf(c, "s", "md-list-1-1").x).toBe(69);
+});
+
+test("Slides tab: the template's placeholders; clicking one, or a markdown layer on the stage, opens Content", async () => {
+  await writeMd("talk", "# T\nslug: t\n\nOne.\n\nTwo.\n");
+  const { c } = await mount("?deck=talk"); c.setState({ cur: "t", rtab: "slides" }); c.applyLayout("t", "t-two");
+  let v = c.renderVals(); expect(v.placeholders.map((p: any) => p.name)).toEqual(["Title", "Body 1", "Body 2"]);
+  v.placeholders[1].pick(); expect(c.state.rtab).toBe("content");
+  c.setState({ rtab: "slides" }); c.stageRef.current = { getBoundingClientRect: () => ({ left: 0, top: 0, width: 100, height: 100 }) };
+  c.renderVals().overlays.find((o: any) => o.lid === "md-title").onDown({ stopPropagation() {}, button: 0, clientX: 5, clientY: 5 });
+  expect(c.state.rtab).toBe("content"); expect(c.state.layerSel).toBe("md-title");
+});
+
+const STAGE100 = { getBoundingClientRect: () => ({ left: 0, top: 0, width: 100, height: 100 }) };
+const drag = (c: any, listeners: any, tool: string, a: number[], b: number[], shiftKey = false) => {
+  c.setState({ tool }); c.renderVals().onStageDown({ button: 0, clientX: a[0], clientY: a[1], shiftKey });
+  listeners.pointermove({ clientX: b[0], clientY: b[1], shiftKey }); listeners.pointerup({ clientX: b[0], clientY: b[1], shiftKey });
+};
+
+test("shape tool: drawing an ellipse adds a shape layer with the drawn bounds and the defaults, then goes back to Select; Fill is a theme token", async () => {
+  await deckTalk(); const { c, listeners } = await mount("?deck=talk"); c.stageRef.current = STAGE100;
+  let v = c.renderVals();
+  expect(v.tools.map((t: any) => t.label)).toEqual(["Select (V)", "Text (T)", "Rectangle (R)", "Rounded rectangle", "Ellipse (O)", "Line (L)", "Arrow (A)"]);
+  v.tools[4].pick(); expect(c.state.tool).toBe("ellipse"); v = c.renderVals();
+  expect(v.toolHint).toBe("Drag to draw · Shift for a circle"); expect(v.tools[4].on).toBe(true);
+  drag(c, listeners, "ellipse", [10, 10], [30, 40]);
+  const l = c.layersOf("t").at(-1);
+  expect(l).toMatchObject({ type: "shape", x: 10, y: 10, w: 20, h: 30, kind: "ellipse", token: "primary", opacity: 35, border: { width: 2, style: "solid" }, blend: "screen" });
+  expect(c.state.tool).toBe("select"); expect(c.state.layerSel).toBe(l.id);
+  v = c.renderVals(); expect(v.lyIsShape).toBe(true);
+  expect(v.fillOpts.map((o: any) => o.label)).toEqual(["Primary", "Secondary", "Tertiary", "Impact", "Text", "None"]);
+  v.fillOpts[1].pick();
+  const P = c.theme().palette; expect(c.resolveLayer(c.layersOf("t").at(-1), "t")).toMatchObject({ fill: P.secondary + "59", stroke: P.secondary, opacity: 1 });
+  v = c.renderVals(); v.setShapeOpacity({ target: { value: "100" } }); expect(c.resolveLayer(c.layersOf("t").at(-1), "t").fill).toBe(P.secondary + "ff");
+  v = c.renderVals();
+  expect(v.kindOpts.map((o: any) => o.label)).toEqual(["Ellipse", "Rounded", "Rectangle"]); v.kindOpts[1].pick(); expect(c.layersOf("t").at(-1).kind).toBe("round");
+  v = c.renderVals(); expect(v.widthOpts.map((o: any) => o.label)).toEqual(["None", "Thin", "Medium", "Thick"]); v.widthOpts[3].pick(); expect(c.layersOf("t").at(-1).border).toEqual({ width: 5, style: "solid" });
+  v = c.renderVals(); v.borderStyleOpts[2].pick(); expect(c.layersOf("t").at(-1).border).toEqual({ width: 5, style: "dotted" });
+  v = c.renderVals(); expect(v.blendOpts.map((o: any) => o.label)).toEqual(["Stack", "Blend colours"]); v.blendOpts[0].pick(); expect(c.layersOf("t").at(-1).blend).toBe("normal");
+  v = c.renderVals(); v.fillOpts[5].pick(); expect(c.resolveLayer(c.layersOf("t").at(-1), "t").fill).toBe("transparent");
+});
+
+test("shape tool: Shift draws a circle; lines keep the drag direction; the Text tool adds a Body text layer where clicked", async () => {
+  await deckTalk(); const { c, listeners } = await mount("?deck=talk"); c.stageRef.current = { getBoundingClientRect: () => ({ left: 0, top: 0, width: 200, height: 100 }) };
+  drag(c, listeners, "ellipse", [20, 10], [60, 30], true);
+  expect(c.layersOf("t").at(-1)).toMatchObject({ x: 10, y: 10, w: 20, h: 40 });                                    // 40px × 40px
+  drag(c, listeners, "line", [20, 40], [60, 10]);
+  expect(c.layersOf("t").at(-1)).toMatchObject({ kind: "line", x: 10, y: 10, w: 20, h: 30, flip: true });              // up-right
+  drag(c, listeners, "arrow", [60, 40], [20, 10]);
+  expect(c.layersOf("t").at(-1)).toMatchObject({ kind: "arrow", x: 10, y: 10, w: 20, h: 30, back: true }); expect(c.layersOf("t").at(-1).flip).toBeFalsy();   // up-left
+  drag(c, listeners, "text", [100, 50], [100, 50]);
+  expect(c.layersOf("t").at(-1)).toMatchObject({ type: "text", style: "body", x: 50, y: 50 }); expect(c.state.tool).toBe("select");
+});
+
+test("tool keys V/T/R/O/L/A pick a tool in build mode, never while typing or in Present", async () => {
+  await deckTalk(); const { c } = await mount("?deck=talk");
+  const key = (k: string, target: any = { tagName: "DIV" }) => c.onKey({ key: k, target, preventDefault() {} });
+  for (const [k, t] of [["r", "rect"], ["O", "ellipse"], ["l", "line"], ["a", "arrow"], ["t", "text"], ["v", "select"]]) { key(k); expect(c.state.tool).toBe(t); }
+  key("r", { tagName: "INPUT" }); key("r", { tagName: "TEXTAREA" }); key("r", { tagName: "SELECT" }); key("r", { tagName: "DIV", isContentEditable: true }); expect(c.state.tool).toBe("select");
+  c.setState({ mode: "present" }); key("r"); expect(c.state.tool).toBe("select");
+});
+
+test("layer settings: an extra text layer gets the style picker and token colours; the layers list sits under them", async () => {
+  await deckTalk(); const { c } = await mount("?deck=talk");
+  const l = c.addLayer("text"); c.setState({ editing: null }); let v = c.renderVals();
+  expect(v.lyIsText).toBe(true); expect(v.lyStyle).toBe("body"); expect(v.lyStyleShow).toBe(true);
+  expect(v.swatches.map((s: any) => s.title)).toEqual(["Deck default", "Primary", "Secondary", "Tertiary", "Impact", "Text", "Muted"]);
+  v.swatches[4].onClick(); expect(layerOf(c, "t", l.id).color).toBe("impact");
+  c.setState({ layerSel: "md-title" }); expect(c.renderVals().lyStyleShow).toBe(false);   // markdown layers take their style from the markdown
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  expect(html).not.toContain("{{ textFields }}"); expect(html).toContain("{{ layerRows }}");
 });
 
 test("layouts: the full-bleed slot goes to the back", async () => {
@@ -1456,7 +1513,7 @@ test("layouts: the full-bleed slot goes to the back", async () => {
   expect(c.layersOf("a").map((l: any) => l.id)).toEqual(["md-image-1", "md-title"]);                            // the image doesn't cover the title
   c.applyLayout("a", "image-full"); expect(c.layersOf("a").map((l: any) => l.id)).toEqual(["md-image-1", "md-title"]);
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
-  expect(html).toContain('<sc-if value="{{ layEditable }}">'); expect(html).toContain("{{ layNoTiles }}");
+  expect(html).toContain('<sc-if value="{{ layEditable }}">');
 });
 
 test("right panel: Content, Theme, Slides and Builds tabs; Canvas content (spacing) lives in Theme; any other saved tab opens Content", async () => {

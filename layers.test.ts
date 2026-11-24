@@ -151,3 +151,21 @@ test("a layer's build style (opacity, transform, clip, transition) goes on its o
   expect(html).toMatch(/data-lid="\{\{ e\.lid \}\}" style="[^"]*transform:\{\{ e\.transform \}\};[^"]*clip-path:\{\{ e\.bclip \}\};[^"]*transition:\{\{ e\.tr \}\}/);
   expect(html).not.toContain("e.tr2");
 });
+
+test("shapes: kind sets the corners, a border draws in the shape's stroke colour, and the blend mode goes on the layer", () => {
+  const sh = (o = {}) => render({ layers: [{ ...shape, ...o }] }).items[0];
+  expect(sh({ kind: "ellipse", fill: "#93c5fd59", stroke: "#93c5fd", border: { width: 2, style: "dashed" }, blend: "screen" }))
+    .toMatchObject({ isShape: true, isLine: false, radius: "50%", fill: "#93c5fd59", border: "0.2cqw dashed #93c5fd", blend: "screen" });
+  expect(sh({ kind: "round" }).radius).toBe("3cqw"); expect(sh({ kind: "rect" }).radius).toBe("0");
+  expect(sh({ border: { width: 0, style: "solid" } }).border).toBe("0"); expect(sh().blend).toBe("normal");
+  expect(html).toContain("mix-blend-mode:{{ e.blend }}"); expect(html).toContain("border:{{ e.border }}");
+});
+
+test("lines and arrows: an SVG line across the box in the drawn direction; arrows end in an arrowhead", () => {
+  const ln = (o = {}) => render({ layers: [{ ...shape, id: "q", kind: "line", stroke: "#fff", border: { width: 5, style: "solid" }, ...o }] }).items[0];
+  expect(ln()).toMatchObject({ isShape: false, isLine: true, x1: "0%", y1: "0%", x2: "100%", y2: "100%", sw: "0.5cqw", stroke: "#fff", mark: "none" });
+  expect(ln({ flip: true })).toMatchObject({ x1: "0%", y1: "100%", x2: "100%", y2: "0%" });                  // dragged up-right
+  expect(ln({ flip: true, back: true })).toMatchObject({ x1: "100%", y1: "0%", x2: "0%", y2: "100%" });     // dragged down-left
+  expect(ln({ kind: "arrow" })).toMatchObject({ mark: "url(#ah-q)", mid: "ah-q" });
+  expect(html).toContain('<sc-if value="{{ e.isLine }}">'); expect(html).toContain("marker-end:{{ e.mark }}");
+});

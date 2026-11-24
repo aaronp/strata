@@ -173,6 +173,17 @@ select option{background:#23262E;color:#E8EAEE}
               <button onClick="{{ v.onClick }}" style="padding:5px 13px;border:0;border-radius:7px;cursor:pointer;background:{{ v.bg }};box-shadow:{{ v.shadow }};font-size:13px;font-weight:600;white-space:nowrap">{{ v.label }}</button>
             </sc-for>
           </div>
+          <sc-if value="{{ showTools }}">
+            <div role="toolbar" aria-label="Shape tools" style="flex:none;display:flex;align-items:center;gap:2px;padding:3px;border-radius:9px;background:#23262E;border:1px solid #2C3039">
+              <sc-for list="{{ tools }}" as="tool" hint-placeholder-count="7">
+                <button onClick="{{ tool.pick }}" aria-label="{{ tool.label }}" aria-pressed="{{ tool.on }}" title="{{ tool.label }}" style="width:30px;height:30px;padding:0;border:0;border-radius:7px;cursor:pointer;display:flex;align-items:center;justify-content:center;background:{{ tool.bg }};color:#E8EAEE">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="{{ tool.path }}"></path></svg>
+                </button>
+              </sc-for>
+              <span style="width:1px;align-self:stretch;background:#343944;margin:4px 4px"></span>
+              <span style="padding:0 6px;font-size:12px;color:#9AA1AD;white-space:nowrap">{{ toolHint }}</span>
+            </div>
+          </sc-if>
           <span style="font-size:12px;color:#9AA1AD;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">{{ viewHint }}</span>
         </div>
       </sc-if>
@@ -446,87 +457,6 @@ select option{background:#23262E;color:#E8EAEE}
                 <span style="font-size:12px;line-height:1.45;color:#9AA1AD">{{ tvHint }}</span>
               </div>
             </sc-if>
-            <div style="display:flex;gap:2px;padding:3px;border-radius:9px;background:#23262E">
-              <sc-for list="{{ stabBtns }}" as="st" hint-placeholder-count="3">
-                <button onClick="{{ st.onClick }}" style="flex:1;padding:5px 0;border:0;border-radius:7px;cursor:pointer;background:{{ st.bg }};color:{{ st.color }};box-shadow:{{ st.shadow }};font-size:12.5px;font-weight:600;white-space:nowrap">{{ st.label }}</button>
-              </sc-for>
-            </div>
-            <sc-if value="{{ stabLayout }}">
-              <div style="display:flex;flex-direction:column;gap:10px">
-                <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center">
-                  <sc-for list="{{ layChips }}" as="ch" hint-placeholder-count="2"><span style="padding:2px 7px;border-radius:999px;background:#23262E;font-family:'JetBrains Mono',monospace;font-size:11px">{{ ch }}</span></sc-for>
-                </div>
-                <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:#9AA1AD">
-                  <span style="flex:1">{{ layStatus }}</span>
-                  <sc-if value="{{ layCustom }}"><button onClick="{{ onLayReset }}" style="padding:3px 8px;border:1px solid #2C3039;border-radius:6px;background:#23262E;cursor:pointer;font-size:12px">↺ Reset to default</button></sc-if>
-                </div>
-                <sc-if value="{{ layEditable }}">
-                <div title="Where hand edits go: this slide's own override, or the shared layout every slide of this type follows" style="display:flex;gap:2px;padding:3px;border-radius:9px;background:#23262E">
-                  <sc-for list="{{ applyItems }}" as="ap" hint-placeholder-count="2">
-                    <button onClick="{{ ap.onClick }}" style="flex:1;padding:4px 0;border:0;border-radius:7px;cursor:pointer;background:{{ ap.bg }};color:{{ ap.color }};box-shadow:{{ ap.shadow }};font-size:12px;font-weight:600">{{ ap.label }}</button>
-                  </sc-for>
-                </div>
-                <sc-if value="{{ layNoTiles }}"><span style="font-size:12px;line-height:1.45;color:#9AA1AD">No layout for this type yet: arrange this slide and press Save as layout.</span></sc-if>
-                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px">
-                  <sc-for list="{{ layTiles }}" as="lt" hint-placeholder-count="2">
-                    <div style="display:flex;flex-direction:column;gap:4px;padding:5px;border:1px solid #2C3039;border-radius:8px;background:#23262E;min-width:0">
-                      <div style="position:relative;width:100%;aspect-ratio:16/9;border-radius:4px;overflow:hidden;background:{{ base }}">
-                        <dc-import name="Layers" surface="{{ surface }}" cards="true" layers="{{ lt.layers }}" images="{{ images }}" ink="{{ ink }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
-                      </div>
-                      <div style="display:flex;align-items:center;gap:4px;min-width:0">
-                        <sc-if value="{{ lt.star }}"><span title="This type's default" style="color:#7AA2FF">★</span></sc-if>
-                        <input value="{{ lt.name }}" onChange="{{ lt.onName }}" style="flex:1;min-width:0;height:22px;padding:0 4px;border:1px solid transparent;border-radius:4px;font-size:12px;font-weight:600;background:transparent">
-                        <sc-if value="{{ lt.canDelete }}"><button onClick="{{ lt.onDelete }}" title="Delete this layout (its slides keep their arrangement)" style="border:0;background:none;color:#AFC6FF;cursor:pointer">✕</button></sc-if>
-                      </div>
-                      <div style="display:flex;gap:4px">
-                        <button onClick="{{ lt.onApply }}" style="flex:1;padding:3px 0;border:1px solid #2C3039;border-radius:6px;background:#23262E;cursor:pointer;font-size:11.5px">Apply</button>
-                        <button onClick="{{ lt.onApplyAll }}" title="Make this the default for this type and update every slide of the type that isn't custom" style="flex:1;padding:3px 0;border:0;border-radius:6px;background:#7AA2FF;color:#0B1020;cursor:pointer;font-size:11.5px">Apply to all</button>
-                      </div>
-                      <button onClick="{{ lt.onToggle }}" style="align-self:flex-start;padding:0;border:0;background:none;color:#AFC6FF;cursor:pointer;font-size:11.5px">{{ lt.count }}</button>
-                      <sc-if value="{{ lt.open }}"><sc-for list="{{ lt.regions }}" as="rg" hint-placeholder-count="2"><input value="{{ rg.value }}" onChange="{{ rg.onChange }}" title="Region name ({{ rg.label }})" style="background:#23262E;min-width:0;height:20px;padding:0 4px;border:1px solid #2C3039;border-radius:4px;font-size:11px"></sc-for><div style="display:flex;flex-direction:column;gap:2px"><sc-for list="{{ lt.slides }}" as="ls" hint-placeholder-count="2"><button onClick="{{ ls.onClick }}" style="padding:0;border:0;background:none;text-align:left;color:#E8EAEE;cursor:pointer;font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">→ {{ ls.name }}</button></sc-for></div></sc-if>
-                    </div>
-                  </sc-for>
-                </div>
-                <div style="display:flex;flex-wrap:wrap;gap:6px">
-                  <button onClick="{{ onLaySave }}" style="padding:5px 10px;border:1px solid #2C3039;border-radius:7px;background:#23262E;cursor:pointer;font-size:12.5px">Save as layout</button>
-                  <sc-if value="{{ layCanUpdate }}"><button onClick="{{ onLayUpdate }}" style="padding:5px 10px;border:1px solid #2C3039;border-radius:7px;background:#23262E;cursor:pointer;font-size:12.5px">{{ layUpdateLabel }}</button></sc-if>
-                </div>
-                <button onClick="{{ onLayAllToggle }}" style="align-self:flex-start;padding:0;border:0;background:none;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#9AA1AD">All layouts</button>
-                <sc-if value="{{ layAllOpen }}">
-                  <div style="display:flex;flex-direction:column;gap:6px">
-                    <sc-for list="{{ layAll }}" as="la" hint-placeholder-count="3">
-                      <div style="display:flex;flex-direction:column;gap:2px;padding:4px 0;border-top:1px solid #2C3039">
-                        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><b style="font-size:12px">{{ la.name }}</b><sc-for list="{{ la.chips }}" as="ch" hint-placeholder-count="2"><span style="padding:1px 6px;border-radius:999px;background:#23262E;font-family:'JetBrains Mono',monospace;font-size:10.5px">{{ ch }}</span></sc-for><button onClick="{{ la.onToggle }}" style="margin-left:auto;padding:0;border:0;background:none;color:#AFC6FF;cursor:pointer;font-size:11.5px">{{ la.count }}</button></div>
-                        <sc-if value="{{ la.open }}"><sc-for list="{{ la.slides }}" as="ls" hint-placeholder-count="2"><button onClick="{{ ls.onClick }}" style="padding:0 0 0 8px;border:0;background:none;text-align:left;cursor:pointer;font-size:11.5px">→ {{ ls.name }}</button></sc-for></sc-if>
-                </sc-if>
-                      </div>
-                    </sc-for>
-                  </div>
-                </sc-if>
-              </div>
-            </sc-if>
-            <sc-if value="{{ stabLayers }}">
-              <div style="display:flex;flex-direction:column;gap:6px;padding:0 10px 10px">
-              <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px">
-                <sc-for list="{{ addBtns }}" as="ab" hint-placeholder-count="4">
-                  <button onClick="{{ ab.onClick }}" style="padding:6px 0;border:1px solid #2C3039;border-radius:7px;background:#23262E;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap" style-hover="background:#2C3039">{{ ab.label }}</button>
-                </sc-for>
-              </div>
-              <div style="display:flex;flex-direction:column;border:1px solid #2C3039;border-radius:9px;background:#23262E;overflow:hidden">
-                <sc-for list="{{ layerRows }}" as="lr" hint-placeholder-count="2">
-                  <div onClick="{{ lr.onClick }}" style="display:flex;align-items:center;gap:6px;height:32px;padding:0 4px 0 8px;border-bottom:1px solid #2C3039;background:{{ lr.bg }};cursor:pointer;opacity:{{ lr.opacity }}">
-                    <span style="width:20px;height:20px;flex:none;display:grid;place-items:center;border-radius:5px;background:#23262E;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700">{{ lr.glyph }}</span>
-                    <span style="flex:1;min-width:0;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:{{ lr.weight }}">{{ lr.name }}</span>
-                    <button onClick="{{ lr.onEye }}" title="{{ lr.eyeTitle }}" style="width:22px;height:22px;padding:0;border:0;border-radius:5px;background:transparent;cursor:pointer;font-size:11px;opacity:.7" style-hover="background:#23262E">{{ lr.eye }}</button>
-                    <button onClick="{{ lr.onUp }}" title="Bring forward" style="width:22px;height:22px;padding:0;border:0;border-radius:5px;background:transparent;cursor:pointer;font-size:11px;opacity:{{ lr.upOp }}" style-hover="background:#23262E">▲</button>
-                    <button onClick="{{ lr.onDown }}" title="Send backward" style="width:22px;height:22px;padding:0;border:0;border-radius:5px;background:transparent;cursor:pointer;font-size:11px;opacity:{{ lr.downOp }}" style-hover="background:#23262E">▼</button>
-                  </div>
-                </sc-for>
-                <sc-if value="{{ noLayers }}"><div style="padding:10px;font-size:12px;color:#9AA1AD">No layers yet.</div></sc-if>
-              </div>
-              </div>
-            </sc-if>
-            <sc-if value="{{ layerPane }}">
             <sc-if value="{{ hasLayer }}">
               <div style="display:flex;flex-direction:column;gap:12px;padding-top:12px;border-top:1px solid #2C3039">
                 <div style="display:flex;align-items:center;gap:6px">
@@ -535,41 +465,13 @@ select option{background:#23262E;color:#E8EAEE}
                   <button onClick="{{ delLayer }}" title="Delete (⌫)" style="padding:4px 8px;border:1px solid #2C3039;border-radius:6px;background:#23262E;cursor:pointer;font-size:12px;color:#AFC6FF" style-hover="background:#2C3039">Delete</button>
                 </div>
                 <sc-if value="{{ lyIsText }}">
-                  <textarea value="{{ ly.text }}" onChange="{{ onLyText }}" rows="4" placeholder="One line per bullet" style="padding:8px 10px;border:1px solid #2C3039;border-radius:8px;background:#23262E;resize:vertical;line-height:1.4;outline:none"></textarea>
-                  <div style="display:flex;align-items:center;gap:6px">
+                  <sc-if value="{{ lyStyleShow }}"><div style="display:flex;align-items:center;gap:6px">
                     <span style="width:44px;font-size:12px;color:#9AA1AD">Style</span>
                     <select value="{{ lyStyle }}" onChange="{{ onLyStyle }}" style="flex:1;min-width:0;height:28px;padding:0 4px;border:1px solid #2C3039;border-radius:6px;background:#23262E">
                       <sc-for list="{{ styleOpts }}" as="o" hint-placeholder-count="5"><option value="{{ o.v }}">{{ o.l }}</option></sc-for>
                     </select>
-                  </div>
-                  <sc-if value="{{ lyStyled }}">
-                    <div style="display:flex;align-items:center;gap:6px">
-                      <span style="font-size:12px;color:#9AA1AD;flex:none">Edits apply to</span>
-                      <div style="flex:1;display:flex;gap:2px;padding:3px;border-radius:9px;background:#23262E">
-                        <sc-for list="{{ styleTargetBtns }}" as="sb" hint-placeholder-count="2">
-                          <button onClick="{{ sb.onClick }}" style="flex:1;padding:4px 6px;border:0;border-radius:7px;cursor:pointer;background:{{ sb.bg }};color:{{ sb.color }};box-shadow:{{ sb.shadow }};font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ sb.label }}</button>
-                        </sc-for>
-                      </div>
-                    </div>
-                    <sc-if value="{{ lyHasOverrides }}"><button onClick="{{ onClearOverrides }}" title="Remove this layer's own settings so it follows the style" style="align-self:flex-start;padding:3px 8px;border:1px solid #2C3039;border-radius:6px;background:#23262E;cursor:pointer;font-size:11.5px">Clear overrides</button></sc-if>
-                  </sc-if>
-                  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px 10px">
-                    <sc-for list="{{ textFields }}" as="tf" hint-placeholder-count="8">
-                      <label style="display:grid;grid-template-columns:44px minmax(0,1fr) auto;align-items:center;gap:6px;min-width:0">
-                        <span style="font-size:12px;color:#9AA1AD;white-space:nowrap">{{ tf.label }}</span>
-                        <sc-if value="{{ tf.isSel }}">
-                        <select value="{{ tf.value }}" onChange="{{ tf.onChange }}" style="width:100%;min-width:0;height:28px;padding:0 4px;border:1px solid #2C3039;border-radius:6px;background:#23262E;outline:none;font-size:12px;cursor:pointer">
-                          <sc-for list="{{ tf.opts }}" as="o" hint-placeholder-count="3">
-                            <option value="{{ o.v }}">{{ o.l }}</option>
-                          </sc-for>
-                        </select>
-                        </sc-if>
-                        <sc-if value="{{ tf.num }}"><span style="display:flex;align-items:center;gap:4px;min-width:0"><input type="number" step="{{ tf.step }}" min="{{ tf.min }}" value="{{ tf.value }}" onChange="{{ tf.onChange }}" style="width:100%;min-width:0;height:28px;padding:0 6px;border:1px solid #2C3039;border-radius:6px;background:#23262E;font-size:13px"><span style="flex:none;font-size:11px;color:#9AA1AD">{{ tf.unit }}</span></span></sc-if>
-                        <sc-if value="{{ tf.over }}"><button onClick="{{ tf.onReset }}" title="Remove this layer's override (use the style)" style="padding:0 4px;border:0;background:none;cursor:pointer;color:#9AA1AD">↺</button></sc-if>
-                      </label>
-                    </sc-for>
-                  </div>
-                  <span style="font-size:12px;color:#9AA1AD">{{ colorLabel }} <sc-if value="{{ colorOver }}"><button onClick="{{ onColorReset }}" title="Remove this layer's colour override" style="padding:0 4px;border:0;background:none;cursor:pointer;color:#9AA1AD">↺</button></sc-if></span>
+                  </div></sc-if>
+                  <span style="font-size:12px;color:#9AA1AD">Colour</span>
                   <div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center">
                 <sc-for list="{{ swatches }}" as="sw" hint-placeholder-count="10">
                   <button onClick="{{ sw.onClick }}" title="{{ sw.title }}" style="width:22px;height:22px;padding:0;border-radius:6px;cursor:pointer;background:{{ sw.bg }};border:{{ sw.border }};font-size:9px;font-weight:700;color:#9AA1AD">{{ sw.label }}</button>
@@ -610,28 +512,35 @@ select option{background:#23262E;color:#E8EAEE}
                   <input type="range" min="{{ im.min }}" max="{{ im.max }}" step="{{ im.step }}" value="{{ im.value }}" onChange="{{ im.onChange }}" style="accent-color:#7AA2FF;width:100%;min-width:0">
                 </label>
               </sc-for>
-                  <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
-                <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Corner radius</span><span style="font-family:'JetBrains Mono',monospace">{{ radiusLabel }}</span></span>
-                <input type="range" min="0" max="200" step="1" value="{{ lyRadius }}" onChange="{{ onLyRadius }}" style="accent-color:#7AA2FF;width:100%;min-width:0">
-              </label>
                 </sc-if>
                 <sc-if value="{{ lyIsShape }}">
-                  <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:2px;padding:3px;border-radius:8px;background:#23262E">
-                <sc-for list="{{ shapeBtns }}" as="o" hint-placeholder-count="3">
-                  <button onClick="{{ o.onClick }}" title="{{ o.title }}" style="padding:5px 0;border:0;border-radius:6px;cursor:pointer;background:{{ o.bg }};box-shadow:{{ o.shadow }};font-size:12px;font-weight:{{ o.weight }};font-family:{{ o.font }};white-space:nowrap;overflow:hidden">{{ o.label }}</button>
-                </sc-for>
-              </div>
-                  <span style="font-size:12px;color:#9AA1AD">Fill</span>
-                  <div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center">
-                <sc-for list="{{ swatches }}" as="sw" hint-placeholder-count="10">
-                  <button onClick="{{ sw.onClick }}" title="{{ sw.title }}" style="width:22px;height:22px;padding:0;border-radius:6px;cursor:pointer;background:{{ sw.bg }};border:{{ sw.border }};font-size:9px;font-weight:700;color:#9AA1AD">{{ sw.label }}</button>
-                </sc-for>
-                <input type="color" value="{{ colorHex }}" onChange="{{ onColorPick }}" style="width:28px;height:24px;padding:0;border:1px solid #2C3039;border-radius:6px;background:#23262E;cursor:pointer">
-              </div>
-                  <sc-if value="{{ lyIsRect }}"><label style="display:flex;flex-direction:column;gap:4px;min-width:0">
-                <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Corner radius</span><span style="font-family:'JetBrains Mono',monospace">{{ radiusLabel }}</span></span>
-                <input type="range" min="0" max="200" step="1" value="{{ lyRadius }}" onChange="{{ onLyRadius }}" style="accent-color:#7AA2FF;width:100%;min-width:0">
-              </label></sc-if>
+                  <span style="font-size:12px;color:#9AA1AD">{{ shapeTitle }} · colours are theme slots, so they follow theme changes.</span>
+                  <sc-if value="{{ shapeIsArea }}"><div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;color:#C3C8D2">Shape</span>
+                    <div role="group" aria-label="Shape kind" style="display:flex;gap:2px;background:#23262E;padding:3px;border-radius:8px"><sc-for list="{{ kindOpts }}" as="o" hint-placeholder-count="3"><button onClick="{{ o.pick }}" aria-pressed="{{ o.on }}" style="flex:1;padding:7px 8px;border:0;border-radius:6px;font-size:12px;cursor:pointer;background:{{ o.bg }};color:#E8EAEE">{{ o.label }}</button></sc-for></div></div></sc-if>
+                  <div style="display:flex;flex-direction:column;gap:8px">
+                    <span style="font-size:12px;color:#C3C8D2">Fill</span>
+                    <div style="display:flex;flex-wrap:wrap;gap:8px">
+                      <sc-for list="{{ fillOpts }}" as="o" hint-placeholder-count="6">
+                        <button onClick="{{ o.pick }}" aria-label="Fill {{ o.label }}" aria-pressed="{{ o.on }}" style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:0;border:0;background:none;cursor:pointer;color:#9AA1AD">
+                          <span style="width:36px;height:36px;border-radius:8px;background:{{ o.swatch }};outline:{{ o.outline }};outline-offset:2px"></span>
+                          <span style="font-size:10px">{{ o.label }}</span>
+                        </button>
+                      </sc-for>
+                    </div>
+                  </div>
+                  <sc-if value="{{ shapeIsArea }}"><label style="display:flex;flex-direction:column;gap:8px;font-size:12px;color:#C3C8D2">
+                    <span style="display:flex;justify-content:space-between">Fill opacity <span style="color:#E8EAEE">{{ shapeOpacity }}%</span></span>
+                    <input type="range" min="0" max="100" step="5" value="{{ shapeOpacity }}" onInput="{{ setShapeOpacity }}" style="accent-color:#7AA2FF">
+                  </label></sc-if>
+                  <div style="display:flex;flex-direction:column;gap:8px">
+                    <span style="font-size:12px;color:#C3C8D2">Border</span>
+                    <div role="group" aria-label="Border width" style="display:flex;gap:2px;background:#23262E;padding:3px;border-radius:8px"><sc-for list="{{ widthOpts }}" as="o" hint-placeholder-count="3"><button onClick="{{ o.pick }}" aria-pressed="{{ o.on }}" style="flex:1;padding:7px 8px;border:0;border-radius:6px;font-size:12px;cursor:pointer;background:{{ o.bg }};color:#E8EAEE">{{ o.label }}</button></sc-for></div>
+                    <div role="group" aria-label="Border style" style="display:flex;gap:2px;background:#23262E;padding:3px;border-radius:8px"><sc-for list="{{ borderStyleOpts }}" as="o" hint-placeholder-count="3"><button onClick="{{ o.pick }}" aria-pressed="{{ o.on }}" style="flex:1;padding:7px 8px;border:0;border-radius:6px;font-size:12px;cursor:pointer;background:{{ o.bg }};color:#E8EAEE">{{ o.label }}</button></sc-for></div>
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:8px">
+                    <span style="font-size:12px;color:#C3C8D2">Where shapes overlap</span>
+                    <div role="group" aria-label="Overlap blending" style="display:flex;gap:2px;background:#23262E;padding:3px;border-radius:8px"><sc-for list="{{ blendOpts }}" as="o" hint-placeholder-count="3"><button onClick="{{ o.pick }}" aria-pressed="{{ o.on }}" style="flex:1;padding:7px 8px;border:0;border-radius:6px;font-size:12px;cursor:pointer;background:{{ o.bg }};color:#E8EAEE">{{ o.label }}</button></sc-for></div>
+                  </div>
                 </sc-if>
                 <sc-if value="{{ lyIsIcon }}">
                   <div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:4px">
@@ -689,10 +598,10 @@ select option{background:#23262E;color:#E8EAEE}
                 <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Rotate</span><span style="font-family:'JetBrains Mono',monospace">{{ rotLabel }}</span></span>
                 <input type="range" min="-180" max="180" step="1" value="{{ lyRot }}" onChange="{{ onLyRot }}" style="accent-color:#7AA2FF;width:100%;min-width:0">
               </label>
-                  <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
+                  <sc-if value="{{ lyNotShape }}">                  <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
                 <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Opacity</span><span style="font-family:'JetBrains Mono',monospace">{{ opLabel }}</span></span>
                 <input type="range" min="0" max="1" step="0.05" value="{{ lyOp }}" onChange="{{ onLyOp }}" style="accent-color:#7AA2FF;width:100%;min-width:0">
-              </label>
+              </label></sc-if>
                 </div>
               </div>
             </sc-if>
@@ -704,9 +613,95 @@ select option{background:#23262E;color:#E8EAEE}
               </div>
               <span style="font-size:12px;line-height:1.5;color:#9AA1AD">Drag any selected layer to move them together; use the dashed box's handles to resize the group (Shift keeps proportions). Shift-click adds or removes a layer; ⌘A selects all.</span>
             </sc-if>
+            <section style="display:flex;flex-direction:column;gap:10px;padding-top:12px;border-top:1px solid #2C3039">
+              <h2 style="margin:0;font-size:13px;font-weight:600;color:#E8EAEE">Templates</h2>
+              <span style="font-size:11px;color:#9AA1AD">Fits this slide</span>
+              <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px">
+                <sc-for list="{{ tplFits }}" as="t" hint-placeholder-count="2">
+                  <button onClick="{{ t.pick }}" aria-pressed="{{ t.on }}" style="padding:0;border:0;background:none;cursor:pointer;display:flex;flex-direction:column;gap:5px;text-align:left;color:#C3C8D2;min-width:0">
+                    <span style="display:block;position:relative;width:100%;aspect-ratio:16 / 9;border-radius:6px;background:#2A2E37;outline:{{ t.outline }};outline-offset:2px;overflow:hidden">
+                      <sc-for list="{{ t.rects }}" as="r" hint-placeholder-count="3"><span style="position:absolute;left:{{ r.l }}%;top:{{ r.t }}%;width:{{ r.w }}%;height:{{ r.h }}%;background:{{ r.bg }};border-radius:{{ r.rad }}"></span></sc-for>
+                    </span>
+                    <span style="font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ t.name }}</span>
+                  </button>
+                </sc-for>
+              </div>
+              <span style="font-size:11px;color:#9AA1AD">Other templates</span>
+              <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px">
+                <sc-for list="{{ tplOthers }}" as="t" hint-placeholder-count="4">
+                  <button onClick="{{ t.pick }}" aria-pressed="{{ t.on }}" style="padding:0;border:0;background:none;cursor:pointer;display:flex;flex-direction:column;gap:5px;text-align:left;color:#C3C8D2;min-width:0;opacity:.6">
+                    <span style="display:block;position:relative;width:100%;aspect-ratio:16 / 9;border-radius:6px;background:#2A2E37;outline:{{ t.outline }};outline-offset:2px;overflow:hidden">
+                      <sc-for list="{{ t.rects }}" as="r" hint-placeholder-count="3"><span style="position:absolute;left:{{ r.l }}%;top:{{ r.t }}%;width:{{ r.w }}%;height:{{ r.h }}%;background:{{ r.bg }};border-radius:{{ r.rad }}"></span></sc-for>
+                    </span>
+                    <span style="font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ t.name }}</span>
+                  </button>
+                </sc-for>
+              </div>
+              <span style="font-size:11px;line-height:1.5;color:#9AA1AD">Templates only set structure. Colours and fonts always come from the deck theme, so switching theme restyles every slide.</span>
+            </section>
+            <sc-if value="{{ layEditable }}">
+            <section style="display:flex;flex-direction:column;gap:12px">
+              <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:#9AA1AD">
+                <span style="flex:1">{{ layStatus }}</span>
+                <sc-if value="{{ layCustom }}"><button onClick="{{ onLayReset }}" style="padding:3px 8px;border:1px solid #2C3039;border-radius:6px;background:#23262E;cursor:pointer;font-size:12px">↺ Reset to default</button></sc-if>
+              </div>
+              <div title="Where hand edits go: this slide's own override, or the shared template every slide of this type follows" style="display:flex;gap:2px;padding:3px;border-radius:9px;background:#23262E">
+                <sc-for list="{{ applyItems }}" as="ap" hint-placeholder-count="2">
+                  <button onClick="{{ ap.onClick }}" style="flex:1;padding:4px 0;border:0;border-radius:7px;cursor:pointer;background:{{ ap.bg }};color:{{ ap.color }};box-shadow:{{ ap.shadow }};font-size:12px;font-weight:600">{{ ap.label }}</button>
+                </sc-for>
+              </div>
+              <sc-if value="{{ hasTpl }}">
+                <div style="display:flex;align-items:center;gap:6px">
+                  <input value="{{ tplName }}" onChange="{{ onTplName }}" title="Template name" style="flex:1;min-width:0;height:28px;padding:0 8px;border:1px solid #2C3039;border-radius:6px;background:#23262E;font-size:12.5px;font-weight:600">
+                  <sc-if value="{{ tplCanDelete }}"><button onClick="{{ onTplDelete }}" title="Delete this template (its slides keep their arrangement)" style="border:0;background:none;color:#AFC6FF;cursor:pointer">✕</button></sc-if>
+                </div>
+              </sc-if>
+              <div style="display:flex;flex-wrap:wrap;gap:6px">
+                <sc-if value="{{ hasTpl }}"><button onClick="{{ onLayApplyAll }}" title="Make this the default for this type and update every slide of the type that isn't custom" style="padding:5px 10px;border:0;border-radius:7px;background:#7AA2FF;color:#0B1020;cursor:pointer;font-size:12.5px">Apply to all</button></sc-if>
+                <button onClick="{{ onLaySave }}" style="padding:5px 10px;border:1px solid #2C3039;border-radius:7px;background:#23262E;cursor:pointer;font-size:12.5px">Save as template</button>
+                <sc-if value="{{ layCanUpdate }}"><button onClick="{{ onLayUpdate }}" style="padding:5px 10px;border:1px solid #2C3039;border-radius:7px;background:#23262E;cursor:pointer;font-size:12.5px">{{ layUpdateLabel }}</button></sc-if>
+              </div>
+              <sc-if value="{{ hasTpl }}">
+                <div style="display:flex;flex-direction:column;gap:2px"><h2 style="margin:0;font-size:13px;font-weight:600;color:#E8EAEE">Layout · {{ tplName }}</h2><span style="font-size:12px;color:#9AA1AD">Options this template understands.</span></div>
+                <sc-if value="{{ hasBarOpt }}"><div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;color:#C3C8D2">Title bar</span>
+                  <div role="group" aria-label="Title bar style" style="display:flex;gap:2px;background:#23262E;padding:3px;border-radius:8px"><sc-for list="{{ barOpts }}" as="o" hint-placeholder-count="3"><button onClick="{{ o.pick }}" aria-pressed="{{ o.on }}" style="flex:1;padding:7px 8px;border:0;border-radius:6px;font-size:12px;cursor:pointer;background:{{ o.bg }};color:#E8EAEE">{{ o.label }}</button></sc-for></div></div></sc-if>
+                <sc-if value="{{ hasSideOpt }}"><div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;color:#C3C8D2">List panel side</span>
+                  <div role="group" aria-label="List panel side" style="display:flex;gap:2px;background:#23262E;padding:3px;border-radius:8px"><sc-for list="{{ sideOpts }}" as="o" hint-placeholder-count="3"><button onClick="{{ o.pick }}" aria-pressed="{{ o.on }}" style="flex:1;padding:7px 8px;border:0;border-radius:6px;font-size:12px;cursor:pointer;background:{{ o.bg }};color:#E8EAEE">{{ o.label }}</button></sc-for></div></div></sc-if>
+                <div style="display:flex;flex-direction:column;gap:6px">
+                  <span style="font-size:12px;color:#C3C8D2">Placeholders · click to edit the words in Content</span>
+                  <sc-for list="{{ placeholders }}" as="p" hint-placeholder-count="3">
+                    <button onClick="{{ p.pick }}" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:0;border-radius:8px;background:#23262E;color:#E8EAEE;font-size:12px;cursor:pointer;text-align:left">
+                      <span style="width:6px;height:6px;border-radius:50%;background:#7AA2FF"></span>{{ p.name }}
+                    </button>
+                  </sc-for>
+                </div>
+              </sc-if>
+            </section>
+            </sc-if>
+            <section style="display:flex;flex-direction:column;gap:8px">
+              <h2 style="margin:0;font-size:13px;font-weight:600;color:#E8EAEE">Layers</h2>
+              <div style="display:flex;flex-direction:column;gap:6px;padding:0">
+              <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px">
+                <sc-for list="{{ addBtns }}" as="ab" hint-placeholder-count="4">
+                  <button onClick="{{ ab.onClick }}" style="padding:6px 0;border:1px solid #2C3039;border-radius:7px;background:#23262E;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap" style-hover="background:#2C3039">{{ ab.label }}</button>
+                </sc-for>
+              </div>
+              <div style="display:flex;flex-direction:column;border:1px solid #2C3039;border-radius:9px;background:#23262E;overflow:hidden">
+                <sc-for list="{{ layerRows }}" as="lr" hint-placeholder-count="2">
+                  <div onClick="{{ lr.onClick }}" style="display:flex;align-items:center;gap:6px;height:32px;padding:0 4px 0 8px;border-bottom:1px solid #2C3039;background:{{ lr.bg }};cursor:pointer;opacity:{{ lr.opacity }}">
+                    <span style="width:20px;height:20px;flex:none;display:grid;place-items:center;border-radius:5px;background:#23262E;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700">{{ lr.glyph }}</span>
+                    <span style="flex:1;min-width:0;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:{{ lr.weight }}">{{ lr.name }}</span>
+                    <button onClick="{{ lr.onEye }}" title="{{ lr.eyeTitle }}" style="width:22px;height:22px;padding:0;border:0;border-radius:5px;background:transparent;cursor:pointer;font-size:11px;opacity:.7" style-hover="background:#23262E">{{ lr.eye }}</button>
+                    <button onClick="{{ lr.onUp }}" title="Bring forward" style="width:22px;height:22px;padding:0;border:0;border-radius:5px;background:transparent;cursor:pointer;font-size:11px;opacity:{{ lr.upOp }}" style-hover="background:#23262E">▲</button>
+                    <button onClick="{{ lr.onDown }}" title="Send backward" style="width:22px;height:22px;padding:0;border:0;border-radius:5px;background:transparent;cursor:pointer;font-size:11px;opacity:{{ lr.downOp }}" style-hover="background:#23262E">▼</button>
+                  </div>
+                </sc-for>
+                <sc-if value="{{ noLayers }}"><div style="padding:10px;font-size:12px;color:#9AA1AD">No layers yet.</div></sc-if>
+              </div>
+              </div>
+            </section>
             <sc-if value="{{ noLayerSel }}">
               <span style="font-size:12px;line-height:1.5;color:#9AA1AD">Select a layer on the slide or in the list. Drag to move, use the handles to resize (Shift keeps proportions), double-click text to type. Drop image files straight onto the slide.</span>
-            </sc-if>
             </sc-if>
             </sc-if>
           </sc-if>
@@ -1065,9 +1060,17 @@ const slotsOf = layers => { const out = {}, g = groupsOf(layers);
 // The props a layout puts on each layer beyond its box (kind 'detail', a slot's colour or font), by layer id.
 const tplProps = (layers, L) => { const b = L ? fillSlots(layers, L) : {}, out = {}; for (const id in b) { const { x: _x, y: _y, w: _w, h: _h, rot: _r, ...more } = b[id]; out[id] = Object.keys(more); } return out; };
 // Generated layers (gen-*): drawn by a template at enrich time, never saved, never counted. The section number: the slide's 1-based place among its siblings.
+// A template with the 'bar' option draws its title bar from the slide's barStyle: band (default), rule (an underline) or none. 13cqw deep, as in Templates.dc.html.
 const isGen = l => String(l.id).startsWith('gen-');
-const genLayers = (L, idx) => L && L.number ? [{ id: 'gen-number', type: 'text', text: String(idx + 1).padStart(2, '0'), ...L.number, opacity: 1,
-  font: 'head', size: 144, weight: 700, lh: 0.9, color: 'impact', align: 'left', valign: 'bottom', bullets: 'none' }] : [];
+const BAR_STYLES = { band: { y: 0, h: 23.1, fill: 'rgba(10,12,30,0.45)' }, rule: { y: 22.6, h: 0.5, token: 'primary', opacity: 100 } };
+const genLayers = (L, idx, n = {}) => {
+  const bar = L && (L.opts || []).includes('bar') && BAR_STYLES[n.barStyle || 'band'];
+  return [...(bar ? [{ id: 'gen-bar', type: 'shape', kind: 'rect', x: 0, w: 100, rot: 0, opacity: 1, ...bar }] : []),
+    ...(L && L.number ? [{ id: 'gen-number', type: 'text', text: String(idx + 1).padStart(2, '0'), ...L.number, opacity: 1,
+      font: 'head', size: 144, weight: 700, lh: 0.9, color: 'impact', align: 'left', valign: 'bottom', bullets: 'none' }] : [])]; };
+// A template with the 'side' option, on a slide with side 'right', mirrors its slots left to right.
+const sided = (L, n = {}) => L && n.side === 'right' && (L.opts || []).includes('side')
+  ? { ...L, slots: Object.fromEntries(Object.entries(L.slots || {}).map(([k, bs]) => [k, bs.map(b => ({ ...b, x: +(100 - b.x - b.w).toFixed(2) }))])) } : L;
 // ---- Enrichment: markdown sections + layout files -> nodes (never saved), and layoutOf, its inverse (what the layout file keeps).
 // LayoutFile: { version: 2, deck: { deck fields but nodes/title/source }, slides: { [id]: a layer override (node minus content), or just SLIDE_KEEP } }; ROOT is stored whole.
 // A slide's own build and template settings: kept for every slide that has them, with or without a layer override.
@@ -1125,10 +1128,10 @@ function enrich(sections, layouts, opts = {}) {
       const ls = ov.layers.filter(l => !(i && l.type === 'component') && !isGen(l));
       const gone = ls.filter(l => isMd(l) && !byId.has(l.id));   // back in the layout file, out of the slide
       const have = new Set(ls.map(l => l.id));
-      const layers = [...genLayers(byLid(ov.layout), idx), ...ls.filter(l => !isMd(l) || byId.has(l.id)).map(l => isMd(l) ? mergeContent(l, byId.get(l.id)) : l).concat(gen.filter(g => !have.has(g.id)).map(g => ({ ...g, _warn: true })))];
+      const layers = [...genLayers(byLid(ov.layout), idx, ov), ...ls.filter(l => !isMd(l) || byId.has(l.id)).map(l => isMd(l) ? mergeContent(l, byId.get(l.id)) : l).concat(gen.filter(g => !have.has(g.id)).map(g => ({ ...g, _warn: true })))];
       const { _kept: _k, ...rest } = ov; extra = { ...rest, layers, custom: true, ...(gone.length ? { _kept: gone } : {}) };
     } else {
-      if (lay) { const boxes = fillSlots(gen, lay); extra = { layers: [...genLayers(lay, idx), ...backFirst(gen.map(l => boxes[l.id] ? { ...l, ...boxes[l.id] } : l), boxes)], layout: lay.id }; }
+      if (lay) { const boxes = fillSlots(gen, sided(lay, keep || {})); extra = { layers: [...genLayers(lay, idx, keep || {}), ...backFirst(gen.map(l => boxes[l.id] ? { ...l, ...boxes[l.id] } : l), boxes)], layout: lay.id }; }
       else { const rest = gen.filter(l => counted(l) && l.block !== 'title'), st = stackOf(rest.length, [24, 88]);   // no match: stack the blocks, and flag them
         extra = { layers: gen.map(l => { const k = rest.indexOf(l); return k < 0 ? l : { ...l, ...st[k], _warn: true }; }) }; }
     }
@@ -1401,7 +1404,27 @@ const ICONS = {
   pin: 'M12 21s6-5.6 6-11a6 6 0 1 0-12 0c0 5.4 6 11 6 11zM12 12a2 2 0 1 0 0-4 2 2 0 0 0 0 4z', chart: 'M5 20V11M11 20V5M17 20v-7M3 20h18',
   users: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21a7 7 0 0 1 14 0M17 11a3 3 0 1 0 0-6M22 21a6 6 0 0 0-4-5.7', key: 'M8 15a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM11.5 11H21M18 11v3M21 11v2',
 };
-const SWATCH = ['#15171c', '#fbf9f4', '#d9432b', '#1f6fb8', '#2f8f4e', '#e0a019', '#7a4bb0', 'rgba(255,255,255,0.75)', 'rgba(10,14,28,0.55)'];
+// Shape tool: new shapes, the toolbar (hints as in Templates.dc.html) and its keys.
+const SHAPE_DEFAULT = { kind: 'ellipse', token: 'primary', opacity: 35, border: { width: 2, style: 'solid' }, blend: 'screen' };
+const TOOLS = [['select', 'Select (V)', 'Click a shape to edit it', 'M5 3l14 8-6 2-2 6z'], ['text', 'Text (T)', 'Click on the slide to add text', 'M5 6V4h14v2M12 4v16M9 20h6'],
+  ['rect', 'Rectangle (R)', 'Drag on the slide to draw', 'M4 6h16v12H4z'], ['round', 'Rounded rectangle', 'Drag on the slide to draw', 'M8 6h8a4 4 0 0 1 4 4v4a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4v-4a4 4 0 0 1 4-4z'],
+  ['ellipse', 'Ellipse (O)', 'Drag to draw · Shift for a circle', 'M4 12a8 8 0 1 0 16 0a8 8 0 1 0-16 0'], ['line', 'Line (L)', 'Drag to draw a line', 'M5 19L19 5'], ['arrow', 'Arrow (A)', 'Drag to draw an arrow', 'M5 19L19 5M10 5h9v9']];
+const TOOL_KEYS = { v: 'select', t: 'text', r: 'rect', o: 'ellipse', l: 'line', a: 'arrow' };
+const COLOR_TOKENS = ['primary', 'secondary', 'tertiary', 'impact', 'text', 'muted'];
+const cap = k => k[0].toUpperCase() + k.slice(1);
+// Template grid thumbnails: [left, top, width, height, colour, radius] in % of a 16:9 tile, from Templates.dc.html (a circle's height is its width × 16/9).
+const TPL_ICONS = {
+  title: [[12, 34, 60, 14, '#8A93A3', '2px'], [12, 56, 40, 7, '#5B6271', '2px']],
+  bar: [[0, 0, 100, 24, '#4A5263'], [10, 36, 70, 6, '#5B6271'], [10, 50, 60, 6, '#5B6271'], [10, 64, 65, 6, '#5B6271']],
+  split: [[0, 0, 36, 100, '#353A45'], [6, 18, 24, 10, '#7AA2FF', '2px'], [6, 36, 24, 8, '#5B6271'], [6, 52, 24, 8, '#5B6271'], [44, 20, 40, 12, '#8A93A3'], [44, 40, 48, 36, '#5B6271', '2px']],
+  two: [[8, 10, 50, 12, '#8A93A3'], [8, 32, 39, 54, '#4A5263', '2px'], [53, 32, 39, 54, '#4A5263', '2px']],
+  section: [[10, 40, 24, 30, '#FBBF24', '2px'], [10, 76, 50, 9, '#8A93A3']],
+  statement: [[12, 34, 64, 13, '#8A93A3'], [12, 52, 52, 13, '#FBBF24']],
+  venn: [[30, 14, 26, 46.2, 'rgba(147,197,253,0.55)', '50%'], [44, 14, 26, 46.2, 'rgba(196,181,253,0.55)', '50%'], [37, 40, 26, 46.2, 'rgba(94,234,212,0.55)', '50%']],
+  cards: [[8, 10, 50, 12, '#8A93A3'], [8, 34, 26, 52, '#4A5263', '2px'], [37, 34, 26, 52, '#4A5263', '2px'], [66, 34, 26, 52, '#4A5263', '2px']],
+};
+const tplRects = L => (TPL_ICONS[L.icon] || Object.entries(L.slots || {}).flatMap(([k, bs]) => bs.map(b => [b.x, b.y, b.w, b.h, k === 'title' ? '#8A93A3' : k === 'image' ? '#4A5263' : '#5B6271', '2px'])))
+  .map(([l, t, w, h, bg, rad]) => ({ l, t, w, h, bg, rad: rad || '0' }));
 // Component layers: the default snippet (a self-documenting demo) and the brief for an AI writing one.
 const COMPONENT_DEFAULT = `<div id="out" style="height:100%;display:grid;place-items:center;font:600 7vw system-ui;color:#fbf9f4;background:rgba(31,111,184,.35);border-radius:12px"></div>
 <script>
@@ -1729,7 +1752,7 @@ class Component extends DCLogic {
       if (!this._sr || refs.some((v, i) => v !== this._sr[i])) { this._sr = refs; try { localStorage.setItem(store, JSON.stringify({ md: S.md, layout: layoutOf(S.nodes, S, this._linkedOv) })); } catch (e) {} }
     }
     if (!STATIC) {
-      const u = JSON.stringify({ navW: S.navW, rightW: S.rightW, secOpen: S.secOpen, stab: S.stab, presentFit: S.presentFit, showCrumbs: S.showCrumbs, crumbFade: S.crumbFade, view: S.view, rtab: S.rtab, collapsed: S.collapsed, treeZoom: S.treeZoom, treeFocus: S.treeFocus, applyTo: S.applyTo });
+      const u = JSON.stringify({ navW: S.navW, rightW: S.rightW, secOpen: S.secOpen, presentFit: S.presentFit, showCrumbs: S.showCrumbs, crumbFade: S.crumbFade, view: S.view, rtab: S.rtab, collapsed: S.collapsed, treeZoom: S.treeZoom, treeFocus: S.treeFocus, applyTo: S.applyTo });
       if (u !== this._u) { this._u = u; try { localStorage.setItem(UIKEY, u); } catch (e) {} }
     }
     if (S.cur !== this._lastCur) { this._lastCur = S.cur; this.scrollTree(); this.scrollMd(); if (S.showCrumbs === 'fade') this.litCrumbs(); }
@@ -1824,6 +1847,10 @@ class Component extends DCLogic {
   resolveLayer(l, nodeId) {
     const r = this.styledLayer(l, nodeId); if (!r || !['text', 'shape', 'icon'].includes(r.type)) return r;
     const { palette, fonts } = this.theme(), col = v => TH.tokenColor(v, palette), fam = v => ['head', 'body', 'mono'].includes(v) ? TH.fontFor(v, fonts) : v;
+    if (r.type === 'shape' && r.token) {   // a token fill: the palette colour at the shape's fill opacity (opacity is a 0–100 percent here); its stroke is the colour itself
+      const c = r.token === 'none' ? null : col(r.token), a = Math.round(Math.max(0, Math.min(100, r.opacity ?? 100)) / 100 * 255);
+      return { ...r, fill: c ? c + a.toString(16).padStart(2, '0') : 'transparent', stroke: c || col('text'), opacity: 1 };
+    }
     if (r.type !== 'text') return r.fill ? { ...r, fill: col(r.fill) } : r;
     return { ...r, ...(r.color ? { color: col(r.color) } : {}), ...(r.font ? { font: fam(r.font) } : {}),
       _lines: r._lines.map(line => line.map(run => ({ ...run, ...(run.color ? { color: col(run.color) } : {}), ...(run.font ? { font: fam(run.font) } : {}) }))) };
@@ -1948,8 +1975,7 @@ class Component extends DCLogic {
   layoutPatch(n, L) { if (!L || n._from) return null; const ls0 = this.layersOfNode(n).filter(l => !isGen(l));
     // The old layout's template props come off before the new layout's go on, so a layer carries exactly the new template's.
     const old = tplProps(ls0, this.layouts()[n.layout]), strip = l => { const o = { ...l }; for (const k of old[l.id] || []) delete o[k]; return o; };
-    const ls = ls0.map(strip), boxes = fillSlots(ls, L), { custom: _c, layers: _l, ...rest } = n;
-    const par = Object.values(this.state.nodes).find(p => (p.children || []).includes(n.id)), gen = genLayers(L, par ? par.children.indexOf(n.id) : 0);
+    const ls = ls0.map(strip), boxes = fillSlots(ls, sided(L, n)), { custom: _c, layers: _l, ...rest } = n, gen = genLayers(L, this.indexOf(n.id), n);
     return { ...rest, layers: [...gen, ...backFirst(ls.map(l => (boxes[l.id] ? { ...l, ...boxes[l.id] } : l)), boxes)], layout: L.id }; }
   // Extras (layers not from the markdown) live only in a per-slide override.
   hasExtras(id) { return this.layersOf(id).some(l => !isMd(l) && !isGen(l)); }
@@ -1957,7 +1983,8 @@ class Component extends DCLogic {
   shapeLayout(id) { const ls = this.layersOf(id), own = this.state.layouts || {}, L = this.layouts(), fits = x => fitsTemplate(ls, x), d = (this.state.layoutDefaults || {})[this.slideSig(id)];
     return fits(L[d]) ? L[d] : L[Object.keys(own).find(k => fits(own[k]))] || Object.values(L).find(fits) || null; }
   // A slide given a layout other than its shape's (or with extras) becomes an override, else the next enrich would undo it.
-  applyLayout(id, lid) { const p = this.layoutPatch(this.state.nodes[id], this.layouts()[lid]); if (!p) return;
+  indexOf(id) { const par = Object.values(this.state.nodes).find(p => (p.children || []).includes(id)); return par ? par.children.indexOf(id) : 0; }   // among its siblings
+  applyLayout(id, lid, n = this.state.nodes[id]) { const p = this.layoutPatch(n, this.layouts()[lid]); if (!p) return;
     const own = this.hasExtras(id) || (this.shapeLayout(id) || {}).id !== lid, nodes = { ...this.state.nodes, [id]: own ? { ...p, custom: true } : p }; this.allowLayout(nodes); this.setState({ nodes }); }
   ownSlideIds() { return Object.keys(this.state.nodes).filter(k => !this.state.nodes[k]._from && (k !== 'ROOT' || this.state.titlePage)); }
   // Make L the default for its type and lay out every default (non-custom) slide of that type.
@@ -1967,6 +1994,13 @@ class Component extends DCLogic {
     for (const k of this.ownSlideIds()) { if (!fitsTemplate(this.layersOf(k), L)) continue; sigs.add(this.slideSig(k)); if (this.isCustom(k)) { kept++; continue; } const p = this.layoutPatch(N[k], L); if (p) { nodes[k] = p; updated++; } }
     this.allowLayout(nodes); this.setState(s => ({ nodes, layoutDefaults: { ...(s.layoutDefaults || {}), ...Object.fromEntries([...sigs].map(g => [g, lid])) } }));
     this.flash('Updated ' + updated + ' slide' + (updated === 1 ? '' : 's') + ' · kept ' + kept + ' custom');
+  }
+  // Template options (barStyle, side) live on the slide. Side re-lays the slots; the bar style only redraws the generated bar.
+  setTemplateOpt(id, patch) {
+    const n = { ...this.state.nodes[id], ...patch }, L = this.effectiveLayout(id); if (!L || n._from) return;
+    if ('side' in patch) { this.applyLayout(id, L.id, n); return; }
+    const nodes = { ...this.state.nodes, [id]: { ...n, layers: [...genLayers(L, this.indexOf(id), n), ...this.layersOfNode(n).filter(l => !isGen(l))] } };
+    this.allowLayout(nodes); this.setState({ nodes });
   }
   resetToDefault(id) { const d = this.shapeLayout(id); if (d) this.applyLayout(id, d.id); }
   saveAsLayout(id) {
@@ -2021,7 +2055,6 @@ class Component extends DCLogic {
   goStep(n) { this.setState({ at: n, editing: null }); }
   updLayer(id, lid, patch) { this.setLayers(id, ls => ls.map(l => l.id === lid ? { ...l, ...patch } : l)); }
   setStyle(id, patch) { this.setState(s => ({ styles: { ...(s.styles || {}), [id]: { ...((s.styles || {})[id] || {}), ...patch } } })); }
-  clearKeys(id, lid, keys) { this.setLayers(id, ls => ls.map(l => { if (l.id !== lid) return l; const o = { ...l }; keys.forEach(k => delete o[k]); return o; })); }
   // '' = Custom: keep the look by writing the resolved values onto the layer. Otherwise adopt the style fully.
   chooseStyle(id, lid, sid) {
     this.setLayers(id, ls => ls.map(l => { if (l.id !== lid) return l;
@@ -2085,7 +2118,7 @@ class Component extends DCLogic {
     const id = this.curId(); const lid = 'l' + uid();
     const D0 = { text: { x: 20, y: 40, w: 60, h: 14, text: 'New text', style: 'body' },
       image: { x: 30, y: 20, w: 40, h: 60, radius: 16, fit: 'cover', imgKey: null },
-      shape: { x: 40, y: 35, w: 20, h: 30, shape: 'rect', fill: '#d9432b', radius: 24 },
+      shape: { x: 40, y: 35, w: 20, h: 30, ...SHAPE_DEFAULT },
       icon: { x: 45, y: 41, w: 10, h: 17.78, icon: 'star', fill: null, sw: 1.8 },
       component: { x: 20, y: 15, w: 60, h: 70, name: 'Component', code: COMPONENT_DEFAULT } };
     const l = { id: lid, type, rot: 0, opacity: 1, ...D0[type], ...(extra || {}) };
@@ -2145,6 +2178,25 @@ class Component extends DCLogic {
     };
     window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
   }
+  // A drawing tool: drag on the stage draws a new layer (Shift: a circle or square), then the tool goes back to Select. A Text click adds a Body text layer there.
+  startDraw(ev) {
+    if (ev.button) return; const tool = this.state.tool, st = this.stageRef.current; if (!st) return; const r = st.getBoundingClientRect();
+    const pt = e => ({ x: (e.clientX - r.left) / r.width * 100, y: (e.clientY - r.top) / r.height * 100 }), a = pt(ev);
+    const end = e => { const b = pt(e); if (!e.shiftKey || !['rect', 'round', 'ellipse'].includes(tool)) return b;
+      const dx = (b.x - a.x) * r.width, dy = (b.y - a.y) * r.height, side = Math.max(Math.abs(dx), Math.abs(dy));   // in px, so it's square on screen
+      return { x: a.x + Math.sign(dx || 1) * side / r.width, y: a.y + Math.sign(dy || 1) * side / r.height }; };
+    const box = b => ({ x: rd(Math.min(a.x, b.x)), y: rd(Math.min(a.y, b.y)), w: rd(Math.abs(b.x - a.x)), h: rd(Math.abs(b.y - a.y)) });
+    const move = e => this.setState({ marquee: box(end(e)) });
+    const up = e => {
+      window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up);
+      const b = end(e), m = box(b); this.setState({ marquee: null });
+      if (tool === 'text') { this.addLayer('text', { x: m.x, y: m.y, ...(m.w > 2 && m.h > 2 ? { w: m.w, h: m.h } : {}) }); this.setState({ tool: 'select' }); return; }
+      if (m.w < 0.5 && m.h < 0.5) return;   // a click: nothing to draw
+      const line = tool === 'line' || tool === 'arrow', dir = line ? { flip: (b.x > a.x) !== (b.y > a.y), back: b.x < a.x } : {};
+      this.addLayer('shape', { ...m, kind: tool, ...Object.fromEntries(Object.entries(dir).filter(([, v]) => v)) }); this.setState({ tool: 'select' });
+    };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+  }
   delLayer(lid) { if (isGen({ id: lid })) return; this.setLayers(this.curId(), ls => ls.filter(l => l.id !== lid)); this.setState({ layerSel: null, editing: null }); }
   dupLayer(lid) { const l = this.layersOf(this.curId()).find(x => x.id === lid); if (!l || isGen(l)) return; const nl = { ...l, id: 'l' + uid(), x: l.x + 2, y: l.y + 3 }; this.setLayers(this.curId(), ls => [...ls, nl]); this.setState({ layerSel: nl.id }); }
   zLayer(lid, dir) { this.setLayers(this.curId(), ls => { const a = [...ls]; const i = a.findIndex(l => l.id === lid); const j = i + dir; if (i < 0 || j < 0 || j >= a.length) return ls; [a[i], a[j]] = [a[j], a[i]]; return a; }); }
@@ -2155,7 +2207,8 @@ class Component extends DCLogic {
     const cid = this.curId(); const o = this.layersOf(cid).find(l => l.id === lid); if (!o) return;
     const ids = this.selIds(), group = mode === 'move' && ids.length > 1 && ids.includes(lid);
     const orig = group ? this.layersOf(cid).filter(l => ids.includes(l.id)) : null;
-    this.setState(group ? { editing: null, rtab: 'slides' } : { layerSel: lid, layerSet: [], editing: null, rtab: 'slides' });
+    const rtab = isMd({ id: lid }) ? 'content' : 'slides';   // a markdown layer's words are edited in Content
+    this.setState(group ? { editing: null, rtab } : { layerSel: lid, layerSet: [], editing: null, rtab });
     const sx = ev.clientX, sy = ev.clientY; let moved = false;
     const move = e => {
       const dx = (e.clientX - sx) / r.width * 100, dy = (e.clientY - sy) / r.height * 100;
@@ -2262,6 +2315,7 @@ class Component extends DCLogic {
     }
     if ((e.metaKey || e.ctrlKey) && (k === 'z' || k === 'Z')) { e.preventDefault(); if (e.shiftKey) this.redo(); else this.undo(); return; }
     if ((e.metaKey || e.ctrlKey) && (k === 'y' || k === 'Y')) { e.preventDefault(); this.redo(); return; }
+    if (S.mode === 'build' && !e.metaKey && !e.ctrlKey && !e.altKey && TOOL_KEYS[k.toLowerCase()]) { this.setState({ tool: TOOL_KEYS[k.toLowerCase()] }); return; }
     if ((e.metaKey || e.ctrlKey) && (k === 'a' || k === 'A') && S.mode === 'build' && S.view === 'slide') { e.preventDefault(); this.setSelection(this.layersOf(this.curId()).map(l => l.id)); return; }
     if (S.mode === 'build' && S.view === 'slide' && this.selIds().length > 1) {
       if (k.startsWith('Arrow')) { e.preventDefault(); const st = e.shiftKey ? 5 : 0.5; const d = DIRS[k.slice(5).toLowerCase()]; this.moveSel(d[0] * st, d[1] * st * 16 / 9); }
@@ -2438,17 +2492,13 @@ class Component extends DCLogic {
     // layer editing
     const editable = !isPresent && !isWire && !active && !curN._from;
     const curLayers = this.layersOf(cur); const ly = S.layerSel ? curLayers.find(l => l.id === S.layerSel && !isGen(l)) : null;
-    const styled = !!(ly && ly.type === 'text' && ly.style && this.styles()[ly.style] && !this.styles()[ly.style].deleted), toStyle = styled && S.styleTarget === 'style';
-    const lyR = ly ? this.styledLayer(ly, cur) : null;
-    const lv = toStyle ? { ...Object.fromEntries(Object.entries(lyR).filter(([k]) => !STYLE_KEYS.includes(k))), ...this.styles()[ly.style] } : lyR;   // Style mode shows the style's values only, so a layer's overrides never leak into it
-    const over = k => styled && ly[k] !== undefined;
-    // Style mode sends style settings to the style; everything else (text, geometry, link…) always goes to the layer.
-    const upL = patch => { if (!ly) return; if (!toStyle) { this.updLayer(cur, ly.id, patch); return; }
-      const sp = {}, lp = {}; for (const k in patch) (STYLE_KEYS.includes(k) ? sp : lp)[k] = patch[k];
-      if (Object.keys(sp).length) this.setStyle(ly.style, sp); if (Object.keys(lp).length) this.updLayer(cur, ly.id, lp); };
+    const styled = !!(ly && ly.type === 'text' && ly.style && this.styles()[ly.style] && !this.styles()[ly.style].deleted);
+    const lv = ly ? this.styledLayer(ly, cur) : null;
+    const upL = patch => { if (ly) this.updLayer(cur, ly.id, patch); };
     const lname = l => l.type === 'text' ? short(plainText(l.text).split('\n')[0] || 'Text', 24) : l.type === 'image' ? 'Image' : l.type === 'shape' ? ({ rect: 'Rectangle', ellipse: 'Ellipse', triangle: 'Triangle' }[l.shape] || 'Shape') : l.type === 'component' ? '⧉ ' + (l.name || 'Component') : 'Icon · ' + (l.icon || '');
     const selIds = this.selIds(), multi = selIds.length > 1, hits = S.marqueeHits || [], mh = this._mh || {};
-    const overlays = curLayers.map((l, i) => ({ l: l.x, t: l.y, w: l.w, h: Math.max(l.h, mh[l.id] || 0), rot: l.rot || 0, z: i + 1, pe: S.interact === l.id && S.layerSel === l.id ? 'none' : 'auto', selected: selIds.includes(l.id), single: !multi && l.id === S.layerSel, hidden: !!l.hidden,
+    const tool = TOOLS.some(t => t[0] === S.tool) ? S.tool : 'select';   // a drawing tool draws over layers, so they let the pointer through
+    const overlays = curLayers.map((l, i) => ({ lid: l.id, l: l.x, t: l.y, w: l.w, h: Math.max(l.h, mh[l.id] || 0), rot: l.rot || 0, z: i + 1, pe: tool !== 'select' || (S.interact === l.id && S.layerSel === l.id) ? 'none' : 'auto', selected: selIds.includes(l.id), single: !multi && l.id === S.layerSel, hidden: !!l.hidden,
       outline: selIds.includes(l.id) || hits.includes(l.id) ? '2px solid #7AA2FF' : 'none', label: lname(l) + (l.link ? (l.link.type === 'url' ? '  ↗ ' + short(l.link.url || 'web link', 26) : '  → ' + short(N[l.link.id] ? name(l.link.id) : 'missing slide', 22)) : ''),
       onDown: ev => this.startDrag(ev, l.id, 'move'), onDbl: ev => { ev.stopPropagation(); this.startEdit(l.id); }, onDrop: ev => this.dropOn(ev, l.id),
       onNW: ev => this.startDrag(ev, l.id, 'nw'), onNE: ev => this.startDrag(ev, l.id, 'ne'), onSW: ev => this.startDrag(ev, l.id, 'sw'), onSE: ev => this.startDrag(ev, l.id, 'se'),
@@ -2468,7 +2518,8 @@ class Component extends DCLogic {
       onImgFile: e => this.onImgFile(e), overlays, guideV: !!S.guides.v, guideH: !!S.guides.h, isEditingText: !!edL && !(editable && S.editMode !== 'markup'), ed,
       onEditText: e => edL && this.updLayer(cur, edL.id, { text: e.target.value }), stopEditing: () => setTimeout(() => { if (!this.focusInBar()) this.setState({ editing: null }); }, 0),   // a click into the formatting bar keeps editing
       onEditSel: e => { this._sel = { start: e.target.selectionStart, end: e.target.selectionEnd }; }, stopProp: e => e.stopPropagation(),
-      onStageDown: ev => this.startMarquee(ev), allowDrop: e => e.preventDefault(), onStageDrop: e => this.dropOn(e, null),
+      onStageDown: ev => (tool === 'select' ? this.startMarquee(ev) : this.startDraw(ev)), showTools: editable && S.view === 'slide',
+      tools: TOOLS.map(([id, label, , path]) => ({ id, label, path, on: id === tool, bg: id === tool ? '#3A4A70' : 'transparent', pick: () => this.setState({ tool: id }) })), toolHint: TOOLS.find(t => t[0] === tool)[2], allowDrop: e => e.preventDefault(), onStageDrop: e => this.dropOn(e, null),
       rightW: Math.max(240, Math.min(S.rightW, (typeof window !== 'undefined' ? window.innerWidth : 1400) - S.navW - 380)), onRightResize: e => this.rightResize(e),
       lyIsComponent: !!(ly && ly.type === 'component'), compName: ly && ly.name || '', onCompName: e => this.updLayer(cur, ly.id, { name: e.target.value }),
       compCode: ly && ly.type === 'component' ? ((S.compDraft || {})[ly.id] ?? ly.code ?? '') : '',
@@ -2491,47 +2542,22 @@ class Component extends DCLogic {
       lyIsText: !!ly && ly.type === 'text', lyIsImage: !!ly && ly.type === 'image',
       pasteImage: () => ly && this.pasteFromClipboard(cur, ly.id), pasteTitle: S.clipMsg || (S.clipImg ? 'Paste the image on your clipboard' : 'Paste image from clipboard (or Ctrl/⌘+V)'),
       pasteBg: S.clipImg ? '#7AA2FF' : '#23262E', pasteColor: S.clipImg ? '#0B1020' : '#E8EAEE', pasteBorder: S.clipImg ? '#7AA2FF' : '#2C3039',
-      clipMsgOn: !!S.clipMsg && !!ly && ly.type === 'image', clipMsg: S.clipMsg || '', lyIsShape: !!ly && ly.type === 'shape', lyIsIcon: !!ly && ly.type === 'icon', lyIsRect: !!ly && ly.shape === 'rect',
+      clipMsgOn: !!S.clipMsg && !!ly && ly.type === 'image', clipMsg: S.clipMsg || '', lyIsShape: !!ly && ly.type === 'shape', lyIsIcon: !!ly && ly.type === 'icon', lyNotShape: !!ly && ly.type !== 'shape',
       dupLayer: () => ly && this.dupLayer(ly.id), delLayer: () => ly && this.delLayer(ly.id),
-      onLyText: e => upL({ text: e.target.value }), onLySize: e => upL({ size: +e.target.value }), sizeLabel: ly ? (ly.size || 40) + '' : '',
-      fontBtns: FONT_LIST.map(([k, label, css]) => ({ label, title: label, font: css, ...tabOn(ly && (ly.font || 'body') === k, { font: css }), onClick: () => upL({ font: k }) })),
-      weightBtns: [[400, 'Reg'], [600, 'Semi'], [800, 'Bold']].map(([w, label]) => ({ label, title: label, ...tabOn(ly && (ly.weight || 400) === w, { weight: w }), onClick: () => upL({ weight: w }) })),
-      alignBtns: [['left', 'Left'], ['center', 'Centre'], ['right', 'Right']].map(([a, label]) => ({ label, title: label, ...tabOn(ly && (ly.align || 'left') === a), onClick: () => upL({ align: a }) })),
-      valignBtns: [['top', 'Top'], ['middle', 'Middle'], ['bottom', 'Bottom']].map(([a, label]) => ({ label, title: label, ...tabOn(ly && (ly.valign || 'top') === a), onClick: () => upL({ valign: a }) })),
-      bulletBtns: [['none', 'None'], ['disc', '•'], ['dash', '–'], ['number', '1.'], ['check', '✓'], ['arrow', '→']].map(([b, label]) => ({ label, title: b === 'none' ? 'No bullets' : 'Bullets: ' + b, ...tabOn(ly && (ly.bullets || 'none') === b), onClick: () => upL({ bullets: b }) })),
-      lhLabel: ly ? (ly.lh || 1.2).toFixed(2) : '', onLyLh: e => upL({ lh: +e.target.value }),
-      lyGap: ly ? (ly.gap ?? 0.15) : 0, gapLabel2: ly ? (ly.gap ?? 0.15).toFixed(2) + 'em' : '', onLyGap: e => upL({ gap: +e.target.value }),
       swatches: [{ label: 'A', title: 'Deck default', bg: '#23262E', border: ly && !curColor ? '2px solid #7AA2FF' : '1px solid #343944', onClick: () => upL({ [colorKey]: null }) }]
-        .concat(SWATCH.map(v => ({ label: '', title: v, bg: v, border: curColor === v ? '2px solid #7AA2FF' : '1px solid #343944', onClick: () => upL({ [colorKey]: v }) }))),
+        .concat(COLOR_TOKENS.map(v => ({ label: '', title: cap(v), bg: TH.tokenColor(v, th.palette), border: curColor === v ? '2px solid #7AA2FF' : '1px solid #343944', onClick: () => upL({ [colorKey]: v }) }))),
       colorHex: toHex(curColor), onColorPick: e => upL({ [colorKey]: e.target.value }),
       lyThumb: ly && ly.imgKey && S.images[ly.imgKey] ? `#23262E url("${S.images[ly.imgKey]}") center / contain no-repeat` : 'repeating-linear-gradient(45deg,#2C3039 0 10px,#23262E 10px 20px)',
       chooseImage: () => ly && this.chooseImage(ly.id), clearImage: () => upL({ imgKey: null }),
       imgFields: ly && ly.type === 'image' ? [['Zoom', 'zoom', 1, 4, 0.05, 1, v => Math.round(v * 100) + '%'], ['Horizontal focus', 'focusX', 0, 100, 1, 50, v => v + '%'], ['Vertical focus', 'focusY', 0, 100, 1, 50, v => v + '%']]
         .map(([label, k, min, max, step, def, fmt]) => ({ label, min, max, step, value: ly[k] ?? def, valLabel: fmt(ly[k] ?? def), onChange: e => upL({ [k]: +e.target.value }) })) : [],
       fitBtns: [['cover', 'Fill frame'], ['contain', 'Fit inside']].map(([f, label]) => ({ label, title: label, ...tabOn(ly && (ly.fit || 'cover') === f), onClick: () => upL({ fit: f }) })),
-      lyRadius: ly ? (ly.radius || 0) : 0, radiusLabel: ly ? (ly.radius || 0) + '' : '', onLyRadius: e => upL({ radius: +e.target.value }),
-      shapeBtns: [['rect', 'Rectangle'], ['ellipse', 'Ellipse'], ['triangle', 'Triangle']].map(([k, label]) => ({ label, title: label, ...tabOn(ly && ly.shape === k), onClick: () => upL({ shape: k }) })),
       iconBtns: Object.entries(ICONS).map(([name, path]) => ({ name, path, border: ly && ly.icon === name ? '2px solid #7AA2FF' : '1px solid #2C3039', onClick: () => upL({ icon: name }) })),
       lySw: ly ? (ly.sw || 1.8) : 1.8, swLabel: ly ? (ly.sw || 1.8).toFixed(1) : '', onLySw: e => upL({ sw: +e.target.value }),
       geoFields: ly ? [['X', 'x'], ['Y', 'y'], ['W', 'w'], ['H', 'h']].map(([label, k]) => ({ label: label + ' %', value: rd(ly[k]), onChange: e => { const v = parseFloat(e.target.value); if (!isNaN(v)) upL({ [k]: v }); } })) : [],
       lyRot: ly ? (ly.rot || 0) : 0, rotLabel: ly ? (ly.rot || 0) + '°' : '', onLyRot: e => upL({ rot: +e.target.value }),
       lyOp: ly ? (ly.opacity ?? 1) : 1, opLabel: ly ? Math.round((ly.opacity ?? 1) * 100) + '%' : '', onLyOp: e => upL({ opacity: +e.target.value }),
     };
-    const withCur = (list, v) => (v === undefined || list.includes(v) ? list : [...list, v].sort((a, b) => a - b));
-    const field = (label, key, opts, fallback, parse) => ({ isSel: true, label: label + (over(key) ? ' •' : ''), value: String(lv ? (lv[key] ?? fallback) : fallback), opts: opts.map(([v, l]) => ({ v: String(v), l })), onChange: e => upL({ [key]: parse ? parse(e.target.value) : e.target.value }), over: over(key), onReset: () => this.clearKeys(cur, ly.id, [key]) });
-    // Numeric settings: a number input; empty, non-numeric or below-minimum input is ignored.
-    const numField = (label, key, step, min, unit, fallback) => ({ num: true, label: label + (over(key) ? ' •' : ''), step, min, unit, value: String(lv ? (lv[key] ?? fallback) : fallback),
-      onChange: e => { const v = parseFloat(e.target.value); if (Number.isFinite(v) && v >= min) upL({ [key]: v }); }, over: over(key), onReset: () => this.clearKeys(cur, ly.id, [key]) });
-    const textFields = ly && ly.type === 'text' ? [
-      field('Font', 'font', FONT_LIST.map(f => [f[0], f[1]]), 'body'),
-      numField('Size', 'size', 1, 1, 'px', 40),
-      field('Weight', 'weight', [[400, 'Regular'], [500, 'Medium'], [600, 'Semibold'], [700, 'Bold'], [800, 'Extra bold']], 400, Number),
-      field('Align', 'align', [['left', 'Left'], ['center', 'Centre'], ['right', 'Right']], 'left'),
-      field('V-align', 'valign', [['top', 'Top'], ['middle', 'Middle'], ['bottom', 'Bottom']], 'top'),
-      field('Bullets', 'bullets', [['none', 'None'], ['disc', '•  Dot'], ['dash', '–  Dash'], ['number', '1.  Numbers'], ['check', '✓  Check'], ['arrow', '→  Arrow']], 'none'),
-      numField('Line ht', 'lh', 0.05, 0.5, '', 1.2),
-      numField('Gap', 'gap', 0.05, 0, 'em', 0.15),
-    ] : [];
     // build steps
     const stepsCur = this.stepsOf(cur), atCur = S.at || 0, lastStep = Math.max(0, ...stepsCur), stepNav = this.stepsShown();   // the arrows walk steps only where go() does
     const stepVals = {
@@ -2555,25 +2581,41 @@ class Component extends DCLogic {
           if (hit) { this.followInline(hit.dataset); return; }   // an inline link under the pointer wins over the layer's own link
           if (l.link.type === 'url') window.open(webUrl(l.link.url), '_blank', 'noopener'); else this.nav(l.link.id, 'jump'); } })) : [],
     };
+    // Shape properties (Templates.dc.html): kind, fill token and opacity, border, and how overlapping shapes blend.
+    const seg = (opts, on, set) => opts.map(([v, label]) => ({ label, on: v === on, bg: v === on ? '#343944' : 'transparent', pick: () => set(v) }));
+    const sh = ly && ly.type === 'shape' ? ly : null, shBorder = (sh && sh.border) || { width: 0, style: 'solid' }, shKind = sh ? sh.kind || sh.shape || 'rect' : '', shLine = shKind === 'line' || shKind === 'arrow';
+    const shapeVals = {
+      shapeTitle: sh ? ({ ellipse: 'Ellipse', round: 'Rounded rectangle', rect: 'Rectangle', line: 'Line', arrow: 'Arrow', triangle: 'Triangle' }[shKind] || 'Shape') : '', shapeIsArea: !!sh && !shLine,
+      kindOpts: seg([['ellipse', 'Ellipse'], ['round', 'Rounded'], ['rect', 'Rectangle']], shKind, v => upL({ kind: v })),
+      fillOpts: ['primary', 'secondary', 'tertiary', 'impact', 'text', 'none'].map(tok => ({ label: tok === 'none' ? 'None' : cap(tok), on: !!sh && sh.token === tok,
+        swatch: tok === 'none' ? 'repeating-linear-gradient(45deg, #343944 0 4px, #23262E 4px 8px)' : TH.tokenColor(tok, th.palette),
+        outline: sh && sh.token === tok ? '2px solid #7AA2FF' : '1px solid #343944', pick: () => upL({ token: tok }) })),
+      shapeOpacity: sh ? sh.opacity ?? 100 : 0, setShapeOpacity: e => upL({ opacity: +e.target.value }),
+      widthOpts: seg([[0, 'None'], [1, 'Thin'], [2, 'Medium'], [5, 'Thick']], shBorder.width, v => upL({ border: { ...shBorder, width: v } })),
+      borderStyleOpts: seg([['solid', 'Solid'], ['dashed', 'Dashed'], ['dotted', 'Dotted']], shBorder.style, v => upL({ border: { ...shBorder, style: v } })),
+      blendOpts: seg([['normal', 'Stack'], ['screen', 'Blend colours']], (sh && sh.blend) || 'normal', v => upL({ blend: v })),
+    };
     const results = isPresent && q ? D.order.filter(id => match[id]).slice(0, 10).map(id => ({ title: name(id), path: pathOf(id).slice(0, -1).map(name).join(' › ') || 'Top level', onClick: () => { this.setState({ query: '' }); this.nav(id, 'jump'); } })) : [];
 
     const styleCount = {}; for (const k of this.ownSlideIds()) { this.layersOf(k).forEach(l => { if (l.style) styleCount[l.style] = (styleCount[l.style] || 0) + 1; }); }   // ponytail: per-render scan; memoise on nodes if it shows in a profile
     const rich = !!edL && editable && S.editMode !== 'markup';
     const wl = rich ? (this._wysLines || linesOf(edL.text)) : null, ws = S.wysSel || this._wysSel || null;
     const lk = rich && ws ? linkAt(wl, ws.start) : null;
-    // ---- Layout panel. ponytail: effectiveLayout for every node per render; fine for hundreds of slides, memoise on nodes if it shows in a profile.
-    const LAY = this.layouts(), STY = this.styles();
-    const sigM = sigOf(curLayers, STY), sigK = sigKey(sigM), effL = sigK ? this.effectiveLayout(cur) : null;
-    const keyName = k => k[0].toUpperCase() + k.slice(1), chipsOf = m => Object.keys(m).sort().map(k => keyName(k) + ' ×' + m[k]);
-    const users = {}; for (const k of this.ownSlideIds()) { const e = this.effectiveLayout(k); if (e) (users[e.id] = users[e.id] || []).push(k); }
-    const defId = (S.layoutDefaults || {})[sigK], firstFit = Object.values(LAY).find(x => fitsTemplate(curLayers, x));
-    const listOf = lid => (users[lid] || []).map(k => ({ name: name(k), onClick: () => { this.nav(k, 'jump'); this.setState({ rtab: 'slides', stab: 'layout' }); } }));
-    const tileOf = L => ({ id: L.id, name: L.name, star: L.id === (fitsTemplate(curLayers, LAY[defId]) ? defId : firstFit && firstFit.id), count: (users[L.id] || []).length + ' slides',
-      open: S.layOpen === L.id, slides: listOf(L.id), onToggle: () => this.setState({ layOpen: S.layOpen === L.id ? null : L.id }),
-      onApply: () => this.applyLayout(cur, L.id), onApplyAll: () => this.applyToAll(L.id), onName: e => this.renameLayout(L.id, e.target.value),
-      regions: Object.keys(L.slots || {}).flatMap(k => (L.slots[k] || []).map((_, i) => ({ label: k + '-' + (i + 1), value: ((L.names || {})[k] || [])[i] || k + '-' + (i + 1), onChange: e => this.renameRegion(L.id, k, i, e.target.value) }))),
-      canDelete: !BUILTIN_LAYOUTS[L.id], onDelete: () => this.deleteLayout(L.id), chips: chipsOf(L.match),
-      layers: (b => this.shown(cur, curLayers.map(l => (b[l.id] ? { ...l, ...b[l.id] } : l))))(fillSlots(curLayers, L, STY)) });
+    // ---- Slides tab: the template grid (fitting templates first), the current template's actions and options, and its placeholders.
+    const LAY = this.layouts(), sigK = sigKey(sigOf(curLayers)), effL = sigK ? this.effectiveLayout(cur) : null;
+    const tileOf = L => ({ id: L.id, name: L.name, rects: tplRects(L), on: !!effL && effL.id === L.id, outline: effL && effL.id === L.id ? '2px solid #7AA2FF' : '1px solid #343944',
+      pick: () => this.applyLayout(cur, L.id) });
+    const tplAll = Object.values(LAY), fitsCur = L => !!sigK && fitsTemplate(curLayers, L);
+    const opts = (effL && effL.opts) || [];
+    const tplVals = {
+      tplFits: tplAll.filter(fitsCur).map(tileOf), tplOthers: tplAll.filter(L => !fitsCur(L)).map(tileOf), hasTpl: !!effL, tplName: effL ? effL.name : '',
+      onTplName: e => effL && this.renameLayout(effL.id, e.target.value), tplCanDelete: !!effL && !BUILTIN_LAYOUTS[effL.id], onTplDelete: () => effL && this.deleteLayout(effL.id),
+      onLayApplyAll: () => effL && this.applyToAll(effL.id),
+      hasBarOpt: opts.includes('bar'), barOpts: seg([['band', 'Band'], ['rule', 'Underline'], ['none', 'None']], curN.barStyle || 'band', v => this.setTemplateOpt(cur, { barStyle: v })),
+      hasSideOpt: opts.includes('side'), sideOpts: seg([['left', 'List left'], ['right', 'List right']], curN.side || 'left', v => this.setTemplateOpt(cur, { side: v })),
+      placeholders: effL ? Object.entries(effL.slots || {}).flatMap(([k, bs]) => bs.map((_, i) => ({ name: ((effL.names || {})[k] || [])[i] || cap(k) + (bs.length > 1 ? ' ' + (i + 1) : ''),
+        pick: () => { this.setState({ rtab: 'content' }); this.scrollMd(); } }))) : [],
+    };
     // ---- Present map (Tree / Radial). ponytail: every slide's thumbnail is rendered; fine for hundreds of slides.
     let mapCards = [], mapEdges = [], mapW = 0, mapH = 0;
     if (mapView) {
@@ -2592,14 +2634,9 @@ class Component extends DCLogic {
     const tvFree = [TC.Wc <= 1.001 && 'Pan X', TC.Hc <= 1.001 && 'Pan Y'].filter(Boolean);
 
     return {
-      ...(st => ({ stabBtns: [['layout', 'Layout'], ['layers', 'Layers']].map(([v, label]) => ({ label, ...tab(st === v), onClick: () => this.setState({ stab: v }) })),
-        stabLayout: st === 'layout', stabLayers: st === 'layers', layerPane: st === 'layers' }))(S.stab === 'layout' ? 'layout' : 'layers'),
       fromDeck: curN._from || '', fromHref: '?src=' + encodeURIComponent(curN._from || ''), ownSlide: !curN._from,
       styleOpts: [{ v: '', l: 'Custom' }].concat(Object.entries(this.styles()).filter(([, st]) => !st.deleted).map(([id, st]) => ({ v: id, l: st.name || id }))),
-      lyStyle: styled ? ly.style : '', onLyStyle: e => ly && this.chooseStyle(cur, ly.id, e.target.value), lyStyled: styled,
-      styleTargetBtns: styled ? [['layer', 'This layer'], ['style', (this.styles()[ly.style].name || ly.style) + ' style']].map(([v, label]) => ({ label, ...tab((S.styleTarget === 'style' ? 'style' : 'layer') === v), onClick: () => this.setState({ styleTarget: v }) })) : [],
-      lyHasOverrides: styled && STYLE_KEYS.some(over), onClearOverrides: () => ly && this.clearKeys(cur, ly.id, STYLE_KEYS),
-      colorLabel: 'Colour' + (over('color') ? ' •' : ''), colorOver: over('color'), onColorReset: () => ly && this.clearKeys(cur, ly.id, ['color']),
+      lyStyle: styled ? ly.style : '', onLyStyle: e => ly && this.chooseStyle(cur, ly.id, e.target.value), lyStyleShow: !!ly && ly.type === 'text' && !isMd(ly),   // markdown layers take their style from the markdown
       styleRows: Object.entries(this.styles()).filter(([, st]) => !st.deleted).map(([id, st]) => ({ id, name: st.name || id, count: (styleCount[id] || 0) + ' layer' + (styleCount[id] === 1 ? '' : 's'), canDelete: !BUILTIN_STYLES[id],
         onName: e => this.setStyle(id, { name: e.target.value }), onDelete: () => this.deleteStyle(id) })),
       newStyleOff: !(ly && ly.type === 'text'), onNewStyle: () => ly && this.newStyleFrom(cur, ly.id),
@@ -2628,14 +2665,12 @@ class Component extends DCLogic {
       onLinkPick: e => { const v = e.target.value; if (!v) return; const r = lk || ws || { start: 0, end: 0 };
         if (v === '@url') { this._linkTarget = r; this.setState({ fmtUrl: true, fmtUrlVal: '' }); return; }
         this.formatRange(r.start, r.end, { attrs: v === '-' ? { link: null, href: null } : { link: v, href: null } }); this.setState({ linkPick: false }); },
-      layChips: chipsOf(sigM), layEditable: !(curN && curN._from), layCustom: !!(curN && curN.custom) && !curN._from && !!effL,
+      layEditable: !(curN && curN._from), layCustom: !!(curN && curN.custom) && !curN._from && !!effL,
       layStatus: !sigK ? 'Nothing on this slide to lay out' : !effL ? 'No layout for this type yet' : curN.custom ? 'This slide · ' + effL.name : 'Default · ' + effL.name,
       onLayReset: () => this.resetToDefault(cur),
       applyItems: [['slide', 'This slide'], ['layout', 'Layout']].map(([v, label]) => ({ label, ...tab((S.applyTo || 'slide') === v), onClick: () => this.setState({ applyTo: v }) })),
       warnBadges: isPresent ? [] : curLayers.filter(l => l._warn && !l.hidden).map(l => ({ x: l.x, y: l.y, title: 'Not placed by this slide\'s layout — click to add a region for it', onClick: () => this.claimBlock(cur, l.id), onDown: e => e.stopPropagation() })),
-      layTiles: !sigK ? [] : Object.values(LAY).filter(L => fitsTemplate(curLayers, L)).map(tileOf), layNoTiles: !!sigK && !firstFit,
       onLaySave: () => this.saveAsLayout(cur), layCanUpdate: !!effL, layUpdateLabel: effL ? 'Update “' + effL.name + '” from this slide' : '', onLayUpdate: () => this.updateLayoutFrom(cur),
-      layAll: Object.values(LAY).map(L => ({ ...tileOf(L), layers: [] })), layAllOpen: !!S.layAllOpen, onLayAllToggle: () => this.setState({ layAllOpen: !S.layAllOpen }),
       mapCards, mapEdges, mapW, mapH, mapCardW: MAP_W, mapCardH: MAP_H, mapZoom: mapZ, mapWz: Math.ceil(mapW * mapZ), mapHz: Math.ceil(mapH * mapZ),
       onMapZoomIn: () => this.setState({ mapZoom: Math.min(3, mapZ * 1.25) }), onMapZoomOut: () => this.setState({ mapZoom: Math.max(0.02, mapZ / 1.25) }), onMapFit: () => this.setState({ mapZoom: null }),
       viewMenuOpen: !!S.viewMenu, onViewMenu: () => this.setState({ viewMenu: !S.viewMenu }), onViewMenuClose: () => this.setState(closeMenu),
@@ -2660,7 +2695,7 @@ class Component extends DCLogic {
       tvX: tvw.x, tvXLabel: Math.round(tvw.x * 100) + '%', onTvX: e => setTv({ x: +e.target.value }),
       tvY: tvw.y, tvYLabel: Math.round(tvw.y * 100) + '%', onTvY: e => setTv({ y: +e.target.value }),
       tvHint: tvFree.length ? 'The whole canvas fits this way, so ' + tvFree.join(' and ') + ' has no effect.' : '',
-      ...layerVals, ...linkVals, textFields, ...stepVals,
+      ...layerVals, ...linkVals, ...shapeVals, ...tplVals, ...stepVals,
       sec: Object.fromEntries(['layout', 'layers', 'insert', 'canvas'].map(k => { const open = !!((S.secOpen || {})[k] ?? k === 'canvas'); return [k, { open, caret: open ? '▾' : '▸', toggle: () => this.setState(st => ({ secOpen: { ...st.secOpen, [k]: !open } })) }]; })),
       undo: () => this.undo(), redo: () => this.redo(), undoOp: this._past && this._past.length ? 1 : 0.4, redoOp: this._future && this._future.length ? 1 : 0.4,
       deckTitle: (S.titlePage && N.ROOT.title) || (N.ROOT.children[0] ? name(N.ROOT.children[0]) : DECK || 'Untitled'), emptyMsg: !N.ROOT.children.length ? EMPTY_MSG : S.loading && S.loading === cur ? 'Loading…' : '',

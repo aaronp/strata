@@ -10,7 +10,7 @@
 <div style="position:absolute;inset:0;container-type:size;overflow:hidden;pointer-events:none">
   <sc-if value="{{ slideCard }}"><div style="position:absolute;inset:0;background:{{ slideBg }};backdrop-filter:{{ slideBlur }}"></div></sc-if>
   <sc-for list="{{ items }}" as="e" hint-placeholder-count="0">
-    <div data-lid="{{ e.lid }}" style="position:absolute;left:{{ e.x }}%;top:{{ e.y }}%;width:{{ e.w }}%;height:{{ e.h }}%;transform:{{ e.transform }};opacity:{{ e.op }};clip-path:{{ e.bclip }};display:{{ e.display }};z-index:{{ e.z }};transition:{{ e.tr }}">
+    <div data-lid="{{ e.lid }}" style="position:absolute;left:{{ e.x }}%;top:{{ e.y }}%;width:{{ e.w }}%;height:{{ e.h }}%;transform:{{ e.transform }};opacity:{{ e.op }};clip-path:{{ e.bclip }};display:{{ e.display }};z-index:{{ e.z }};transition:{{ e.tr }};mix-blend-mode:{{ e.blend }}">
       <sc-if value="{{ e.isText }}">
         <div style="width:100%;min-height:100%;display:flex;flex-direction:column;justify-content:{{ e.vjust }};gap:{{ e.gap }}em;font-family:{{ e.font }};font-size:{{ e.fs }}cqw;font-weight:{{ e.weight }};color:{{ e.color }};text-align:{{ e.align }};line-height:{{ e.lh }};letter-spacing:{{ e.ls }}em;text-shadow:{{ e.shadow }};background:{{ e.cardBg }};backdrop-filter:{{ e.cardBlur }};border:{{ e.cardBorder }};padding:{{ e.cardPad }};border-radius:{{ e.cardRadius }};box-sizing:border-box">
           <sc-for list="{{ e.lines }}" as="ln" hint-placeholder-count="1">
@@ -22,7 +22,13 @@
         </div>
       </sc-if>
       <sc-if value="{{ e.isShape }}">
-        <div style="width:100%;height:100%;background:{{ e.fill }};border-radius:{{ e.radius }};clip-path:{{ e.clip }}"></div>
+        <div style="width:100%;height:100%;box-sizing:border-box;background:{{ e.fill }};border:{{ e.border }};border-radius:{{ e.radius }};clip-path:{{ e.clip }}"></div>
+      </sc-if>
+      <sc-if value="{{ e.isLine }}">
+        <svg width="100%" height="100%" style="display:block;overflow:visible">
+          <defs><marker id="{{ e.mid }}" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M0 0L10 5L0 10z" style="fill:{{ e.stroke }}"></path></marker></defs>
+          <line x1="{{ e.x1 }}" y1="{{ e.y1 }}" x2="{{ e.x2 }}" y2="{{ e.y2 }}" style="stroke:{{ e.stroke }};stroke-width:{{ e.sw }};stroke-dasharray:{{ e.dash }};stroke-linecap:round;marker-end:{{ e.mark }}"></line>
+        </svg>
       </sc-if>
       <sc-if value="{{ e.isIcon }}">
         <svg viewBox="0 0 24 24" width="100%" height="100%" preserveAspectRatio="xMidYMid meet" style="display:block;overflow:visible">
@@ -90,7 +96,7 @@ class Component extends DCLogic {
       const b = l.build, rot = 'rotate(' + (l.rot || 0) + 'deg)';
       const base = { lid: l.id, isComponent: false, z: i + 1, tr: b ? b.transition : 'none', transform: b && b.transform !== 'none' ? b.transform + ' ' + rot : rot, bclip: b ? b.clip : 'none',
         x: l.x, y: l.y, w: l.w, h: l.h, op: l.id === p.editingId ? 0 : (l.opacity ?? 1) * (b ? b.opacity : 1), display: l.hidden ? 'none' : 'block',
-        isText: l.type === 'text', isShape: l.type === 'shape', isIcon: l.type === 'icon', isImage: l.type === 'image' };
+        isText: l.type === 'text', isShape: l.type === 'shape', isLine: false, isIcon: l.type === 'icon', isImage: l.type === 'image', blend: l.blend || 'normal' };
       if (l.type === 'text') {
         const b = l.bullets || 'none'; const raw = String(l.text ?? '').split('\n');
         const run = r => ({ text: r.text, fw: r.weight || (r.b ? 'bolder' : ''), fst: r.i ? 'italic' : '', fsz: r.size ? r.size / 16 + 'cqw' : '', col: r.color || '', fam: r.font ? (FONTS[r.font] || r.font) : '', lsp: r.ls ? r.ls + 'em' : '',
@@ -105,8 +111,15 @@ class Component extends DCLogic {
           ...boxStyle(l) };
       }
       if (l.type === 'shape') {
-        const k = l.shape || 'rect';
-        return { ...base, fill: l.fill || '#d9432b', radius: k === 'ellipse' ? '50%' : ((l.radius || 0) / 16) + 'cqw', clip: k === 'triangle' ? 'polygon(50% 0,100% 100%,0 100%)' : 'none' };
+        // kind (the shape tool's): ellipse | round | rect | line | arrow. border.width is in tenths of cqw; stroke is the border/line colour (the host resolves tokens).
+        const k = l.kind || l.shape || 'rect', bw = (l.border && l.border.width) || 0, bs = (l.border && l.border.style) || 'solid', stroke = l.stroke || ink;
+        if (k === 'line' || k === 'arrow') {   // from the box's corner where the drag started to the one where it ended
+          const ends = l.flip ? [['0%', '100%'], ['100%', '0%']] : [['0%', '0%'], ['100%', '100%']], [a, z] = l.back ? [ends[1], ends[0]] : ends, w = bw / 10;
+          return { ...base, isShape: false, isLine: true, x1: a[0], y1: a[1], x2: z[0], y2: z[1], stroke, sw: w + 'cqw', mid: 'ah-' + l.id, mark: k === 'arrow' ? 'url(#ah-' + l.id + ')' : 'none',
+            dash: bs === 'dashed' ? w * 3 + 'cqw ' + w * 2 + 'cqw' : bs === 'dotted' ? '0 ' + w * 2 + 'cqw' : 'none' };
+        }
+        return { ...base, fill: l.fill || '#d9432b', radius: k === 'ellipse' ? '50%' : k === 'round' ? '3cqw' : l.kind ? '0' : ((l.radius || 0) / 16) + 'cqw',
+          clip: k === 'triangle' ? 'polygon(50% 0,100% 100%,0 100%)' : 'none', border: bw ? bw / 10 + 'cqw ' + bs + ' ' + stroke : '0' };
       }
       if (l.type === 'icon') return { ...base, path: ICONS[l.icon] || ICONS.star, fill: l.fill || ink, sw: l.sw || 1.8 };
       if (l.type === 'component') {

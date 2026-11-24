@@ -1601,10 +1601,9 @@ test("right panel: Content, Theme, Slides and Builds tabs; Canvas content (spaci
   }
   c.setState({ rtab: "canvas" }); v = c.renderVals(); expect(v.tabContent).toBe(true); expect(v.tabTheme).toBe(false);
   c.setState({ rtab: "theme" }); v = c.renderVals();
-  expect(v.sec.canvas.open).toBe(true); v.sec.canvas.toggle(); expect(c.renderVals().sec.canvas.open).toBe(false);
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
   const theme = html.slice(html.indexOf('<sc-if value="{{ tabTheme }}">'));
-  expect(theme).toContain('onClick="{{ sec.canvas.toggle }}"'); expect(theme).toContain('value="{{ rowStep }}"'); expect(html).not.toContain("{{ tabCanvas }}");
+  expect(theme).toContain('<sc-if value="{{ ttCanvas }}">'); expect(theme).toContain('value="{{ rowStep }}"'); expect(html).not.toContain("{{ tabCanvas }}");
 });
 
 test("present: Max/Fit sizing (button and F), Jump to lives in the header, header auto-hides and shows on hover or search", async () => {
@@ -2319,11 +2318,21 @@ test("theme: a linked child's own deck.theme is ignored", async () => {
   expect(titleOf(c, "a.costs")).toMatchObject({ color: "#F1F5F9", font: "'Space Grotesk', sans-serif" });
 });
 
-test("theme: the Theme tab has Background, Colours, Theme, Typography, Surface and a collapsible Canvas section with the spacing controls", async () => {
+test("theme: the Theme tab is a vertical rail of Background, Colours, Theme, Typography and Canvas, one section at a time", async () => {
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
   const tab = html.slice(html.indexOf('<sc-if value="{{ tabTheme }}">'), html.indexOf('<sc-if value="{{ tabBuilds }}">'));
-  for (const h of ["{{ kinds }}", "{{ bgList }}", "{{ schemeOpts }}", "{{ customSlots }}", "{{ resetColours }}", "{{ palList }}", "{{ fontList }}", "{{ surfaces }}",
-    'onClick="{{ sec.canvas.toggle }}"', "{{ spacingBtns }}", 'value="{{ rowStep }}"', "{{ onSpeed }}", "{{ onTitlePage }}", ">Canvas<"]) expect(tab).toContain(h);
+  const sect = (flag: string) => tab.split(`<sc-if value="{{ ${flag} }}">`).slice(1).join("\n");
+  for (const h of ["{{ kinds }}", "{{ bgList }}", "{{ ms.speedLabel }}"]) expect(sect("ttBg")).toContain(h);
+  for (const h of ["{{ schemeOpts }}", "{{ customSlots }}", "{{ resetColours }}"]) expect(sect("ttColours")).toContain(h);
+  for (const h of ["{{ palList }}", "{{ surfaces }}"]) expect(sect("ttTheme")).toContain(h);
+  for (const h of ["{{ fontList }}", "{{ styleRows }}"]) expect(sect("ttType")).toContain(h);
+  for (const h of ["{{ spacingBtns }}", 'value="{{ rowStep }}"', "{{ onSpeed }}", "{{ onTitlePage }}"]) expect(sect("ttCanvas")).toContain(h);
+  expect(tab).toContain('aria-orientation="vertical"');
+  await deckTalk(); const { c } = await mount("?deck=talk"); c.setState({ rtab: "theme" });
+  let v = c.renderVals(); expect(v.themeTabs.map((t: any) => t.label)).toEqual(["Background", "Colours", "Theme", "Typography", "Canvas"]);
+  expect([v.ttBg, v.ttColours, v.ttTheme, v.ttType, v.ttCanvas]).toEqual([true, false, false, false, false]);
+  v.themeTabs[4].pick(); v = c.renderVals(); expect(c.state.ttab).toBe("canvas"); expect([v.ttBg, v.ttCanvas]).toEqual([false, true]);
+  c.setState({ ttab: "nope" }); expect(c.renderVals().ttBg).toBe(true);
   for (const gone of ["{{ themeBtns }}", "{{ baseSwatches }}", "{{ cardModes }}", "{{ toneBtns }}", "{{ boxModes }}"]) expect(html).not.toContain(gone);
 });
 

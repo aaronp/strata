@@ -753,6 +753,17 @@ select option{background:#23262E;color:#E8EAEE}
           </sc-if>
 
           <sc-if value="{{ tabTheme }}">
+           <div style="display:flex;gap:12px;align-items:flex-start;min-width:0">
+            <nav role="tablist" aria-label="Theme sections" aria-orientation="vertical" style="flex:none;display:flex;flex-direction:column;gap:4px;position:sticky;top:0">
+              <sc-for list="{{ themeTabs }}" as="tt" hint-placeholder-count="5">
+                <button role="tab" onClick="{{ tt.pick }}" aria-selected="{{ tt.on }}" title="{{ tt.label }}" style="width:64px;padding:8px 4px;border-radius:8px;border:1px solid {{ tt.border }};cursor:pointer;background:{{ tt.bg }};color:{{ tt.fg }};display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10.5px">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="{{ tt.icon }}"></path></svg>
+                  <span>{{ tt.label }}</span>
+                </button>
+              </sc-for>
+            </nav>
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:16px">
+            <sc-if value="{{ ttBg }}">
             <section style="display:flex;flex-direction:column;gap:10px">
               <div style="display:flex;align-items:baseline;gap:8px"><h2 style="margin:0;font-family:'Space Grotesk',Inter,sans-serif;font-size:14px;font-weight:600;color:#E8EAEE">Background</h2><span style="font-size:12px;color:#9AA1AD">{{ bgName }} · {{ schemeName }}</span></div>
               <div role="group" aria-label="Background kind" style="display:flex;flex-wrap:wrap;gap:4px">
@@ -816,6 +827,11 @@ select option{background:#23262E;color:#E8EAEE}
                 <span style="font-size:12px;line-height:1.45;color:#9AA1AD">The image's height is the canvas height. It repeats sideways as far as the tree needs. Offset slides the repeat left so a different part sits under the first slide.</span>
               </sc-if>
             </section>
+            </sc-if>
+            <sc-if value="{{ ttColours }}">
+            <sc-if value="{{ isImageBg }}">
+              <span style="font-size:12px;line-height:1.45;color:#9AA1AD">Image backgrounds keep their own colours. Pick a solid, gradient, moving or pattern background to choose a colour scheme.</span>
+            </sc-if>
             <sc-if value="{{ isColourBg }}">
             <section style="display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:10px;background:#23262E;border:1px solid #2C3039">
               <h3 style="margin:0;font-size:13px;font-weight:600">Colours · {{ bgName }}</h3>
@@ -840,7 +856,8 @@ select option{background:#23262E;color:#E8EAEE}
               <button onClick="{{ resetColours }}" style="align-self:flex-start;padding:8px 12px;border-radius:8px;border:1px solid #3E5A92;background:#1F2533;color:#D6E2FF;font-size:12px;font-weight:600;cursor:pointer">Reset every background to its original colours</button>
             </section>
             </sc-if>
-            <sc-if value="{{ isMotion }}">
+            </sc-if>
+            <sc-if value="{{ ttBg }}"><sc-if value="{{ isMotion }}">
             <section aria-label="Motion settings" style="display:flex;flex-direction:column;gap:12px;padding:12px;border-radius:10px;background:#23262E;border:1px solid #2C3039">
               <div style="display:flex;flex-direction:column;gap:2px"><h3 style="margin:0;font-size:13px;font-weight:600">Motion · {{ bgName }}</h3><span style="font-size:12px;color:#9AA1AD">{{ ms.hint }}</span></div>
               <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:#C3C8D2">
@@ -872,7 +889,8 @@ select option{background:#23262E;color:#E8EAEE}
               </sc-if>
               <span style="font-size:11px;color:#9AA1AD">Motion stops for viewers who have Reduce motion turned on.</span>
             </section>
-            </sc-if>
+            </sc-if></sc-if>
+            <sc-if value="{{ ttTheme }}">
             <section style="display:flex;flex-direction:column;gap:8px">
               <div style="display:flex;align-items:baseline;gap:8px"><h2 style="margin:0;font-family:'Space Grotesk',Inter,sans-serif;font-size:14px;font-weight:600;color:#E8EAEE">Theme</h2><span style="font-size:12px;color:#9AA1AD">for {{ palTone }} backgrounds</span></div>
               <sc-for list="{{ palList }}" as="p" hint-placeholder-count="4">
@@ -900,6 +918,8 @@ select option{background:#23262E;color:#E8EAEE}
                 </div>
               </div>
             </section>
+            </sc-if>
+            <sc-if value="{{ ttType }}">
             <section style="display:flex;flex-direction:column;gap:8px">
               <h2 style="margin:0;font-family:'Space Grotesk',Inter,sans-serif;font-size:14px;font-weight:600;color:#E8EAEE">Typography <span style="font-weight:400;font-size:12px;color:#9AA1AD">· Google Fonts</span></h2>
               <sc-for list="{{ fontList }}" as="t" hint-placeholder-count="5">
@@ -911,13 +931,26 @@ select option{background:#23262E;color:#E8EAEE}
                 </button>
               </sc-for>
             </section>
-            <div style="display:flex;flex-direction:column;border:1px solid #2C3039;border-radius:10px;background:#23262E">
-              <div onClick="{{ sec.canvas.toggle }}" style="display:flex;align-items:center;gap:8px;padding:9px 10px;cursor:pointer;user-select:none">
-                <span style="width:12px;flex:none;font-size:10px;color:#9AA1AD">{{ sec.canvas.caret }}</span>
-                <span style="flex:1;min-width:0;font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#E8EAEE">Canvas</span>
-              </div>
-              <sc-if value="{{ sec.canvas.open }}">
-              <div style="display:flex;flex-direction:column;gap:12px;padding:0 10px 10px">
+            <span style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#9AA1AD">Text styles</span>
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <sc-for list="{{ styleRows }}" as="sr" hint-placeholder-count="4">
+                <div style="display:flex;align-items:center;gap:6px">
+                  <input value="{{ sr.name }}" onChange="{{ sr.onName }}" title="Style name (its id stays {{ sr.id }})" style="flex:1;min-width:0;height:28px;padding:0 8px;border:1px solid #2C3039;border-radius:6px;background:#23262E;font-size:12.5px">
+                  <span style="flex:none;font-size:11.5px;color:#9AA1AD;width:64px;text-align:right">{{ sr.count }}</span>
+                  <sc-if value="{{ sr.canDelete }}"><button onClick="{{ sr.onDelete }}" title="Delete: layers using it keep their look and become Custom" style="flex:none;width:22px;height:22px;padding:0;border:0;background:none;cursor:pointer;color:#AFC6FF">✕</button></sc-if>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;padding:0 0 6px 4px">
+                  <input type="number" step="1" min="1" value="{{ sr.size }}" onChange="{{ sr.onSize }}" title="Size (px on a 1600-wide slide)" aria-label="{{ sr.name }} size" style="width:58px;height:26px;padding:0 4px;border:1px solid #2C3039;border-radius:6px;background:#23262E;font-size:12px">
+                  <select value="{{ sr.weight }}" onChange="{{ sr.onWeight }}" aria-label="{{ sr.name }} weight" style="flex:1;min-width:0;height:26px;padding:0 4px;border:1px solid #2C3039;border-radius:6px;background:#23262E;font-size:12px"><sc-for list="{{ weightOpts }}" as="o" hint-placeholder-count="5"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select>
+                  <input type="number" step="0.05" min="0.5" value="{{ sr.lh }}" onChange="{{ sr.onLh }}" title="Line height" aria-label="{{ sr.name }} line height" style="width:58px;height:26px;padding:0 4px;border:1px solid #2C3039;border-radius:6px;background:#23262E;font-size:12px">
+                </div>
+              </sc-for>
+              <button onClick="{{ onNewStyle }}" disabled="{{ newStyleOff }}" title="Make a style from the selected text layer's look" style="align-self:flex-start;padding:5px 10px;border:1px solid #2C3039;border-radius:7px;background:#23262E;cursor:pointer;font-size:12.5px">+ New style from selected layer</button>
+            </div>
+            </sc-if>
+            <sc-if value="{{ ttCanvas }}">
+              <h2 style="margin:0;font-family:'Space Grotesk',Inter,sans-serif;font-size:14px;font-weight:600;color:#E8EAEE">Canvas <span style="font-weight:400;font-size:12px;color:#9AA1AD">· how slides sit on the background</span></h2>
+              <div style="display:flex;flex-direction:column;gap:12px">
             <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
               <input type="checkbox" checked="{{ titlePage }}" onChange="{{ onTitlePage }}" style="accent-color:#7AA2FF">Title page · the whole canvas as a first slide
             </label>
@@ -946,24 +979,9 @@ select option{background:#23262E;color:#E8EAEE}
               <input type="range" min="0" max="2000" step="50" value="{{ speed }}" onChange="{{ onSpeed }}" style="accent-color:#7AA2FF;width:100%;min-width:0">
             </label>
               </div>
-              </sc-if>
+            </sc-if>
             </div>
-            <span style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#9AA1AD">Text styles</span>
-            <div style="display:flex;flex-direction:column;gap:4px">
-              <sc-for list="{{ styleRows }}" as="sr" hint-placeholder-count="4">
-                <div style="display:flex;align-items:center;gap:6px">
-                  <input value="{{ sr.name }}" onChange="{{ sr.onName }}" title="Style name (its id stays {{ sr.id }})" style="flex:1;min-width:0;height:28px;padding:0 8px;border:1px solid #2C3039;border-radius:6px;background:#23262E;font-size:12.5px">
-                  <span style="flex:none;font-size:11.5px;color:#9AA1AD;width:64px;text-align:right">{{ sr.count }}</span>
-                  <sc-if value="{{ sr.canDelete }}"><button onClick="{{ sr.onDelete }}" title="Delete: layers using it keep their look and become Custom" style="flex:none;width:22px;height:22px;padding:0;border:0;background:none;cursor:pointer;color:#AFC6FF">✕</button></sc-if>
-                </div>
-                <div style="display:flex;align-items:center;gap:6px;padding:0 0 6px 4px">
-                  <input type="number" step="1" min="1" value="{{ sr.size }}" onChange="{{ sr.onSize }}" title="Size (px on a 1600-wide slide)" aria-label="{{ sr.name }} size" style="width:58px;height:26px;padding:0 4px;border:1px solid #2C3039;border-radius:6px;background:#23262E;font-size:12px">
-                  <select value="{{ sr.weight }}" onChange="{{ sr.onWeight }}" aria-label="{{ sr.name }} weight" style="flex:1;min-width:0;height:26px;padding:0 4px;border:1px solid #2C3039;border-radius:6px;background:#23262E;font-size:12px"><sc-for list="{{ weightOpts }}" as="o" hint-placeholder-count="5"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select>
-                  <input type="number" step="0.05" min="0.5" value="{{ sr.lh }}" onChange="{{ sr.onLh }}" title="Line height" aria-label="{{ sr.name }} line height" style="width:58px;height:26px;padding:0 4px;border:1px solid #2C3039;border-radius:6px;background:#23262E;font-size:12px">
-                </div>
-              </sc-for>
-              <button onClick="{{ onNewStyle }}" disabled="{{ newStyleOff }}" title="Make a style from the selected text layer's look" style="align-self:flex-start;padding:5px 10px;border:1px solid #2C3039;border-radius:7px;background:#23262E;cursor:pointer;font-size:12.5px">+ New style from selected layer</button>
-            </div>
+           </div>
           </sc-if>
           <sc-if value="{{ tabBuilds }}">
             <sc-if value="{{ fromDeck }}">
@@ -1090,6 +1108,9 @@ const UIKEY = 'strata-ui', DRAFT_KEY = src => 'strata-draft:' + src;
 const webUrl = u => { u = String(u || '').trim(); if (u && !/^[a-z][a-z0-9+.-]*:/i.test(u)) u = 'https://' + u; return /^https?:\/\//i.test(u) ? u : null; };   // only http(s) targets open
 const AUTOSAVE_MS = 800;
 const DECK_FIELDS = ['title', 'source', 'nodes', 'theme', 'customBg', 'customAspect', 'bgScale', 'bgRepeat', 'bgY', 'opacity', 'offset', 'gap', 'speed', 'titlePage', 'titleView', 'spacing', 'rowGap', 'styles', 'layouts', 'layoutDefaults', 'images'];
+// Theme tab sections, shown one at a time from a vertical rail: [id, label, icon path].
+const THEME_TABS = [['background', 'Background', 'M4 5h16v14H4zM4 15l5-5 4 4 3-3 4 4'], ['colours', 'Colours', 'M12 3a9 9 0 1 0 0 18c1 0 1.5-.8 1.5-1.6 0-1.2-1-1.4-1-2.4 0-.8.7-1.5 1.5-1.5H16a5 5 0 0 0 5-5c0-4-4-7.5-9-7.5zM7.5 11h.01M10 7h.01M15 7h.01'],
+  ['theme', 'Theme', 'M5 5h6v6H5zM13 5h6v6h-6zM5 13h6v6H5zM13 13h6v6h-6z'], ['type', 'Typography', 'M5 7V5h14v2M12 5v14M9 19h6'], ['canvas', 'Canvas', 'M3 6h8v6H3zM13 6h8v6h-8zM8 14h8v6H8z']];
 const SAVED = [...DECK_FIELDS, 'md'];   // what save writes (markdown + layout file); dirty tracking compares these
 // Named text styles: built-ins live here; deck.styles holds only their differences and added styles. A styled layer's own STYLE_KEYS are overrides.
 const STYLE_KEYS = ['font', 'size', 'weight', 'color', 'align', 'valign', 'lh', 'ls', 'bullets', 'gap', 'card', 'box'];
@@ -1884,7 +1905,7 @@ class Component extends DCLogic {
       if (!this._sr || refs.some((v, i) => v !== this._sr[i])) { this._sr = refs; try { localStorage.setItem(store, JSON.stringify({ md: S.md, layout: layoutOf(S.nodes, S, this._linkedOv) })); } catch (e) {} }
     }
     if (!STATIC) {
-      const u = JSON.stringify({ navW: S.navW, rightW: S.rightW, secOpen: S.secOpen, presentFit: S.presentFit, showCrumbs: S.showCrumbs, crumbFade: S.crumbFade, view: S.view, rtab: S.rtab, collapsed: S.collapsed, treeZoom: S.treeZoom, treeFocus: S.treeFocus, applyTo: S.applyTo });
+      const u = JSON.stringify({ navW: S.navW, rightW: S.rightW, secOpen: S.secOpen, presentFit: S.presentFit, showCrumbs: S.showCrumbs, crumbFade: S.crumbFade, view: S.view, rtab: S.rtab, ttab: S.ttab, collapsed: S.collapsed, treeZoom: S.treeZoom, treeFocus: S.treeFocus, applyTo: S.applyTo });
       if (u !== this._u) { this._u = u; try { localStorage.setItem(UIKEY, u); } catch (e) {} }
     }
     if (S.cur !== this._lastCur) { clearTimeout(this._rp); if (S.ordering || this._play) { this.stopPlay(); this.setState({ ordering: false }); } this._lastCur = S.cur; this.scrollTree(); this.scrollMd(); if (S.showCrumbs === 'fade') this.litCrumbs(); }
@@ -2997,6 +3018,8 @@ class Component extends DCLogic {
 
       rTabs: [['content', 'Content'], ['theme', 'Theme'], ['slides', 'Slides'], ['builds', 'Builds']].map(([id, label]) => ({ label, ...tab(rtab === id), onClick: () => this.setState({ rtab: id }) })),
       tabContent: rtab === 'content', tabTheme: rtab === 'theme', tabSlides: rtab === 'slides', tabBuilds: rtab === 'builds',
+      ...(tt => ({ ttBg: tt === 'background', ttColours: tt === 'colours', ttTheme: tt === 'theme', ttType: tt === 'type', ttCanvas: tt === 'canvas',
+        themeTabs: THEME_TABS.map(([id, label, icon]) => ({ label, icon, on: tt === id, bg: tt === id ? '#2A3A5C' : 'transparent', border: tt === id ? '#7AA2FF' : '#2C3039', fg: tt === id ? '#FFFFFF' : '#C3C8D2', pick: () => this.setState({ ttab: id }) })) }))(THEME_TABS.some(([id]) => id === S.ttab) ? S.ttab : 'background'),
       titleRef: this.titleRef, onTitle: e => this.setNode(cur, { title: e.target.value }), onBody: e => this.setNode(cur, { body: e.target.value }),
       rowStep: L.rowStep, rowStepLabel: Math.round(L.rowStep * 100) + '% of a slide', onRowStep: e => this.setState({ rowGap: +e.target.value - 1 }),   // stored as rowGap = step − 1
       spacingBtns: [['even', 'Even steps'], ['fit', 'Fit subtrees']].map(([v, label]) => ({ label, ...tab((S.spacing === 'fit' ? 'fit' : 'even') === v), onClick: () => this.setState({ spacing: v }) })),

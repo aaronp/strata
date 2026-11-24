@@ -103,3 +103,10 @@ test("sanitizeUi keeps only the UI keys the app writes, each of its type", () =>
   for (const v of ["fade", true, false]) expect(sanitizeUi({ showCrumbs: v })).toEqual({ showCrumbs: v });   // breadcrumbs: on, off or fade
   expect(sanitizeUi({ showCrumbs: "x;top:0" })).toEqual({});
 });
+
+test("text styling: markColor (a token or a hex) is kept on layers, styles and slots; an unsafe one goes", () => {
+  const out = sanitizeLayout({ version: 2, deck: { styles: { h2: { markColor: "primary" } }, layouts: { t: { name: "T", slots: { body: [{ x: 1, y: 2, w: 3, h: 4, markColor: "#93C5FD" }] } } } },
+    slides: { s: { layers: [{ id: "a", type: "text", markColor: "secondary" }, { id: "b", type: "text", markColor: "x;top:0" }] } } })!;
+  expect(out.deck.styles.h2.markColor).toBe("primary"); expect(out.deck.layouts.t.slots.body[0].markColor).toBe("#93C5FD");
+  expect(out.slides.s.layers).toEqual([{ id: "a", type: "text", markColor: "secondary" }, { id: "b", type: "text" }]);
+});

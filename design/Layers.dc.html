@@ -15,7 +15,7 @@
         <div style="width:100%;min-height:100%;display:flex;flex-direction:column;justify-content:{{ e.vjust }};gap:{{ e.gap }}em;font-family:{{ e.font }};font-size:{{ e.fs }}cqw;font-weight:{{ e.weight }};color:{{ e.color }};text-align:{{ e.align }};line-height:{{ e.lh }};letter-spacing:{{ e.ls }}em;text-shadow:{{ e.shadow }};background:{{ e.cardBg }};backdrop-filter:{{ e.cardBlur }};border:{{ e.cardBorder }};padding:{{ e.cardPad }};border-radius:{{ e.cardRadius }};box-sizing:border-box">
           <sc-for list="{{ e.lines }}" as="ln" hint-placeholder-count="1">
             <div style="display:flex;gap:.45em;align-items:baseline;justify-content:{{ e.hjust }}">
-              <sc-if value="{{ ln.hasMark }}"><span style="flex:none;min-width:{{ e.markW }};opacity:.85">{{ ln.mark }}</span></sc-if>
+              <sc-if value="{{ ln.hasMark }}"><span style="flex:none;min-width:{{ e.markW }};opacity:.85;color:{{ e.markCol }}">{{ ln.mark }}</span></sc-if>
               <span style="white-space:pre-wrap;text-wrap:pretty;min-width:0"><sc-for list="{{ ln.runs }}" as="r" hint-placeholder-count="1"><span data-link="{{ r.lnk }}" data-href="{{ r.href }}" style="font-weight:{{ r.fw }};font-style:{{ r.fst }};font-size:{{ r.fsz }};color:{{ r.col }};font-family:{{ r.fam }};letter-spacing:{{ r.lsp }};text-decoration:{{ r.deco }};pointer-events:{{ r.pe }};cursor:{{ r.cur }}">{{ r.text }}</span></sc-for></span>
             </div>
           </sc-for>
@@ -114,7 +114,7 @@ class Component extends DCLogic {
         const align = l.align || 'left';
         return { ...base, lines, font: fam(l.font, FONTS.grot), fs: (l.size || 40) / 16, weight: l.weight || 400, color: col(l.color, ink), align, lh: l.lh || 1.2, ls: l.ls || 0,
           gap: l.gap ?? 0.15, hjust: b !== 'none' ? 'flex-start' : align === 'center' ? 'center' : align === 'right' ? 'flex-end' : 'flex-start',
-          vjust: l.valign === 'middle' ? 'center' : l.valign === 'bottom' ? 'flex-end' : 'flex-start', markW: b === 'number' ? '1.4em' : '0.8em',
+          vjust: l.valign === 'middle' ? 'center' : l.valign === 'bottom' ? 'flex-end' : 'flex-start', markW: b === 'number' ? '1.4em' : '0.8em', markCol: col(l.markColor, ''),
           ...boxStyle(l) };
       }
       if (l.type === 'shape') {

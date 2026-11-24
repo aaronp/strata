@@ -1103,7 +1103,7 @@ test("applyFormat: toggles bold, wraps lines, updates or unwraps spans, clears, 
 test("resolveLayer gives every text layer display runs, with style spans looked up like layer styles; names are plain", async () => {
   const c = await styledDeck({ styles: { h2: { size: 41 } } }, [TL("a", { text: "x [y]{style=h2} **z**" }), TL("b", { style: "h1", text: "plain" })]);
   const [a, b] = c.layersOf("s").map((l: any) => c.resolveLayer(l, "s"));
-  expect(a._lines).toEqual([[{ text: "x " }, { text: "y", size: 41, weight: 700, color: "#F1F5F9", font: "'Space Grotesk', sans-serif", ls: 0 }, { text: " " }, { text: "z", b: true }]]);   // H2's theme tokens, resolved
+  expect(a._lines).toEqual([[{ text: "x " }, { text: "y", size: 41, weight: 700, color: "#93C5FD", font: "'Space Grotesk', sans-serif", ls: 0 }, { text: " " }, { text: "z", b: true }]]);   // H2's theme tokens, resolved
   expect(b._lines).toEqual([[{ text: "plain" }]]);
   expect(c.layersOf("s")[0]._lines).toBeUndefined();                         // never stored
   c.chooseStyle("s", "a", ""); expect(c.layersOf("s")[0]._lines).toBeUndefined();
@@ -2413,7 +2413,7 @@ test("theme: a linked child's own deck.theme is ignored", async () => {
   const { c } = await mount("?src=https://h/host.md", { fetch: u => u.startsWith("https://") ? (files[u] ? files[u]() : reply("", "text/plain", 404)) : undefined });
   await down(c, "a");
   expect(c.state.cur).toBe("a.costs"); expect(c.state.theme).toEqual(DEFAULT_THEME);
-  expect(titleOf(c, "a.costs")).toMatchObject({ color: "#F1F5F9", font: "'Space Grotesk', sans-serif" });
+  expect(titleOf(c, "a.costs")).toMatchObject({ color: "#93C5FD", font: "'Space Grotesk', sans-serif" });
 });
 
 test("theme: the Theme tab is a vertical rail of Background, Colours, Theme, Typography and Canvas, one section at a time", async () => {
@@ -2681,4 +2681,16 @@ test("the wireframe draws the whole background with its effects, from the same m
   expect(canvas).toBeGreaterThan(wireAt);                                       // inside the wireframe's canvas element
   expect(html.indexOf("wireRects", wire.a)).toBeGreaterThan(wire.a);           // slide outlines come after: drawn above
   for (const k of ["fx.isBubbles", "fx.isSunset", "fx.isGears"]) expect(html.split(k).length - 1).toBe(2);   // stage + wireframe only
+});
+
+// ---- palette accents on text (theme tokens in the built-in text styles) ----
+test("palette accents: H2/H3 and bullet markers take primary, H1 and body take text; a palette switch recolours them; a hex colour still wins", async () => {
+  await writeMd("talk", "# T\nslug: t\n\nOne.\n");
+  const { c } = await mount("?deck=talk"), S = c.styles();
+  expect([S.h1.color, S.h2.color, S.h3.color, S.body.color, S.bullets.color, S.bullets.markColor]).toEqual(["text", "primary", "primary", "text", "text", "primary"]);
+  const h2 = { id: "x", type: "text", text: "Hi", style: "h2", x: 0, y: 0, w: 10, h: 10 }, li = { ...h2, style: "bullets" }, res = (l: any) => c.resolveLayer(l, "t");
+  c.setTheme({ palette: "midnight" }); expect(res(h2).color).toBe("#93C5FD"); expect(res(li).markColor).toBe("#93C5FD"); expect(res(li).color).toBe("#F1F5F9");
+  c.setTheme({ palette: "ember" }); expect(res(h2).color).toBe("#FDBA74"); expect(res(li).markColor).toBe("#FDBA74");
+  expect(res({ ...h2, color: "#123456" }).color).toBe("#123456");                       // a user-set hex colour wins
+  expect(c.resolveLayer(layerOf(c, "t", "md-title"), "t").color).toBe("#FFF7ED");        // H1: text
 });

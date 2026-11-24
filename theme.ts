@@ -146,9 +146,10 @@ export function resolveTheme(t0: Partial<Theme> | null = {}) {
 }
 
 const TOKENS = ["primary", "secondary", "tertiary", "impact", "text", "muted", "onPrimary"];
-// A palette token name gives its hex; any other CSS colour passes through.
+// A palette token name gives its hex; any other CSS colour passes through. surface: the tone's neutral (white on dark, black on light), for faint card fills and borders.
 export function tokenColor(v: string | null | undefined, p: Palette): string | null {
   if (v == null) return null;
+  if (v === "surface") return p.tone === "dark" ? "#FFFFFF" : "#000000";
   return TOKENS.includes(v) && Object.hasOwn(p, v) ? (p as any)[v] : v;
 }
 

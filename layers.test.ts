@@ -187,3 +187,9 @@ test("unsafe values from a layout file never reach a style string: each falls ba
   expect(v.items[3].fill).toBe("#111111"); expect(v.items[4].cardBorder).toBe("0.125cqw solid #ffffff");
   expect(render({ layers: [{ ...shape, fill: "#d9432b59", border: { width: 2, style: "dashed" }, stroke: "#123" }] }).items[0]).toMatchObject({ fill: "#d9432b59", border: "0.2cqw dashed #123" });
 });
+
+test("a bullet's marker takes the layer's markColor; without one it follows the text", () => {
+  expect(render({ layers: [txt({ bullets: "disc", markColor: "#93C5FD" })] }).items[0].markCol).toBe("#93C5FD");
+  expect(render({ layers: [txt({ bullets: "disc", markColor: "x;y" })] }).items[0].markCol).toBe("");
+  expect(html).toContain("color:{{ e.markCol }}");
+});

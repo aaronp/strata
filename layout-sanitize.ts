@@ -15,7 +15,7 @@ const GEO = { x: 0, y: 0, w: 10, h: 10 };   // a box with bad geometry still sho
 export const finite = (v: unknown) => typeof v === "number" ? Number.isFinite(v) : typeof v === "string" && v.trim() !== "" && Number.isFinite(Number(v));
 // Numbers become numbers (a numeric string too); anything else takes its default from def, or is dropped.
 export const numsOnly = (r: Obj, keys: string[], def: Obj = {}) => { for (const k of keys) if (r[k] != null) { if (finite(r[k])) r[k] = Number(r[k]); else if (k in def) r[k] = def[k]; else delete r[k]; } return r; };
-const dropUnsafe = (o: Obj) => { const r = numsOnly({ ...o }, NUM_KEYS, GEO); for (const k of ["color", "fill", "stroke", "token"]) if (r[k] != null && !safeCol(r[k])) delete r[k]; if (r.font != null && !safeFont(r.font)) delete r.font; return r; };
+const dropUnsafe = (o: Obj) => { const r = numsOnly({ ...o }, NUM_KEYS, GEO); for (const k of ["color", "markColor", "fill", "stroke", "token"]) if (r[k] != null && !safeCol(r[k])) delete r[k]; if (r.font != null && !safeFont(r.font)) delete r.font; return r; };
 export function safeLayer(l: Obj) {
   const r = dropUnsafe(l);
   if (r.blend != null && !["normal", "screen"].includes(r.blend)) delete r.blend;
@@ -75,7 +75,7 @@ const word = (v: unknown) => typeof v === "string" && /^[\w-]{0,40}$/.test(v) ? 
 // Text styling keys (STYLE_KEYS in the app): on layers, named styles and template slots.
 const BOX = allow({ bg: v => safeCol(v) ? v : undefined, borderColor: v => safeCol(v) ? v : undefined, ...Object.fromEntries(["bgOpacity", "blur", "border", "radius", "pad"].map(k => [k, numLike])) });
 const STYLE: Record<string, Check> = {
-  font: v => safeFont(v) ? v : undefined, color: v => safeCol(v) ? v : undefined, size: numLike, weight: numLike, lh: numLike, ls: numLike, gap: numLike,
+  font: v => safeFont(v) ? v : undefined, color: v => safeCol(v) ? v : undefined, markColor: v => safeCol(v) ? v : undefined, size: numLike, weight: numLike, lh: numLike, ls: numLike, gap: numLike,
   align: oneOf(["left", "center", "right"]), valign: oneOf(["top", "middle", "bottom"]), bullets: oneOf(["none", "disc", "dash", "check", "arrow", "number"]), card: word, box: BOX,
 };
 const KINDS = ["item", "detail", "ellipse", "round", "rect", "line", "arrow", "triangle"];

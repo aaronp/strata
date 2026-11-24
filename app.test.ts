@@ -1369,7 +1369,7 @@ test("templates: list + detail pairs bodies with bullets (t-split); a mismatch w
   const sec = run("# A\n# B\n", [{ deck: { layoutDefaults: { "title:1": "t-section" } } }]);
   expect(sec.b.layout).toBe("t-section"); expect(at(sec.b, "gen-number")).toMatchObject({ text: "02", color: "impact" }); expect(at(sec.a, "gen-number").text).toBe("01");
   expect(run("# A\n").a.frames[0].layers.some((l: any) => l.id === "gen-number")).toBe(false);   // the plain title layout has no number
-  expect(BUILTIN_LAYOUTS["t-statement"].match).toEqual({ body: 2 });
+  expect(BUILTIN_LAYOUTS["t-statement"].match).toEqual({ title: 1, body: 2 });
   expect(Object.keys(BUILTIN_LAYOUTS).filter(k => k.startsWith("t-"))).toEqual(["t-title", "t-title-sub", "t-bar", "t-split", "t-two", "t-cards", "t-section", "t-statement", "t-shapes"]);
 });
 
@@ -1435,7 +1435,7 @@ test("Layout panel: shape chips, status, matching tiles with default star, count
   const { c } = await mount("?deck=talk");
   c.setState({ cur: "a", stab: "layout" }); let v = c.renderVals();
   expect(v.layChips).toEqual(["Body ×2", "Title ×1"]); expect(v.layStatus).toBe("Default · Two columns");
-  expect(v.layTiles.map((t: any) => [t.id, t.star, t.count])).toEqual([["stacked-2", false, "0 slides"], ["cols-2", true, "2 slides"], ["t-two", false, "0 slides"]]);
+  expect(v.layTiles.map((t: any) => [t.id, t.star, t.count])).toEqual([["stacked-2", false, "0 slides"], ["cols-2", true, "2 slides"], ["t-two", false, "0 slides"], ["t-statement", false, "0 slides"]]);
   expect(v.layTiles[1].layers.find((l: any) => l.id === "md-body-2")).toMatchObject({ x: 52, _lines: expect.anything() });   // preview: this slide's content, resolved
   v.layTiles[1].onToggle(); v = c.renderVals(); expect(v.layTiles[1].slides.map((s: any) => s.name)).toEqual(["A", "B"]);
   v.layTiles[1].slides[1].onClick(); expect(c.state.cur).toBe("b"); expect(c.state.stab).toBe("layout");
@@ -1589,6 +1589,35 @@ test("fillSlots: sources default box, and a layout's own sources region wins; a 
   const bx = fillSlots(items, { slots: { list: [{ x: 10, y: 10, w: 50, h: 42 }] } });
   expect(bx.a).toMatchObject({ x: 10, y: 10, w: 50, h: 20 }); expect(bx.b).toMatchObject({ x: 10, y: 32, w: 50, h: 20 });
   expect(slotsOf(items.map(l => ({ ...l, ...bx[l.id] })))).toEqual({ list: [{ x: 10, y: 10, w: 50, h: 42, rot: 0 }] });
+});
+
+test("templates: applying a layout leaves exactly its template props (detail kind, impact colour, kicker font)", async () => {
+  await writeMd("talk", "# T\nslug: t\n\n- a\n- b\n\nA.\n\nB.\n\n# S\nslug: s\n\nOne.\n\nTwo.\n");
+  const { c } = await mount("?deck=talk");
+  expect(c.state.nodes.t.layout).toBe("t-split"); expect(layerOf(c, "t", "md-body-1").kind).toBe("detail");
+  c.applyLayout("t", "text-list");
+  expect(layerOf(c, "t", "md-body-1").kind).toBeUndefined(); expect(layerOf(c, "t", "md-body-2").kind).toBeUndefined(); expect(layerOf(c, "t", "md-list-1-1").kind).toBe("item");
+  c.applyLayout("t", "t-split"); expect(layerOf(c, "t", "md-body-2").kind).toBe("detail");
+  expect(c.state.nodes.s.layout).toBe("stacked-2");
+  c.applyLayout("s", "t-statement");
+  expect(layerOf(c, "s", "md-body-2").color).toBe("impact"); expect(layerOf(c, "s", "md-body-1").color).toBeUndefined(); expect(layerOf(c, "s", "md-title")).toMatchObject({ font: "mono", y: 14.2 });
+  c.applyLayout("s", "stacked-2");
+  expect(layerOf(c, "s", "md-body-2").color).toBeUndefined(); expect(layerOf(c, "s", "md-title").font).toBeUndefined();
+});
+
+test("templates: generated layers aren't on the stage or in the layers list, and can't be selected, edited, dragged, deleted or duplicated", async () => {
+  await writeMd("talk", "# A\nslug: a\n\n# B\nslug: b\n", { version: 1, deck: { layoutDefaults: { "title:1": "t-section" } }, slides: {} });
+  const { c } = await mount("?deck=talk"); c.setState({ cur: "b" });
+  expect(layerOf(c, "b", "gen-number").text).toBe("02");
+  let v = c.renderVals();
+  expect(v.layerRows.length).toBe(1); expect(v.overlays.length).toBe(1);
+  c.setSelection(["gen-number"]); expect(c.state.layerSel).toBeNull(); expect(c.selIds()).toEqual([]);
+  c.setState({ layerSel: "gen-number" }); expect(c.selIds()).toEqual([]); expect(c.renderVals().hasLayer).toBe(false);
+  c.startDrag({ stopPropagation() {}, button: 0, clientX: 0, clientY: 0 }, "gen-number", "move"); expect(c.state.layerSel).toBe("gen-number");   // ignored: no drag started
+  c.startEdit("gen-number"); expect(c.state.editing).toBeFalsy();
+  c.delLayer("gen-number"); c.dupLayer("gen-number"); c.delSel(); c.dupSel();
+  expect(c.layersOf("b").filter((l: any) => l.id.startsWith("gen-") || l.text === "02").length).toBe(1);
+  expect(c.marqueeHits({ x: 0, y: 0, w: 100, h: 100 })).toEqual(["md-title"]);
 });
 
 test("renameRegion stores names beside slots", async () => {

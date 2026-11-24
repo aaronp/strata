@@ -3,7 +3,7 @@ export type Issue = { line: number; msg: string };
 export type Chip = { label: string; ref: string; line: number; target?: string; into?: string; path?: string[]; via?: string };
 export type Source = { text: string; url: string };
 export type BlockKey = "body" | "list" | "links" | "sources" | "image";
-export type Block = { key: BlockKey; text: string; line: number; endLine: number; items?: number[]; url?: string; alt?: string };   // lines are 1-based, endLine inclusive; items: a list's item lines (one per text line); url/alt for image; text is inline markup
+export type Block = { key: BlockKey; text: string; line: number; endLine: number; items?: number[]; group?: boolean; url?: string; alt?: string };   // lines are 1-based, endLine inclusive; items: a list's item lines (one per text line); group: from <!-- block -->; url/alt for image; text is inline markup
 export type Section = {
   slug: string; title: string; line: number; depth: number;
   body: string;          // raw markdown body (slide notes)
@@ -30,8 +30,8 @@ export function plainText(t: string): string {
 const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 
 type Line = { text: string; line: number };
-// A body line's own escapes (what writeBlock adds): a leading \ before - # ! keeps it from being a list item, heading or image; <\!-- isn't a comment.
-const unline = (t: string) => t.trim().replace(/^\\([-#!])/, "$1").replace(/<\\!--/g, "<!--");
+// A body line's own escapes (what writeBlock adds): a leading \ before - # ! or slug: keeps it from being a list item, heading, image or slug line; <\!-- (in any text) isn't a comment.
+const unline = (t: string) => t.trim().replace(/^\\(?=[-#!]|slug:)/, "");
 // A line ending in an unescaped \ is a hard break (as in CommonMark): the paragraph keeps a line break there.
 const hardBreak = (t: string) => /(^|[^\\])(\\\\)*\\$/.test(t);
 
@@ -51,21 +51,21 @@ function parseBody(lines: Line[]) {
     clean.push({ text: out, line: l.line });
   }
   const rewrite = (raw: string, line: number) => {
-    const text = raw
+    const text = raw.replace(/<\\!--/g, "<!--")
       .replace(CHIP, (_, ref, label) => `[${label.trim()}]{link=${ref.trim()}}`)   // a chip mid-sentence is an inline link
       .replace(EXT, (_, txt, url) => `[${txt}]{href=${url}}`);                       // so is a web link; inline markup is kept for the app to render
     for (const m of text.matchAll(/\]\{([^}]*)\}/g)) for (const tok of m[1].split(/\s+/)) { const k = /^link=(\S+)$/.exec(tok); if (k) inline.push({ ref: k[1], label: "", line }); }
     return text;
   };
   // A chip-only or source-only entry joins the links / sources block instead of the text.
-  const special = (t: string, line: number) => {
+  const special = (t: string, line: number, end = line) => {
     const only = CHIP_ONLY.exec(t), spanOnly = /^\[((?:\\.|[^\]\\])*)\]\{link=([^}\s]+)\}$/.exec(t);   // a line that is only an inline slide link is a chip too
     const chip = only ? { ref: only[1].trim(), label: only[2].trim(), line } : spanOnly ? { ref: spanOnly[2], label: spanOnly[1].replace(/\\([*[\]{}\\])/g, "$1"), line } : null;
-    if (chip) { links.push(chip); if (!lb) blocks.push(lb = { key: "links", text: "", line, endLine: line }); lb.text = links.map(l => l.label).join("\n"); return true; }
+    if (chip) { links.push(chip); if (!lb) blocks.push(lb = { key: "links", text: "", line, endLine: end }); lb.endLine = end; lb.text = links.map(l => l.label).join("\n"); return true; }
     const exts = [...t.matchAll(EXT)];
     if (!exts.length || t.replace(EXT, "").replace(/[·|,;\s]/g, "")) return false;
     exts.forEach(m => sources.push({ text: m[1], url: m[2] }));
-    if (!sb) blocks.push(sb = { key: "sources", text: "", line, endLine: line });
+    if (!sb) blocks.push(sb = { key: "sources", text: "", line, endLine: end }); sb.endLine = end;
     sb.text = sources.map(s => `[${s.text}]{href=${s.url}}`).join("\n");
     return true;
   };
@@ -79,7 +79,7 @@ function parseBody(lines: Line[]) {
     let txt: Line[] = [];
     const flushText = () => {
       const t = txt.map((l, k) => { const u = unline(l.text), h = hardBreak(u); return (h ? u.slice(0, -1) : u) + (k === txt.length - 1 ? "" : h ? "\n" : " "); }).join("");
-      if (txt.length && !special(t, txt[0].line)) blocks.push({ key: "body", text: rewrite(t, txt[0].line), line: txt[0].line, endLine: txt[txt.length - 1].line });
+      if (txt.length && !special(t, txt[0].line, txt[txt.length - 1].line)) blocks.push({ key: "body", text: rewrite(t, txt[0].line), line: txt[0].line, endLine: txt[txt.length - 1].line });
       txt = [];
     };
     for (const l of blk) {
@@ -90,7 +90,7 @@ function parseBody(lines: Line[]) {
   };
   const group = (g: Line[]) => {
     const full = g.filter(l => l.text.trim());
-    if (full.length) blocks.push({ key: "body", text: g.map(l => { const u = unline(l.text); return rewrite(hardBreak(u) ? u.slice(0, -1) : u, l.line); }).join("\n").trim(), line: full[0].line, endLine: full[full.length - 1].line });
+    if (full.length) blocks.push({ key: "body", text: g.map(l => { const u = unline(l.text); return rewrite(hardBreak(u) ? u.slice(0, -1) : u, l.line); }).join("\n").trim(), line: full[0].line, endLine: full[full.length - 1].line, group: true });
   };
   let cur: Line[] = [], grp: Line[] | null = null;
   const flush = () => { if (cur.length) para(cur); cur = []; };
@@ -195,27 +195,43 @@ export function insertSlide(md: string, line: number, where: "after" | "below"):
   return { md: (body ? body + "\n\n" : "") + block.join("\n"), slug };
 }
 
+// Whether lines line..endLine hold an HTML comment: a <!-- in them, or one still open from above (then their --> closes it). A --> with nothing open is just text.
+export function hasComment(md: string, line: number, endLine: number): boolean {
+  const lines = md.split(/\r?\n/); let open = false;
+  for (let i = 0; i < endLine; i++) {
+    if (i >= line - 1 && (open || lines[i].includes("<!--"))) return true;
+    for (let t = lines[i]; ;) { const k = t.indexOf(open ? "-->" : "<!--"); if (k < 0) break; t = t.slice(k + (open ? 3 : 4)); open = !open; }
+  }
+  return false;
+}
 // Writes an in-place edit back: `text` (inline markup, lines split on \n) replaces lines line..endLine of md.
 // title: the heading line, keeping its #s (one line; empty is refused: null). item: one list line per text line, keeping marker and indent; empty lines go.
-// body: one markdown line per text line, joined by hard breaks (a trailing \); a line that would parse as something else is escaped; empty: removed, with one blank line after it.
-// Other lines are untouched; written lines keep the file's line ending.
-export function writeBlock(md: string, kind: "title" | "body" | "item", line: number, endLine: number, text: string): string | null {
+// body: one markdown line per text line, joined by hard breaks (a trailing \); a line that would parse as something else is escaped. group (<!-- block -->): its lines as they are.
+// An emptied body, group or item is removed, with one blank line if that would leave two. <!-- is always written <\!--. Other lines are untouched; written lines keep the file's line ending.
+export function writeBlock(md: string, kind: "title" | "body" | "group" | "item", line: number, endLine: number, text: string): string | null {
   const lines = md.split("\n"), cr = md.includes("\r\n") ? "\r" : "", old = (lines[line - 1] ?? "").replace(/\r$/, ""), rows = text.split("\n").map(r => r.trim());
   let put: string[];
   if (kind === "title") {
     const t = rows.filter(Boolean).join(" ");
     if (!plainText(t).trim()) return null;
     put = [(/^#{1,6}/.exec(old)?.[0] ?? "#") + " " + t];
-  } else if (kind === "item") put = rows.filter(Boolean).map(r => (/^\s*[-*]\s+/.exec(old)?.[0] ?? "- ") + r);
+  } else if (kind === "item") put = rows.filter(Boolean).map(r => (/^\s*[-*]\s+/.exec(old)?.[0] ?? "- ") + r.replace(/<!--/g, "<\\!--"));
   else {
     while (rows.length && !rows[0]) rows.shift();
     while (rows.length && !rows[rows.length - 1]) rows.pop();
-    put = rows.map((r, k) => r.replace(/<!--/g, "<\\!--").replace(/^(?=#{1,6}(\s|$)|[-*](\s|$)|!\[)/, "\\") + (k < rows.length - 1 ? "\\" : ""));
+    const underHeading = HEADING.test(lines[line - 2] ?? "");   // no slug line: a "slug:" first line would become one
+    put = rows.map((r, k) => {
+      r = r.replace(/<!--/g, "<\\!--").replace(/^(?=\\[-#!]|#{1,6}(\s|$))/, "\\");   // a \ the parser would drop, a heading: escaped (headings are found even in groups)
+      if (hardBreak(r)) r += "\\";   // a line ending in \ keeps it
+      if (kind === "group") return r;
+      if (/^([-*](\s|$)|!\[)/.test(r) || (!k && underHeading && SLUG_LINE.test(r))) r = "\\" + r;
+      return r + (k < rows.length - 1 ? "\\" : "");
+    });
     const probe = parseBody(put.map(text => ({ text, line: 1 }))).blocks;
-    if (put.length === 1 && probe[0]?.key !== "body") put[0] = "[" + put[0] + "]{}";   // a lone chip or source link: an empty span keeps it text
+    if (kind === "body" && put.length === 1 && probe[0]?.key !== "body") put[0] = "[" + put[0] + "]{}";   // a lone chip or source link: an empty span keeps it text
   }
   put = put.map(r => r + cr);
-  const gap = !put.length && kind === "body" && !lines[line - 2]?.trim() && !lines[endLine]?.trim() && endLine < lines.length - 1 ? 1 : 0;   // don't leave two blank lines
+  const gap = !put.length && kind !== "title" && !lines[line - 2]?.trim() && !lines[endLine]?.trim() && endLine < lines.length - 1 ? 1 : 0;   // don't leave two blank lines
   lines.splice(line - 1, endLine - line + 1 + gap, ...put);
   return lines.join("\n");
 }

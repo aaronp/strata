@@ -1883,6 +1883,49 @@ test("in place: CRLF markdown keeps CRLF on replaced and added lines", async () 
   inPlace(c, "intro", "md-list-1-1", "one\nnew");
   expect(c.state.md).toBe(INL.replace("# Intro **big**", "# T").replace("First line\nsecond line.", "a\\\nb").replace("- one", "- one\n- new").replace(/\n/g, "\r\n"));
 });
+const zKey = (c: any, shift = false) => c.onKey({ key: "z", metaKey: true, shiftKey: shift, target: { isContentEditable: true, tagName: "DIV" }, preventDefault() {} });
+test("in place: ⌘Z in the editor undoes its own text only; app undo commits the edit first", async () => {
+  await writeMd("talk", INL); const { c } = await mount("?deck=talk"); await Bun.sleep(150);
+  inPlace(c, "intro", "md-body-1", "One"); const md1 = c.state.md, n = c._past.length;
+  c.startEdit("md-body-1"); c.updLayer("intro", "md-body-1", { text: "One A" }); c.componentDidUpdate(); c.updLayer("intro", "md-body-1", { text: "One AB" }); c.componentDidUpdate();
+  zKey(c); c.componentDidUpdate(); expect(layerOf(c, "intro", "md-body-1").text).toBe("One A");
+  zKey(c); zKey(c); zKey(c); c.componentDidUpdate();
+  expect(layerOf(c, "intro", "md-body-1").text).toBe("One"); expect(c.state.md).toBe(md1); expect(c.state.editing).toBe("md-body-1");   // never past the editor's start, never into app history
+  zKey(c, true); c.componentDidUpdate(); expect(layerOf(c, "intro", "md-body-1").text).toBe("One A");
+  c.undo(); c.componentDidUpdate();                                                       // the toolbar's undo: commits "One A", then undoes that commit
+  expect(c.state.editing).toBeNull(); expect(c.state.md).toBe(md1); expect(c._past.length).toBe(n); expect(c._future.length).toBe(1);
+  c.redo(); c.componentDidUpdate(); expect(c.state.md).toBe(md1.replace("One", "One A"));
+});
+test("in place: if the markdown changed under the editor so the id is another block, the edit is not saved", async () => {
+  await writeMd("talk", INL); const { c } = await mount("?deck=talk"); c.setState({ cur: "intro" });
+  c.startEdit("md-body-1"); c.updLayer("intro", "md-body-1", { text: "Mine" });
+  const other = INL.replace("First line\nsecond line.\n\n", "Other para\n\n"); c.setMd(other);
+  c.setState({ editing: null }); c.componentDidUpdate();
+  expect(c.state.md).toBe(other); expect(c.state.note).toBe("The slide changed while you were editing — edit not saved"); expect(layerOf(c, "intro", "md-body-1").text).toBe("Other para");
+});
+test("in place: text with a comment in its lines doesn't open the editor (goes to Content); a lone --> is just text", async () => {
+  const MDC = "# A\nslug: a\n\nx <!-- note --> y\n\n- b <!-- c -->\n- d\n\n<!-- start\nend --> tail\n\n<!-- block -->\np\n<!-- mid -->\nq\n<!-- /block -->\n\nA --> B\n";
+  await writeMd("talk", MDC); const { c } = await mount("?deck=talk"); c.setState({ cur: "a", rtab: "slides" });
+  for (const lid of ["md-body-1", "md-list-1-1", "md-body-2", "md-body-3"]) {
+    c.setState({ rtab: "slides", note: null }); c.startEdit(lid);
+    expect(c.state.editing ?? null).toBeNull(); expect(c.state.note).toBe("This text has a comment in it: edit it in Content"); expect(c.state.rtab).toBe("content");
+  }
+  inPlace(c, "a", "md-list-1-2", "D"); inPlace(c, "a", "md-body-4", "A --> C");
+  expect(c.state.md).toBe(MDC.replace("- d", "- D").replace("A --> B", "A --> C"));
+});
+test("in place: <!-- typed into a bullet stays text and every later slide stays", async () => {
+  await writeMd("talk", INL); const { c } = await mount("?deck=talk");
+  inPlace(c, "intro", "md-list-1-1", "use <!-- for comments");
+  expect(c.state.nodes.ROOT.children).toEqual(["intro", "next"]); expect(layerOf(c, "intro", "md-list-1-1").text).toBe("use <!-- for comments");
+  expect(layerOf(c, "intro", "md-list-1-3").text).toBe("three");
+});
+test("in place: a group edit writes its lines plainly", async () => {
+  const G = "# A\nslug: a\n\n<!-- block -->\n- a\nsome words\n\nC:\\ \\- x\n<!-- /block -->\n";
+  await writeMd("talk", G); const { c } = await mount("?deck=talk");
+  const t = layerOf(c, "a", "md-body-1").text; expect(t).toBe("- a\nsome words\n\nC:\\ \\- x");
+  inPlace(c, "a", "md-body-1", t.replace("some", "few"));
+  expect(c.state.md).toBe(G.replace("some", "few"));
+});
 test("in place: an emptied heading is refused; an unchanged commit leaves the markdown alone", async () => {
   const MD0 = "# A\nslug: a\n\nSee [x](https://e.org).\n";
   await writeMd("talk", MD0); const { c } = await mount("?deck=talk"); await Bun.sleep(150);

@@ -1211,7 +1211,7 @@ const sided = (L, n = {}) => L && n.side === 'right' && (L.opts || []).includes(
 // A slide's own build and template settings: kept for every slide that has them, with or without a layer override.
 const SLIDE_KEEP = ['steps', 'trans', 'build', 'showSteps', 'barStyle', 'side'];
 const keepOf = o => Object.fromEntries(SLIDE_KEEP.filter(k => o && o[k] != null).map(k => [k, o[k]]));
-const MD_CONTENT = ['text', 'src', 'imgKey', 'alt', 'line', 'endLine'];   // what markdown owns on an md-* layer (a layer's link and bullets are the user's); line/endLine: its source lines, for in-place edits
+const MD_CONTENT = ['text', 'src', 'imgKey', 'alt', 'line', 'endLine', 'group'];   // what markdown owns on an md-* layer (a layer's link and bullets are the user's); line/endLine: its source lines, for in-place edits
 const CHIP_BOX = { bg: '#ffffff', bgOpacity: 0.75, blur: 0, border: 0, borderColor: '#ffffff', radius: 12, pad: 12 };   // link chips draw their own container
 const bodySize = t => Math.max(22, Math.min(40, Math.round(40 - (t.length - 120) / 20)));
 const isMd = l => String(l.id).startsWith('md-');
@@ -1225,7 +1225,7 @@ function blockLayers(sec, depth, prefix = '', src = null, styles = BUILTIN_STYLE
   for (const b of sec.blocks) {
     const i = n[b.key] = (n[b.key] || 0) + 1, id = 'md-' + b.key + '-' + i;
     const txt = (t, more) => ({ type: 'text', block: b.key, style: 'body', text: pre(t), ...B(6, 24, sec.links.length ? 56 : 88, 60), opacity: 1, size: bodySize(t), ...more });
-    if (b.key === 'body') L.push({ id, ...txt(b.text, { line: b.line, endLine: b.endLine }) });
+    if (b.key === 'body') L.push({ id, ...txt(b.text, { line: b.line, endLine: b.endLine, ...(b.group ? { group: true } : {}) }) });
     else if (b.key === 'list') b.text.split('\n').forEach((t, j) => L.push({ id: id + '-' + (j + 1), ...txt(t, { list: i, item: j + 1, kind: 'item', bullets: 'disc', line: b.items[j], endLine: b.items[j] }) }));
     else if (b.key === 'links') L.push({ id: 'md-links', type: 'text', block: 'links', style: 'bullets', text: sec.links.map(k => `[${esc(k.label)}]{link=${k.target ? prefix + k.target : k.ref}}`).join('\n'),
       ...B(66, 24, 28, Math.min(62, 4 + sec.links.length * 8)), opacity: 1, size: 22, weight: 600, color: '#15171c', card: 'custom', box: CHIP_BOX });
@@ -1928,7 +1928,7 @@ class Component extends DCLogic {
     const root = this.wysRef.current;
     if (root !== this._wysEl) { this._wysEl = root; this._wysFor = null;
       if (root && root.addEventListener) {
-        root.addEventListener('beforeinput', e => { if (e.inputType === 'historyUndo' || e.inputType === 'historyRedo') { e.preventDefault(); if (e.inputType === 'historyUndo') this.undo(); else this.redo(); return; }
+        root.addEventListener('beforeinput', e => { if (e.inputType === 'historyUndo' || e.inputType === 'historyRedo') { e.preventDefault(); this.editUndo(e.inputType === 'historyRedo'); return; }
           if (/^insert(Paragraph|LineBreak)$/.test(e.inputType) && this._mdEdit && this._mdEdit.kind === 'title') { e.preventDefault(); return; }   // a heading is one line
           const r = wysBefore(root, this._wysLines || [[]], e); if (!r) return; e.preventDefault(); this._wysLines = r.lines; this.saveWys(); this._wysSel = { start: r.start, end: r.end }; this.rebuildWys(r.start, r.end); });
         root.addEventListener('input', () => { if (this._composing) return; this._wysLines = readLines(root, this._wysBuilt || this._wysLines || [[]]); this.saveWys(); });
@@ -2133,8 +2133,10 @@ class Component extends DCLogic {
   }
   // An entry with md (an in-place markdown edit) swaps the markdown too.
   histSwap(from, to) { const e = from.pop(); to.push({ nodes: this.state.nodes, ...this.histDeck(), ...('md' in e ? { md: this.state.md } : {}) }); this.restore(e); }
-  undo() { if (this._past.length) this.histSwap(this._past, this._future); }
-  redo() { if (this._future.length) this.histSwap(this._future, this._past); }
+  // An open markdown edit is committed first, then undo/redo acts once that has landed.
+  endMdEdit(then) { if (!this._mdEdit) return false; this.setState({ editing: null }); this.commitMd(); this.setState({}, then); return true; }
+  undo() { if (this.endMdEdit(() => this.undo())) return; if (this._past.length) this.histSwap(this._past, this._future); }
+  redo() { if (this.endMdEdit(() => this.redo())) return; if (this._future.length) this.histSwap(this._future, this._past); }
 
   // A layout applied to one node: its counted boxes; layout recorded, custom cleared. Null for linked-in slides.
   layoutPatch(n, L) { if (!L || n._from) return null; const ls0 = this.layersOfNode(n).filter(l => !isGen(l));
@@ -2250,7 +2252,14 @@ class Component extends DCLogic {
   playTick() { const at = this.state.at || 0, next = this.stepsOf(this.curId()).find(n => n > at); if (next === undefined) this.stopPlay(); else this.goStep(next); }
   stopPlay() { if (!this._play) return; clearInterval(this._play); this._play = null; this.setState({ playing: false, preview: false }); }   // at stays on the last step shown
   endBuilds() { clearTimeout(this._rp); this.stopPlay(); if (this.state.ordering || this.state.preview) this.setState({ ordering: false, preview: false }); }   // leaving the Builds tab, Escape
-  updLayer(id, lid, patch) { this.setLayers(id, ls => ls.map(l => l.id === lid ? { ...l, ...patch } : l)); }
+  updLayer(id, lid, patch) { const E = this._mdEdit;
+    if (E && lid === E.lid && 'text' in patch && !this._localUndo) { const l = this.layersOf(id).find(x => x.id === lid); if (l && l.text !== patch.text) { E.undo.push(l.text); E.redo = []; } }   // the open editor's own undo
+    this.setLayers(id, ls => ls.map(l => l.id === lid ? { ...l, ...patch } : l)); }
+  // ⌘Z / ⌘⇧Z in the editor. A markdown layer's editor undoes its own text only (app history holds the markdown and must not move under it); other layers use the app's undo.
+  editUndo(redo) { const E = this._mdEdit; if (!E) { if (redo) this.redo(); else this.undo(); return; }
+    const [from, to] = redo ? [E.redo, E.undo] : [E.undo, E.redo]; if (!from.length) return;
+    const l = this.layersOf(E.id).find(x => x.id === E.lid); if (!l) return; to.push(l.text);
+    this._localUndo = true; this.updLayer(E.id, E.lid, { text: from.pop() }); this._localUndo = false; }
   setStyle(id, patch) { this.setState(s => ({ styles: { ...(s.styles || {}), [id]: { ...((s.styles || {})[id] || {}), ...patch } } })); }
   // '' = Custom: keep the look by writing the resolved values onto the layer. Otherwise adopt the style fully.
   chooseStyle(id, lid, sid) {
@@ -2438,9 +2447,11 @@ class Component extends DCLogic {
   startEdit(lid) {
     const N = this.flushMd() || this.state.nodes, l = (N[this.curId()] ? this.layersOfNode(N[this.curId()]) : []).find(x => x.id === lid); if (!l || isGen(l)) return;
     if (isMd(l)) {   // title, paragraph and bullet words edit in place and write back to the markdown; the rest is edited in Content
-      const kind = l.block === 'title' ? 'title' : l.kind === 'item' ? 'item' : l.block === 'body' ? 'body' : null;
+      const kind = l.block === 'title' ? 'title' : l.kind === 'item' ? 'item' : l.block === 'body' ? (l.group ? 'group' : 'body') : null;
       if (!kind || !l.line || this.roCur()) return;
-      this._mdEdit = { id: this.curId(), lid, kind, text: l.text, md: this.state.md, nodes: N, deck: this.histDeck(), past: this._past.length };
+      if (MD.hasComment(this.state.md, l.line, l.endLine)) {   // writing back would lose or break the comment
+        this.flash('This text has a comment in it: edit it in Content'); this.setState({ rtab: 'content' }, () => this.scrollMd(l.line)); return; }
+      this._mdEdit = { id: this.curId(), lid, kind, text: l.text, md: this.state.md, nodes: N, deck: this.histDeck(), past: this._past.length, undo: [], redo: [] };
     }
     if (l.type === 'text') { this.setState({ editing: lid, layerSel: lid }); setTimeout(() => { const t = this.editRef.current; if (t) { t.focus(); t.select(); } }, 40); }
     else if (l.type === 'image') this.chooseImage(lid);
@@ -2449,10 +2460,12 @@ class Component extends DCLogic {
   commitMd() {
     const E = this._mdEdit; this._mdEdit = null;
     const S = this.state, typed = this.layersOf(E.id).find(x => x.id === E.lid), text = typed ? String(typed.text ?? '') : E.text;
-    const N = this.flushMd() || S.nodes, l = (N[E.id] ? this.layersOfNode(N[E.id]) : []).find(x => x.id === E.lid);   // line numbers from the markdown as it is now
+    this.reenrich(); const N = this._lastNodes, l = (N[E.id] ? this.layersOfNode(N[E.id]) : []).find(x => x.id === E.lid);   // the block as the markdown has it now (line numbers, text)
     this._past.length = Math.min(this._past.length, E.past); this._burst = false;   // the typing's own steps fold into this one
-    const md = text === E.text || !l ? S.md : MD.writeBlock(S.md, E.kind, l.line, l.endLine, text);
-    if (md === null) this.flash('A slide needs a title — delete it in Content');
+    const moved = text !== E.text && (!l || l.text !== E.text);   // the markdown changed under the editor: that id may be another block now
+    const md = text === E.text || moved ? S.md : MD.writeBlock(S.md, E.kind, l.line, l.endLine, text);
+    if (moved) this.flash('The slide changed while you were editing — edit not saved');
+    else if (md === null) this.flash('A slide needs a title — delete it in Content');
     else if (md !== S.md) { this._past.push({ nodes: E.nodes, ...E.deck, md: E.md }); if (this._past.length > 100) this._past.shift(); this._future = []; }
     const out = md === null ? S.md : md;
     this.setState({ md: out }); this.reenrich(N, {}, out);
@@ -2525,7 +2538,7 @@ class Component extends DCLogic {
     if (k === 'Escape' && S.fileMenu) { this.setState({ fileMenu: false }); return; }
     if (typing) {
       if ((t === this.editRef.current || t.isContentEditable) && (e.metaKey || e.ctrlKey) && /^[bi]$/i.test(k)) { e.preventDefault(); this.formatSel(k.toLowerCase() === 'b' ? { bold: true } : { italic: true }); return; }
-      if ((e.metaKey || e.ctrlKey) && (k === 'z' || k === 'Z' || k === 'y' || k === 'Y') && t.isContentEditable) { e.preventDefault(); if (k === 'y' || k === 'Y' || e.shiftKey) this.redo(); else this.undo(); return; }   // the app's undo, not the browser's
+      if ((e.metaKey || e.ctrlKey) && (k === 'z' || k === 'Z' || k === 'y' || k === 'Y') && t.isContentEditable) { e.preventDefault(); this.editUndo(k === 'y' || k === 'Y' || e.shiftKey); return; }   // the app's undo, not the browser's
       if ((e.metaKey || e.ctrlKey) && (k === 'k' || k === 'K') && t.isContentEditable) { e.preventDefault(); this.setState({ linkPick: true }); return; }
       if (k === 'Escape' && t.isContentEditable) { this.setState({ editing: null, linkPick: false }); return; }
       if (t.dataset && t.dataset.role === 'filter' && k === 'Enter') { const D = this.derive(); const q = S.query.trim().toLowerCase(); const id = D.order.find(x => (S.nodes[x].title + ' ' + S.nodes[x].body).toLowerCase().includes(q)); if (id) this.nav(id, 'jump'); }

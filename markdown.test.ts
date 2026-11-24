@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { parseMarkdown, plainText } from "./markdown";
+import { parseMarkdown, plainText, writeBlock } from "./markdown";
 import { join } from "node:path";
 
 const MD = `<!--
@@ -216,4 +216,19 @@ test("blocks carry endLine; lists carry each item's line", () => {
 test("body lines: a trailing \\ is a line break; a leading \\ before - # ! is dropped; <\\!-- is text", () => {
   const b = parseMarkdown("# T\nslug: t\n\na\\\n\\- b\n\\# c \\\\\nd <\\!-- e\n\n<!-- block -->\n\\- x\\\n<!-- /block -->\n").sections[0].blocks;
   expect(b.map(x => [x.key, x.text])).toEqual([["body", "a\n- b # c \\\\ d <!-- e"], ["body", "- x"]]);
+});
+
+test("writeBlock: trailing and leading backslashes, a slug-like first line, an emptied last bullet; links/sources endLine", () => {
+  const md = "# T\nslug: t\n\nold\n\n- a\n\nz\n";
+  const body = writeBlock(md, "body", 4, 4, "C:\\\n\\- x\nC:\\")!;
+  expect(body).toBe("# T\nslug: t\n\nC:\\\\\\\n\\\\- x\\\nC:\\\\\n\n- a\n\nz\n");
+  expect(parseMarkdown(body).sections[0].blocks[0].text).toBe("C:\\\\\n\\\\- x\nC:\\\\");   // the app shows \\ as \
+  expect(writeBlock(md, "item", 6, 6, "")).toBe("# T\nslug: t\n\nold\n\nz\n");
+  const bare = "# T\n\nold\n", w = writeBlock(bare, "body", 3, 3, "slug: x")!;
+  expect(w).toBe("# T\n\nslug: x\n");   // a blank line between: no slug line, nothing to escape
+  expect(parseMarkdown(w).sections[0]).toMatchObject({ slug: "t", blocks: [{ text: "slug: x" }] });
+  const under = writeBlock("# T\nold\n", "body", 2, 2, "slug: x")!; expect(under).toBe("# T\n\\slug: x\n");
+  expect(parseMarkdown(under).sections[0]).toMatchObject({ slug: "t", blocks: [{ text: "slug: x" }] });
+  const ls = parseMarkdown("# T\nslug: t\n\n[link:t][A]\n\n[x](https://x.org)\n\n[link:t][B]\n\n[y](https://y.org)\n").sections[0].blocks;
+  expect(ls.map(b => [b.key, b.line, b.endLine])).toEqual([["links", 4, 8], ["sources", 6, 10]]);   // first use to last entry
 });

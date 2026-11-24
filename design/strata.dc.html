@@ -2025,7 +2025,9 @@ class Component extends DCLogic {
   updateLayoutFrom(id, N = this.state.nodes) {
     if (!this.state.nodes[id] || this.state.nodes[id]._from) return;
     const L0 = this.effectiveLayout(id); if (!L0 || this.framesOf(id).length !== 1) return;
-    const { id: lid, ...stored } = { ...L0, slots: slotsOf(this.framesOf(id)[0].layers, this.styles()) }, L = { id: lid, ...stored };
+    const rec = slotsOf(this.framesOf(id)[0].layers);   // new boxes; each slot keeps its template extras (a colour, the kicker's font)
+    for (const k in rec) rec[k] = rec[k].map((b, i) => ({ ...(((L0.slots || {})[k] || [])[i] || {}), ...b }));
+    const { id: lid, ...stored } = { ...L0, slots: rec }, L = { id: lid, ...stored };
     this.setState(s => ({ layouts: { ...(s.layouts || {}), [lid]: stored } }));
     const nodes = { ...N };
     for (const k of this.ownSlideIds()) { if (k !== id && (this.isCustom(k) || (this.effectiveLayout(k) || {}).id !== lid)) continue; const p = this.layoutPatch(N[k], L); if (p) nodes[k] = p; }

@@ -1605,6 +1605,17 @@ test("templates: applying a layout leaves exactly its template props (detail kin
   expect(layerOf(c, "s", "md-body-2").color).toBeUndefined(); expect(layerOf(c, "s", "md-title").font).toBeUndefined();
 });
 
+test("templates: Update layout from a statement slide keeps the slots' impact colour and kicker style through an enrich", async () => {
+  await writeMd("talk", "# S\nslug: s\n\nOne.\n\nTwo.\n");
+  const { c } = await mount("?deck=talk"); c.setState({ cur: "s" });
+  c.applyToAll("t-statement"); c.componentDidUpdate();
+  c.updLayer("s", "md-body-1", { x: 10 }); c.componentDidUpdate(); c.updateLayoutFrom("s");
+  expect(c.state.layouts["t-statement"].slots.body[0].x).toBe(10); expect(c.state.layouts["t-statement"].slots.body[1].color).toBe("impact");
+  c.reenrich(); c.componentDidUpdate();
+  expect(layerOf(c, "s", "md-body-1").x).toBe(10); expect(layerOf(c, "s", "md-body-2").color).toBe("impact");
+  expect(layerOf(c, "s", "md-title")).toMatchObject({ font: "mono", size: 15, weight: 500, valign: "top" });
+});
+
 test("templates: generated layers aren't on the stage or in the layers list, and can't be selected, edited, dragged, deleted or duplicated", async () => {
   await writeMd("talk", "# A\nslug: a\n\n# B\nslug: b\n", { version: 1, deck: { layoutDefaults: { "title:1": "t-section" } }, slides: {} });
   const { c } = await mount("?deck=talk"); c.setState({ cur: "b" });

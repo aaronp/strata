@@ -1038,6 +1038,7 @@ const mergeStyles = own => { const out = {}; for (const k in BUILTIN_STYLES) out
 // ---- Layouts: arrangements matched to a slide's signature (its counted content, by style); slots are boxes in % of the slide.
 const B = (x, y, w, h) => ({ x, y, w, h, rot: 0 });
 const HEAD = [B(6, 6, 88, 14)];
+const TBAR = B(5, 6, 90, 12);   // a template's title, in its title bar
 const BODY_Y = [24, 90];
 const stackOf = (n, [y0, y1] = BODY_Y) => { const h = (y1 - y0 - 2 * (n - 1)) / n; return Array.from({ length: n }, (_, i) => B(6, +(y0 + i * (h + 2)).toFixed(2), 88, +h.toFixed(2))); };
 const BUILTIN_LAYOUTS = {
@@ -1058,16 +1059,36 @@ const BUILTIN_LAYOUTS = {
   'body-1': { name: 'Text', match: { body: 1 }, slots: { body: [B(8, 10, 84, 80)] } },
   'body-2': { name: 'Two texts', match: { body: 2 }, slots: { body: [B(6, 10, 42, 80), B(52, 10, 42, 80)] } },
   'body-3': { name: 'Three texts', match: { body: 3 }, slots: { body: [B(6, 10, 27.3, 80), B(36.3, 10, 27.3, 80), B(66.6, 10, 27.3, 80)] } },
+  // Templates (design/slides/slides/Templates.dc.html, cqw → %: y = cqw × 16/9). The title bar is 13cqw deep; content sits 5cqw in from the edges.
+  // match body 'items': one body per list item, all in the one detail region. number: where the generated section number goes.
+  't-title': { name: 'Title', icon: 'title', match: { title: 1 }, slots: { title: [B(8, 43.7, 84, 12.6)] } },
+  't-title-sub': { name: 'Title + subtitle', icon: 'title', match: { title: 1, body: 1 }, slots: { title: [B(8, 37.2, 84, 12.6)], body: [B(8, 57.7, 84, 5.2)] } },
+  't-bar': { name: 'Title bar + content', icon: 'bar', opts: ['bar'], match: { title: 1, list: 1 }, slots: { title: [TBAR], list: [B(5, 23.1, 90, 68)] } },
+  't-split': { name: 'List + detail', icon: 'split', opts: ['bar', 'side'], match: { title: 1, list: 1, body: 'items' }, slots: { title: [TBAR], list: [B(3, 29.2, 28, 64.8)], body: [B(38, 29.2, 58, 64.8)] } },
+  't-two': { name: 'Two columns', icon: 'two', opts: ['bar'], match: { title: 1, body: 2 }, slots: { title: [TBAR], body: [B(5, 23.1, 43.5, 68), B(51.5, 23.1, 43.5, 68)] } },
+  't-cards': { name: 'Three cards', icon: 'cards', opts: ['bar'], match: { title: 1, body: 3 }, slots: { title: [TBAR], body: [B(5, 23.1, 28.4, 68), B(35.8, 23.1, 28.4, 68), B(66.6, 23.1, 28.4, 68)] } },
+  't-section': { name: 'Section break', icon: 'section', match: { title: 1 }, slots: { title: [B(8, 77.7, 84, 9.8)] }, number: B(8, 51.9, 84, 24) },
+  't-statement': { name: 'Statement', icon: 'statement', match: { body: 2 }, slots: { body: [B(8, 36.5, 84, 13.5), { ...B(8, 50, 84, 13.5), color: 'impact' }] } },
+  't-shapes': { name: 'Shapes / Venn', icon: 'venn', match: { title: 1 }, slots: { title: [B(5, 7.1, 90, 7.3)] } },
 };
 const SOURCES_BOX = B(6, 89, 88, 5);
 // Markdown layers carry block: title|body|list|links|sources|image. Sources never count toward the shape; layers without a block (extras) don't either. The styles arg is vestigial.
 const counted = l => !l.hidden && !!l.block && l.block !== 'sources';
 const keyOf = l => l.block;
-const sigOf = layers => { const m = {}; for (const l of layers || []) if (counted(l)) { const k = keyOf(l); m[k] = (m[k] || 0) + 1; } return m; };
+// A list is one region of per-bullet layers (block 'list', list n, item i); every other counted layer is its own region. In the order given.
+const regionsOf = ls => { const m = new Map(); for (const l of ls) { const k = l.block === 'list' && l.list != null ? 'list ' + l.list : l.id; m.has(k) ? m.get(k).push(l) : m.set(k, [l]); } return [...m.values()]; };
+const sigOf = layers => { const m = {}, g = groupsOf(layers); for (const k in g) m[k] = regionsOf(g[k]).length; return m; };
 const sigKey = m => Object.keys(m || {}).filter(k => m[k] > 0).sort().map(k => k + ':' + m[k]).join(',');
 const groupsOf = layers => { const g = {}; for (const l of layers || []) if (counted(l)) (g[keyOf(l)] = g[keyOf(l)] || []).push(l); for (const k in g) g[k].sort((a, b) => a.y - b.y || a.x - b.x); return g; };
+// Does the layout's shape fit these layers? match counts are exact; body 'items' means as many bodies as list items.
+const fitsTemplate = (layers, tpl) => { if (!tpl || !tpl.match) return false; const s = sigOf(layers), m = tpl.match, items = (layers || []).filter(l => counted(l) && l.block === 'list').length;
+  return [...new Set([...Object.keys(s), ...Object.keys(m)])].every(k => (m[k] === 'items' ? items : m[k] || 0) === (s[k] || 0)); };
+// Slot i takes region i (an 'items' key's regions all share slot 0, as details); a list's items split its slot top to bottom, 2% apart.
+// A slot's extra keys (a template's colour) go onto the layer.
 const fillSlots = (layers, layout) => { const out = {}, g = groupsOf(layers);
-  for (const k in g) g[k].forEach((l, i) => { const b = ((layout.slots || {})[k] || [])[i]; if (b) out[l.id] = { x: b.x, y: b.y, w: b.w, h: b.h, rot: b.rot || 0 }; });
+  for (const k in g) { const det = ((layout.match || {})[k]) === 'items';
+    regionsOf(g[k]).forEach((r, i) => { const b = ((layout.slots || {})[k] || [])[det ? 0 : i]; if (!b) return; const n = r.length, h = (b.h - 2 * (n - 1)) / n;
+      r.sort((p, q) => (p.item || 0) - (q.item || 0)).forEach((l, j) => { out[l.id] = { ...b, rot: b.rot || 0, ...(n > 1 ? { y: b.y + j * (h + 2), h } : {}), ...(det ? { kind: 'detail' } : {}) }; }); }); }
   for (const l of layers || []) if (!l.hidden && l.block === 'sources') { const b = ((layout.slots || {}).sources || [])[0] || SOURCES_BOX; out[l.id] = { x: b.x, y: b.y, w: b.w, h: b.h, rot: b.rot || 0 }; }
   return out; };
 // A slide's counted boxes, by key, in reading order (what Save as layout / Update layout record).
@@ -1097,7 +1118,15 @@ function radialMap(N, roots) {
   return { pos, w: 2 * R, h: 2 * R };
 }
 const backFirst = (layers, boxes) => { const full = l => { const b = boxes[l.id]; return !!b && b.x <= 0 && b.y <= 0 && b.w >= 100 && b.h >= 100; }; return [...layers.filter(full), ...layers.filter(l => !full(l))]; };
-const slotsOf = (layers, S) => { const out = {}, g = groupsOf(layers, S); for (const k in g) out[k] = g[k].map(l => ({ x: l.x, y: l.y, w: l.w, h: l.h, rot: l.rot || 0 })); return out; };
+// A list records its region (its items' bounding box), so the layout fits lists of any length.
+const slotsOf = layers => { const out = {}, g = groupsOf(layers);
+  for (const k in g) out[k] = regionsOf(g[k]).map(r => { if (r.length === 1) { const l = r[0]; return { x: l.x, y: l.y, w: l.w, h: l.h, rot: l.rot || 0 }; }
+    const x = Math.min(...r.map(l => l.x)), y = Math.min(...r.map(l => l.y)); return { x, y, w: Math.max(...r.map(l => l.x + l.w)) - x, h: Math.max(...r.map(l => l.y + l.h)) - y, rot: 0 }; });
+  return out; };
+// Generated layers (gen-*): drawn by a template at enrich time, never saved, never counted. The section number: the slide's 1-based place among its siblings.
+const isGen = l => String(l.id).startsWith('gen-');
+const genLayers = (L, idx) => L && L.number ? [{ id: 'gen-number', type: 'text', text: String(idx + 1).padStart(2, '0'), ...L.number, opacity: 1,
+  font: 'grot', size: 144, weight: 700, lh: 0.9, color: 'impact', align: 'left', valign: 'bottom', bullets: 'none' }] : [];
 // ---- Enrichment: markdown sections + layout files -> nodes (never saved), and layoutOf, its inverse (what the layout file keeps).
 // LayoutFile: { version: 1, deck: { deck fields but nodes/title/source }, slides: { [id]: node minus content } }; ROOT is stored whole.
 const MD_CONTENT = ['text', 'src', 'imgKey', 'alt'];   // what markdown owns on an md-* layer (a layer's link and bullets are the user's)
@@ -1113,7 +1142,9 @@ function blockLayers(sec, depth, prefix = '', src = null, styles = BUILTIN_STYLE
   const L = [{ id: 'md-title', type: 'text', block: 'title', style: 'h' + h, text: pre(sec.title), ...HEAD[0], opacity: 1 }];
   for (const b of sec.blocks) {
     const i = n[b.key] = (n[b.key] || 0) + 1, id = 'md-' + b.key + '-' + i;
-    if (b.key === 'body' || b.key === 'list') L.push({ id, type: 'text', block: b.key, style: 'body', text: pre(b.text), ...B(6, 24, sec.links.length ? 56 : 88, 60), opacity: 1, size: bodySize(b.text), ...(b.key === 'list' ? { bullets: 'disc' } : {}) });
+    const txt = (t, more) => ({ type: 'text', block: b.key, style: 'body', text: pre(t), ...B(6, 24, sec.links.length ? 56 : 88, 60), opacity: 1, size: bodySize(t), ...more });
+    if (b.key === 'body') L.push({ id, ...txt(b.text) });
+    else if (b.key === 'list') b.text.split('\n').forEach((t, j) => L.push({ id: id + '-' + (j + 1), ...txt(t, { list: i, item: j + 1, kind: 'item', bullets: 'disc' }) }));
     else if (b.key === 'links') L.push({ id: 'md-links', type: 'text', block: 'links', style: 'bullets', text: sec.links.map(k => `[${esc(k.label)}]{link=${k.target ? prefix + k.target : k.ref}}`).join('\n'),
       ...B(66, 24, 28, Math.min(62, 4 + sec.links.length * 8)), opacity: 1, size: 22, weight: 600, color: '#15171c', card: 'custom', box: CHIP_BOX });
     else if (b.key === 'sources') L.push({ id: 'md-sources', type: 'text', block: 'sources', text: b.text, ...SOURCES_BOX, opacity: 1,
@@ -1132,37 +1163,39 @@ function mergeContent(stored, gen) {
 function enrich(sections, layouts, opts = {}) {
   const { prefix = '', depth0 = 1, from = null, root = null, src = null } = opts, nodes = {}, images = {}, warnings = [];
   const styles = opts.styles || mergeStyles(((layouts[0] || {}).deck || {}).styles);
-  const shapeIn = (F, sig) => { const own = (F.deck || {}).layouts || {}, get = k => own[k] || BUILTIN_LAYOUTS[k], fits = x => x && sigKey(x.match) === sig;
+  const shapeIn = (F, gen, sig) => { const own = (F.deck || {}).layouts || {}, get = k => own[k] || BUILTIN_LAYOUTS[k], fits = x => fitsTemplate(gen, x);
     const d = ((F.deck || {}).layoutDefaults || {})[sig]; if (fits(get(d))) return { id: d, ...get(d) };
     const k = Object.keys(own).find(k => fits(own[k])); return k ? { id: k, ...own[k] } : null; };
-  const add = (sec, depth) => {
+  const byLid = k => { for (const F of layouts) { const o = ((F.deck || {}).layouts || {})[k]; if (o) return o; } return BUILTIN_LAYOUTS[k]; };
+  const add = (sec, depth, idx) => {
     const id = prefix + sec.slug, gen = blockLayers(sec, depth, prefix, src, styles), sig = sigKey(sigOf(gen));
     for (const l of gen) if (l.imgKey) images[l.imgKey] = l.imgKey.slice(3);
     // The host's override is keyed by full id; a linked doc's own layout file by its local slug. Only the host may embed components.
     // Per file, in order: its override for the slide, then its layout for the shape; then the built-ins.
     let i = -1, ov = null, lay = null;
-    for (const [j, F] of layouts.entries()) { ov = (F.slides || {})[j ? sec.slug : id] || null; if (ov) { i = j; break; } if ((lay = shapeIn(F, sig))) break; }
-    if (!ov && !lay) { const k = Object.keys(BUILTIN_LAYOUTS).find(k => sigKey(BUILTIN_LAYOUTS[k].match) === sig); lay = k ? { id: k, ...BUILTIN_LAYOUTS[k] } : null; }
+    for (const [j, F] of layouts.entries()) { ov = (F.slides || {})[j ? sec.slug : id] || null; if (ov) { i = j; break; } if ((lay = shapeIn(F, gen, sig))) break; }
+    if (!ov && !lay) { const k = Object.keys(BUILTIN_LAYOUTS).find(k => fitsTemplate(gen, BUILTIN_LAYOUTS[k])); lay = k ? { id: k, ...BUILTIN_LAYOUTS[k] } : null; }
     let extra;
     if (ov) {
       const byId = new Map(gen.map(g => [g.id, g])), kept = {};
       const frames = (ov.frames || [{ id: 'f1', layers: [] }]).map(f => {
-        const ls = f.layers.filter(l => !(i && l.type === 'component'));
+        const ls = f.layers.filter(l => !(i && l.type === 'component') && !isGen(l));
         const gone = ls.filter(l => isMd(l) && !byId.has(l.id)); if (gone.length) kept[f.id] = gone;   // back in the layout file, out of the slide
         const have = new Set(ls.map(l => l.id));
         return { ...f, layers: ls.filter(l => !isMd(l) || byId.has(l.id)).map(l => isMd(l) ? mergeContent(l, byId.get(l.id)) : l).concat(gen.filter(g => !have.has(g.id)).map(g => ({ ...g, _warn: true }))) };
       });
+      frames[0] = { ...frames[0], layers: [...genLayers(byLid(ov.layout), idx), ...frames[0].layers] };
       const { _kept: _k, ...rest } = ov; extra = { ...rest, frames, custom: true, ...(Object.keys(kept).length ? { _kept: kept } : {}) };
     } else {
-      if (lay) { const boxes = fillSlots(gen, lay); extra = { frames: [{ id: 'f1', layers: backFirst(gen.map(l => boxes[l.id] ? { ...l, ...boxes[l.id] } : l), boxes) }], layout: lay.id }; }
+      if (lay) { const boxes = fillSlots(gen, lay); extra = { frames: [{ id: 'f1', layers: [...genLayers(lay, idx), ...backFirst(gen.map(l => boxes[l.id] ? { ...l, ...boxes[l.id] } : l), boxes)] }], layout: lay.id }; }
       else { const rest = gen.filter(l => counted(l) && l.block !== 'title'), st = stackOf(rest.length, [24, 88]);   // no match: stack the blocks, and flag them
         extra = { frames: [{ id: 'f1', layers: gen.map(l => { const k = rest.indexOf(l); return k < 0 ? l : { ...l, ...st[k], _warn: true }; }) }] }; }
     }
     for (const f of extra.frames.slice(0, 1)) for (const l of f.layers) if (l._warn) warnings.push({ id, block: l.id.slice(3) });
     nodes[id] = { ...extra, id, title: plainText(sec.title), _line: sec.line, body: sec.body, children: sec.children.map(c => prefix + c.slug), childSrc: sec.childSrc || [], ...(from ? { _from: from } : {}) };
-    sec.children.forEach(c => add(c, depth + 1));
+    sec.children.forEach((c, j) => add(c, depth + 1, j));
   };
-  sections.forEach(s => add(s, depth0));
+  sections.forEach((s, j) => add(s, depth0, j));
   const R = root || (!prefix && ((layouts[0] || {}).slides || {}).ROOT) || { id: 'ROOT', title: '', body: '' };
   nodes.ROOT = { ...R, id: 'ROOT', children: sections.map(s => prefix + s.slug) };
   return { nodes, images, warnings };
@@ -1175,7 +1208,7 @@ function layoutOf(nodes, deckFields = {}, linkedOv = {}) {   // linkedOv: the ho
   const slides = { ...linkedOv, ...(nodes.ROOT ? { ROOT: nodes.ROOT } : {}) };
   for (const id in nodes) { const n = nodes[id]; if (id === 'ROOT' || n.custom !== true || n._from) continue;
     const o = Object.fromEntries(Object.entries(n).filter(([k]) => !NOT_SAVED.includes(k)));
-    if (n.frames) o.frames = n.frames.map(f => ({ ...f, layers: f.layers.filter(l => !(isMd(l) && l._warn))   // an unclaimed block isn't part of the override yet
+    if (n.frames) o.frames = n.frames.map(f => ({ ...f, layers: f.layers.filter(l => !(isMd(l) && l._warn) && !isGen(l))   // an unclaimed block isn't part of the override yet
       .map(l => isMd(l) ? Object.fromEntries(Object.entries(l).filter(([k]) => !MD_CONTENT.includes(k))) : l).concat(((n._kept || {})[f.id]) || []) }));
     slides[id] = o; }
   return { version: 1, deck, slides };
@@ -1466,7 +1499,7 @@ function seed() {
 const SEED = seed();
 
 class Component extends DCLogic {
-  static lay = { BUILTIN_LAYOUTS, sigOf, sigKey, fillSlots, slotsOf };
+  static lay = { BUILTIN_LAYOUTS, sigOf, sigKey, fillSlots, slotsOf, fitsTemplate };
   static md = { enrich, layoutOf, blockLayers };
   static rich = { parseRich, plainText, applyFormat, runsToMarkup, linesOf, textOf, toPlain, lineLen, locate, setAttr, toggleAttr, clearRange, insertBreak, insertPlain, deleteRange, linkAt, buildEditor, getOffsets, setOffsets, readLines, wysBefore };
   state = {
@@ -1832,7 +1865,7 @@ class Component extends DCLogic {
   // The slide's own layout if it still matches, else its shape's (shapeLayout), else none.
   effectiveLayout(id) {
     const n = this.state.nodes[id]; if (!n) return null; const sig = this.slideSig(id); if (!sig) return null;
-    const L = this.layouts()[n.layout]; return L && sigKey(L.match) === sig ? L : this.shapeLayout(sig);
+    const L = this.layouts()[n.layout]; return fitsTemplate(this.framesOf(id)[0].layers, L) ? L : this.shapeLayout(id);
   }
   isCustom(id) { const n = this.state.nodes[id]; return !!(n && (n.custom || this.framesOf(id).length > 1)); }
   // A styled text layer over its style: the host's style of that id, else (for a linked-in slide) its own deck's. Display and comparison only.
@@ -1953,25 +1986,27 @@ class Component extends DCLogic {
 
   // A layout applied to one node: its single frame's counted boxes; layout recorded, custom cleared. Null for multi-frame / linked-in slides.
   layoutPatch(n, L) { const fr = this.framesOfNode(n); if (!L || n._from || fr.length !== 1) return null;
-    const boxes = fillSlots(fr[0].layers, L, this.styles()), { custom: _c, layers: _l, ...rest } = n;
-    return { ...rest, frames: [{ ...fr[0], layers: backFirst(fr[0].layers.map(l => (boxes[l.id] ? { ...l, ...boxes[l.id] } : l)), boxes) }], layout: L.id }; }
+    const ls = fr[0].layers.filter(l => !isGen(l)), boxes = fillSlots(ls, L), { custom: _c, layers: _l, ...rest } = n;
+    const par = Object.values(this.state.nodes).find(p => (p.children || []).includes(n.id)), gen = genLayers(L, par ? par.children.indexOf(n.id) : 0);
+    return { ...rest, frames: [{ ...fr[0], layers: [...gen, ...backFirst(ls.map(l => (boxes[l.id] ? { ...l, ...boxes[l.id] } : l)), boxes)] }], layout: L.id }; }
   // Extras (layers not from the markdown) live only in a per-slide override.
-  hasExtras(id) { return this.framesOf(id).some(f => f.layers.some(l => !isMd(l))); }
+  hasExtras(id) { return this.framesOf(id).some(f => f.layers.some(l => !isMd(l) && !isGen(l))); }
   // The layout enrich gives a shape with no override: the deck default, else the deck's first match, else the built-in.
-  shapeLayout(sig) { const own = this.state.layouts || {}, L = this.layouts(), fits = x => x && sigKey(x.match) === sig, d = (this.state.layoutDefaults || {})[sig];
+  shapeLayout(id) { const fr = this.framesOf(id), own = this.state.layouts || {}, L = this.layouts(), fits = x => !!fr[0] && fitsTemplate(fr[0].layers, x), d = (this.state.layoutDefaults || {})[this.slideSig(id)];
     return fits(L[d]) ? L[d] : L[Object.keys(own).find(k => fits(own[k]))] || Object.values(L).find(fits) || null; }
   // A slide given a layout other than its shape's (or with extras) becomes an override, else the next enrich would undo it.
   applyLayout(id, lid) { const p = this.layoutPatch(this.state.nodes[id], this.layouts()[lid]); if (!p) return;
-    const own = this.hasExtras(id) || (this.shapeLayout(this.slideSig(id)) || {}).id !== lid, nodes = { ...this.state.nodes, [id]: own ? { ...p, custom: true } : p }; this.allowLayout(nodes); this.setState({ nodes }); }
+    const own = this.hasExtras(id) || (this.shapeLayout(id) || {}).id !== lid, nodes = { ...this.state.nodes, [id]: own ? { ...p, custom: true } : p }; this.allowLayout(nodes); this.setState({ nodes }); }
   ownSlideIds() { return Object.keys(this.state.nodes).filter(k => !this.state.nodes[k]._from && (k !== 'ROOT' || this.state.titlePage)); }
   // Make L the default for its type and lay out every default (non-custom, single-frame) slide of that type.
   applyToAll(lid) {
-    const L = this.layouts()[lid]; if (!L) return; const sig = sigKey(L.match), N = this.state.nodes, nodes = { ...N }; let updated = 0, kept = 0;
-    for (const k of this.ownSlideIds()) { if (this.slideSig(k) !== sig) continue; if (this.isCustom(k)) { kept++; continue; } const p = this.layoutPatch(N[k], L); if (p) { nodes[k] = p; updated++; } }
-    this.allowLayout(nodes); this.setState(s => ({ nodes, layoutDefaults: { ...(s.layoutDefaults || {}), [sig]: lid } }));
+    const L = this.layouts()[lid]; if (!L) return; const N = this.state.nodes, nodes = { ...N }; let updated = 0, kept = 0;
+    const sigs = new Set(Object.values(L.match || {}).includes('items') ? [] : [sigKey(L.match)]);   // an 'items' layout is the default for each shape it laid out
+    for (const k of this.ownSlideIds()) { const fr = this.framesOf(k); if (!fr[0] || !fitsTemplate(fr[0].layers, L)) continue; sigs.add(this.slideSig(k)); if (this.isCustom(k)) { kept++; continue; } const p = this.layoutPatch(N[k], L); if (p) { nodes[k] = p; updated++; } }
+    this.allowLayout(nodes); this.setState(s => ({ nodes, layoutDefaults: { ...(s.layoutDefaults || {}), ...Object.fromEntries([...sigs].map(g => [g, lid])) } }));
     this.flash('Updated ' + updated + ' slide' + (updated === 1 ? '' : 's') + ' · kept ' + kept + ' custom');
   }
-  resetToDefault(id) { const d = this.shapeLayout(this.slideSig(id)); if (d) this.applyLayout(id, d.id); }
+  resetToDefault(id) { const d = this.shapeLayout(id); if (d) this.applyLayout(id, d.id); }
   saveAsLayout(id) {
     if (!this.state.nodes[id] || this.state.nodes[id]._from) return null;   // linked-in slides belong to their own deck
     const fr = this.framesOf(id), layers = fr[0] ? fr[0].layers : [], match = sigOf(layers, this.styles()); if (!sigKey(match)) { this.flash('Nothing on this slide to lay out'); return null; }
@@ -2695,9 +2730,9 @@ class Component extends DCLogic {
     const sigM = sigOf(curFr0, STY), sigK = sigKey(sigM), effL = sigK ? this.effectiveLayout(cur) : null, animated = this.framesOf(cur).length > 1;
     const keyName = k => k[0].toUpperCase() + k.slice(1), chipsOf = m => Object.keys(m).sort().map(k => keyName(k) + ' ×' + m[k]);
     const users = {}; for (const k of this.ownSlideIds()) { const e = this.effectiveLayout(k); if (e) (users[e.id] = users[e.id] || []).push(k); }
-    const defId = (S.layoutDefaults || {})[sigK], firstFit = Object.values(LAY).find(x => sigKey(x.match) === sigK);
+    const defId = (S.layoutDefaults || {})[sigK], firstFit = Object.values(LAY).find(x => fitsTemplate(curFr0, x));
     const listOf = lid => (users[lid] || []).map(k => ({ name: name(k), onClick: () => { this.nav(k, 'jump'); this.setState({ rtab: 'slide', stab: 'layout' }); } }));
-    const tileOf = L => ({ id: L.id, name: L.name, star: L.id === (LAY[defId] && sigKey(LAY[defId].match) === sigK ? defId : firstFit && firstFit.id), count: (users[L.id] || []).length + ' slides',
+    const tileOf = L => ({ id: L.id, name: L.name, star: L.id === (fitsTemplate(curFr0, LAY[defId]) ? defId : firstFit && firstFit.id), count: (users[L.id] || []).length + ' slides',
       open: S.layOpen === L.id, slides: listOf(L.id), onToggle: () => this.setState({ layOpen: S.layOpen === L.id ? null : L.id }),
       onApply: () => this.applyLayout(cur, L.id), onApplyAll: () => this.applyToAll(L.id), onName: e => this.renameLayout(L.id, e.target.value),
       regions: Object.keys(L.slots || {}).flatMap(k => (L.slots[k] || []).map((_, i) => ({ label: k + '-' + (i + 1), value: ((L.names || {})[k] || [])[i] || k + '-' + (i + 1), onChange: e => this.renameRegion(L.id, k, i, e.target.value) }))),
@@ -2763,7 +2798,7 @@ class Component extends DCLogic {
       onLayReset: () => this.resetToDefault(cur),
       applyItems: [['slide', 'This slide'], ['layout', 'Layout']].map(([v, label]) => ({ label, ...tab((S.applyTo || 'slide') === v), onClick: () => this.setState({ applyTo: v }) })),
       warnBadges: isPresent ? [] : curLayers.filter(l => l._warn && !l.hidden).map(l => ({ x: l.x, y: l.y, title: 'Not placed by this slide\'s layout — click to add a region for it', onClick: () => this.claimBlock(cur, l.id), onDown: e => e.stopPropagation() })),
-      layTiles: animated || !sigK ? [] : Object.values(LAY).filter(L => sigKey(L.match) === sigK).map(tileOf), layNoTiles: !animated && !!sigK && !firstFit,
+      layTiles: animated || !sigK ? [] : Object.values(LAY).filter(L => fitsTemplate(curFr0, L)).map(tileOf), layNoTiles: !animated && !!sigK && !firstFit,
       onLaySave: () => this.saveAsLayout(cur), layCanUpdate: !!effL && !animated, layUpdateLabel: effL ? 'Update “' + effL.name + '” from this slide' : '', onLayUpdate: () => this.updateLayoutFrom(cur),
       layAll: Object.values(LAY).map(L => ({ ...tileOf(L), layers: [] })), layAllOpen: !!S.layAllOpen, onLayAllToggle: () => this.setState({ layAllOpen: !S.layAllOpen }),
       mapCards, mapEdges, mapW, mapH, mapCardW: MAP_W, mapCardH: MAP_H, mapZoom: mapZ, mapWz: Math.ceil(mapW * mapZ), mapHz: Math.ceil(mapH * mapZ),

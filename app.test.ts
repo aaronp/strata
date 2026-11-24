@@ -1329,18 +1329,48 @@ const layDeck = async (slides: Record<string, any[]>, extra: object = {}) => {
   return (await mount("?deck=talk")).c;
 };
 
-test("shapes count blocks; layouts match exactly; slots fill by key then reading order", async () => {
+test("shapes count blocks (a list once); layouts match exactly; slots fill by key then reading order", async () => {
   const { BUILTIN_LAYOUTS, sigOf, sigKey, fillSlots } = await lay();
   const layers = [BL("t", "title"), BL("b2", "body", { x: 50, y: 50 }), BL("b1", "body", { y: 50 }), LTX("c", "body", 0, 0), BL("hid", "body", { hidden: true }),
-    { id: "i", type: "image", block: "image", x: 0, y: 0, w: 1, h: 1 }, BL("src", "sources"), { id: "s", type: "shape", x: 0, y: 0, w: 1, h: 1 }];
-  expect(sigOf(layers)).toEqual({ title: 1, body: 2, image: 1 });
+    { id: "i", type: "image", block: "image", x: 0, y: 0, w: 1, h: 1 }, BL("src", "sources"), { id: "s", type: "shape", x: 0, y: 0, w: 1, h: 1 },
+    BL("l1", "list", { list: 1, item: 1 }), BL("l2", "list", { list: 1, item: 2 }), { id: "gen-number", type: "text", text: "01", x: 0, y: 0, w: 1, h: 1 }];
+  expect(sigOf(layers)).toEqual({ title: 1, body: 2, image: 1, list: 1 });
   expect(sigKey({ title: 1, body: 2 })).toBe("body:2,title:1"); expect(sigKey({})).toBe("");
   const boxes = fillSlots(layers.slice(0, 3), BUILTIN_LAYOUTS["cols-2"]);
   expect(boxes).toEqual({ t: { x: 6, y: 6, w: 88, h: 14, rot: 0 }, b1: { x: 6, y: 24, w: 42, h: 66, rot: 0 }, b2: { x: 52, y: 24, w: 42, h: 66, rot: 0 } });
   for (const L of Object.values<any>(BUILTIN_LAYOUTS)) {
-    for (const k in L.match) expect(L.slots[k].length).toBe(L.match[k]);
+    for (const k in L.match) expect(L.slots[k].length).toBe(L.match[k] === "items" ? 1 : L.match[k]);
     for (const k in L.slots) for (const b of L.slots[k]) { expect(b.x >= 0 && b.y >= 0 && b.x + b.w <= 100.01 && b.y + b.h <= 100.01).toBe(true); }
   }
+});
+
+test("templates: one layer per bullet, stacked inside the list region", async () => {
+  const { enrich } = (await mount("")).c.constructor.md, { sigOf, sigKey } = await lay(), MDp = await import("./markdown");
+  const n = enrich(MDp.parseMarkdown("# T\n- a\n- b\n- c\n").sections, []).nodes.t, ls = n.frames[0].layers, items = ["md-list-1-1", "md-list-1-2", "md-list-1-3"].map(id => ls.find((l: any) => l.id === id));
+  expect(items.map((l: any) => [l.text, l.block, l.list, l.item, l.kind, l.bullets])).toEqual([["a", "list", 1, 1, "item", "disc"], ["b", "list", 1, 2, "item", "disc"], ["c", "list", 1, 3, "item", "disc"]]);
+  expect(sigKey(sigOf(ls))).toBe("list:1,title:1"); expect(n.layout).toBe("list");
+  const h = (66 - 4) / 3;
+  items.forEach((l: any, k: number) => { expect(l).toMatchObject({ x: 6, w: 88 }); expect(l.y).toBeCloseTo(24 + k * (h + 2)); expect(l.h).toBeCloseTo(h); });
+  expect(items[2].y + items[2].h).toBeCloseTo(90);
+});
+
+test("templates: list + detail pairs bodies with bullets (t-split); a mismatch warns; section numbers", async () => {
+  const { enrich } = (await mount("")).c.constructor.md, { BUILTIN_LAYOUTS, fitsTemplate } = await lay(), MDp = await import("./markdown");
+  const run = (md: string, layouts: any[] = []) => enrich(MDp.parseMarkdown(md).sections, layouts).nodes;
+  const at = (n: any, id: string) => n.frames[0].layers.find((l: any) => l.id === id);
+  const s = run("# T\n- a\n- b\n\nA.\n\nB.\n").t;
+  expect(s.layout).toBe("t-split"); expect(fitsTemplate(s.frames[0].layers, BUILTIN_LAYOUTS["t-split"])).toBe(true);
+  const d1 = at(s, "md-body-1"), d2 = at(s, "md-body-2");
+  expect(d1.kind).toBe("detail"); expect(d2.kind).toBe("detail");
+  expect([d2.x, d2.y, d2.w, d2.h]).toEqual([d1.x, d1.y, d1.w, d1.h]); expect(d1).toMatchObject(BUILTIN_LAYOUTS["t-split"].slots.body[0]);
+  const w = run("# T\n- a\n- b\n- c\n\nA.\n\nB.\n").t;
+  expect(w.layout).toBeUndefined(); expect(fitsTemplate(w.frames[0].layers, BUILTIN_LAYOUTS["t-split"])).toBe(false);
+  for (const l of w.frames[0].layers) expect(!!l._warn).toBe(l.id !== "md-title");
+  const sec = run("# A\n# B\n", [{ deck: { layoutDefaults: { "title:1": "t-section" } } }]);
+  expect(sec.b.layout).toBe("t-section"); expect(at(sec.b, "gen-number")).toMatchObject({ text: "02", color: "impact" }); expect(at(sec.a, "gen-number").text).toBe("01");
+  expect(run("# A\n").a.frames[0].layers.some((l: any) => l.id === "gen-number")).toBe(false);   // the plain title layout has no number
+  expect(BUILTIN_LAYOUTS["t-statement"].match).toEqual({ body: 2 });
+  expect(Object.keys(BUILTIN_LAYOUTS).filter(k => k.startsWith("t-"))).toEqual(["t-title", "t-title-sub", "t-bar", "t-split", "t-two", "t-cards", "t-section", "t-statement", "t-shapes"]);
 });
 
 test("effective layout: the slide's own if it still matches, else the deck default, else the first match; multi-frame counts as custom", async () => {
@@ -1405,7 +1435,7 @@ test("Layout panel: shape chips, status, matching tiles with default star, count
   const { c } = await mount("?deck=talk");
   c.setState({ cur: "a", stab: "layout" }); let v = c.renderVals();
   expect(v.layChips).toEqual(["Body ×2", "Title ×1"]); expect(v.layStatus).toBe("Default · Two columns");
-  expect(v.layTiles.map((t: any) => [t.id, t.star, t.count])).toEqual([["stacked-2", false, "0 slides"], ["cols-2", true, "2 slides"]]);
+  expect(v.layTiles.map((t: any) => [t.id, t.star, t.count])).toEqual([["stacked-2", false, "0 slides"], ["cols-2", true, "2 slides"], ["t-two", false, "0 slides"]]);
   expect(v.layTiles[1].layers.find((l: any) => l.id === "md-body-2")).toMatchObject({ x: 52, _lines: expect.anything() });   // preview: this slide's content, resolved
   v.layTiles[1].onToggle(); v = c.renderVals(); expect(v.layTiles[1].slides.map((s: any) => s.name)).toEqual(["A", "B"]);
   v.layTiles[1].slides[1].onClick(); expect(c.state.cur).toBe("b"); expect(c.state.stab).toBe("layout");
@@ -1538,17 +1568,27 @@ test("shape: sources and layers without a block don't count", async () => {
   expect(sigKey(sigOf([BL("t", "title"), LTX("x", "h1", 0, 0), BL("h", "body", { hidden: true })], {}))).toBe("title:1");
 });
 
-test("layouts: stacked-2 is the first match for body:2; list built-ins", async () => {
-  const { BUILTIN_LAYOUTS, sigKey } = await lay();
+test("layouts: stacked-2 is the first match for body:2; list built-ins; templates after them", async () => {
+  const { BUILTIN_LAYOUTS, sigKey, fitsTemplate } = await lay();
   expect(Object.values<any>(BUILTIN_LAYOUTS).find(L => sigKey(L.match) === "body:2,title:1").name).toBe("Stacked 2");
+  expect(Object.values<any>(BUILTIN_LAYOUTS).find(L => sigKey(L.match) === "body:2").name).toBe("Two texts");
   expect(BUILTIN_LAYOUTS["text-list"].slots.list[0]).toMatchObject({ x: 52, y: 24, w: 42, h: 66 });
+  expect(BUILTIN_LAYOUTS["t-statement"].slots.body[1].color).toBe("impact");
+  expect(BUILTIN_LAYOUTS["t-split"]).toMatchObject({ icon: "split", opts: ["bar", "side"], match: { title: 1, list: 1, body: "items" } });
+  const L3 = [BL("t", "title"), ...[1, 2, 3].map(i => BL("l" + i, "list", { list: 1, item: i }))];
+  expect(fitsTemplate(L3, BUILTIN_LAYOUTS.list)).toBe(true); expect(fitsTemplate(L3, BUILTIN_LAYOUTS["t-split"])).toBe(false);
+  expect(fitsTemplate([...L3, BL("a", "body"), BL("b", "body"), BL("c", "body")], BUILTIN_LAYOUTS["t-split"])).toBe(true);
 });
 
-test("fillSlots: sources default box, and a layout's own sources region wins", async () => {
-  const { BUILTIN_LAYOUTS, fillSlots } = await lay();
+test("fillSlots: sources default box, and a layout's own sources region wins; a list region splits among its items; slotsOf keeps the region", async () => {
+  const { BUILTIN_LAYOUTS, fillSlots, slotsOf } = await lay();
   const s = BL("s", "sources");
   expect(fillSlots([BL("t", "title"), s], BUILTIN_LAYOUTS.title, {}).s).toEqual({ x: 6, y: 89, w: 88, h: 5, rot: 0 });
   expect(fillSlots([s], { slots: { sources: [{ x: 1, y: 2, w: 3, h: 4 }] } }, {}).s).toMatchObject({ x: 1, y: 2 });
+  const items = [BL("b", "list", { list: 1, item: 2, y: 5 }), BL("a", "list", { list: 1, item: 1, y: 9 })];
+  const bx = fillSlots(items, { slots: { list: [{ x: 10, y: 10, w: 50, h: 42 }] } });
+  expect(bx.a).toMatchObject({ x: 10, y: 10, w: 50, h: 20 }); expect(bx.b).toMatchObject({ x: 10, y: 32, w: 50, h: 20 });
+  expect(slotsOf(items.map(l => ({ ...l, ...bx[l.id] })))).toEqual({ list: [{ x: 10, y: 10, w: 50, h: 42, rot: 0 }] });
 });
 
 test("renameRegion stores names beside slots", async () => {
@@ -1797,14 +1837,14 @@ test("md layers keep their web link and list bullets through a markdown edit and
   const md = "# A\nslug: a\n\n- x\n- y\n";
   await writeMd("talk", md);
   const { c } = await mount("?deck=talk"); c.setState({ cur: "a" });
-  expect(layerOf(c, "a", "md-list-1").bullets).toBe("disc");
-  c.setLayers("a", (ls: any[]) => ls.map(l => l.id === "md-title" ? { ...l, link: { type: "url", url: "https://e.com" } } : l.id === "md-list-1" ? { ...l, bullets: "none" } : l)); c.componentDidUpdate();
+  expect(layerOf(c, "a", "md-list-1-1").bullets).toBe("disc");
+  c.setLayers("a", (ls: any[]) => ls.map(l => l.id === "md-title" ? { ...l, link: { type: "url", url: "https://e.com" } } : l.id === "md-list-1-1" ? { ...l, bullets: "none" } : l)); c.componentDidUpdate();
   c.setMd(md + "\nMore.\n"); c.reenrich(); c.componentDidUpdate();
-  expect(layerOf(c, "a", "md-title").link).toEqual({ type: "url", url: "https://e.com" }); expect(layerOf(c, "a", "md-list-1").bullets).toBe("none");
+  expect(layerOf(c, "a", "md-title").link).toEqual({ type: "url", url: "https://e.com" }); expect(layerOf(c, "a", "md-list-1-1").bullets).toBe("none");
   await c.save();
   const { c: c2 } = await mount("?deck=talk");
-  expect(layerOf(c2, "a", "md-title").link).toEqual({ type: "url", url: "https://e.com" }); expect(layerOf(c2, "a", "md-list-1").bullets).toBe("none");
-  expect(layerOf(c2, "a", "md-list-1").text).toBe("x\ny");
+  expect(layerOf(c2, "a", "md-title").link).toEqual({ type: "url", url: "https://e.com" }); expect(layerOf(c2, "a", "md-list-1-1").bullets).toBe("none");
+  expect(layerOf(c2, "a", "md-list-1-1").text).toBe("x"); expect(layerOf(c2, "a", "md-list-1-2").text).toBe("y");
 });
 
 test("a slide's override survives typing its slug a letter at a time", async () => {

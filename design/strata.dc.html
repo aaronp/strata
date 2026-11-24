@@ -641,6 +641,15 @@ select option{background:#23262E;color:#E8EAEE}
                   </button>
                 </sc-for>
               </div>
+              <sc-if value="{{ hasMyTpls }}">
+                <span style="font-size:11px;color:#9AA1AD">Your templates</span>
+                <sc-for list="{{ myTpls }}" as="mt" hint-placeholder-count="2">
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <input value="{{ mt.name }}" onChange="{{ mt.onName }}" title="Template name" style="flex:1;min-width:0;height:26px;padding:0 8px;border:1px solid #2C3039;border-radius:6px;background:#23262E;font-size:12px">
+                    <button onClick="{{ mt.onDelete }}" title="Delete this template (its slides keep their arrangement)" style="flex:none;border:0;background:none;color:#AFC6FF;cursor:pointer">✕</button>
+                  </div>
+                </sc-for>
+              </sc-if>
               <span style="font-size:11px;line-height:1.5;color:#9AA1AD">Templates only set structure. Colours and fonts always come from the deck theme, so switching theme restyles every slide.</span>
             </section>
             <sc-if value="{{ layEditable }}">
@@ -1846,10 +1855,10 @@ class Component extends DCLogic {
       for (const k in BUILTIN_LAYOUTS) o[k] = { id: k, ...BUILTIN_LAYOUTS[k] }; for (const k in this.state.layouts || {}) o[k] = { id: k, ...this.state.layouts[k] }; this._layouts = o; }
     return this._layouts; }
   slideSig(id) { return sigKey(sigOf(this.layersOf(id), this.styles())); }
-  // The slide's own layout if it still matches, else its shape's (shapeLayout), else none.
+  // The slide's own layout (an explicit choice wins even when it doesn't fit: its unplaced blocks warn), else its shape's (shapeLayout), else none.
   effectiveLayout(id) {
     const n = this.state.nodes[id]; if (!n) return null; const sig = this.slideSig(id); if (!sig) return null;
-    const L = this.layouts()[n.layout]; return fitsTemplate(this.layersOf(id), L) ? L : this.shapeLayout(id);
+    return this.layouts()[n.layout] || this.shapeLayout(id);
   }
   isCustom(id) { const n = this.state.nodes[id]; return !!(n && n.custom); }
   // A layer for display: styledLayer, then theme tokens (fonts head/body/mono, palette colours) resolved to CSS with the deck's theme.
@@ -1986,7 +1995,9 @@ class Component extends DCLogic {
     // The old layout's template props come off before the new layout's go on, so a layer carries exactly the new template's.
     const old = tplProps(ls0, this.layouts()[n.layout]), strip = l => { const o = { ...l }; for (const k of old[l.id] || []) delete o[k]; return o; };
     const ls = ls0.map(strip), boxes = fillSlots(ls, sided(L, n)), { custom: _c, layers: _l, ...rest } = n, gen = genLayers(L, this.indexOf(n.id), n);
-    return { ...rest, layers: [...gen, ...backFirst(ls.map(l => (boxes[l.id] ? { ...l, ...boxes[l.id] } : l)), boxes)], layout: L.id }; }
+    // A template that doesn't fit places what its regions claim (by key, in reading order); a counted block no region claims is flagged ⚠️.
+    const place = l => boxes[l.id] ? { ...unwarn(l), ...boxes[l.id] } : counted(l) ? { ...l, _warn: true } : l;
+    return { ...rest, layers: [...gen, ...backFirst(ls.map(place), boxes)], layout: L.id }; }
   // Extras (layers not from the markdown) live only in a per-slide override.
   hasExtras(id) { return this.layersOf(id).some(l => !isMd(l) && !isGen(l)); }
   // The layout enrich gives a shape with no override: the deck default, else the deck's first match, else the built-in.
@@ -2025,8 +2036,8 @@ class Component extends DCLogic {
   // The slide's effective layout takes this slide's boxes; every default slide using it follows. Uses the new layout object directly (no read-after-setState).
   updateLayoutFrom(id, N = this.state.nodes) {
     if (!this.state.nodes[id] || this.state.nodes[id]._from) return;
-    const L0 = this.effectiveLayout(id); if (!L0) return;
-    const rec = slotsOf(this.layersOf(id));   // new boxes; each slot keeps its template extras (a colour, the kicker's font)
+    const L0 = this.effectiveLayout(id); if (!L0 || !fitsTemplate(this.layersOf(id), L0)) return;   // a slide that doesn't fit its template can't redefine it
+    const rec = sided({ ...L0, slots: slotsOf(this.layersOf(id)) }, this.state.nodes[id]).slots;   // new boxes, un-mirrored (List right); each slot keeps its template extras (a colour, the kicker's font)
     for (const k in rec) rec[k] = rec[k].map((b, i) => ({ ...(((L0.slots || {})[k] || [])[i] || {}), ...b }));
     const { id: lid, ...stored } = { ...L0, slots: rec }, L = { id: lid, ...stored };
     this.setState(s => ({ layouts: { ...(s.layouts || {}), [lid]: stored } }));
@@ -2325,7 +2336,10 @@ class Component extends DCLogic {
     }
     if ((e.metaKey || e.ctrlKey) && (k === 'z' || k === 'Z')) { e.preventDefault(); if (e.shiftKey) this.redo(); else this.undo(); return; }
     if ((e.metaKey || e.ctrlKey) && (k === 'y' || k === 'Y')) { e.preventDefault(); this.redo(); return; }
-    if (S.mode === 'build' && !e.metaKey && !e.ctrlKey && !e.altKey && TOOL_KEYS[k.toLowerCase()]) { this.setState({ tool: TOOL_KEYS[k.toLowerCase()] }); return; }
+    if (S.mode === 'build' && S.view === 'slide' && !(S.nodes[this.curId()] || {})._from && !e.metaKey && !e.ctrlKey && !e.altKey) {   // the shape tools: own slides only
+      if (TOOL_KEYS[k.toLowerCase()]) { this.setState({ tool: TOOL_KEYS[k.toLowerCase()] }); return; }
+      if (k === 'Escape' && S.tool && S.tool !== 'select') { this.setState({ tool: 'select' }); return; }
+    }
     if ((e.metaKey || e.ctrlKey) && (k === 'a' || k === 'A') && S.mode === 'build' && S.view === 'slide') { e.preventDefault(); this.setSelection(this.layersOf(this.curId()).map(l => l.id)); return; }
     if (S.mode === 'build' && S.view === 'slide' && this.selIds().length > 1) {
       if (k.startsWith('Arrow')) { e.preventDefault(); const st = e.shiftKey ? 5 : 0.5; const d = DIRS[k.slice(5).toLowerCase()]; this.moveSel(d[0] * st, d[1] * st * 16 / 9); }
@@ -2505,7 +2519,7 @@ class Component extends DCLogic {
     const styled = !!(ly && ly.type === 'text' && ly.style && this.styles()[ly.style] && !this.styles()[ly.style].deleted);
     const lv = ly ? this.styledLayer(ly, cur) : null;
     const upL = patch => { if (ly) this.updLayer(cur, ly.id, patch); };
-    const lname = l => l.type === 'text' ? short(plainText(l.text).split('\n')[0] || 'Text', 24) : l.type === 'image' ? 'Image' : l.type === 'shape' ? ({ rect: 'Rectangle', ellipse: 'Ellipse', triangle: 'Triangle' }[l.shape] || 'Shape') : l.type === 'component' ? '⧉ ' + (l.name || 'Component') : 'Icon · ' + (l.icon || '');
+    const lname = l => l.type === 'text' ? short(plainText(l.text).split('\n')[0] || 'Text', 24) : l.type === 'image' ? 'Image' : l.type === 'shape' ? ({ rect: 'Rectangle', round: 'Rounded rectangle', ellipse: 'Ellipse', line: 'Line', arrow: 'Arrow', triangle: 'Triangle' }[l.kind || l.shape] || 'Shape') : l.type === 'component' ? '⧉ ' + (l.name || 'Component') : 'Icon · ' + (l.icon || '');
     const selIds = this.selIds(), multi = selIds.length > 1, hits = S.marqueeHits || [], mh = this._mh || {};
     const tool = TOOLS.some(t => t[0] === S.tool) ? S.tool : 'select';   // a drawing tool draws over layers, so they let the pointer through
     const overlays = curLayers.map((l, i) => ({ lid: l.id, l: l.x, t: l.y, w: l.w, h: Math.max(l.h, mh[l.id] || 0), rot: l.rot || 0, z: i + 1, pe: tool !== 'select' || (S.interact === l.id && S.layerSel === l.id) ? 'none' : 'auto', selected: selIds.includes(l.id), single: !multi && l.id === S.layerSel, hidden: !!l.hidden,
@@ -2602,7 +2616,7 @@ class Component extends DCLogic {
         swatch: tok === 'none' ? 'repeating-linear-gradient(45deg, #343944 0 4px, #23262E 4px 8px)' : TH.tokenColor(tok, th.palette),
         outline: sh && sh.token === tok ? '2px solid #7AA2FF' : '1px solid #343944', pick: () => upL({ token: tok }) })),
       shapeOpacity: sh ? sh.fillOpacity ?? 100 : 0, setShapeOpacity: e => upL({ fillOpacity: +e.target.value }),
-      widthOpts: seg([[0, 'None'], [1, 'Thin'], [2, 'Medium'], [5, 'Thick']], shBorder.width, v => upL({ border: { ...shBorder, width: v } })),
+      widthOpts: seg([...(shLine ? [] : [[0, 'None']]), [1, 'Thin'], [2, 'Medium'], [5, 'Thick']], shBorder.width, v => upL({ border: { ...shBorder, width: v } })),
       borderStyleOpts: seg([['solid', 'Solid'], ['dashed', 'Dashed'], ['dotted', 'Dotted']], shBorder.style, v => upL({ border: { ...shBorder, style: v } })),
       blendOpts: seg([['normal', 'Stack'], ['screen', 'Blend colours']], (sh && sh.blend) || 'normal', v => upL({ blend: v })),
     };
@@ -2622,6 +2636,7 @@ class Component extends DCLogic {
       tplFits: tplAll.filter(fitsCur).map(tileOf), tplOthers: tplAll.filter(L => !fitsCur(L)).map(tileOf), hasTpl: !!effL, tplName: effL ? effL.name : '',
       onTplName: e => effL && this.renameLayout(effL.id, e.target.value), tplCanDelete: !!effL && !BUILTIN_LAYOUTS[effL.id], onTplDelete: () => effL && this.deleteLayout(effL.id),
       onLayApplyAll: () => effL && this.applyToAll(effL.id),
+      hasMyTpls: Object.keys(S.layouts || {}).some(k => !BUILTIN_LAYOUTS[k]), myTpls: Object.keys(S.layouts || {}).filter(k => !BUILTIN_LAYOUTS[k] && LAY[k]).map(k => ({ id: k, name: LAY[k].name, onName: e => this.renameLayout(k, e.target.value), onDelete: () => this.deleteLayout(k) })),
       hasBarOpt: opts.includes('bar'), barOpts: seg([['band', 'Band'], ['rule', 'Underline'], ['none', 'None']], curN.barStyle || 'band', v => this.setTemplateOpt(cur, { barStyle: v })),
       hasSideOpt: opts.includes('side'), sideOpts: seg([['left', 'List left'], ['right', 'List right']], curN.side || 'left', v => this.setTemplateOpt(cur, { side: v })),
       placeholders: effL ? Object.entries(effL.slots || {}).flatMap(([k, bs]) => bs.map((_, i) => ({ name: ((effL.names || {})[k] || [])[i] || cap(k) + (bs.length > 1 ? ' ' + (i + 1) : ''),
@@ -2686,7 +2701,7 @@ class Component extends DCLogic {
       onLayReset: () => this.resetToDefault(cur),
       applyItems: [['slide', 'This slide'], ['layout', 'Layout']].map(([v, label]) => ({ label, ...tab((S.applyTo || 'slide') === v), onClick: () => this.setState({ applyTo: v }) })),
       warnBadges: isPresent ? [] : curLayers.filter(l => l._warn && !l.hidden).map(l => ({ x: l.x, y: l.y, title: 'Not placed by this slide\'s layout — click to add a region for it', onClick: () => this.claimBlock(cur, l.id), onDown: e => e.stopPropagation() })),
-      onLaySave: () => this.saveAsLayout(cur), layCanUpdate: !!effL, layUpdateLabel: effL ? 'Update “' + effL.name + '” from this slide' : '', onLayUpdate: () => this.updateLayoutFrom(cur),
+      onLaySave: () => this.saveAsLayout(cur), layCanUpdate: !!effL && fitsTemplate(curLayers, effL), layUpdateLabel: effL ? 'Update “' + effL.name + '” from this slide' : '', onLayUpdate: () => this.updateLayoutFrom(cur),
       mapCards, mapEdges, mapW, mapH, mapCardW: MAP_W, mapCardH: MAP_H, mapZoom: mapZ, mapWz: Math.ceil(mapW * mapZ), mapHz: Math.ceil(mapH * mapZ),
       onMapZoomIn: () => this.setState({ mapZoom: Math.min(3, mapZ * 1.25) }), onMapZoomOut: () => this.setState({ mapZoom: Math.max(0.02, mapZ / 1.25) }), onMapFit: () => this.setState({ mapZoom: null }),
       viewMenuOpen: !!S.viewMenu, onViewMenu: () => this.setState({ viewMenu: !S.viewMenu }), onViewMenuClose: () => this.setState(closeMenu),

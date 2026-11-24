@@ -1343,12 +1343,13 @@ test("templates: list + detail pairs bodies with bullets (t-split); a mismatch w
   expect(Object.keys(BUILTIN_LAYOUTS).filter(k => k.startsWith("t-"))).toEqual(["t-title", "t-title-sub", "t-bar", "t-split", "t-two", "t-cards", "t-section", "t-statement", "t-shapes"]);
 });
 
-test("effective layout: the slide's own if it still matches, else the deck default, else the first match", async () => {
+test("effective layout: the slide's own (even one that doesn't fit), else the deck default, else the first match", async () => {
   await writeMd("talk", TWO("A") + "# Z\nslug: z\n", { version: 2, deck: { layoutDefaults: { "body:2,title:1": "cols-2" } }, slides: {} });
   const { c } = await mount("?deck=talk");
   expect(c.effectiveLayout("a").id).toBe("cols-2"); expect(layerOf(c, "a", "md-body-2")).toMatchObject({ x: 52, y: 24 });   // laid out by it on load
   c.setNode("a", { layout: "stacked-2" }); expect(c.effectiveLayout("a").id).toBe("stacked-2");
-  c.setNode("a", { layout: "title" }); expect(c.effectiveLayout("a").id).toBe("cols-2");     // no longer matches → default
+  c.setNode("a", { layout: "title" }); expect(c.effectiveLayout("a").id).toBe("title");      // an explicit choice wins, fit or not
+  c.setNode("a", { layout: undefined }); expect(c.effectiveLayout("a").id).toBe("cols-2");   // none → the default
   c.setState({ layoutDefaults: {} }); expect(c.effectiveLayout("a").id).toBe("stacked-2");   // first match
   expect(c.effectiveLayout("z").id).toBe("title"); expect(c.effectiveLayout("ROOT")).toBeNull();
   expect(c.isCustom("a")).toBe(false); c.setNode("a", { custom: true }); expect(c.isCustom("a")).toBe(true);
@@ -2158,4 +2159,38 @@ test("the title-bar band follows the palette tone: a dark scrim on dark palettes
   const band = () => c.resolveLayer(layerOf(c, "t", "gen-bar"), "t").fill;
   c.setTheme({ palette: "midnight" }); expect(band()).toBe("rgba(10,12,30,0.45)");
   c.setTheme({ palette: "paper" }); expect(band()).toBe("rgba(255,255,255,0.55)");
+});
+
+test("Update template from a List-right slide records unmirrored boxes, so List-left and List-right slides both keep their sides", async () => {
+  await writeMd("talk", ["S", "U"].map(t => `# ${t}\nslug: ${t.toLowerCase()}\n\n- a\n- b\n\nA.\n\nB.\n\n`).join(""));
+  const { c } = await mount("?deck=talk"); c.setState({ cur: "s" });
+  c.setTemplateOpt("s", { side: "right" }); c.componentDidUpdate();
+  expect(layerOf(c, "s", "md-list-1-1").x).toBe(69); expect(layerOf(c, "u", "md-list-1-1").x).toBe(3);
+  c.updateLayoutFrom("s"); c.componentDidUpdate();
+  expect(c.state.layouts["t-split"].slots.list[0].x).toBe(3);
+  expect(c.state.nodes.s.side).toBe("right"); expect(layerOf(c, "s", "md-list-1-1").x).toBe(69); expect(layerOf(c, "u", "md-list-1-1").x).toBe(3);
+});
+
+test("picking a template that doesn't fit applies it: regions take blocks by key and reading order, the rest warn; Your templates lists user templates", async () => {
+  await writeMd("talk", "# T\nslug: t\n\n- a\n- b\n"); const { c } = await mount("?deck=talk"); c.setState({ cur: "t", rtab: "slides" });
+  c.renderVals().tplOthers.find((t: any) => t.id === "t-two").pick(); c.componentDidUpdate();
+  expect(c.state.nodes.t).toMatchObject({ layout: "t-two", custom: true }); expect(c.effectiveLayout("t").id).toBe("t-two");
+  expect(layerOf(c, "t", "md-title")).toMatchObject({ x: 5, y: 6, w: 90, h: 12 }); expect(layerOf(c, "t", "md-title")._warn).toBeFalsy();
+  for (const id of ["md-list-1-1", "md-list-1-2"]) expect(layerOf(c, "t", id)._warn).toBe(true);
+  let v = c.renderVals(); expect(v.warnBadges.length).toBe(2); expect(v.layCanUpdate).toBe(false); expect(v.hasMyTpls).toBe(false);
+  c.renderVals().tplFits.find((t: any) => t.id === "list").pick(); expect(layerOf(c, "t", "md-list-1-1")._warn).toBeFalsy();   // a fitting one places them again
+  const lid = c.saveAsLayout("t"); v = c.renderVals(); expect(v.hasMyTpls).toBe(true); expect(v.myTpls.map((t: any) => t.id)).toEqual([lid]);
+  v.myTpls[0].onName({ target: { value: "Mine" } }); expect(c.layouts()[lid].name).toBe("Mine");
+  c.renderVals().myTpls[0].onDelete(); expect(c.layouts()[lid]).toBeUndefined(); expect(c.renderVals().myTpls).toEqual([]);
+});
+
+test("tool keys only on an own slide in Slide view; Escape puts the tool back to Select; lines have no None border; shape names follow kind", async () => {
+  await deckTalk(); const { c } = await mount("?deck=talk");
+  const key = (k: string) => c.onKey({ key: k, target: { tagName: "DIV" }, preventDefault() {} });
+  c.setState({ view: "wire" }); key("r"); expect(c.state.tool).toBeUndefined();
+  c.setState({ view: "slide" }); key("r"); expect(c.state.tool).toBe("rect"); key("Escape"); expect(c.state.tool).toBe("select");
+  c.setNode("t", { _from: "other.md" }); key("o"); expect(c.state.tool).toBe("select"); c.setNode("t", { _from: undefined });
+  const l = c.addLayer("shape", { kind: "arrow" }); let v = c.renderVals();
+  expect(v.widthOpts.map((o: any) => o.label)).toEqual(["Thin", "Medium", "Thick"]); expect(v.lyLabel).toBe("Arrow");
+  c.updLayer("t", l.id, { kind: "round" }); v = c.renderVals(); expect(v.widthOpts[0].label).toBe("None"); expect(v.lyLabel).toBe("Rounded rectangle");
 });

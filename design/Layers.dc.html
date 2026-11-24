@@ -118,14 +118,14 @@ class Component extends DCLogic {
         const k = l.kind || l.shape || 'rect', bw0 = l.border && l.border.width, bw = Number.isFinite(bw0) ? Math.max(0, Math.min(10, bw0)) : 0,
           bs = l.border && ['solid', 'dashed', 'dotted'].includes(l.border.style) ? l.border.style : 'solid', stroke = col(l.stroke, ink);
         if (k === 'line' || k === 'arrow') {   // from the box's corner where the drag started to the one where it ended
-          const ends = l.flip ? [['0%', '100%'], ['100%', '0%']] : [['0%', '0%'], ['100%', '100%']], [a, z] = l.back ? [ends[1], ends[0]] : ends, w = bw / 10;
-          return { ...base, isShape: false, isLine: true, x1: a[0], y1: a[1], x2: z[0], y2: z[1], stroke, sw: w + 'cqw', mid: 'ah-' + l.id, mark: k === 'arrow' ? 'url(#ah-' + l.id + ')' : 'none',
+          const aid = String(l.id).replace(/[^\w.:-]/g, '_'), ends = l.flip ? [['0%', '100%'], ['100%', '0%']] : [['0%', '0%'], ['100%', '100%']], [a, z] = l.back ? [ends[1], ends[0]] : ends, w = bw / 10;
+          return { ...base, isShape: false, isLine: true, x1: a[0], y1: a[1], x2: z[0], y2: z[1], stroke, sw: w + 'cqw', mid: 'ah-' + aid, mark: k === 'arrow' ? 'url(#ah-' + aid + ')' : 'none',
             dash: bs === 'dashed' ? w * 3 + 'cqw ' + w * 2 + 'cqw' : bs === 'dotted' ? '0 ' + w * 2 + 'cqw' : 'none' };
         }
         return { ...base, fill: col(l.fill, '#d9432b'), radius: k === 'ellipse' ? '50%' : k === 'round' ? '3cqw' : l.kind ? '0' : ((l.radius || 0) / 16) + 'cqw',
           clip: k === 'triangle' ? 'polygon(50% 0,100% 100%,0 100%)' : 'none', border: bw ? bw / 10 + 'cqw ' + bs + ' ' + stroke : '0' };
       }
-      if (l.type === 'icon') return { ...base, path: ICONS[l.icon] || ICONS.star, fill: col(l.fill, ink), sw: l.sw || 1.8 };
+      if (l.type === 'icon') return { ...base, path: Object.hasOwn(ICONS, l.icon) ? ICONS[l.icon] : ICONS.star, fill: col(l.fill, ink), sw: l.sw || 1.8 };
       if (l.type === 'component') {
         const live = !!p.live; let src = '';
         if (live) {   // cache per layer: re-encoding a big snippet on every drag or step render would jank
@@ -136,7 +136,7 @@ class Component extends DCLogic {
         // Name cards only in builder thumbnails (cards); the swipe/ghost planes show nothing rather than a card popping in.
         return { ...base, isComponent: true, live, placeholder: !live && !!p.cards, name: l.name || 'Component', src, pe: base.op > 0 ? 'auto' : 'none' };
       }
-      const u = l.imgKey ? imgs[l.imgKey] : null;
+      const u0 = l.imgKey && Object.hasOwn(imgs, l.imgKey) ? imgs[l.imgKey] : null, u = typeof u0 === 'string' && !/["\\\s]/.test(u0) && !/;(?!base64,)/.test(u0) ? u0 : null;   // only a url that stays inside url("…")
       // Zoom scales the image about its focus point; the focus also chooses which part shows when the image is cropped.
       const fx = l.focusX ?? 50, fy = l.focusY ?? 50;
       return { ...base, radius: (l.radius || 0) / 16, hasImg: !!u, imgBg: u ? `url("${u}") ${fx}% ${fy}% / ${l.fit === 'contain' ? 'contain' : 'cover'} no-repeat` : 'none',

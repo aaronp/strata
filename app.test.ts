@@ -25,7 +25,7 @@ async function mount(search: string, opts: { href?: string; batched?: boolean; i
   opts = { deckMode: /(deck=[a-z0-9-]+|src=)/.test(search), ...opts };
   const store: Record<string, string> = opts.store ?? {}, listeners: Record<string, Function> = {};
   const g = {
-    location: { search, href: opts.href }, window: { StrataMd: await import("./markdown"), StrataTheme: await import("./theme"), StrataBuilds: await import("./builds"), STRATA_STATIC: !!opts.isStatic, addEventListener: (t: string, f: Function) => (listeners[t] = f), removeEventListener() {} },
+    location: { search, href: opts.href }, window: { StrataMd: await import("./markdown"), StrataTheme: await import("./theme"), StrataBuilds: await import("./builds"), StrataSanitize: await import("./layout-sanitize"), STRATA_STATIC: !!opts.isStatic, addEventListener: (t: string, f: Function) => (listeners[t] = f), removeEventListener() {} },
     localStorage: { getItem: (k: string) => store[k] ?? null, setItem: (k: string, v: string) => (store[k] = v), removeItem: (k: string) => delete store[k] },
     fetch: async (u: string, o: RequestInit = {}) => opts.fetch?.(u) ?? handler(root)(new Request(new URL(u, "http://x/design/strata.dc.html"), o)),
     setTimeout, requestAnimationFrame: () => {},
@@ -2418,7 +2418,7 @@ test("layout-file values that could inject CSS resolve to safe defaults (font, c
   expect(t).toMatchObject({ x: 0, y: 5, w: 50, h: 20 }); expect(t.box).toEqual({ bg: "#fff" });
   expect(c.resolveLayer(TL("n", { x: "12", weight: 700, align: "center", valign: "bottom" }), "s")).toMatchObject({ x: 12, weight: 700, align: "center", valign: "bottom" });
   c.setState({ cur: "s", mode: "build", view: "slide" }); expect(hasSemi(c.renderVals().overlays.map((o: any) => [o.l, o.t, o.w, o.h, o.rot]))).toBe(false);   // the stage's own boxes too
-  expect(e.color).toBeUndefined(); expect(e.font).toBeUndefined(); expect(e._lines[0][0]).toEqual({ text: "w" });
+  expect(e.color).toBeUndefined(); expect(e.font).toBeUndefined(); for (const k of ["color", "font"]) expect(e._lines[0][0][k]).toBeUndefined();   // the style is cleaned on load, the run guarded on display
   expect(s1.border).toEqual({ width: 10, style: "solid" }); for (const k of ["fill", "stroke", "blend"]) expect(s1[k]).toBeUndefined();
   expect(s2.border).toEqual({ width: 0, style: "dashed" }); expect(s2.token).toBeUndefined(); expect(s3.border).toEqual({ width: 0, style: "solid" });
   for (const r of [t, e, s1, s2, s3]) expect(hasSemi({ ...r, text: "" })).toBe(false);
@@ -2449,4 +2449,40 @@ test("Builds: ordering ignores select-all, nudge, delete, tool keys and image dr
   c.replay(); c.setState({ cur: "b" }); c.componentDidUpdate(); await Bun.sleep(100); expect(c.state.at).toBe(0);                                                  // slide change mid-replay
   c.setState({ cur: "a" }); c.componentDidUpdate(); c.startOrdering(); c.componentDidUpdate(); expect(c.state.ordering).toBe(true);
   c.setState({ view: "wire" }); c.componentDidUpdate(); expect(c.state.ordering).toBe(false);
+});
+
+// ---- layout files are sanitized at the boundary ----
+// Every string in o (renderVals output; functions skipped), found recursively. The hostile file says top:7px, which the app itself never writes.
+const strings = (o: any, seen = new Set<any>(), out: string[] = []): string[] => {
+  if (typeof o === "string") out.push(o);
+  else if (o && typeof o === "object" && !seen.has(o)) { seen.add(o); for (const v of Object.values(o)) strings(v, seen, out); }
+  return out;
+};
+const HOSTILE_LAYOUT = () => JSON.parse(JSON.stringify({ version: 2,
+  deck: { opacity: "1;top:7px", customBg: "javascript:x", images: { k: 'data:x");top:7px;("' }, theme: { background: "image:custom" },
+    layouts: { evil: { name: "Evil", icon: "constructor", match: { title: 1, body: 1 }, slots: { title: [{ x: "1;top:7px", y: 0, w: 10, h: 10 }], body: [{ x: 6, y: 24, w: 88, h: 60 }] } } } },
+  slides: { s: { custom: true, layers: [{ id: "md-title", type: "text", block: "title", x: 6, y: 6, w: 88, h: 14 },
+    { id: "w", type: "shape", x: "1;background:url(http://t)", y: "top:7px", w: 5, h: 5, _warn: true },
+    { id: "a);background:url(http://t);x:(a", type: "shape", kind: "arrow", x: 0, y: 0, w: 5, h: 5 },
+    { id: "im", type: "image", imgKey: "k", x: 0, y: 0, w: 5, h: 5 }] } } })
+  .replace("{", '{"__proto__":{"polluted":1},'));
+const leaks = (c: any) => strings([c.renderVals(), c.shown("s", c.layersOf("s"))]).filter(s => s.includes("background:url(http://t") || s.includes("top:7px"));
+test("a hostile layout file (deck, ?src= and linked) loads without throwing and none of its CSS reaches renderVals", async () => {
+  await writeMd("evil", "# S\nslug: s\n\nBody.\n", HOSTILE_LAYOUT());
+  const { c } = await mount("?deck=evil");
+  expect(c.state.saveMsg).toBeFalsy(); expect(c.state.nodes.s).toBeDefined(); expect(({} as any).polluted).toBeUndefined();
+  expect(c.layersOf("s").map((l: any) => l.id)).toEqual(["md-title", "w", "im", "md-body-1"]); expect(c.layersOf("s")[1]._warn).toBeUndefined(); expect(c.renderVals().warnBadges.length).toBe(1); expect(c.state.opacity).toBe(1); expect(c.state.customBg).toBeNull();
+  for (const v of [{ mode: "build", view: "slide", rtab: "slides" }, { rtab: "theme" }, { layerSel: "im", rtab: "content" }, { mode: "present" }]) { c.setState({ cur: "s", ...v }); expect(leaks(c)).toEqual([]); }
+  const files: Record<string, string> = { "https://h/host.md": "# A\nslug: a\n<!-- children: ./kid.md -->\n", "https://h/kid.md": "# S\nslug: s\n\nBody.\n", "https://h/kid-layout.json": JSON.stringify(HOSTILE_LAYOUT()) };
+  const m = await mount("?src=https://h/host.md", { fetch: u => files[u] ? reply(files[u], "text/plain") : u.startsWith("https://") ? reply("", "text/plain", 404) : undefined });
+  await down(m.c, "a"); expect(m.c.state.cur).toBe("a.s");
+  m.c.setState({ mode: "build", view: "slide" }); expect(strings(m.c.renderVals()).filter(s => s.includes("background:url(http://t") || s.includes("top:7px"))).toEqual([]);
+});
+
+test("a normal deck (the Strata tour) round-trips unchanged through sanitize and save", async () => {
+  const L = await Bun.file(join(import.meta.dir, "examples/strata-tour/strata-tour-layout.json")).text();
+  await writeMd("tour", await Bun.file(join(import.meta.dir, "examples/strata-tour/strata-tour.md")).text(), L);
+  const { c } = await mount("?deck=tour"); await c.save();
+  const out = await Bun.file(deckDir("tour") + "tour-layout.json").json(); delete out.slides.ROOT;   // save always writes the tree root
+  expect(out).toEqual(JSON.parse(L));
 });

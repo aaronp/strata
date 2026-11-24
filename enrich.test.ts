@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { parseMarkdown } from "./markdown";
 
 const js = (await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text()).split('<script type="text/x-dc" data-dc-script>')[1].split("</script>")[0];
-const g = { location: { search: "" }, window: { StrataMd: await import("./markdown"), StrataTheme: await import("./theme"), StrataBuilds: await import("./builds"), addEventListener() {}, removeEventListener() {} }, localStorage: { getItem: () => null, setItem() {} } };
+const g = { location: { search: "" }, window: { StrataMd: await import("./markdown"), StrataTheme: await import("./theme"), StrataBuilds: await import("./builds"), StrataSanitize: await import("./layout-sanitize"), addEventListener() {}, removeEventListener() {} }, localStorage: { getItem: () => null, setItem() {} } };
 const C = new Function("DCLogic", "React", ...Object.keys(g), js + "\nreturn Component;")(class {}, { createRef: () => ({ current: null }) }, ...Object.values(g));
 const { enrich, layoutOf } = C.md, { BUILTIN_LAYOUTS } = C.lay;
 const run = (md: string, layouts: any[] = [], opts: any = {}) => enrich(parseMarkdown(md).sections, layouts, opts);

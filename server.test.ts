@@ -14,7 +14,7 @@ beforeEach(async () => {
   await Bun.write(join(root, "design/strata.dc.html"), "<x-dc>app</x-dc>");
   await Bun.write(join(root, "server.ts"), "secret");
   await Bun.write(join(root, "markdown.ts"), Bun.file("markdown.ts"));
-  for (const f of ["theme.ts", "builds.ts"]) await Bun.write(join(root, f), Bun.file(f));
+  for (const f of ["theme.ts", "builds.ts", "layout-sanitize.ts"]) await Bun.write(join(root, f), Bun.file(f));
   await Bun.write(join(root, "decks/talk/talk.md"), "# My Talk\n");
 });
 

@@ -14,7 +14,8 @@ export type Section = {
 };
 
 const SLUG_RE = /^[a-z0-9-]+$/;
-const HEADING = /^(#{1,6})\s+(.+?)\s*#*\s*$/;
+const HEADING = /^(#{1,6})\s+(.+?)\s*(?<!\\)#*\s*$/;   // closing #s go; an escaped one (C\#) stays in the title
+const untitle = (t: string) => t.replace(/<\\!--/g, "<!--").replace(/\\#$/, "#");   // a title's own escapes (what writeBlock adds)
 const SLUG_LINE = /^slug:\s*(\S*)\s*$/;
 const IMG = /^!\[([^\]]*)\]\(([^)\s]+)\)$/;
 const ITEM = /^\s*[-*]\s+(.*)$/;
@@ -118,7 +119,7 @@ export function parseMarkdown(md: string): { sections: Section[]; errors: Issue[
   for (; i < lines.length; i++) {
     const h = inC ? null : HEADING.exec(lines[i]);
     if (h) {
-      const r: Raw = { level: h[1].length, title: h[2], slug: "", line: i + 1, body: [], childSrc: [] };
+      const r: Raw = { level: h[1].length, title: untitle(h[2]), slug: "", line: i + 1, body: [], childSrc: [] };
       const s = SLUG_LINE.exec(lines[i + 1] ?? "");
       if (s?.[1]) { i++; r.slug = s[1]; if (!SLUG_RE.test(s[1])) errors.push({ line: i + 1, msg: `invalid slug "${s[1]}" (use a-z, 0-9 and -)` }); }
       else { if (s) i++; r.slug = slugify(plainText(r.title)) || `section-${r.line}`; warnings.push({ line: r.line, msg: `no slug line; using "${r.slug}"` }); }
@@ -199,6 +200,7 @@ export function insertSlide(md: string, line: number, where: "after" | "below"):
 export function hasComment(md: string, line: number, endLine: number): boolean {
   const lines = md.split(/\r?\n/); let open = false;
   for (let i = 0; i < endLine; i++) {
+    if (!open && HEADING.test(lines[i])) continue;   // a heading line is never a comment (as in parseMarkdown)
     if (i >= line - 1 && (open || lines[i].includes("<!--"))) return true;
     for (let t = lines[i]; ;) { const k = t.indexOf(open ? "-->" : "<!--"); if (k < 0) break; t = t.slice(k + (open ? 3 : 4)); open = !open; }
   }
@@ -207,21 +209,29 @@ export function hasComment(md: string, line: number, endLine: number): boolean {
 // Writes an in-place edit back: `text` (inline markup, lines split on \n) replaces lines line..endLine of md.
 // title: the heading line, keeping its #s (one line; empty is refused: null). item: one list line per text line, keeping marker and indent; empty lines go.
 // body: one markdown line per text line, joined by hard breaks (a trailing \); a line that would parse as something else is escaped. group (<!-- block -->): its lines as they are.
-// An emptied body, group or item is removed, with one blank line if that would leave two. <!-- is always written <\!--. Other lines are untouched; written lines keep the file's line ending.
+// An emptied body, group or item is removed, with one blank line if that would leave two. <!-- is always written <\!--; a title's trailing # is written \#; a bullet that
+// would parse as a chip or source is wrapped [...]{}. A body/group row the edit didn't change keeps its source line exactly. Other lines are untouched; written lines keep the file's line ending.
 export function writeBlock(md: string, kind: "title" | "body" | "group" | "item", line: number, endLine: number, text: string): string | null {
   const lines = md.split("\n"), cr = md.includes("\r\n") ? "\r" : "", old = (lines[line - 1] ?? "").replace(/\r$/, ""), rows = text.split("\n").map(r => r.trim());
   let put: string[];
   if (kind === "title") {
     const t = rows.filter(Boolean).join(" ");
     if (!plainText(t).trim()) return null;
-    put = [(/^#{1,6}/.exec(old)?.[0] ?? "#") + " " + t];
-  } else if (kind === "item") put = rows.filter(Boolean).map(r => (/^\s*[-*]\s+/.exec(old)?.[0] ?? "- ") + r.replace(/<!--/g, "<\\!--"));
+    put = [(/^#{1,6}/.exec(old)?.[0] ?? "#") + " " + t.replace(/<!--/g, "<\\!--").replace(/#$/, "\\#")];   // a trailing # would read as a closing one
+  } else if (kind === "item") put = rows.filter(Boolean).map(r => { r = r.replace(/<!--/g, "<\\!--");
+    if (parseBody([{ text: "- " + r, line: 1 }]).blocks[0]?.key !== "list") r = "[" + r + "]{}";   // a lone chip or source link: an empty span keeps it a bullet
+    return (/^\s*[-*]\s+/.exec(old)?.[0] ?? "- ") + r; });
   else {
     while (rows.length && !rows[0]) rows.shift();
     while (rows.length && !rows[rows.length - 1]) rows.pop();
     const underHeading = HEADING.test(lines[line - 2] ?? "");   // no slug line: a "slug:" first line would become one
+    // The block as it is now, one row per source line? Then a row the edit didn't change keeps its line as written (indent, spacing).
+    const src = lines.slice(line - 1, endLine).map(l => l.replace(/\r$/, ""));
+    const was = parseBody((kind === "group" ? ["<!-- block -->", ...src, "<!-- /block -->"] : src).map(text => ({ text, line: 1 }))).blocks;
+    const oldRows = was.length === 1 && was[0].key === "body" && was[0].text.split("\n").length === src.length ? was[0].text.split("\n") : null;
     put = rows.map((r, k) => {
-      r = r.replace(/<!--/g, "<\\!--").replace(/^(?=\\[-#!]|#{1,6}(\s|$))/, "\\");   // a \ the parser would drop, a heading: escaped (headings are found even in groups)
+      if (oldRows && k < oldRows.length && r === oldRows[k].trim() && (kind === "group" || (k === rows.length - 1) === (k === oldRows.length - 1))) return src[k];   // a body row's trailing \ (a break) must still match
+      r = r.replace(/<!--/g, "<\\!--").replace(/^(?=\\([-#!]|slug:)|#{1,6}(\s|$))/, "\\");   // a \ the parser would drop, a heading: escaped (headings are found even in groups)
       if (hardBreak(r)) r += "\\";   // a line ending in \ keeps it
       if (kind === "group") return r;
       if (/^([-*](\s|$)|!\[)/.test(r) || (!k && underHeading && SLUG_LINE.test(r))) r = "\\" + r;

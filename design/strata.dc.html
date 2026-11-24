@@ -1533,26 +1533,9 @@ const mapImgs = (im, f) => Object.fromEntries(Object.entries(im || {}).map(([k, 
 const TW = 76, COLW = 96, ROWH = 92, TPX = 28, TPY = 18;   // TPX leaves room for the + before button (24px left of a card)
 const FONT_LIST = [['head', 'Theme heading', TH.fontFor('head', TH.FONTS[0])], ['body', 'Theme body', TH.fontFor('body', TH.FONTS[0])], ['grot', 'Grotesk', "'Bricolage Grotesque',sans-serif"], ['serif', 'Serif', "'DM Serif Display',serif"], ['news', 'Book', "'Newsreader',serif"], ['mono', 'Mono', "'JetBrains Mono',monospace"], ['hand', 'Hand', "'Caveat',cursive"]];
 const FONT_CSS = Object.fromEntries(FONT_LIST.map(f => [f[0], f[2]]));
-// Trust boundary: a layout file (or a ?src= deck) reaches inline CSS through these keys. An unsafe value is dropped, so the renderer's default applies.
-const safeCol = v => typeof v === 'string' && /^(#[0-9a-fA-F]{3,8}|[a-zA-Z]+)$/.test(v);   // a token, a hex or a colour name
-const safeFont = v => typeof v === 'string' && Object.hasOwn(FONT_CSS, v);                  // head, body, mono or a font key
-const NUM_KEYS = ['x', 'y', 'w', 'h', 'rot', 'opacity', 'fillOpacity', 'radius', 'size', 'weight', 'lh', 'ls', 'gap', 'sw', 'zoom', 'focusX', 'focusY'];
-const GEO = { x: 0, y: 0, w: 10, h: 10 };   // a box with bad geometry still shows, small, at the top left
-const finite = v => typeof v === 'number' ? Number.isFinite(v) : typeof v === 'string' && v.trim() !== '' && Number.isFinite(Number(v));
-// Numbers become numbers (a numeric string too); anything else takes its default from def, or is dropped.
-const numsOnly = (r, keys, def = {}) => { for (const k of keys) if (r[k] != null) { if (finite(r[k])) r[k] = Number(r[k]); else if (k in def) r[k] = def[k]; else delete r[k]; } return r; };
-const dropUnsafe = o => { const r = numsOnly({ ...o }, NUM_KEYS, GEO); for (const k of ['color', 'fill', 'stroke', 'token']) if (r[k] != null && !safeCol(r[k])) delete r[k]; if (r.font != null && !safeFont(r.font)) delete r.font; return r; };
-function safeLayer(l) {
-  const r = dropUnsafe(l);
-  if (r.blend != null && !['normal', 'screen'].includes(r.blend)) delete r.blend;
-  if (r.align != null && !['left', 'center', 'right'].includes(r.align)) delete r.align;
-  if (r.valign != null && !['top', 'middle', 'bottom'].includes(r.valign)) delete r.valign;
-  if (r.box != null) { if (typeof r.box !== 'object') delete r.box; else { const b = numsOnly({ ...r.box }, ['bgOpacity', 'blur', 'border', 'radius', 'pad']); for (const k of ['bg', 'borderColor']) if (b[k] != null && !safeCol(b[k])) delete b[k]; r.box = b; } }
-  if (r.border != null) r.border = typeof r.border === 'object' ? { ...r.border, style: ['solid', 'dashed', 'dotted'].includes(r.border.style) ? r.border.style : 'solid',
-    width: Number.isFinite(r.border.width) ? Math.max(0, Math.min(10, r.border.width)) : 0 } : { width: 0, style: 'solid' };
-  if (r._lines) r._lines = r._lines.map(line => line.map(dropUnsafe));
-  return r;
-}
+// Trust boundary: layout files are cleaned on load (StrataSanitize.sanitizeLayout); safeLayer guards every layer drawn, as defence in depth.
+const { safeCol, safeFont, finite, numsOnly, safeLayer, sanitizeLayout, TPL_ICONS } = window.StrataSanitize;
+const cssUrl = u => typeof u === 'string' && !!u && !/["\\\s]/.test(u) && !/;(?!base64,)/.test(u);   // safe inside url("…") in a style string (split on ';')
 const ICONS = {
   arrow: 'M5 12h14M13 6l6 6-6 6', check: 'M5 12.5l4.5 4.5L19 7.5', star: 'M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z',
   heart: 'M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z', info: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 11v6M12 7.5v.5',
@@ -1568,18 +1551,8 @@ const TOOLS = [['select', 'Select (V)', 'Click a shape to edit it', 'M5 3l14 8-6
 const TOOL_KEYS = { v: 'select', t: 'text', r: 'rect', o: 'ellipse', l: 'line', a: 'arrow' };
 const COLOR_TOKENS = ['primary', 'secondary', 'tertiary', 'impact', 'text', 'muted'];
 const cap = k => k[0].toUpperCase() + k.slice(1);
-// Template grid thumbnails: [left, top, width, height, colour, radius] in % of a 16:9 tile, from Templates.dc.html (a circle's height is its width × 16/9).
-const TPL_ICONS = {
-  title: [[12, 34, 60, 14, '#8A93A3', '2px'], [12, 56, 40, 7, '#5B6271', '2px']],
-  bar: [[0, 0, 100, 24, '#4A5263'], [10, 36, 70, 6, '#5B6271'], [10, 50, 60, 6, '#5B6271'], [10, 64, 65, 6, '#5B6271']],
-  split: [[0, 0, 36, 100, '#353A45'], [6, 18, 24, 10, '#7AA2FF', '2px'], [6, 36, 24, 8, '#5B6271'], [6, 52, 24, 8, '#5B6271'], [44, 20, 40, 12, '#8A93A3'], [44, 40, 48, 36, '#5B6271', '2px']],
-  two: [[8, 10, 50, 12, '#8A93A3'], [8, 32, 39, 54, '#4A5263', '2px'], [53, 32, 39, 54, '#4A5263', '2px']],
-  section: [[10, 40, 24, 30, '#FBBF24', '2px'], [10, 76, 50, 9, '#8A93A3']],
-  statement: [[12, 34, 64, 13, '#8A93A3'], [12, 52, 52, 13, '#FBBF24']],
-  venn: [[30, 14, 26, 46.2, 'rgba(147,197,253,0.55)', '50%'], [44, 14, 26, 46.2, 'rgba(196,181,253,0.55)', '50%'], [37, 40, 26, 46.2, 'rgba(94,234,212,0.55)', '50%']],
-  cards: [[8, 10, 50, 12, '#8A93A3'], [8, 34, 26, 52, '#4A5263', '2px'], [37, 34, 26, 52, '#4A5263', '2px'], [66, 34, 26, 52, '#4A5263', '2px']],
-};
-const tplRects = L => (TPL_ICONS[L.icon] || Object.entries(L.slots || {}).flatMap(([k, bs]) => bs.map(b => [b.x, b.y, b.w, b.h, k === 'title' ? '#8A93A3' : k === 'image' ? '#4A5263' : '#5B6271', '2px'])))
+// Template grid thumbnails (TPL_ICONS, from StrataSanitize), else the template's own slot boxes.
+const tplRects = L => ((Object.hasOwn(TPL_ICONS, L.icon) && TPL_ICONS[L.icon]) || Object.entries(L.slots || {}).flatMap(([k, bs]) => (Array.isArray(bs) ? bs : []).map(b0 => { const b = numsOnly({ ...b0 }, ['x', 'y', 'w', 'h'], { x: 0, y: 0, w: 10, h: 10 }); return [b.x, b.y, b.w, b.h, k === 'title' ? '#8A93A3' : k === 'image' ? '#4A5263' : '#5B6271', '2px']; })))
   .map(([l, t, w, h, bg, rad]) => ({ l, t, w, h, bg, rad: rad || '0' }));
 // Component layers: the default snippet (a self-documenting demo) and the brief for an AI writing one.
 const COMPONENT_DEFAULT = `<div id="out" style="height:100%;display:grid;place-items:center;font:600 7vw system-ui;color:#fbf9f4;background:rgba(31,111,184,.35);border-radius:12px"></div>
@@ -1716,7 +1689,7 @@ class Component extends DCLogic {
         if (/text\/html/i.test((r.headers && r.headers.get('content-type')) || '') || /^\s*<(!doctype|html)/i.test(md)) throw new Error('not a markdown file');
         let layout = null; const lr = layoutUrl(src) && await fetch(layoutUrl(src), { cache: 'no-store' }).catch(() => null);   // missing or invalid: the built-ins
         if (lr && lr.ok) try { layout = JSON.parse(await lr.text()); } catch (e) {}
-        if (layout && layout.version !== 2) layout = null;   // an old (frames) file: the built-ins
+        layout = sanitizeLayout(layout); if (layout && layout.version !== 2) layout = null;   // an old (frames) file: the built-ins
         return { src, md, layout };
       } catch (e) { return { src, error: e.message }; }
     }));
@@ -1744,6 +1717,7 @@ class Component extends DCLogic {
   }
   // A loaded markdown + layout file pair becomes the deck: not an undo step, and nothing to save.
   adopt(md, L, then) {
+    L = sanitizeLayout(L);   // the trust boundary: every layout file (deck, ?src=, opened file, draft) is cleaned before use
     if (L && L.version !== 2) { L = null; this.flash('Old layout file ignored', 8000); }   // no migration: an older (frames) file means the defaults
     this._linked = {}; this._goneOv = {}; this._linkedOv = Object.fromEntries(Object.entries((L && L.slides) || {}).filter(([k]) => k.includes('.')));   // linked slides are read-only: their host overrides stay as loaded
     const d = (L && L.deck) || {}, r = this.enrichMd(md, L), pick = Object.fromEntries(DECK_FIELDS.filter(k => k in d).map(k => [k, d[k]]));
@@ -2613,7 +2587,7 @@ class Component extends DCLogic {
       kinds: [...TH.KINDS, { id: 'image', label: 'Image' }].map(k => ({ label: k.label, on: kind === k.id, bg: kind === k.id ? '#E8EAEE' : 'transparent', fg: kind === k.id ? '#16181D' : '#C3C8D2', pick: () => this.setState({ bgKind: k.id }) })),
       bgList: [...TH.BACKGROUNDS, ...images].filter(b => kind === 'all' || b.kind === kind).map(b => {
         const sel = b.id === t.background, outline = sel ? '2px solid #7AA2FF' : '1px solid #343944', pick = () => change({ background: b.id });
-        if (b.kind === 'image') return { name: b.name, css: b.src ? `#2C3039 url("${b.src}") center 20% / cover` : '#23262E', size: 'cover', cls: '', dur: '0s', on: sel, outline, pick,
+        if (b.kind === 'image') return { name: b.name, css: cssUrl(b.src) ? `#2C3039 url("${b.src}") center 20% / cover` : '#23262E', size: 'cover', cls: '', dur: '0s', on: sel, outline, pick,
           isBubbles: false, isSunset: false, isGears: false, tintEdge: 'transparent', gearD: '', gearFill: 'transparent', gearStroke: 'transparent' };
         const bt = { ...t, background: b.id, motion: undefined }, r = TH.resolveTheme(bt), x = TH.effectView(bt), c = TH.schemeOf(bt);
         return { name: b.name, css: r.bg.css, size: r.bg.size, cls: x.cls, dur: b.effect === 'sunset' ? '10s' : x.dur, on: sel, outline, pick,
@@ -2790,7 +2764,7 @@ class Component extends DCLogic {
       swatches: [{ label: 'A', title: 'Deck default', bg: '#23262E', border: ly && !curColor ? '2px solid #7AA2FF' : '1px solid #343944', onClick: () => upL({ [colorKey]: null }) }]
         .concat(COLOR_TOKENS.map(v => ({ label: '', title: cap(v), bg: TH.tokenColor(v, th.palette), border: curColor === v ? '2px solid #7AA2FF' : '1px solid #343944', onClick: () => upL({ [colorKey]: v }) }))),
       colorHex: toHex(TH.tokenColor(curColor, th.palette)), onColorPick: e => upL({ [colorKey]: e.target.value }),
-      lyThumb: ly && ly.imgKey && S.images[ly.imgKey] ? `#23262E url("${S.images[ly.imgKey]}") center / contain no-repeat` : 'repeating-linear-gradient(45deg,#2C3039 0 10px,#23262E 10px 20px)',
+      lyThumb: ly && ly.imgKey && cssUrl(S.images[ly.imgKey]) ? `#23262E url("${S.images[ly.imgKey]}") center / contain no-repeat` : 'repeating-linear-gradient(45deg,#2C3039 0 10px,#23262E 10px 20px)',
       chooseImage: () => ly && this.chooseImage(ly.id), clearImage: () => upL({ imgKey: null }),
       imgFields: ly && ly.type === 'image' ? [['Zoom', 'zoom', 1, 4, 0.05, 1, v => Math.round(v * 100) + '%'], ['Horizontal focus', 'focusX', 0, 100, 1, 50, v => v + '%'], ['Vertical focus', 'focusY', 0, 100, 1, 50, v => v + '%']]
         .map(([label, k, min, max, step, def, fmt]) => ({ label, min, max, step, value: ly[k] ?? def, valLabel: fmt(ly[k] ?? def), onChange: e => upL({ [k]: +e.target.value }) })) : [],
@@ -2943,7 +2917,7 @@ class Component extends DCLogic {
       layStatus: !sigK ? 'Nothing on this slide to lay out' : !effL ? 'No layout for this type yet' : curN.custom ? 'This slide · ' + effL.name : 'Default · ' + effL.name,
       onLayReset: () => this.resetToDefault(cur),
       applyItems: [['slide', 'This slide'], ['layout', 'Layout']].map(([v, label]) => ({ label, ...tab((S.applyTo || 'slide') === v), onClick: () => this.setState({ applyTo: v }) })),
-      warnBadges: isPresent ? [] : curLayers.filter(l => l._warn && !l.hidden).map(l => ({ x: l.x, y: l.y, title: 'Not placed by this slide\'s layout — click to add a region for it', onClick: () => this.claimBlock(cur, l.id), onDown: e => e.stopPropagation() })),
+      warnBadges: isPresent ? [] : curLayers.filter(l => l._warn && !l.hidden).map(safeLayer).map(l => ({ x: l.x, y: l.y, title: 'Not placed by this slide\'s layout — click to add a region for it', onClick: () => this.claimBlock(cur, l.id), onDown: e => e.stopPropagation() })),
       onLaySave: () => this.saveAsLayout(cur), layCanUpdate: !!effL && fitsTemplate(curLayers, effL), layUpdateLabel: effL ? 'Update “' + effL.name + '” from this slide' : '', onLayUpdate: () => this.updateLayoutFrom(cur),
       mapCards, mapEdges, mapW, mapH, mapCardW: MAP_W, mapCardH: MAP_H, mapZoom: mapZ, mapWz: Math.ceil(mapW * mapZ), mapHz: Math.ceil(mapH * mapZ),
       onMapZoomIn: () => this.setState({ mapZoom: Math.min(3, mapZ * 1.25) }), onMapZoomOut: () => this.setState({ mapZoom: Math.max(0.02, mapZ / 1.25) }), onMapFit: () => this.setState({ mapZoom: null }),
@@ -3005,7 +2979,7 @@ class Component extends DCLogic {
       viewTabs: [{ label: 'Slide', ...tab(S.view === 'slide'), onClick: () => this.setState({ view: 'slide' }) }, { label: 'Wireframe', ...tab(S.view === 'wire'), onClick: () => this.setState({ view: 'wire' }) }],
       viewHint: isWire ? 'Every slide on the looping canvas. Click to select, double-click to open.' : 'What viewers see. Arrow keys move around the tree.',
       stageAreaBg: isPresent ? '#05070c' : '#16181D', showStage: !isWire && !mapView, showWire: isWire, showMap: !!mapView,
-      base: th.bg.image ? (th.tone === 'dark' ? '#0b1220' : '#F5F3EE') : th.bg.css, bgCss: B.src ? `url("${B.src}") center / 100% 100% no-repeat` : 'none', opacity: S.opacity, tiles, cam,
+      base: th.bg.image ? (th.tone === 'dark' ? '#0b1220' : '#F5F3EE') : th.bg.css, bgCss: cssUrl(B.src) ? `url("${B.src}") center / 100% 100% no-repeat` : 'none', opacity: finite(S.opacity) ? +S.opacity : 1, tiles, cam,
       curCam: camOf(cur), camTransition: `transform ${S.speed}ms ${ease}`,
       hasPrev: !!active, planeA, planeB, planeTr: active && S.phase === 'run' ? `transform ${S.speed}ms ${ease}, opacity ${S.speed}ms ease` : 'none',
       ink: th.palette.text,

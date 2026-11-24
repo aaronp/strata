@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { parseMarkdown, plainText, writeBlock } from "./markdown";
+import { parseMarkdown, plainText, writeBlock, hasComment } from "./markdown";
 import { join } from "node:path";
 
 const MD = `<!--
@@ -231,4 +231,45 @@ test("writeBlock: trailing and leading backslashes, a slug-like first line, an e
   expect(parseMarkdown(under).sections[0]).toMatchObject({ slug: "t", blocks: [{ text: "slug: x" }] });
   const ls = parseMarkdown("# T\nslug: t\n\n[link:t][A]\n\n[x](https://x.org)\n\n[link:t][B]\n\n[y](https://y.org)\n").sections[0].blocks;
   expect(ls.map(b => [b.key, b.line, b.endLine])).toEqual([["links", 4, 8], ["sources", 6, 10]]);   // first use to last entry
+});
+
+test("writeBlock title: <!-- is escaped, and hasComment ignores headings as the parser does", () => {
+  const md = "# T\nslug: t\n\nBody.\n";
+  const w = writeBlock(md, "title", 1, 1, "a <!-- b")!;
+  expect(w.split("\n")[0]).toBe("# a <\\!-- b");
+  expect(parseMarkdown(w).sections[0]).toMatchObject({ title: "a <!-- b", blocks: [{ text: "Body." }] });
+  expect(hasComment(w, 4, 4)).toBe(false);
+  expect(hasComment("# a <!-- b\nslug: t\n\nBody.\n", 4, 4)).toBe(false);   // an old unescaped heading too
+  expect(hasComment("# T\n\n<!-- x\n# H\n-->\nBody.\n", 4, 4)).toBe(true);   // a heading inside a comment isn't one
+});
+
+test("writeBlock title: a trailing # is kept (C#)", () => {
+  const w = writeBlock("# T\nslug: t\n", "title", 1, 1, "C#")!;
+  expect(w).toBe("# C\\#\nslug: t\n");
+  expect(parseMarkdown(w).sections[0].title).toBe("C#");
+  expect(parseMarkdown("# Closed ##\nslug: t\n").sections[0].title).toBe("Closed");   // closing #s still go
+});
+
+test("writeBlock item: a bullet that is only a link stays a bullet", () => {
+  const md = "# T\nslug: t\n\n- a\n- b\n";
+  for (const t of ["[link:t][go]", "[go]{link=t}", "[q](https://x.org)"]) {
+    const w = writeBlock(md, "item", 4, 4, t)!, b = parseMarkdown(w).sections[0].blocks;
+    expect([t, b.map(x => x.key)]).toEqual([t, ["list"]]);
+    expect(b[0].text.split("\n")[0]).toMatch(/^\[\[(go|q)\]\{(link|href)=\S+\}\]\{\}$/);   // an empty span around the link
+  }
+});
+
+test("writeBlock body/group: untouched rows keep their source line exactly", () => {
+  const md = "# T\nslug: t\n\n  one  \\\ntwo\\\n   three\n\n<!-- block -->\n  x   \n\n  y\n<!-- /block -->\n";
+  expect(writeBlock(md, "body", 4, 6, "one\nTWO\nthree")).toBe("# T\nslug: t\n\n  one  \\\nTWO\\\n   three\n\n<!-- block -->\n  x   \n\n  y\n<!-- /block -->\n");
+  expect(writeBlock(md, "body", 4, 6, "one\ntwo")).toBe("# T\nslug: t\n\n  one  \\\ntwo\n\n<!-- block -->\n  x   \n\n  y\n<!-- /block -->\n");   // the new last row loses its break
+  expect(writeBlock(md, "group", 9, 11, "x\n\nY")).toBe("# T\nslug: t\n\n  one  \\\ntwo\\\n   three\n\n<!-- block -->\n  x   \n\nY\n<!-- /block -->\n");
+});
+
+test("writeBlock group/body: a leading \\slug: keeps its backslash", () => {
+  const md = "# T\nslug: t\n\n<!-- block -->\nx\n<!-- /block -->\n";
+  const w = writeBlock(md, "group", 5, 5, "\\slug: x")!;
+  expect(parseMarkdown(w).sections[0].blocks[0].text).toBe("\\\\slug: x");   // the app shows \\ as \, as for \- (it was "slug: x")
+  const b = writeBlock("# T\nslug: t\n\nold\n", "body", 4, 4, "\\slug: y")!;
+  expect(parseMarkdown(b).sections[0].blocks[0].text).toBe("\\\\slug: y");
 });

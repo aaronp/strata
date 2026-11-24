@@ -470,7 +470,11 @@ select option{background:#23262E;color:#E8EAEE}
                     <select value="{{ lyStyle }}" onChange="{{ onLyStyle }}" style="flex:1;min-width:0;height:28px;padding:0 4px;border:1px solid #2C3039;border-radius:6px;background:#23262E">
                       <sc-for list="{{ styleOpts }}" as="o" hint-placeholder-count="5"><option value="{{ o.v }}">{{ o.l }}</option></sc-for>
                     </select>
-                  </div></sc-if>
+                  </div>
+                  <label style="display:flex;align-items:center;gap:6px"><span style="width:44px;font-size:12px;color:#9AA1AD">Size</span>
+                    <input type="number" step="1" min="1" value="{{ lySize }}" onChange="{{ onLySize }}" style="width:80px;height:26px;padding:0 4px;border:1px solid #2C3039;border-radius:6px;background:#23262E;font-size:12px"><span style="font-size:11px;color:#9AA1AD">px</span>
+                    <sc-if value="{{ lySizeOver }}"><button onClick="{{ onLySizeReset }}" title="Remove this layer's size (use the style's)" style="padding:0 4px;border:0;background:none;cursor:pointer;color:#9AA1AD">↺</button></sc-if>
+                  </label></sc-if>
                   <span style="font-size:12px;color:#9AA1AD">Colour</span>
                   <div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center">
                 <sc-for list="{{ swatches }}" as="sw" hint-placeholder-count="10">
@@ -598,10 +602,10 @@ select option{background:#23262E;color:#E8EAEE}
                 <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Rotate</span><span style="font-family:'JetBrains Mono',monospace">{{ rotLabel }}</span></span>
                 <input type="range" min="-180" max="180" step="1" value="{{ lyRot }}" onChange="{{ onLyRot }}" style="accent-color:#7AA2FF;width:100%;min-width:0">
               </label>
-                  <sc-if value="{{ lyNotShape }}">                  <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
+                  <label style="display:flex;flex-direction:column;gap:4px;min-width:0">
                 <span style="display:flex;justify-content:space-between;font-size:12px;color:#9AA1AD"><span>Opacity</span><span style="font-family:'JetBrains Mono',monospace">{{ opLabel }}</span></span>
                 <input type="range" min="0" max="1" step="0.05" value="{{ lyOp }}" onChange="{{ onLyOp }}" style="accent-color:#7AA2FF;width:100%;min-width:0">
-              </label></sc-if>
+              </label>
                 </div>
               </div>
             </sc-if>
@@ -910,6 +914,11 @@ select option{background:#23262E;color:#E8EAEE}
                   <span style="flex:none;font-size:11.5px;color:#9AA1AD;width:64px;text-align:right">{{ sr.count }}</span>
                   <sc-if value="{{ sr.canDelete }}"><button onClick="{{ sr.onDelete }}" title="Delete: layers using it keep their look and become Custom" style="flex:none;width:22px;height:22px;padding:0;border:0;background:none;cursor:pointer;color:#AFC6FF">✕</button></sc-if>
                 </div>
+                <div style="display:flex;align-items:center;gap:6px;padding:0 0 6px 4px">
+                  <input type="number" step="1" min="1" value="{{ sr.size }}" onChange="{{ sr.onSize }}" title="Size (px on a 1600-wide slide)" aria-label="{{ sr.name }} size" style="width:58px;height:26px;padding:0 4px;border:1px solid #2C3039;border-radius:6px;background:#23262E;font-size:12px">
+                  <select value="{{ sr.weight }}" onChange="{{ sr.onWeight }}" aria-label="{{ sr.name }} weight" style="flex:1;min-width:0;height:26px;padding:0 4px;border:1px solid #2C3039;border-radius:6px;background:#23262E;font-size:12px"><sc-for list="{{ weightOpts }}" as="o" hint-placeholder-count="5"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select>
+                  <input type="number" step="0.05" min="0.5" value="{{ sr.lh }}" onChange="{{ sr.onLh }}" title="Line height" aria-label="{{ sr.name }} line height" style="width:58px;height:26px;padding:0 4px;border:1px solid #2C3039;border-radius:6px;background:#23262E;font-size:12px">
+                </div>
               </sc-for>
               <button onClick="{{ onNewStyle }}" disabled="{{ newStyleOff }}" title="Make a style from the selected text layer's look" style="align-self:flex-start;padding:5px 10px;border:1px solid #2C3039;border-radius:7px;background:#23262E;cursor:pointer;font-size:12.5px">+ New style from selected layer</button>
             </div>
@@ -1062,7 +1071,7 @@ const tplProps = (layers, L) => { const b = L ? fillSlots(layers, L) : {}, out =
 // Generated layers (gen-*): drawn by a template at enrich time, never saved, never counted. The section number: the slide's 1-based place among its siblings.
 // A template with the 'bar' option draws its title bar from the slide's barStyle: band (default), rule (an underline) or none. 13cqw deep, as in Templates.dc.html.
 const isGen = l => String(l.id).startsWith('gen-');
-const BAR_STYLES = { band: { y: 0, h: 23.1, fill: 'rgba(10,12,30,0.45)' }, rule: { y: 22.6, h: 0.5, token: 'primary', opacity: 100 } };
+const BAR_STYLES = { band: { y: 0, h: 23.1, fill: 'scrim' }, rule: { y: 22.6, h: 0.5, token: 'primary', fillOpacity: 100 } };
 const genLayers = (L, idx, n = {}) => {
   const bar = L && (L.opts || []).includes('bar') && BAR_STYLES[n.barStyle || 'band'];
   return [...(bar ? [{ id: 'gen-bar', type: 'shape', kind: 'rect', x: 0, w: 100, rot: 0, opacity: 1, ...bar }] : []),
@@ -1405,7 +1414,7 @@ const ICONS = {
   users: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21a7 7 0 0 1 14 0M17 11a3 3 0 1 0 0-6M22 21a6 6 0 0 0-4-5.7', key: 'M8 15a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM11.5 11H21M18 11v3M21 11v2',
 };
 // Shape tool: new shapes, the toolbar (hints as in Templates.dc.html) and its keys.
-const SHAPE_DEFAULT = { kind: 'ellipse', token: 'primary', opacity: 35, border: { width: 2, style: 'solid' }, blend: 'screen' };
+const SHAPE_DEFAULT = { kind: 'ellipse', token: 'primary', fillOpacity: 35, border: { width: 2, style: 'solid' }, blend: 'screen' };
 const TOOLS = [['select', 'Select (V)', 'Click a shape to edit it', 'M5 3l14 8-6 2-2 6z'], ['text', 'Text (T)', 'Click on the slide to add text', 'M5 6V4h14v2M12 4v16M9 20h6'],
   ['rect', 'Rectangle (R)', 'Drag on the slide to draw', 'M4 6h16v12H4z'], ['round', 'Rounded rectangle', 'Drag on the slide to draw', 'M8 6h8a4 4 0 0 1 4 4v4a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4v-4a4 4 0 0 1 4-4z'],
   ['ellipse', 'Ellipse (O)', 'Drag to draw · Shift for a circle', 'M4 12a8 8 0 1 0 16 0a8 8 0 1 0-16 0'], ['line', 'Line (L)', 'Drag to draw a line', 'M5 19L19 5'], ['arrow', 'Arrow (A)', 'Drag to draw an arrow', 'M5 19L19 5M10 5h9v9']];
@@ -1847,10 +1856,11 @@ class Component extends DCLogic {
   resolveLayer(l, nodeId) {
     const r = this.styledLayer(l, nodeId); if (!r || !['text', 'shape', 'icon'].includes(r.type)) return r;
     const { palette, fonts } = this.theme(), col = v => TH.tokenColor(v, palette), fam = v => ['head', 'body', 'mono'].includes(v) ? TH.fontFor(v, fonts) : v;
-    if (r.type === 'shape' && r.token) {   // a token fill: the palette colour at the shape's fill opacity (opacity is a 0–100 percent here); its stroke is the colour itself
-      const c = r.token === 'none' ? null : col(r.token), a = Math.round(Math.max(0, Math.min(100, r.opacity ?? 100)) / 100 * 255);
-      return { ...r, fill: c ? c + a.toString(16).padStart(2, '0') : 'transparent', stroke: c || col('text'), opacity: 1 };
+    if (r.type === 'shape' && r.token) {   // a token fill: the palette colour at the shape's fillOpacity (0–100); its stroke is the colour itself
+      const c = r.token === 'none' ? null : col(r.token), a = Math.round(Math.max(0, Math.min(100, r.fillOpacity ?? 100)) / 100 * 255);
+      return { ...r, fill: c ? c + a.toString(16).padStart(2, '0') : 'transparent', stroke: c || col('text') };
     }
+    if (r.fill === 'scrim') return { ...r, fill: this.theme().tone === 'dark' ? 'rgba(10,12,30,0.45)' : 'rgba(255,255,255,0.55)' };   // the title-bar band follows the palette tone
     if (r.type !== 'text') return r.fill ? { ...r, fill: col(r.fill) } : r;
     return { ...r, ...(r.color ? { color: col(r.color) } : {}), ...(r.font ? { font: fam(r.font) } : {}),
       _lines: r._lines.map(line => line.map(run => ({ ...run, ...(run.color ? { color: col(run.color) } : {}), ...(run.font ? { font: fam(run.font) } : {}) }))) };
@@ -2542,7 +2552,7 @@ class Component extends DCLogic {
       lyIsText: !!ly && ly.type === 'text', lyIsImage: !!ly && ly.type === 'image',
       pasteImage: () => ly && this.pasteFromClipboard(cur, ly.id), pasteTitle: S.clipMsg || (S.clipImg ? 'Paste the image on your clipboard' : 'Paste image from clipboard (or Ctrl/⌘+V)'),
       pasteBg: S.clipImg ? '#7AA2FF' : '#23262E', pasteColor: S.clipImg ? '#0B1020' : '#E8EAEE', pasteBorder: S.clipImg ? '#7AA2FF' : '#2C3039',
-      clipMsgOn: !!S.clipMsg && !!ly && ly.type === 'image', clipMsg: S.clipMsg || '', lyIsShape: !!ly && ly.type === 'shape', lyIsIcon: !!ly && ly.type === 'icon', lyNotShape: !!ly && ly.type !== 'shape',
+      clipMsgOn: !!S.clipMsg && !!ly && ly.type === 'image', clipMsg: S.clipMsg || '', lyIsShape: !!ly && ly.type === 'shape', lyIsIcon: !!ly && ly.type === 'icon',
       dupLayer: () => ly && this.dupLayer(ly.id), delLayer: () => ly && this.delLayer(ly.id),
       swatches: [{ label: 'A', title: 'Deck default', bg: '#23262E', border: ly && !curColor ? '2px solid #7AA2FF' : '1px solid #343944', onClick: () => upL({ [colorKey]: null }) }]
         .concat(COLOR_TOKENS.map(v => ({ label: '', title: cap(v), bg: TH.tokenColor(v, th.palette), border: curColor === v ? '2px solid #7AA2FF' : '1px solid #343944', onClick: () => upL({ [colorKey]: v }) }))),
@@ -2584,13 +2594,14 @@ class Component extends DCLogic {
     // Shape properties (Templates.dc.html): kind, fill token and opacity, border, and how overlapping shapes blend.
     const seg = (opts, on, set) => opts.map(([v, label]) => ({ label, on: v === on, bg: v === on ? '#343944' : 'transparent', pick: () => set(v) }));
     const sh = ly && ly.type === 'shape' ? ly : null, shBorder = (sh && sh.border) || { width: 0, style: 'solid' }, shKind = sh ? sh.kind || sh.shape || 'rect' : '', shLine = shKind === 'line' || shKind === 'arrow';
+    const num = (min, set) => e => { const v = parseFloat(e.target.value); if (Number.isFinite(v) && v >= min) set(v); };   // empty, non-numeric or too-small input is ignored
     const shapeVals = {
       shapeTitle: sh ? ({ ellipse: 'Ellipse', round: 'Rounded rectangle', rect: 'Rectangle', line: 'Line', arrow: 'Arrow', triangle: 'Triangle' }[shKind] || 'Shape') : '', shapeIsArea: !!sh && !shLine,
       kindOpts: seg([['ellipse', 'Ellipse'], ['round', 'Rounded'], ['rect', 'Rectangle']], shKind, v => upL({ kind: v })),
       fillOpts: ['primary', 'secondary', 'tertiary', 'impact', 'text', 'none'].map(tok => ({ label: tok === 'none' ? 'None' : cap(tok), on: !!sh && sh.token === tok,
         swatch: tok === 'none' ? 'repeating-linear-gradient(45deg, #343944 0 4px, #23262E 4px 8px)' : TH.tokenColor(tok, th.palette),
         outline: sh && sh.token === tok ? '2px solid #7AA2FF' : '1px solid #343944', pick: () => upL({ token: tok }) })),
-      shapeOpacity: sh ? sh.opacity ?? 100 : 0, setShapeOpacity: e => upL({ opacity: +e.target.value }),
+      shapeOpacity: sh ? sh.fillOpacity ?? 100 : 0, setShapeOpacity: e => upL({ fillOpacity: +e.target.value }),
       widthOpts: seg([[0, 'None'], [1, 'Thin'], [2, 'Medium'], [5, 'Thick']], shBorder.width, v => upL({ border: { ...shBorder, width: v } })),
       borderStyleOpts: seg([['solid', 'Solid'], ['dashed', 'Dashed'], ['dotted', 'Dotted']], shBorder.style, v => upL({ border: { ...shBorder, style: v } })),
       blendOpts: seg([['normal', 'Stack'], ['screen', 'Blend colours']], (sh && sh.blend) || 'normal', v => upL({ blend: v })),
@@ -2636,9 +2647,14 @@ class Component extends DCLogic {
     return {
       fromDeck: curN._from || '', fromHref: '?src=' + encodeURIComponent(curN._from || ''), ownSlide: !curN._from,
       styleOpts: [{ v: '', l: 'Custom' }].concat(Object.entries(this.styles()).filter(([, st]) => !st.deleted).map(([id, st]) => ({ v: id, l: st.name || id }))),
-      lyStyle: styled ? ly.style : '', onLyStyle: e => ly && this.chooseStyle(cur, ly.id, e.target.value), lyStyleShow: !!ly && ly.type === 'text' && !isMd(ly),   // markdown layers take their style from the markdown
+      lyStyle: styled ? ly.style : '', onLyStyle: e => ly && this.chooseStyle(cur, ly.id, e.target.value), lyStyleShow: !!ly && ly.type === 'text' && !isMd(ly),
+      lySize: lv && lv.size != null ? lv.size : 40, onLySize: num(1, v => upL({ size: v })), lySizeOver: !!ly && ly.size !== undefined,
+      onLySizeReset: () => ly && this.setLayers(cur, ls => ls.map(l => { if (l.id !== ly.id) return l; const { size: _s, ...o } = l; return o; })),   // markdown layers take their style from the markdown
       styleRows: Object.entries(this.styles()).filter(([, st]) => !st.deleted).map(([id, st]) => ({ id, name: st.name || id, count: (styleCount[id] || 0) + ' layer' + (styleCount[id] === 1 ? '' : 's'), canDelete: !BUILTIN_STYLES[id],
-        onName: e => this.setStyle(id, { name: e.target.value }), onDelete: () => this.deleteStyle(id) })),
+        onName: e => this.setStyle(id, { name: e.target.value }), onDelete: () => this.deleteStyle(id),
+        size: st.size ?? 40, onSize: num(1, v => this.setStyle(id, { size: v })), lh: st.lh ?? 1.2, onLh: num(0.5, v => this.setStyle(id, { lh: v })),
+        weight: String(st.weight ?? 400), onWeight: e => this.setStyle(id, { weight: +e.target.value }) })),
+      weightOpts: [[400, 'Regular'], [500, 'Medium'], [600, 'Semibold'], [700, 'Bold'], [800, 'Extra bold']].map(([v, l]) => ({ v: String(v), l })),
       newStyleOff: !(ly && ly.type === 'text'), onNewStyle: () => ly && this.newStyleFrom(cur, ly.id),
       fmtShow: !!edL && editable, fmtPos: edL ? `left:min(${edL.x}%, calc(100% - 330px));` + (edL.y >= 12 ? `top:calc(${edL.y}% - 40px)` : (b => b < 86 ? `top:calc(${b}% + 6px)` : `top:calc(${edL.y}% + 4px)`)(edL.y + Math.max(edL.h, mh[edL.id] || 0))) : '',   // above; else below; else inside its top edge; clamped to the slide
       fmtStyleOpts: [{ v: '', l: 'Style', off: true }, { v: '-', l: 'Plain', off: false }].concat(Object.entries(this.styles()).filter(([, st]) => !st.deleted).map(([id, st]) => ({ v: id, l: st.name || id, off: false }))),

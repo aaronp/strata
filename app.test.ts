@@ -1461,13 +1461,14 @@ test("shape tool: drawing an ellipse adds a shape layer with the drawn bounds an
   expect(v.toolHint).toBe("Drag to draw · Shift for a circle"); expect(v.tools[4].on).toBe(true);
   drag(c, listeners, "ellipse", [10, 10], [30, 40]);
   const l = c.layersOf("t").at(-1);
-  expect(l).toMatchObject({ type: "shape", x: 10, y: 10, w: 20, h: 30, kind: "ellipse", token: "primary", opacity: 35, border: { width: 2, style: "solid" }, blend: "screen" });
+  expect(l).toMatchObject({ type: "shape", x: 10, y: 10, w: 20, h: 30, kind: "ellipse", token: "primary", fillOpacity: 35, opacity: 1, border: { width: 2, style: "solid" }, blend: "screen" });
   expect(c.state.tool).toBe("select"); expect(c.state.layerSel).toBe(l.id);
   v = c.renderVals(); expect(v.lyIsShape).toBe(true);
   expect(v.fillOpts.map((o: any) => o.label)).toEqual(["Primary", "Secondary", "Tertiary", "Impact", "Text", "None"]);
   v.fillOpts[1].pick();
   const P = c.theme().palette; expect(c.resolveLayer(c.layersOf("t").at(-1), "t")).toMatchObject({ fill: P.secondary + "59", stroke: P.secondary, opacity: 1 });
-  v = c.renderVals(); v.setShapeOpacity({ target: { value: "100" } }); expect(c.resolveLayer(c.layersOf("t").at(-1), "t").fill).toBe(P.secondary + "ff");
+  expect(c.layersOf("t").at(-1).fillOpacity).toBe(35);
+  v = c.renderVals(); v.setShapeOpacity({ target: { value: "100" } }); expect(c.layersOf("t").at(-1)).toMatchObject({ fillOpacity: 100, opacity: 1 }); expect(c.resolveLayer(c.layersOf("t").at(-1), "t").fill).toBe(P.secondary + "ff");
   v = c.renderVals();
   expect(v.kindOpts.map((o: any) => o.label)).toEqual(["Ellipse", "Rounded", "Rectangle"]); v.kindOpts[1].pick(); expect(c.layersOf("t").at(-1).kind).toBe("round");
   v = c.renderVals(); expect(v.widthOpts.map((o: any) => o.label)).toEqual(["None", "Thin", "Medium", "Thick"]); v.widthOpts[3].pick(); expect(c.layersOf("t").at(-1).border).toEqual({ width: 5, style: "solid" });
@@ -1502,6 +1503,9 @@ test("layer settings: an extra text layer gets the style picker and token colour
   expect(v.lyIsText).toBe(true); expect(v.lyStyle).toBe("body"); expect(v.lyStyleShow).toBe(true);
   expect(v.swatches.map((s: any) => s.title)).toEqual(["Deck default", "Primary", "Secondary", "Tertiary", "Impact", "Text", "Muted"]);
   v.swatches[4].onClick(); expect(layerOf(c, "t", l.id).color).toBe("impact");
+  v = c.renderVals(); expect(v.lySize).toBe(32); expect(v.lySizeOver).toBe(false);
+  v.onLySize({ target: { value: "48" } }); expect(layerOf(c, "t", l.id).size).toBe(48); v.onLySize({ target: { value: "abc" } }); expect(layerOf(c, "t", l.id).size).toBe(48);
+  v = c.renderVals(); expect(v.lySizeOver).toBe(true); v.onLySizeReset(); expect(layerOf(c, "t", l.id).size).toBeUndefined(); expect(c.resolveLayer(layerOf(c, "t", l.id), "t").size).toBe(32);
   c.setState({ layerSel: "md-title" }); expect(c.renderVals().lyStyleShow).toBe(false);   // markdown layers take their style from the markdown
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
   expect(html).not.toContain("{{ textFields }}"); expect(html).toContain("{{ layerRows }}");
@@ -2136,4 +2140,22 @@ test("theme: the font set loads through its own <link>, updated when the set cha
     c.setTheme({ fonts: "elegant" }); c.syncThemeFonts();
     expect(w.document.querySelectorAll("#strata-theme-fonts").length).toBe(1); expect(link.getAttribute("href")).toContain("Playfair+Display");
   } finally { delete (globalThis as any).document; }
+});
+
+test("Text styles list: size, weight and line height edit the style, so every layer using it follows", async () => {
+  await writeMd("talk", "# T\nslug: t\n"); const { c } = await mount("?deck=talk");
+  const h1 = () => c.renderVals().styleRows.find((r: any) => r.id === "h1"), title = () => c.resolveLayer(layerOf(c, "t", "md-title"), "t");
+  expect(layerOf(c, "t", "md-title").style).toBe("h1"); expect(h1()).toMatchObject({ size: 64, weight: "800", lh: 1.05 });
+  h1().onSize({ target: { value: "90" } }); expect(title().size).toBe(90); expect(c.state.styles.h1.size).toBe(90);
+  h1().onWeight({ target: { value: "600" } }); h1().onLh({ target: { value: "1.3" } }); expect(title()).toMatchObject({ weight: 600, lh: 1.3 });
+  h1().onSize({ target: { value: "" } }); expect(title().size).toBe(90);   // invalid input is ignored
+  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
+  for (const h of ["{{ sr.onSize }}", "{{ sr.onWeight }}", "{{ sr.onLh }}", "{{ onLySizeReset }}"]) expect(html).toContain(h);
+});
+
+test("the title-bar band follows the palette tone: a dark scrim on dark palettes, a light one on light", async () => {
+  await writeMd("talk", "# T\nslug: t\n\n- a\n- b\n"); const { c } = await mount("?deck=talk"); c.applyLayout("t", "t-bar");
+  const band = () => c.resolveLayer(layerOf(c, "t", "gen-bar"), "t").fill;
+  c.setTheme({ palette: "midnight" }); expect(band()).toBe("rgba(10,12,30,0.45)");
+  c.setTheme({ palette: "paper" }); expect(band()).toBe("rgba(255,255,255,0.55)");
 });

@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { parseMarkdown, plainText, writeBlock, hasComment, stripPlaceholders, addPlaceholders } from "./markdown";
+import { parseMarkdown, plainText, writeBlock, hasComment, stripPlaceholders, addPlaceholders, fixSlugs } from "./markdown";
 import { join } from "node:path";
 
 const MD = `<!--
@@ -68,7 +68,7 @@ test("missing slug line generates one with a warning", () => {
   const { sections, warnings, errors } = parseMarkdown("# Hello, World!\n\nText");
   expect(errors).toEqual([]);
   expect(sections[0].slug).toBe("hello-world");
-  expect(warnings).toEqual([{ line: 1, msg: 'no slug line; using "hello-world"' }]);
+  expect(warnings).toEqual([{ line: 1, msg: 'no slug line; using "hello-world"', fix: "slug" }]);
 });
 
 test("errors carry line numbers: bad slug, skipped level, no headings", () => {
@@ -129,7 +129,7 @@ test("parse: unresolved link is not an error", () => {
 test("parse: duplicate slugs", () => {
   const r = parseMarkdown("# A\nslug: a\n\n# B\nslug: a\n");
   expect(r.sections.map(s => s.slug)).toEqual(["a", "a-2"]);
-  expect(r.warnings).toContainEqual({ line: 4, msg: 'duplicate slug "a"; using "a-2"' });
+  expect(r.warnings).toContainEqual({ line: 4, msg: 'duplicate slug "a"; using "a-2"', fix: "slug" });
   expect(r.errors).toEqual([]);
 });
 
@@ -178,7 +178,7 @@ test("headings inside a multi-line comment are not slides", () => {
 test("an empty slug line falls back to the generated slug", () => {
   const { sections, warnings, errors } = parseMarkdown("# Hello World\nslug: \n\nHi.");
   expect(sections[0].slug).toBe("hello-world");
-  expect(warnings).toEqual([{ line: 1, msg: 'no slug line; using "hello-world"' }]);
+  expect(warnings).toEqual([{ line: 1, msg: 'no slug line; using "hello-world"', fix: "slug" }]);
   expect(errors).toEqual([]);
 });
 
@@ -315,4 +315,18 @@ test("addPlaceholders / stripPlaceholders: a CRLF file with no trailing newline 
   const out = addPlaceholders("# A\r\nslug: a", 1, { body: 1 });
   expect(out).toBe("# A\r\nslug: a\r\n\r\n##Text##");
   expect(stripPlaceholders(out, 1)).toBe("# A\r\nslug: a");
+});
+
+test("fixSlugs writes the slug each heading is already using, so ids don't change", () => {
+  const md = "# Intro\nslug: intro\n\nHi.\n\n# Examples\n\n## Difficult\nslug:\n\n## Soft\nslug: intro\n\n### Really Soft\n<!--\nchildren:\n  ./x.md\n-->\n";
+  const before = parseMarkdown(md);
+  expect(before.warnings.filter(w => w.fix === "slug").length).toBe(4);
+  const out = fixSlugs(md);
+  expect(out).toBe("# Intro\nslug: intro\n\nHi.\n\n# Examples\nslug: examples\n\n## Difficult\nslug: difficult\n\n## Soft\nslug: intro-2\n\n### Really Soft\nslug: really-soft\n<!--\nchildren:\n  ./x.md\n-->\n");
+  const ids = (p: any) => { const o: string[] = []; const walk = (s: any[]) => s.forEach(x => { o.push(x.slug); walk(x.children); }); walk(p.sections); return o; };
+  const after = parseMarkdown(out);
+  expect(ids(after)).toEqual(ids(before));
+  expect(after.warnings.filter(w => w.fix === "slug")).toEqual([]);
+  expect(fixSlugs(out)).toBe(out);
+  expect(fixSlugs("# A\r\n\r\nx\r\n")).toBe("# A\r\nslug: a\r\n\r\nx\r\n");
 });

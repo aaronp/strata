@@ -1,5 +1,5 @@
 // Parses a markdown outline into a slide tree. Pure: no I/O, no imports.
-export type Issue = { line: number; msg: string };
+export type Issue = { line: number; msg: string; fix?: "slug" };   // fix: fixSlugs() can write it
 export type Chip = { label: string; ref: string; line: number; target?: string; into?: string; path?: string[]; via?: string };
 export type Source = { text: string; url: string };
 export type BlockKey = "body" | "list" | "links" | "sources" | "image";
@@ -122,7 +122,7 @@ export function parseMarkdown(md: string): { sections: Section[]; errors: Issue[
       const r: Raw = { level: h[1].length, title: untitle(h[2]), slug: "", line: i + 1, body: [], childSrc: [] };
       const s = SLUG_LINE.exec(lines[i + 1] ?? "");
       if (s?.[1]) { i++; r.slug = s[1]; if (!SLUG_RE.test(s[1])) errors.push({ line: i + 1, msg: `invalid slug "${s[1]}" (use a-z, 0-9 and -)` }); }
-      else { if (s) i++; r.slug = slugify(plainText(r.title)) || `section-${r.line}`; warnings.push({ line: r.line, msg: `no slug line; using "${r.slug}"` }); }
+      else { if (s) i++; r.slug = slugify(plainText(r.title)) || `section-${r.line}`; warnings.push({ line: r.line, msg: `no slug line; using "${r.slug}"`, fix: "slug" }); }
       if (lines[i + 1]?.trimStart().startsWith("<!--")) {   // a comment right under the heading may list the child decks
         let j = i + 1; while (j < lines.length - 1 && !lines[j].includes("-->")) j++;
         const c = /<!--\s*children:([\s\S]*?)-->/.exec(lines.slice(i + 1, j + 1).join("\n"));
@@ -142,7 +142,7 @@ export function parseMarkdown(md: string): { sections: Section[]; errors: Issue[
     if (seen.has(r.slug)) {
       let n = 2; while (seen.has(`${r.slug}-${n}`)) n++;
       const old = r.slug; r.slug = `${old}-${n}`;
-      warnings.push({ line: r.line, msg: `duplicate slug "${old}"; using "${r.slug}"` });
+      warnings.push({ line: r.line, msg: `duplicate slug "${old}"; using "${r.slug}"`, fix: "slug" });
     }
     seen.add(r.slug);
   }
@@ -289,4 +289,18 @@ export function addPlaceholders(md: string, line: number, needs: { body?: number
   if (cr && last + 1 === lines.length) { lines[last] = lines[last].replace(/\r?$/, cr); put[put.length - 1] = put[put.length - 1].slice(0, -1); }   // at the end of a file with no final newline
   lines.splice(last + 1, 0, ...put);
   return lines.join("\n");
+}
+
+// Writes a `slug:` line under every heading that lacks one (or has an empty or duplicate one), using the id the parser already
+// picked, so slide ids and their layouts stay the same. Headings that already have their own slug line are left alone.
+export function fixSlugs(md: string): string {
+  const nl = md.includes("\r\n") ? "\r\n" : "\n", lines = md.split(/\r?\n/);
+  const fix = new Set(parseMarkdown(md).warnings.filter(w => w.fix === "slug").map(w => w.line));
+  const slugAt = new Map<number, string>(); const walk = (ss: Section[]) => ss.forEach(x => { slugAt.set(x.line, x.slug); walk(x.children); });
+  walk(parseMarkdown(md).sections);
+  for (const line of [...fix].sort((a, b) => b - a)) {   // bottom up, so earlier line numbers stay put
+    const slug = slugAt.get(line); if (!slug) continue;
+    if (SLUG_LINE.test(lines[line] ?? "")) lines[line] = "slug: " + slug; else lines.splice(line, 0, "slug: " + slug);
+  }
+  return lines.join(nl);
 }

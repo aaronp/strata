@@ -482,7 +482,7 @@ select option{background:#23262E;color:#E8EAEE}
           <sc-if value="{{ tabContent }}">
             <div style="flex:1;min-height:0;display:flex;flex-direction:column;border:1px solid #2C3039;border-radius:10px;overflow:hidden;background:#23262E">
               <textarea ref="{{ mdRef }}" value="{{ mdText }}" onInput="{{ onMdInput }}" spellcheck="false" data-role="md" style="flex:1;min-height:0;resize:none;border:0;outline:none;padding:12px;background:#23262E;color:#E8EAEE;font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:20px;white-space:pre;overflow:auto"></textarea>
-              <sc-if value="{{ hasMdIssues }}"><pre data-role="md-issues" style="flex:none;margin:0;max-height:96px;overflow:auto;padding:6px 12px;border-top:1px solid #2C3039;background:#3A2F14;color:#FBBF24;font-family:'JetBrains Mono',monospace;font-size:11px">{{ mdIssuesText }}</pre></sc-if>
+              <sc-if value="{{ hasMdIssues }}"><div style="flex:none;display:flex;align-items:flex-start;gap:8px;border-top:1px solid #2C3039;background:#3A2F14"><pre data-role="md-issues" style="flex:1;min-width:0;margin:0;max-height:96px;overflow:auto;padding:6px 12px;color:#FBBF24;font-family:'JetBrains Mono',monospace;font-size:11px">{{ mdIssuesText }}</pre><sc-if value="{{ canFixSlugs }}"><button onClick="{{ fixSlugs }}" title="Write a slug: line under each heading that needs one, using the id it already has" style="flex:none;margin:6px 8px 0 0;padding:4px 10px;border:1px solid #FBBF24;border-radius:6px;background:transparent;color:#FBBF24;font-size:12px;font-weight:600;cursor:pointer">Fix slugs</button></sc-if></div></sc-if>
             </div>
           </sc-if>
           <sc-if value="{{ tabSlides }}">
@@ -3097,7 +3097,7 @@ class Component extends DCLogic {
       onDiscardDraft: () => { this._draft = null; try { localStorage.removeItem(DRAFT_KEY(SRC)); } catch (e) {} this.setState({ draftPrompt: false }); }, save: () => this.save(), saveLabel: S.saving ? 'Saving…' : S.saveMsg ? '⚠ Save' : this.isDirty() ? '● Unsaved' : '✓ Saved',
       modeTabs: STATIC ? [] : [{ label: 'Build', ...tab(!isPresent), onClick: () => this.setState({ mode: 'build', at: 0 }) }, { label: 'Present', ...tab(isPresent), onClick: () => this.setState({ mode: 'present', at: 0, query: '' }) }],
       mdRef: this.mdRef, mdText: S.md, onMdInput: e => this.setMd(e.target.value), onAddAfter: () => this.addSlide('after'), onAddBelow: () => this.addSlide('below'),
-      mdIssuesText: S.mdIssues.map(i => 'line ' + i.line + ': ' + i.msg).join('\n'), hasMdIssues: S.mdIssues.length > 0,
+      mdIssuesText: S.mdIssues.map(i => 'line ' + i.line + ': ' + i.msg).join('\n'), hasMdIssues: S.mdIssues.length > 0, canFixSlugs: S.mdIssues.some(i => i.fix === 'slug'), fixSlugs: () => { this.setMd(MD.fixSlugs(this.state.md)); this.flushMd(); },
       openInputRef: this.openInputRef, onOpenPick: () => this.openPick(),
       fileMenu: !!S.fileMenu, toggleFileMenu: () => this.toggleFileMenu(), closeFileMenu: () => this.setState({ fileMenu: false }),
       fileItems: [

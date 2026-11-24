@@ -2886,3 +2886,14 @@ test("in place: opening a ##placeholder## selects all of it, so typing replaces 
   c.startEdit("md-body-2"); c.componentDidUpdate();
   expect(sel()).toEqual({ start: 12, end: 12 });
 });
+
+test("Fix slugs: shown for slug warnings; writes each heading's current id, so slides and their layouts keep their ids", async () => {
+  await writeMd("talk", "# Intro\nslug: intro\n\n# Examples\n\n## Soft\n");
+  const { c } = await mount("?deck=talk");
+  const ids = Object.keys(c.state.nodes).sort();
+  let v = c.renderVals(); expect(v.canFixSlugs).toBe(true);
+  v.fixSlugs();
+  expect(c.state.md).toBe("# Intro\nslug: intro\n\n# Examples\nslug: examples\n\n## Soft\nslug: soft\n");
+  expect(Object.keys(c.state.nodes).sort()).toEqual(ids);
+  v = c.renderVals(); expect(v.canFixSlugs).toBe(false); expect(v.hasMdIssues).toBe(false);
+});

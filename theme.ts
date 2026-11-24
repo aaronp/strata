@@ -227,7 +227,7 @@ export function motionOf(t0: Partial<Theme> | null = {}) {
   const t: Partial<Theme> = t0 ?? {}, id = schemeOf(t).b.id;
   if (typeof t.background !== "string" || t.background !== id || !(id in MOTION)) return null;
   const m: Record<string, any> = { ...MOTION_DEFAULTS[id], ...(t.motion && typeof t.motion === "object" ? t.motion : {}) };
-  if (!(SPEEDS[m.speedIdx] > 0)) m.speedIdx = MOTION_DEFAULTS[id].speedIdx;
+  if (!Number.isInteger(m.speedIdx) || !(SPEEDS[m.speedIdx] > 0)) m.speedIdx = MOTION_DEFAULTS[id].speedIdx;
   return m;
 }
 const clampN = (v: unknown, lo: number, hi: number, d: number) => (typeof v === "number" && v >= lo && v <= hi ? v : d);
@@ -245,7 +245,7 @@ export function effectView(t0: Partial<Theme> | null = {}) {
   if (b.effect === "sunset") Object.assign(view, { cls: "sky", isSunset: true, sunOn: m.sun !== "hide", horizon: hexA(c.deep, 0.9) });
   if (b.effect === "bubbles") Object.assign(view, { isBubbles: true, bubbles: makeBubbles(clampN(m.count, 0, 60, 18), spec.base, factor, 7),
     tintEdge: sc.tone === "dark" ? "rgba(255,255,255,0.5)" : hexA(c.accent, 0.5), tintHi: sc.tone === "dark" ? "rgba(255,255,255,0.35)" : "rgba(255,255,255,0.9)", tintLo: hexA(c.accent, 0.08) });
-  if (b.effect === "gears") Object.assign(view, { isGears: true, gearScale: GEAR_SCALE[m.size] ?? 1, gearGroups: layoutGears(clampN(m.count, 0, 8, 4), spec.base, factor),
+  if (b.effect === "gears") Object.assign(view, { isGears: true, gearScale: Object.hasOwn(GEAR_SCALE, m.size) ? GEAR_SCALE[m.size] : 1, gearGroups: layoutGears(clampN(m.count, 0, 8, 4), spec.base, factor),
     gearFill: hexA(c.accent, 0.07), gearStroke: hexA(c.accent, 0.8) });
   return view;
 }

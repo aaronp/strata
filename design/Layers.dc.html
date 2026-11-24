@@ -65,6 +65,9 @@ const ICONS = {
   users: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21a7 7 0 0 1 14 0M17 11a3 3 0 1 0 0-6M22 21a6 6 0 0 0-4-5.7', key: 'M8 15a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM11.5 11H21M18 11v3M21 11v2',
 };
 const MARKS = { disc: '•', dash: '–', check: '✓', arrow: '→' };
+// Defensive: values reach inline style strings, so anything that could end a declaration (';', ':', 'url(') falls back to the default.
+const col = (v, d) => typeof v === 'string' && /^(#[0-9a-f]{3,8}|[a-z]+|rgba?\([\d.,\s]+\))$/i.test(v) ? v : d;
+const fam = (v, d) => Object.hasOwn(FONTS, v) ? FONTS[v] : typeof v === 'string' && /^[\w\s',.-]+$/.test(v) ? v : d;
 const rgba = (hex, a) => { const n = parseInt(/^#[0-9a-f]{6}$/i.test(hex || '') ? hex.slice(1) : '0b1220', 16); return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`; };
 // Component layers: a snippet runs in a sandboxed iframe; this helper (injected first) is its only link to the slide.
 const HELPER = "(function(){var h={},r=null;function emit(t,d){parent.postMessage(Object.assign({strata:1,type:t},d||{}),'*');}" +
@@ -88,7 +91,7 @@ class Component extends DCLogic {
     const boxStyle = l => {
       const b = l.card === 'custom' && l.box;
       if (b) return { shadow: 'none', cardBg: rgba(b.bg, b.bgOpacity ?? 0.45), cardBlur: b.blur ? 'blur(' + b.blur + 'px)' : 'none',
-        cardBorder: b.border ? cq(b.border) + ' solid ' + (b.borderColor || '#ffffff') : 'none', cardRadius: cq(b.radius ?? 12), cardPad: cq(b.pad ?? 12) };
+        cardBorder: b.border ? cq(b.border) + ' solid ' + col(b.borderColor, '#ffffff') : 'none', cardRadius: cq(b.radius ?? 12), cardPad: cq(b.pad ?? 12) };
       return { shadow: l.color ? 'none' : shadow, cardBg: 'transparent', cardBlur: 'none', cardBorder: 'none', cardPad: '0', cardRadius: '0' };
     };
     const items = (p.layers || []).map((l, i) => {
@@ -96,32 +99,33 @@ class Component extends DCLogic {
       const b = l.build, rot = 'rotate(' + (l.rot || 0) + 'deg)';
       const base = { lid: l.id, isComponent: false, z: i + 1, tr: b ? b.transition : 'none', transform: b && b.transform !== 'none' ? b.transform + ' ' + rot : rot, bclip: b ? b.clip : 'none',
         x: l.x, y: l.y, w: l.w, h: l.h, op: l.id === p.editingId ? 0 : (l.opacity ?? 1) * (b ? b.opacity : 1), display: l.hidden ? 'none' : 'block',
-        isText: l.type === 'text', isShape: l.type === 'shape', isLine: false, isIcon: l.type === 'icon', isImage: l.type === 'image', blend: l.blend || 'normal' };
+        isText: l.type === 'text', isShape: l.type === 'shape', isLine: false, isIcon: l.type === 'icon', isImage: l.type === 'image', blend: l.blend === 'screen' ? 'screen' : 'normal' };
       if (l.type === 'text') {
         const b = l.bullets || 'none'; const raw = String(l.text ?? '').split('\n');
-        const run = r => ({ text: r.text, fw: r.weight || (r.b ? 'bolder' : ''), fst: r.i ? 'italic' : '', fsz: r.size ? r.size / 16 + 'cqw' : '', col: r.color || '', fam: r.font ? (FONTS[r.font] || r.font) : '', lsp: r.ls ? r.ls + 'em' : '',
+        const run = r => ({ text: r.text, fw: r.weight || (r.b ? 'bolder' : ''), fst: r.i ? 'italic' : '', fsz: r.size ? r.size / 16 + 'cqw' : '', col: col(r.color, ''), fam: r.font ? fam(r.font, '') : '', lsp: r.ls ? r.ls + 'em' : '',
           lnk: r.broken ? '' : (r.link || ''), href: r.broken ? '' : (r.href || ''), deco: r.broken ? 'underline dashed' : (r.link || r.href ? 'underline' : ''),
           pe: p.links && !r.broken && (r.link || r.href) ? 'auto' : '', cur: p.links && !r.broken && (r.link || r.href) ? 'pointer' : '' });   // links click only when live (present)
         const lines = raw.map((t, i) => ({ text: t === '' ? '\u00a0' : t, runs: ((l._lines && l._lines[i]) || [{ text: t === '' ? '\u00a0' : t }]).map(run),
           hasMark: b !== 'none' && t !== '', mark: b === 'number' ? (raw.slice(0, i + 1).filter(x => x !== '').length) + '.' : MARKS[b] || '' }));
         const align = l.align || 'left';
-        return { ...base, lines, font: FONTS[l.font] || l.font || FONTS.grot, fs: (l.size || 40) / 16, weight: l.weight || 400, color: l.color || ink, align, lh: l.lh || 1.2, ls: l.ls || 0,
+        return { ...base, lines, font: fam(l.font, FONTS.grot), fs: (l.size || 40) / 16, weight: l.weight || 400, color: col(l.color, ink), align, lh: l.lh || 1.2, ls: l.ls || 0,
           gap: l.gap ?? 0.15, hjust: b !== 'none' ? 'flex-start' : align === 'center' ? 'center' : align === 'right' ? 'flex-end' : 'flex-start',
           vjust: l.valign === 'middle' ? 'center' : l.valign === 'bottom' ? 'flex-end' : 'flex-start', markW: b === 'number' ? '1.4em' : '0.8em',
           ...boxStyle(l) };
       }
       if (l.type === 'shape') {
         // kind (the shape tool's): ellipse | round | rect | line | arrow. border.width is in tenths of cqw; stroke is the border/line colour (the host resolves tokens).
-        const k = l.kind || l.shape || 'rect', bw = (l.border && l.border.width) || 0, bs = (l.border && l.border.style) || 'solid', stroke = l.stroke || ink;
+        const k = l.kind || l.shape || 'rect', bw0 = l.border && l.border.width, bw = Number.isFinite(bw0) ? Math.max(0, Math.min(10, bw0)) : 0,
+          bs = l.border && ['solid', 'dashed', 'dotted'].includes(l.border.style) ? l.border.style : 'solid', stroke = col(l.stroke, ink);
         if (k === 'line' || k === 'arrow') {   // from the box's corner where the drag started to the one where it ended
           const ends = l.flip ? [['0%', '100%'], ['100%', '0%']] : [['0%', '0%'], ['100%', '100%']], [a, z] = l.back ? [ends[1], ends[0]] : ends, w = bw / 10;
           return { ...base, isShape: false, isLine: true, x1: a[0], y1: a[1], x2: z[0], y2: z[1], stroke, sw: w + 'cqw', mid: 'ah-' + l.id, mark: k === 'arrow' ? 'url(#ah-' + l.id + ')' : 'none',
             dash: bs === 'dashed' ? w * 3 + 'cqw ' + w * 2 + 'cqw' : bs === 'dotted' ? '0 ' + w * 2 + 'cqw' : 'none' };
         }
-        return { ...base, fill: l.fill || '#d9432b', radius: k === 'ellipse' ? '50%' : k === 'round' ? '3cqw' : l.kind ? '0' : ((l.radius || 0) / 16) + 'cqw',
+        return { ...base, fill: col(l.fill, '#d9432b'), radius: k === 'ellipse' ? '50%' : k === 'round' ? '3cqw' : l.kind ? '0' : ((l.radius || 0) / 16) + 'cqw',
           clip: k === 'triangle' ? 'polygon(50% 0,100% 100%,0 100%)' : 'none', border: bw ? bw / 10 + 'cqw ' + bs + ' ' + stroke : '0' };
       }
-      if (l.type === 'icon') return { ...base, path: ICONS[l.icon] || ICONS.star, fill: l.fill || ink, sw: l.sw || 1.8 };
+      if (l.type === 'icon') return { ...base, path: ICONS[l.icon] || ICONS.star, fill: col(l.fill, ink), sw: l.sw || 1.8 };
       if (l.type === 'component') {
         const live = !!p.live; let src = '';
         if (live) {   // cache per layer: re-encoding a big snippet on every drag or step render would jank

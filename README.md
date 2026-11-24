@@ -84,14 +84,15 @@ type LayoutFile = {
 type Theme = {
   background: string;                     // e.g. 'image:sky'
   scheme: string | { deep: string; mid: string; accent: string };   // 'original', a preset id, or a saved custom object
-  motion?: Record<string, number | string>;   // settings for moving backgrounds (speed, count, opacity, …)
+  motion?: Record<string, number | string>;   // settings for moving backgrounds: speedIdx (an index into SPEEDS), count, opacity, sun, size
   palette: string;                        // sets primary, secondary, tertiary, impact, text, muted, onPrimary
   fonts: string;                          // a heading / body / mono set
   surface: 'clear' | 'frosted' | 'card';
 };
 type SlideOverride = {
   layers?: Layer[];                       // array order = z-order (later = on top); md-* layers are filled from the markdown
-  template?: string; layout?: string; barStyle?: 'band' | 'rule' | 'none'   // 'rule' is labelled Underline in the UI; side?: 'left' | 'right';
+  layout?: string;                        // the template picked for this slide (a built-in or saved layout id)
+  barStyle?: 'band' | 'rule' | 'none'; side?: 'left' | 'right';   // 'rule' is labelled Underline in the UI
   steps?: Record<LayerId, number>;        // layer -> build step; absent or 0 = always shown
   trans?: Record<number, TransId>;        // step -> transition, default 'fade'
   build?: { dur: 250 | 500 | 900; ease: string; earlier: 'keep' | 'dim'; replace: boolean };   // one timing per slide
@@ -102,9 +103,11 @@ type Layer = {
   id: string; type: 'text' | 'image' | 'shape' | 'icon' | 'component';
   x: number; y: number; w: number; h: number;   // % of the 16:9 slide
   rot?: number; opacity?: number; hidden?: boolean;
-  link?: { kind: 'url'; url: string } | { kind: 'slide'; id: string };
+  link?: { type: 'url'; url: string } | { type: 'slide'; id: string };
   // text: text, style, font ('head'|'body'|'mono'), size, weight, color (a token or hex), align, valign, lh, bullets
-  // image: imgKey, fit; shape: shape, fill (a token), fillOpacity, border; icon: icon, color
+  // image: imgKey, fit; icon: icon, fill
+  // shape: kind ('rect'|'round'|'ellipse'|'line'|'arrow'), token (a palette token or 'none'), fillOpacity (0–100),
+  //   border { width, style: 'solid'|'dashed'|'dotted' }, blend ('normal'|'screen'), flip, back (a line's drag direction)
 };
 ```
 The deck's nodes (id, title, notes, children) come from the markdown, not the layout file. Theme colours reach slides as tokens (`primary`, `secondary`, `tertiary`, `impact`, `text`, `muted`, `onPrimary`), so changing the theme restyles every slide. Elements only appear on a step; nothing moves between steps. A step's transition and the slide's timing (default 500 ms, Ease out, earlier items dimmed to 45%, detail panels replace) are the only animation settings. See `builds.ts`.
@@ -121,7 +124,7 @@ The deck's nodes (id, title, notes, children) come from the markdown, not the la
 
 ### Layout and parallax (`layout()` in the source)
 - Canvas height = 100 units. `L` = number of levels (max depth + 1). With row step `r = 1 + rowGap` and padding `p = max(0, rowGap)`: slide height `h = 100 / (2p + (L−1)·r + 1)`, width `w = h·16/9`, and level `d`'s row starts at `p·h + d·r·h`.
-- Horizontal placement (Layout → Spacing): **Even steps** (default) puts each slide at its parent's x + index × step, so every move between neighbours shifts the camera one step and every level move one row, whatever the tree's shape (branches may overlap on the canvas). **Fit subtrees** packs instead: a slide's children start at its x and run right, each leaf takes one step, and a parent spans at least its children's width.
+- Horizontal placement (Theme → Canvas): **Even steps** (default) puts each slide at its parent's x + index × step, so every move between neighbours shifts the camera one step and every level move one row, whatever the tree's shape (branches may overlap on the canvas). **Fit subtrees** packs instead: a slide's children start at its x and run right, each leaf takes one step, and a parent spans at least its children's width.
 - The camera centres on the current slide's rectangle. The background is drawn at canvas height, looped horizontally, and shifted by `offset`.
 - Transitions between slides are swipes (fade for jumps from search or breadcrumbs); the background pans with the camera.
 
@@ -152,7 +155,7 @@ The deck's nodes (id, title, notes, children) come from the markdown, not the la
     - **Timing · whole slide:** Quick 250 / Normal 500 / Slow 900 ms; Ease out, Springy or Linear. Changing it replays the selected step.
     - **List behaviour** (list slides): earlier list items Keep or Dim (to 45%); detail panels Replace previous or Build up.
     - **Show step dots in Present.**
-    - **Step strip** (under the stage): ◀ ▶, Play / Pause and a chip per step (Step n, its transition). A chip or ◀ ▶ previews that step on the stage; Play walks the steps (one every duration + 1.1 s) and stops at the end. Leaving the tab or Esc ends ordering, play and the preview.
+    - **Frames strip** (under the stage): ◀ ▶, Play / Pause and a chip per step (Frame n, its transition). A chip or ◀ ▶ previews that step on the stage; Play walks the steps (one every duration + 1.1 s) and stops at the end. Leaving the tab or Esc ends ordering, play and the preview.
     - Linked-in slides refuse ordering and transition changes ("Linked slides are read-only here…"), but preview works.
 - **Undo / redo:** ⌘Z / ⇧⌘Z / ⌘Y covers node, layer, step, transition and template edits (theme and text style edits aren't on undo).
 

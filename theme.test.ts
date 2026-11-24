@@ -42,6 +42,8 @@ test("motion: defaults, overrides, bad values and the effect view", async () => 
   expect(motionOf({ background: "dusk" })).toBeNull(); expect(effectView({ background: "dusk" }).cls).toBe("");
   expect(motionOf({ background: "gears" })).toEqual({ speedIdx: 8, opacity: 35, count: 4, size: "medium" });
   expect(motionOf({ background: "aurora", motion: { speedIdx: 99 } })!.speedIdx).toBe(9);
+  for (const bad of ["length", "1", 1.5]) expect(motionOf({ background: "aurora", motion: { speedIdx: bad } })!.speedIdx).toBe(9);   // only an integer index
+  for (const size of ["constructor", "__proto__"]) expect(effectView({ background: "gears", motion: { size } }).gearScale).toBe(1);
   expect(effectView({ background: "aurora", motion: { speedIdx: 11 } })).toMatchObject({ cls: "anim", dur: "8.0s" });
   expect(effectView({ background: "sunset" })).toMatchObject({ cls: "sky", isSunset: true, sunOn: true, opacity: 0.9 });
   expect(effectView({ background: "bubbles", motion: { count: 6 } }).bubbles.length).toBe(6);

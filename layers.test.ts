@@ -169,3 +169,21 @@ test("lines and arrows: an SVG line across the box in the drawn direction; arrow
   expect(ln({ kind: "arrow" })).toMatchObject({ mark: "url(#ah-q)", mid: "ah-q" });
   expect(html).toContain('<sc-if value="{{ e.isLine }}">'); expect(html).toContain("marker-end:{{ e.mark }}");
 });
+
+test("unsafe values from a layout file never reach a style string: each falls back to the default", () => {
+  const semi = (o: any): boolean => typeof o === "string" ? o.includes(";") : o && typeof o === "object" ? Object.values(o).some(semi) : false;
+  const v = render({ ink: "#111111", layers: [
+    txt({ font: "x;background:url(http://t)", color: "red;top:0", blend: "x;y", _lines: [[{ text: "Hi", color: "red;x", font: "a;b" }]] }),
+    { ...shape, fill: "a;b", stroke: "red;x", border: { width: "3;x", style: "x;y" } },
+    { ...shape, kind: "line", stroke: "red;x", border: { width: 99, style: "x;y" } },
+    { id: "i", type: "icon", x: 0, y: 0, w: 10, h: 10, fill: "red;x" },
+    txt({ card: "custom", box: { ...BOX, borderColor: "red;x" } }),
+  ] });
+  expect(semi(v.items)).toBe(false);
+  expect(v.items[0]).toMatchObject({ font: "'Bricolage Grotesque',sans-serif", color: "#111111", blend: "normal" });
+  expect(v.items[0].lines[0].runs[0]).toMatchObject({ col: "", fam: "" });
+  expect(v.items[1]).toMatchObject({ fill: "#d9432b", border: "0" });
+  expect(v.items[2]).toMatchObject({ stroke: "#111111", sw: "1cqw", dash: "none" });   // width clamped to 10
+  expect(v.items[3].fill).toBe("#111111"); expect(v.items[4].cardBorder).toBe("0.125cqw solid #ffffff");
+  expect(render({ layers: [{ ...shape, fill: "#d9432b59", border: { width: 2, style: "dashed" }, stroke: "#123" }] }).items[0]).toMatchObject({ fill: "#d9432b59", border: "0.2cqw dashed #123" });
+});

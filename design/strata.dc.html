@@ -1209,7 +1209,7 @@ const sided = (L, n = {}) => L && n.side === 'right' && (L.opts || []).includes(
 // ---- Enrichment: markdown sections + layout files -> nodes (never saved), and layoutOf, its inverse (what the layout file keeps).
 // LayoutFile: { version: 2, deck: { deck fields but nodes/title/source }, slides: { [id]: a layer override (node minus content), or just SLIDE_KEEP } }; ROOT is stored whole.
 // A slide's own build and template settings: kept for every slide that has them, with or without a layer override.
-const SLIDE_KEEP = ['steps', 'trans', 'build', 'showSteps', 'template', 'barStyle', 'side'];
+const SLIDE_KEEP = ['steps', 'trans', 'build', 'showSteps', 'barStyle', 'side'];
 const keepOf = o => Object.fromEntries(SLIDE_KEEP.filter(k => o && o[k] != null).map(k => [k, o[k]]));
 const MD_CONTENT = ['text', 'src', 'imgKey', 'alt'];   // what markdown owns on an md-* layer (a layer's link and bullets are the user's)
 const CHIP_BOX = { bg: '#ffffff', bgOpacity: 0.75, blur: 0, border: 0, borderColor: '#ffffff', radius: 12, pad: 12 };   // link chips draw their own container
@@ -1405,17 +1405,18 @@ function linkAt(lines, off) {
 }
 // ---- WYSIWYG DOM glue: always via root.ownerDocument (never the global document).
 const MARK_CH = { disc: '•', dash: '–', check: '✓', arrow: '→' };
-const runStyle = (r, look) => { const st = (r.style && look && look(r.style)) || {}, v = k => (r[k] !== undefined ? r[k] : st[k]);
+// res: the theme's { col, fam } (token colour / font key → CSS, or null when unsafe), so the editor draws what the stage draws.
+const runStyle = (r, look, res) => { const st = (r.style && look && look(r.style)) || {}, v = k => (r[k] !== undefined ? r[k] : st[k]), c = res.col(v('color')), f = res.fam(v('font'));
   return [v('weight') ? 'font-weight:' + v('weight') : r.b ? 'font-weight:bolder' : '', r.i ? 'font-style:italic' : '', v('size') ? 'font-size:' + v('size') / 16 + 'cqw' : '',
-    v('color') ? 'color:' + v('color') : '', v('font') && FONT_CSS[v('font')] ? 'font-family:' + FONT_CSS[v('font')] : '', v('ls') ? 'letter-spacing:' + v('ls') + 'em' : '',
+    c ? 'color:' + c : '', f ? 'font-family:' + f : '', v('ls') ? 'letter-spacing:' + v('ls') + 'em' : '',
     r.link || r.href ? 'text-decoration:underline' : ''].filter(Boolean).join(';'); };
 // Run spans are keyed 'line.run', so a span the browser moves to another line keeps its own settings.
-function buildEditor(root, lines, layer, look) {
+function buildEditor(root, lines, layer, look, res = { col: v => (safeCol(v) ? v : null), fam: v => (safeFont(v) ? FONT_CSS[v] : null) }) {
   const doc = root.ownerDocument, b = (layer && layer.bullets) || 'none'; let num = 0; root.textContent = '';
   lines.forEach((line, n) => { const div = doc.createElement('div'); div.setAttribute('data-line', String(n));
     if (b !== 'none' && line.length) { num++; const m = doc.createElement('span'); m.setAttribute('contenteditable', 'false'); m.setAttribute('data-mark', ''); m.textContent = (b === 'number' ? num + '.' : MARK_CH[b] || '•') + ' '; div.appendChild(m); }
     if (!line.length) div.appendChild(doc.createElement('br'));
-    line.forEach((r, k) => { const s = doc.createElement('span'); s.setAttribute('data-run', n + '.' + k); const css = runStyle(r, look); if (css) s.setAttribute('style', css); s.textContent = r.text; div.appendChild(s); });
+    line.forEach((r, k) => { const s = doc.createElement('span'); s.setAttribute('data-run', n + '.' + k); const css = runStyle(r, look, res); if (css) s.setAttribute('style', css); s.textContent = r.text; div.appendChild(s); });
     root.appendChild(div); });
 }
 const textNodes = (node, out = []) => { for (const ch of node.childNodes) { if (ch.nodeType === 3) out.push(ch); else if (ch.nodeType === 1 && !ch.hasAttribute('data-mark')) textNodes(ch, out); } return out; };
@@ -1532,6 +1533,18 @@ const mapImgs = (im, f) => Object.fromEntries(Object.entries(im || {}).map(([k, 
 const TW = 76, COLW = 96, ROWH = 92, TPX = 28, TPY = 18;   // TPX leaves room for the + before button (24px left of a card)
 const FONT_LIST = [['head', 'Theme heading', TH.fontFor('head', TH.FONTS[0])], ['body', 'Theme body', TH.fontFor('body', TH.FONTS[0])], ['grot', 'Grotesk', "'Bricolage Grotesque',sans-serif"], ['serif', 'Serif', "'DM Serif Display',serif"], ['news', 'Book', "'Newsreader',serif"], ['mono', 'Mono', "'JetBrains Mono',monospace"], ['hand', 'Hand', "'Caveat',cursive"]];
 const FONT_CSS = Object.fromEntries(FONT_LIST.map(f => [f[0], f[2]]));
+// Trust boundary: a layout file (or a ?src= deck) reaches inline CSS through these keys. An unsafe value is dropped, so the renderer's default applies.
+const safeCol = v => typeof v === 'string' && /^(#[0-9a-fA-F]{3,8}|[a-zA-Z]+)$/.test(v);   // a token, a hex or a colour name
+const safeFont = v => typeof v === 'string' && Object.hasOwn(FONT_CSS, v);                  // head, body, mono or a font key
+const dropUnsafe = o => { const r = { ...o }; for (const k of ['color', 'fill', 'stroke', 'token']) if (r[k] != null && !safeCol(r[k])) delete r[k]; if (r.font != null && !safeFont(r.font)) delete r.font; return r; };
+function safeLayer(l) {
+  const r = dropUnsafe(l);
+  if (r.blend != null && !['normal', 'screen'].includes(r.blend)) delete r.blend;
+  if (r.border != null) r.border = typeof r.border === 'object' ? { ...r.border, style: ['solid', 'dashed', 'dotted'].includes(r.border.style) ? r.border.style : 'solid',
+    width: Number.isFinite(r.border.width) ? Math.max(0, Math.min(10, r.border.width)) : 0 } : { width: 0, style: 'solid' };
+  if (r._lines) r._lines = r._lines.map(line => line.map(dropUnsafe));
+  return r;
+}
 const ICONS = {
   arrow: 'M5 12h14M13 6l6 6-6 6', check: 'M5 12.5l4.5 4.5L19 7.5', star: 'M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z',
   heart: 'M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z', info: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 11v6M12 7.5v.5',
@@ -1749,7 +1762,7 @@ class Component extends DCLogic {
     let cur = S.cur; while (cur && cur !== 'ROOT' && !nodes[cur]) cur = up[cur] || cur.slice(0, Math.max(0, cur.lastIndexOf('.')));
     if (!cur || (cur === 'ROOT' && !S.titlePage)) cur = nodes.ROOT.children[0];
     this._lastNodes = nodes; this.allowLayout(nodes);
-    const at = cur !== S.cur || !nodes[cur] ? 0 : Math.max(0, ...BUILDS.stepList(nodes[cur].steps || {}, (nodes[cur].layers || []).map(l => l.id)).filter(n => n <= (S.at || 0)));   // a step that went away: the highest left below it
+    const at = cur !== S.cur || !nodes[cur] ? 0 : Math.max(0, ...BUILDS.stepList(nodes[cur].steps || {}, this.layersOfNode(nodes[cur]).map(l => l.id)).filter(n => n <= (S.at || 0)));   // a step that went away: the highest left below it
     this.setState(s => ({ nodes, at, mdIssues: r.mdIssues, images: { ...Object.fromEntries(Object.entries(s.images || {}).filter(([k]) => !k.startsWith('md:'))), ...r.mdImages }, cur }));
   }
   allowLayout(nodes) { this._layoutNodes = nodes; }   // tags the one nodes object a layout action commits, so it doesn't count as a hand edit
@@ -1890,9 +1903,9 @@ class Component extends DCLogic {
       const u = JSON.stringify({ navW: S.navW, rightW: S.rightW, secOpen: S.secOpen, presentFit: S.presentFit, showCrumbs: S.showCrumbs, crumbFade: S.crumbFade, view: S.view, rtab: S.rtab, collapsed: S.collapsed, treeZoom: S.treeZoom, treeFocus: S.treeFocus, applyTo: S.applyTo });
       if (u !== this._u) { this._u = u; try { localStorage.setItem(UIKEY, u); } catch (e) {} }
     }
-    if (S.cur !== this._lastCur) { if (S.ordering || this._play) { this.stopPlay(); this.setState({ ordering: false }); } this._lastCur = S.cur; this.scrollTree(); this.scrollMd(); if (S.showCrumbs === 'fade') this.litCrumbs(); }
+    if (S.cur !== this._lastCur) { clearTimeout(this._rp); if (S.ordering || this._play) { this.stopPlay(); this.setState({ ordering: false }); } this._lastCur = S.cur; this.scrollTree(); this.scrollMd(); if (S.showCrumbs === 'fade') this.litCrumbs(); }
     if (S.rtab !== this._lastRtab) { this._lastRtab = S.rtab; this.scrollMd(); }   // the Content tab's textarea is new each time it opens
-    const inBuilds = S.mode === 'build' && S.rtab === 'builds';
+    const inBuilds = S.mode === 'build' && S.rtab === 'builds' && S.view === 'slide';
     if (this._inBuilds && !inBuilds) this.endBuilds(); this._inBuilds = inBuilds;   // leaving the Builds tab (or Build mode) ends ordering, play and the preview
     if (this.measureStage()) this.forceUpdate();
     const ck = this.curId(), ca = S.at || 0;
@@ -1982,7 +1995,8 @@ class Component extends DCLogic {
   isCustom(id) { const n = this.state.nodes[id]; return !!(n && n.custom); }
   // A layer for display: styledLayer, then theme tokens (fonts head/body/mono, palette colours) resolved to CSS with the deck's theme.
   resolveLayer(l, nodeId) {
-    const r = this.styledLayer(l, nodeId); if (!r || !['text', 'shape', 'icon'].includes(r.type)) return r;
+    const r0 = this.styledLayer(l, nodeId); if (!r0) return r0;
+    const r = safeLayer(r0); if (!['text', 'shape', 'icon'].includes(r.type)) return r;
     const { palette, fonts } = this.theme(), col = v => TH.tokenColor(v, palette), fam = v => ['head', 'body', 'mono'].includes(v) ? TH.fontFor(v, fonts) : v;
     if (r.type === 'shape' && r.token) {   // a token fill: the palette colour at the shape's fillOpacity (0–100); its stroke is the colour itself
       const c = r.token === 'none' ? null : col(r.token), a = Math.round(Math.max(0, Math.min(100, r.fillOpacity ?? 100)) / 100 * 255);
@@ -2164,7 +2178,7 @@ class Component extends DCLogic {
     for (const k of this.ownSlideIds()) { if (k !== id && (this.isCustom(k) || (this.effectiveLayout(k) || {}).id !== lid)) continue; const p = this.layoutPatch(N[k], L); if (p) nodes[k] = p; }
     this.allowLayout(nodes); this.setState({ nodes });
   }
-  renameLayout(lid, name) { const L = this.layouts()[lid]; if (!L) return; const { id: _i, ...stored } = L; this.setState(s => ({ layouts: { ...(s.layouts || {}), [lid]: { ...stored, name } } })); }
+  renameLayout(lid, name) { const L = this.layouts()[lid]; if (!L || !String(name || '').trim()) return; const { id: _i, ...stored } = L; this.setState(s => ({ layouts: { ...(s.layouts || {}), [lid]: { ...stored, name } } })); }
   renameRegion(lid, key, i, name) { const L = this.layouts()[lid]; if (!L) return; const { id: _i, ...stored } = L, ns = [...((stored.names || {})[key] || [])]; ns[i] = name;
     this.setState(s => ({ layouts: { ...(s.layouts || {}), [lid]: { ...stored, names: { ...(stored.names || {}), [key]: ns } } } })); }
   deleteLayout(lid) {
@@ -2222,7 +2236,7 @@ class Component extends DCLogic {
   }
   playTick() { const at = this.state.at || 0, next = this.stepsOf(this.curId()).find(n => n > at); if (next === undefined) this.stopPlay(); else this.goStep(next); }
   stopPlay() { if (!this._play) return; clearInterval(this._play); this._play = null; this.setState({ playing: false, preview: false }); }   // at stays on the last step shown
-  endBuilds() { this.stopPlay(); if (this.state.ordering || this.state.preview) this.setState({ ordering: false, preview: false }); }   // leaving the Builds tab, Escape
+  endBuilds() { clearTimeout(this._rp); this.stopPlay(); if (this.state.ordering || this.state.preview) this.setState({ ordering: false, preview: false }); }   // leaving the Builds tab, Escape
   updLayer(id, lid, patch) { this.setLayers(id, ls => ls.map(l => l.id === lid ? { ...l, ...patch } : l)); }
   setStyle(id, patch) { this.setState(s => ({ styles: { ...(s.styles || {}), [id]: { ...((s.styles || {})[id] || {}), ...patch } } })); }
   // '' = Custom: keep the look by writing the resolved values onto the layer. Otherwise adopt the style fully.
@@ -2262,7 +2276,8 @@ class Component extends DCLogic {
   saveWys() { const id = this.curId(), lid = this.state.editing; if (!lid || !this._wysLines) return; const text = textOf(this._wysLines); this._wysText = text; this.updLayer(id, lid, { text }); }
   rebuildWys(start, end) { const root = this.wysRef.current, id = this.curId(), l = this.layersOf(id).find(x => x.id === this.state.editing); if (!root || !l || !root.ownerDocument) return;
     const n = this.state.nodes[id], look = sid => this.styles()[sid] || (n && n._from && ((this._graftStyles || {})[n._from] || {})[sid]) || null;
-    buildEditor(root, this._wysLines, this.resolveLayer(l, id), look); this._wysBuilt = this._wysLines;   // read-backs map spans against these
+    const { palette, fonts } = this.theme(), res = { col: v => (safeCol(v) ? TH.tokenColor(v, palette) : null), fam: v => (!safeFont(v) ? null : ['head', 'body', 'mono'].includes(v) ? TH.fontFor(v, fonts) : FONT_CSS[v]) };
+    buildEditor(root, this._wysLines, this.resolveLayer(l, id), look, res); this._wysBuilt = this._wysLines;   // read-backs map spans against these
     if (start != null) { root.focus && root.focus(); setOffsets(root, start, end ?? start); } }
   // A rich-mode format action on a plain range (op as in applyFormat: bold / italic / attrs / clear).
   formatRange(start, end, op) {
@@ -2351,18 +2366,21 @@ class Component extends DCLogic {
   // A drawing tool: drag on the stage draws a new layer (Shift: a circle or square), then the tool goes back to Select. A Text click adds a Body text layer there.
   startDraw(ev) {
     if (ev.button) return; const tool = this.state.tool, st = this.stageRef.current; if (!st) return; const r = st.getBoundingClientRect();
-    const pt = e => ({ x: (e.clientX - r.left) / r.width * 100, y: (e.clientY - r.top) / r.height * 100 }), a = pt(ev);
+    const c01 = v => Math.max(0, Math.min(100, v)), cl = p => ({ x: c01(p.x), y: c01(p.y) });   // the drawn box stays on the slide
+    const pt = e => cl({ x: (e.clientX - r.left) / r.width * 100, y: (e.clientY - r.top) / r.height * 100 }), a = pt(ev);
     const end = e => { const b = pt(e); if (!e.shiftKey || !['rect', 'round', 'ellipse'].includes(tool)) return b;
       const dx = (b.x - a.x) * r.width, dy = (b.y - a.y) * r.height, side = Math.max(Math.abs(dx), Math.abs(dy));   // in px, so it's square on screen
-      return { x: a.x + Math.sign(dx || 1) * side / r.width, y: a.y + Math.sign(dy || 1) * side / r.height }; };
+      return cl({ x: a.x + Math.sign(dx || 1) * side / r.width, y: a.y + Math.sign(dy || 1) * side / r.height }); };
     const box = b => ({ x: rd(Math.min(a.x, b.x)), y: rd(Math.min(a.y, b.y)), w: rd(Math.abs(b.x - a.x)), h: rd(Math.abs(b.y - a.y)) });
     const move = e => this.setState({ marquee: box(end(e)) });
     const up = e => {
       window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up);
       const b = end(e), m = box(b); this.setState({ marquee: null });
-      if (tool === 'text') { this.addLayer('text', { x: m.x, y: m.y, ...(m.w > 2 && m.h > 2 ? { w: m.w, h: m.h } : {}) }); this.setState({ tool: 'select' }); return; }
-      if (m.w < 0.5 && m.h < 0.5) return;   // a click: nothing to draw
-      const line = tool === 'line' || tool === 'arrow', dir = line ? { flip: (b.x > a.x) !== (b.y > a.y), back: b.x < a.x } : {};
+      if (tool === 'text') { const w = m.w > 2 && m.h > 2 ? m.w : 60, h = m.w > 2 && m.h > 2 ? m.h : 14;   // a click: the default box, kept inside the slide
+        this.addLayer('text', { x: rd(Math.min(m.x, 100 - w)), y: rd(Math.min(m.y, 100 - h)), w, h }); this.setState({ tool: 'select' }); return; }
+      const line = tool === 'line' || tool === 'arrow';
+      if (line ? m.w < 0.5 && m.h < 0.5 : m.w < 0.5 || m.h < 0.5) return;   // a click, or a shape with no area: nothing to draw
+      const dir = line ? { flip: (b.x > a.x) !== (b.y > a.y), back: b.x < a.x } : {};
       this.addLayer('shape', { ...m, kind: tool, ...Object.fromEntries(Object.entries(dir).filter(([, v]) => v)) }); this.setState({ tool: 'select' });
     };
     window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
@@ -2423,6 +2441,7 @@ class Component extends DCLogic {
   onImgFile(ev) { const f = ev.target.files && ev.target.files[0]; ev.target.value = ''; const t = this._imgTarget; if (!f || !t) return; this.readImage(f, url => this.setImage(t.sid, t.lid, url)); }
   dropOn(ev, lid) {
     const f = ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files[0]; if (!f || !/image/.test(f.type)) return;   // other files go on to openFiles
+    if (this.state.ordering) { ev.preventDefault(); ev.stopPropagation(); return; }   // ordering: no image drops
     ev.preventDefault(); ev.stopPropagation();
     const sid = this.curId(); const l = lid && this.layersOf(sid).find(x => x.id === lid);
     if (l && l.type === 'image') { this.readImage(f, url => this.setImage(sid, lid, url)); this.setState({ layerSel: lid }); return; }
@@ -2486,6 +2505,7 @@ class Component extends DCLogic {
     if ((e.metaKey || e.ctrlKey) && (k === 'z' || k === 'Z')) { e.preventDefault(); if (e.shiftKey) this.redo(); else this.undo(); return; }
     if (k === 'Escape' && S.mode === 'build' && (S.ordering || S.preview || this._play)) { this.endBuilds(); return; }
     if ((e.metaKey || e.ctrlKey) && (k === 'y' || k === 'Y')) { e.preventDefault(); this.redo(); return; }
+    if (S.mode === 'build' && S.ordering) { if (k === 'a' || k === 'A' || k === 'Backspace' || k === 'Delete' || TOOL_KEYS[k.toLowerCase()] || (k.startsWith('Arrow') && this.selIds().length)) return; }   // ordering: clicks assign; nothing selects, moves, deletes or draws
     if (S.mode === 'build' && S.view === 'slide' && !(S.nodes[this.curId()] || {})._from && !e.metaKey && !e.ctrlKey && !e.altKey) {   // the shape tools: own slides only
       if (TOOL_KEYS[k.toLowerCase()]) { this.setState({ tool: TOOL_KEYS[k.toLowerCase()] }); return; }
       if (k === 'Escape' && S.tool && S.tool !== 'select') { this.setState({ tool: 'select' }); return; }
@@ -2725,7 +2745,7 @@ class Component extends DCLogic {
       dupLayer: () => ly && this.dupLayer(ly.id), delLayer: () => ly && this.delLayer(ly.id),
       swatches: [{ label: 'A', title: 'Deck default', bg: '#23262E', border: ly && !curColor ? '2px solid #7AA2FF' : '1px solid #343944', onClick: () => upL({ [colorKey]: null }) }]
         .concat(COLOR_TOKENS.map(v => ({ label: '', title: cap(v), bg: TH.tokenColor(v, th.palette), border: curColor === v ? '2px solid #7AA2FF' : '1px solid #343944', onClick: () => upL({ [colorKey]: v }) }))),
-      colorHex: toHex(curColor), onColorPick: e => upL({ [colorKey]: e.target.value }),
+      colorHex: toHex(TH.tokenColor(curColor, th.palette)), onColorPick: e => upL({ [colorKey]: e.target.value }),
       lyThumb: ly && ly.imgKey && S.images[ly.imgKey] ? `#23262E url("${S.images[ly.imgKey]}") center / contain no-repeat` : 'repeating-linear-gradient(45deg,#2C3039 0 10px,#23262E 10px 20px)',
       chooseImage: () => ly && this.chooseImage(ly.id), clearImage: () => upL({ imgKey: null }),
       imgFields: ly && ly.type === 'image' ? [['Zoom', 'zoom', 1, 4, 0.05, 1, v => Math.round(v * 100) + '%'], ['Horizontal focus', 'focusX', 0, 100, 1, 50, v => v + '%'], ['Vertical focus', 'focusY', 0, 100, 1, 50, v => v + '%']]

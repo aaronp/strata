@@ -1553,7 +1553,11 @@ test("shape tool: Shift draws a circle; lines keep the drag direction; the Text 
   drag(c, listeners, "arrow", [60, 40], [20, 10]);
   expect(c.layersOf("t").at(-1)).toMatchObject({ kind: "arrow", x: 10, y: 10, w: 20, h: 30, back: true }); expect(c.layersOf("t").at(-1).flip).toBeFalsy();   // up-left
   drag(c, listeners, "text", [100, 50], [100, 50]);
-  expect(c.layersOf("t").at(-1)).toMatchObject({ type: "text", style: "body", x: 50, y: 50 }); expect(c.state.tool).toBe("select");
+  expect(c.layersOf("t").at(-1)).toMatchObject({ type: "text", style: "body", x: 40, y: 50, w: 60, h: 14 }); expect(c.state.tool).toBe("select");   // kept inside the slide
+  drag(c, listeners, "rect", [150, 50], [300, 150]);
+  expect(c.layersOf("t").at(-1)).toMatchObject({ kind: "rect", x: 75, y: 50, w: 25, h: 50 });                         // clamped to the slide
+  const n = c.layersOf("t").length; drag(c, listeners, "rect", [20, 10], [120, 10]); expect(c.layersOf("t").length).toBe(n);   // no height: nothing
+  drag(c, listeners, "line", [20, 10], [120, 10]); expect(c.layersOf("t").at(-1)).toMatchObject({ kind: "line", w: 50, h: 0 });   // a flat line is fine
 });
 
 test("tool keys V/T/R/O/L/A pick a tool in build mode, never while typing or in Present", async () => {
@@ -1569,7 +1573,7 @@ test("layer settings: an extra text layer gets the style picker and token colour
   const l = c.addLayer("text"); c.setState({ editing: null }); let v = c.renderVals();
   expect(v.lyIsText).toBe(true); expect(v.lyStyle).toBe("body"); expect(v.lyStyleShow).toBe(true);
   expect(v.swatches.map((s: any) => s.title)).toEqual(["Deck default", "Primary", "Secondary", "Tertiary", "Impact", "Text", "Muted"]);
-  v.swatches[4].onClick(); expect(layerOf(c, "t", l.id).color).toBe("impact");
+  v.swatches[4].onClick(); expect(layerOf(c, "t", l.id).color).toBe("impact"); expect(c.renderVals().colorHex).toBe(c.theme().palette.impact);   // the picker shows the token's colour
   v = c.renderVals(); expect(v.lySize).toBe(32); expect(v.lySizeOver).toBe(false);
   v.onLySize({ target: { value: "48" } }); expect(layerOf(c, "t", l.id).size).toBe(48); v.onLySize({ target: { value: "abc" } }); expect(layerOf(c, "t", l.id).size).toBe(48);
   v = c.renderVals(); expect(v.lySizeOver).toBe(true); v.onLySizeReset(); expect(layerOf(c, "t", l.id).size).toBeUndefined(); expect(c.resolveLayer(layerOf(c, "t", l.id), "t").size).toBe(32);
@@ -2247,6 +2251,7 @@ test("picking a template that doesn't fit applies it: regions take blocks by key
   c.renderVals().tplFits.find((t: any) => t.id === "list").pick(); expect(layerOf(c, "t", "md-list-1-1")._warn).toBeFalsy();   // a fitting one places them again
   const lid = c.saveAsLayout("t"); v = c.renderVals(); expect(v.hasMyTpls).toBe(true); expect(v.myTpls.map((t: any) => t.id)).toEqual([lid]);
   v.myTpls[0].onName({ target: { value: "Mine" } }); expect(c.layouts()[lid].name).toBe("Mine");
+  c.renderVals().myTpls[0].onName({ target: { value: "  " } }); expect(c.layouts()[lid].name).toBe("Mine");   // an empty name is ignored
   c.renderVals().myTpls[0].onDelete(); expect(c.layouts()[lid]).toBeUndefined(); expect(c.renderVals().myTpls).toEqual([]);
 });
 
@@ -2259,4 +2264,45 @@ test("tool keys only on an own slide in Slide view; Escape puts the tool back to
   const l = c.addLayer("shape", { kind: "arrow" }); let v = c.renderVals();
   expect(v.widthOpts.map((o: any) => o.label)).toEqual(["Thin", "Medium", "Thick"]); expect(v.lyLabel).toBe("Arrow");
   c.updLayer("t", l.id, { kind: "round" }); v = c.renderVals(); expect(v.widthOpts[0].label).toBe("None"); expect(v.lyLabel).toBe("Rounded rectangle");
+});
+
+// ---- final review fixes ----
+const hasSemi = (o: any): boolean => typeof o === "string" ? o.includes(";") : o && typeof o === "object" ? Object.values(o).some(hasSemi) : false;
+test("layout-file values that could inject CSS resolve to safe defaults (font, colours, blend, border)", async () => {
+  const bad = { font: "x;background:url(http://t)", color: "red;top:0", blend: "x;y" }, SH = { type: "shape", x: 0, y: 0, w: 10, h: 10, kind: "rect" };
+  const c = await styledDeck({ styles: { evil: { name: "Evil", color: "red;top:0", font: "x;y" } } }, [TL("a", bad), TL("e", { style: "evil", text: "[w]{style=evil} ok" }),
+    { id: "s1", ...SH, fill: "a;b", stroke: "red;x", border: { width: 99, style: "x;y" }, blend: "x;y" }, { id: "s2", ...SH, token: "x;y", border: { width: "3;x", style: "dashed" } }, { id: "s3", ...SH, border: "1px;x" }]);
+  const [t, e, s1, s2, s3] = c.layersOf("s").map((l: any) => c.resolveLayer(l, "s"));
+  for (const k of ["font", "color", "blend"]) expect(t[k]).toBeUndefined();
+  expect(e.color).toBeUndefined(); expect(e.font).toBeUndefined(); expect(e._lines[0][0]).toEqual({ text: "w" });
+  expect(s1.border).toEqual({ width: 10, style: "solid" }); for (const k of ["fill", "stroke", "blend"]) expect(s1[k]).toBeUndefined();
+  expect(s2.border).toEqual({ width: 0, style: "dashed" }); expect(s2.token).toBeUndefined(); expect(s3.border).toEqual({ width: 0, style: "solid" });
+  for (const r of [t, e, s1, s2, s3]) expect(hasSemi({ ...r, text: "" })).toBe(false);
+  const P = c.theme(); expect(c.resolveLayer(TL("b", { font: "head", color: "impact", blend: "screen" }), "s")).toMatchObject({ font: P.fonts.head, color: P.palette.impact, blend: "screen" });
+  expect(c.resolveLayer(TL("b", { font: "serif", color: "#abc" }), "s")).toMatchObject({ font: "serif", color: "#abc" });
+});
+
+test("the rich editor draws runs as the stage does: palette tokens and the theme's fonts", async () => {
+  const c = await styledDeck({ theme: { background: "dusk", palette: "paper", fonts: "elegant" } }, [TL("a", { text: "[x]{color=impact font=head} [y]{font=mono}" })]);
+  const w = new Window(); const root = w.document.createElement("div"); w.document.body.appendChild(root); c.wysRef.current = root;
+  c.setState({ editing: "a", layerSel: "a" }); c.componentDidUpdate();
+  const css = [...root.querySelectorAll("[data-run]")].map((s: any) => s.getAttribute("style") || "");
+  expect(css[0]).toContain("color:#DC2626"); expect(css[0]).toContain("font-family:'Playfair Display', serif");
+  expect(css.at(-1)).toContain("font-family:'DM Mono', monospace");
+});
+
+test("Builds: ordering ignores select-all, nudge, delete, tool keys and image drops; the replay timer is cleared; the wire view ends Builds", async () => {
+  await writeMd("talk", LIST + "\n# B\nslug: b\n"); const { c } = await mount("?deck=talk"); await Bun.sleep(150);
+  c.setState({ cur: "a", rtab: "builds" }); c.componentDidUpdate(); c.startOrdering(); c.assignStep("md-list-1-1"); c.componentDidUpdate();
+  const k = (key: string, mods: object = {}) => c.onKey({ key, target: { tagName: "DIV" }, preventDefault() {}, ...mods });
+  k("a", { metaKey: true }); expect(c.selIds()).toEqual([]);
+  c.setState({ layerSel: "md-list-1-2" }); const before = layerOf(c, "a", "md-list-1-2");
+  k("ArrowRight"); k("Backspace"); expect(layerOf(c, "a", "md-list-1-2")).toEqual(before); expect(c.state.cur).toBe("a");
+  k("r"); expect(c.state.tool).toBeUndefined();
+  let stopped = false; c.dropOn({ dataTransfer: { files: [{ type: "image/png" }] }, preventDefault() {}, stopPropagation() { stopped = true; } }, null);
+  expect(stopped).toBe(true); expect(c.layersOf("a").some((l: any) => l.type === "image")).toBe(false);
+  c.finishOrdering(); c.setState({ selStep: 1, layerSel: null }); c.replay(); expect(c.state.at).toBe(0); c.endBuilds(); await Bun.sleep(100); expect(c.state.at).toBe(0);   // Esc mid-replay
+  c.replay(); c.setState({ cur: "b" }); c.componentDidUpdate(); await Bun.sleep(100); expect(c.state.at).toBe(0);                                                  // slide change mid-replay
+  c.setState({ cur: "a" }); c.componentDidUpdate(); c.startOrdering(); c.componentDidUpdate(); expect(c.state.ordering).toBe(true);
+  c.setState({ view: "wire" }); c.componentDidUpdate(); expect(c.state.ordering).toBe(false);
 });

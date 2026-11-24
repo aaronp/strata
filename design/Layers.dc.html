@@ -10,9 +10,9 @@
 <div style="position:absolute;inset:0;container-type:size;overflow:hidden;pointer-events:none">
   <sc-if value="{{ slideCard }}"><div style="position:absolute;inset:0;background:{{ slideBg }};backdrop-filter:{{ slideBlur }}"></div></sc-if>
   <sc-for list="{{ items }}" as="e" hint-placeholder-count="0">
-    <div data-lid="{{ e.lid }}" style="position:absolute;left:{{ e.x }}%;top:{{ e.y }}%;width:{{ e.w }}%;height:{{ e.h }}%;transform:rotate({{ e.rot }}deg);opacity:{{ e.op }};display:{{ e.display }};z-index:{{ e.z }};transition:{{ e.tr }}">
+    <div data-lid="{{ e.lid }}" style="position:absolute;left:{{ e.x }}%;top:{{ e.y }}%;width:{{ e.w }}%;height:{{ e.h }}%;transform:{{ e.transform }};opacity:{{ e.op }};clip-path:{{ e.bclip }};display:{{ e.display }};z-index:{{ e.z }};transition:{{ e.tr }}">
       <sc-if value="{{ e.isText }}">
-        <div style="width:100%;min-height:100%;display:flex;flex-direction:column;justify-content:{{ e.vjust }};gap:{{ e.gap }}em;font-family:{{ e.font }};font-size:{{ e.fs }}cqw;font-weight:{{ e.weight }};color:{{ e.color }};text-align:{{ e.align }};line-height:{{ e.lh }};letter-spacing:{{ e.ls }}em;text-shadow:{{ e.shadow }};background:{{ e.cardBg }};backdrop-filter:{{ e.cardBlur }};border:{{ e.cardBorder }};padding:{{ e.cardPad }};border-radius:{{ e.cardRadius }};box-sizing:border-box;transition:{{ e.tr2 }}">
+        <div style="width:100%;min-height:100%;display:flex;flex-direction:column;justify-content:{{ e.vjust }};gap:{{ e.gap }}em;font-family:{{ e.font }};font-size:{{ e.fs }}cqw;font-weight:{{ e.weight }};color:{{ e.color }};text-align:{{ e.align }};line-height:{{ e.lh }};letter-spacing:{{ e.ls }}em;text-shadow:{{ e.shadow }};background:{{ e.cardBg }};backdrop-filter:{{ e.cardBlur }};border:{{ e.cardBorder }};padding:{{ e.cardPad }};border-radius:{{ e.cardRadius }};box-sizing:border-box">
           <sc-for list="{{ e.lines }}" as="ln" hint-placeholder-count="1">
             <div style="display:flex;gap:.45em;align-items:baseline;justify-content:{{ e.hjust }}">
               <sc-if value="{{ ln.hasMark }}"><span style="flex:none;min-width:{{ e.markW }};opacity:.85">{{ ln.mark }}</span></sc-if>
@@ -22,11 +22,11 @@
         </div>
       </sc-if>
       <sc-if value="{{ e.isShape }}">
-        <div style="width:100%;height:100%;background:{{ e.fill }};border-radius:{{ e.radius }};clip-path:{{ e.clip }};transition:{{ e.tr2 }}"></div>
+        <div style="width:100%;height:100%;background:{{ e.fill }};border-radius:{{ e.radius }};clip-path:{{ e.clip }}"></div>
       </sc-if>
       <sc-if value="{{ e.isIcon }}">
         <svg viewBox="0 0 24 24" width="100%" height="100%" preserveAspectRatio="xMidYMid meet" style="display:block;overflow:visible">
-          <path d="{{ e.path }}" style="fill:none;stroke:{{ e.fill }};stroke-width:{{ e.sw }};stroke-linecap:round;stroke-linejoin:round;transition:{{ e.tr2 }}"></path>
+          <path d="{{ e.path }}" style="fill:none;stroke:{{ e.fill }};stroke-width:{{ e.sw }};stroke-linecap:round;stroke-linejoin:round"></path>
         </svg>
       </sc-if>
       <sc-if value="{{ e.isComponent }}">
@@ -86,7 +86,10 @@ class Component extends DCLogic {
       return { shadow: l.color ? 'none' : shadow, cardBg: 'transparent', cardBlur: 'none', cardBorder: 'none', cardPad: '0', cardRadius: '0' };
     };
     const items = (p.layers || []).map((l, i) => {
-      const base = { lid: l.id, isComponent: false, z: l._z ?? (i + 1), tr: l._tr || 'none', tr2: l._tr2 || 'none', x: l.x, y: l.y, w: l.w, h: l.h, rot: l.rot || 0, op: l.id === p.editingId ? 0 : (l.opacity ?? 1), display: l.hidden ? 'none' : 'block',
+      // A build style (Present's step reveal): opacity on top of the layer's own, a hidden transform before its rotation, a wipe clip and the reveal's transition.
+      const b = l.build, rot = 'rotate(' + (l.rot || 0) + 'deg)';
+      const base = { lid: l.id, isComponent: false, z: i + 1, tr: b ? b.transition : 'none', transform: b && b.transform !== 'none' ? b.transform + ' ' + rot : rot, bclip: b ? b.clip : 'none',
+        x: l.x, y: l.y, w: l.w, h: l.h, op: l.id === p.editingId ? 0 : (l.opacity ?? 1) * (b ? b.opacity : 1), display: l.hidden ? 'none' : 'block',
         isText: l.type === 'text', isShape: l.type === 'shape', isIcon: l.type === 'icon', isImage: l.type === 'image' };
       if (l.type === 'text') {
         const b = l.bullets || 'none'; const raw = String(l.text ?? '').split('\n');
@@ -108,7 +111,7 @@ class Component extends DCLogic {
       if (l.type === 'icon') return { ...base, path: ICONS[l.icon] || ICONS.star, fill: l.fill || ink, sw: l.sw || 1.8 };
       if (l.type === 'component') {
         const live = !!p.live; let src = '';
-        if (live) {   // cache per layer: re-encoding a big snippet on every drag/tween render would jank
+        if (live) {   // cache per layer: re-encoding a big snippet on every drag or step render would jank
           this._src = this._src || {}; const c = this._src[l.id];
           if (c && c.code === l.code && c.key === p.live) src = c.src;
           else { src = 'data:text/html;charset=utf-8,' + encodeURIComponent(componentDoc(l.code, p.live)); this._src[l.id] = { code: l.code, key: p.live, src }; }

@@ -179,20 +179,10 @@ input,textarea,button{font:inherit;color:inherit}
               <div data-stage="main" onClick="{{ onStageLinkClick }}" style="position:absolute;inset:0;transform:{{ planeB.t }};opacity:{{ planeB.o }};transition:{{ planeTr }}">
                 <dc-import name="Layers" card="{{ deckCard }}" live="{{ cur }}" links="{{ isPresent }}" layers="{{ stageLayers }}" images="{{ images }}" ink="{{ ink }}" shadow="{{ inkShadow }}" editing-id="{{ editingId }}" show-empty="{{ editable }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
               </div>
-              <sc-if value="{{ hasGhost }}">
-                <div style="position:absolute;inset:0;opacity:.5;pointer-events:none;z-index:4">
-                  <dc-import name="Layers" card="{{ deckCard }}" layers="{{ ghostLayers }}" images="{{ images }}" ink="{{ ink }}" shadow="{{ inkShadow }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
-                </div>
-              </sc-if>
-              <sc-if value="{{ fprevOn }}">
-                <div style="position:absolute;top:3%;right:3%;display:flex;align-items:center;gap:8px;padding:5px 10px;border-radius:999px;background:rgba(10,14,28,.6);color:#fbf9f4;font-family:'JetBrains Mono',monospace;font-size:11px;z-index:8;pointer-events:none">
-                  <span>Preview · frame {{ fprevPos }}</span><span style="opacity:.7">→ / Space next · ← back · Esc</span>
-                </div>
-              </sc-if>
-              <sc-if value="{{ showFrameDots }}">
+              <sc-if value="{{ showStepDots }}">
                 <div style="position:absolute;left:50%;bottom:3%;transform:translateX(-50%);display:flex;align-items:center;gap:5px;padding:5px 8px;border-radius:999px;background:rgba(10,14,28,.38);z-index:7">
-                  <sc-for list="{{ frameDots }}" as="fd" hint-placeholder-count="2">
-                    <button onClick="{{ fd.onClick }}" title="{{ fd.title }}" style="width:{{ fd.w }}px;height:7px;padding:0;border:0;border-radius:4px;background:{{ fd.bg }};cursor:pointer;transition:width 250ms, background 250ms"></button>
+                  <sc-for list="{{ stepDots }}" as="sd" hint-placeholder-count="2">
+                    <button onClick="{{ sd.onClick }}" title="{{ sd.title }}" style="width:{{ sd.w }}px;height:7px;padding:0;border:0;border-radius:4px;background:{{ sd.bg }};cursor:pointer;transition:width 250ms, background 250ms"></button>
                   </sc-for>
                 </div>
               </sc-if>
@@ -263,16 +253,6 @@ input,textarea,button{font:inherit;color:inherit}
                         <button onPointerDown="{{ fmtDown }}" onMouseDown="{{ fmtDown }}" onClick="{{ onLinkPopRemove }}" style="padding:2px 7px;border:1px solid rgba(251,249,244,.4);border-radius:5px;background:none;color:inherit;cursor:pointer">Remove</button>
                       </div>
                     </sc-if>
-                  <sc-if value="{{ showPaths }}">
-                    <svg viewBox="0 0 100 100" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;z-index:900">
-                      <sc-for list="{{ pathLines }}" as="pl" hint-placeholder-count="0">
-                        <path d="{{ pl.d }}" style="fill:none;stroke:{{ pl.color }};stroke-width:{{ pl.sw }};stroke-dasharray:{{ pl.dash }};vector-effect:non-scaling-stroke"></path>
-                      </sc-for>
-                    </svg>
-                    <sc-for list="{{ pathDots }}" as="pd" hint-placeholder-count="0">
-                      <div onPointerDown="{{ pd.onDown }}" title="{{ pd.title }}" style="position:absolute;left:{{ pd.x }}%;top:{{ pd.y }}%;width:{{ pd.size }}px;height:{{ pd.size }}px;transform:translate(-50%, -50%);border-radius:50%;background:{{ pd.bg }};border:2px solid {{ pd.border }};box-sizing:border-box;cursor:{{ pd.cursor }};pointer-events:{{ pd.pe }};z-index:901"></div>
-                    </sc-for>
-                  </sc-if>
                 </div>
               </sc-if>
             </div>
@@ -477,126 +457,6 @@ input,textarea,button{font:inherit;color:inherit}
                   </div>
                 </sc-if>
               </div>
-            </sc-if>
-            <sc-if value="{{ stabFrames }}">
-            <div style="display:flex;flex-direction:column;gap:10px">
-              <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:#6b6458;cursor:pointer;white-space:nowrap">
-                  <input type="checkbox" checked="{{ showFramesOn }}" onChange="{{ onShowFrames }}" style="accent-color:#1d1b17">Progress
-              </label>
-              <div style="display:flex;flex-direction:column;gap:6px;padding:0 10px 10px">
-              <div style="display:flex;align-items:flex-start;gap:4px;overflow-x:auto;padding:3px 2px 4px">
-                <sc-for list="{{ frameItems }}" as="fr" hint-placeholder-count="1">
-                  <sc-if value="{{ fr.hasArrow }}">
-                    <button onClick="{{ fr.onArrow }}" title="{{ fr.arrowTitle }}" style="flex:none;align-self:center;margin-top:-14px;width:24px;height:24px;padding:0;border:{{ fr.arrowBorder }};border-radius:50%;background:{{ fr.arrowBg }};color:{{ fr.arrowColor }};cursor:pointer;font-size:13px;line-height:1">→</button>
-                  </sc-if>
-                  <div style="flex:none;display:flex;flex-direction:column;align-items:center;gap:3px">
-                    <button onClick="{{ fr.onClick }}" style="position:relative;width:78px;aspect-ratio:16/9;padding:0;border:0;border-radius:5px;overflow:hidden;background:{{ base }};cursor:pointer;outline:{{ fr.outline }};outline-offset:1px">
-                      <dc-import name="Layers" card="{{ deckCard }}" cards="true" layers="{{ fr.layers }}" images="{{ images }}" ink="{{ ink }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
-                    </button>
-                    <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:{{ fr.labelColor }};font-weight:{{ fr.weight }}">{{ fr.label }}</span>
-                  </div>
-                </sc-for>
-              </div>
-              <div style="display:flex;gap:6px">
-                <button onClick="{{ previewFrames }}" title="Play every frame of this slide (→ / Space to advance, Esc to stop)" style="flex:none;padding:6px 10px;border:0;border-radius:7px;background:{{ fprevBg }};color:#fff;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap">{{ fprevLabel }}</button>
-                <button onClick="{{ dupFrame }}" style="flex:1;padding:6px;border:1px solid #e0d9cb;border-radius:7px;background:#fff;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis" style-hover="background:#f5f1e8">⧉ Duplicate</button>
-                <button onClick="{{ delFrame }}" style="padding:6px 10px;border:1px solid #e0d9cb;border-radius:7px;background:#fff;cursor:pointer;font-size:12px;white-space:nowrap;color:#a8301d;opacity:{{ delFrameOp }};flex:none" style-hover="background:#f5f1e8">Delete</button>
-              </div>
-              <sc-if value="{{ seqOn }}">
-                <div style="display:flex;gap:6px;align-items:center">
-                  <select value="{{ seqKind }}" onChange="{{ onSeqKind }}" title="How each selected layer appears" style="flex:1;min-width:0;height:28px;padding:0 4px;border:1px solid #e0d9cb;border-radius:6px;background:#fff"><sc-for list="{{ seqKinds }}" as="o" hint-placeholder-count="4"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select>
-                  <button onClick="{{ onAddSequence }}" title="Hide the selected layers in this frame, then add a frame revealing each in turn (top to bottom)" style="flex:none;padding:6px 10px;border:1px solid #e0d9cb;border-radius:7px;background:#fff;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap" style-hover="background:#f5f1e8">Add as sequence</button>
-                </div>
-              </sc-if>
-              <sc-if value="{{ confirmDupOpen }}">
-                <div style="display:flex;flex-direction:column;gap:8px;padding:10px 12px;border-radius:9px;background:#fbf3df;border:1px solid #eedfb6">
-                  <span style="font-size:12px;line-height:1.45">{{ confirmDupText }}</span>
-                  <div style="display:flex;gap:6px;justify-content:flex-end">
-                    <button onClick="{{ cancelDup }}" style="padding:5px 10px;border:1px solid #e6d6a8;border-radius:7px;background:#fff;cursor:pointer;font-size:12px">Cancel</button>
-                    <button onClick="{{ forceDup }}" style="padding:5px 10px;border:0;border-radius:7px;background:#1d1b17;color:#fbf9f4;cursor:pointer;font-size:12px;font-weight:600">Duplicate anyway</button>
-                  </div>
-                </div>
-              </sc-if>
-              </div>
-            <div style="display:flex;flex-direction:column;border:1px solid #e0d9cb;border-radius:10px;background:#fff">
-              <div onClick="{{ sec.tdef.toggle }}" style="display:flex;align-items:center;gap:8px;padding:9px 10px;cursor:pointer;user-select:none">
-                <span style="width:12px;flex:none;font-size:10px;color:#6b6458">{{ sec.tdef.caret }}</span>
-                <span style="flex:1;min-width:0;font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#1d1b17;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Transition defaults</span>
-              </div>
-              <sc-if value="{{ sec.tdef.open }}">
-              <div style="display:flex;flex-direction:column;gap:6px;padding:0 10px 10px">
-                <span style="font-size:12px;line-height:1.4;color:#6b6458">Used by every frame change that has no setting of its own. Apply resets that column on every slide.</span>
-                <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;align-items:center;font-family:'JetBrains Mono',monospace;font-size:10px;color:#6b6458"><span>Easing</span><span>Duration ms</span><span>Delay ms</span></div>
-                <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;align-items:center"><div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px"><button onClick="{{ defAll.ease.onClick }}" title="When on, changing this column changes it for every effect" style="height:20px;padding:0;border:1px solid {{ defAll.ease.border }};border-radius:5px;background:{{ defAll.ease.bg }};color:{{ defAll.ease.color }};cursor:pointer;font-size:10px;font-weight:700">{{ defAll.ease.label }}</button><button onClick="{{ defApply.ease }}" title="Reset this column on every slide's transitions to the default" style="height:20px;padding:0;border:1px solid #e6c9c2;border-radius:5px;background:#fff;color:#a8301d;cursor:pointer;font-size:10px;font-weight:700">Apply</button></div><div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px"><button onClick="{{ defAll.dur.onClick }}" title="When on, changing this column changes it for every effect" style="height:20px;padding:0;border:1px solid {{ defAll.dur.border }};border-radius:5px;background:{{ defAll.dur.bg }};color:{{ defAll.dur.color }};cursor:pointer;font-size:10px;font-weight:700">{{ defAll.dur.label }}</button><button onClick="{{ defApply.dur }}" title="Reset this column on every slide's transitions to the default" style="height:20px;padding:0;border:1px solid #e6c9c2;border-radius:5px;background:#fff;color:#a8301d;cursor:pointer;font-size:10px;font-weight:700">Apply</button></div><div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px"><button onClick="{{ defAll.delay.onClick }}" title="When on, changing this column changes it for every effect" style="height:20px;padding:0;border:1px solid {{ defAll.delay.border }};border-radius:5px;background:{{ defAll.delay.bg }};color:{{ defAll.delay.color }};cursor:pointer;font-size:10px;font-weight:700">{{ defAll.delay.label }}</button><button onClick="{{ defApply.delay }}" title="Reset this column on every slide's transitions to the default" style="height:20px;padding:0;border:1px solid #e6c9c2;border-radius:5px;background:#fff;color:#a8301d;cursor:pointer;font-size:10px;font-weight:700">Apply</button></div></div>
-                <sc-for list="{{ defRows }}" as="dr" hint-placeholder-count="6">
-                  <div style="display:flex;flex-direction:column;gap:3px;padding-top:5px;border-top:1px solid #f0ebe0">
-                    <span style="font-size:12px;font-weight:700">{{ dr.label }}</span>
-                    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;align-items:center"><select value="{{ dr.ease }}" onChange="{{ dr.onEase }}" style="width:100%;min-width:0;height:26px;padding:0 2px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;outline:none;font-size:11.5px;cursor:pointer"><sc-for list="{{ dr.easeOpts }}" as="o" hint-placeholder-count="3"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select><select value="{{ dr.dur }}" onChange="{{ dr.onDur }}" style="width:100%;min-width:0;height:26px;padding:0 2px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;outline:none;font-size:11.5px;cursor:pointer"><sc-for list="{{ dr.durOpts }}" as="o" hint-placeholder-count="3"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select><select value="{{ dr.delay }}" onChange="{{ dr.onDelay }}" style="width:100%;min-width:0;height:26px;padding:0 2px;border:1px solid #e0d9cb;border-radius:6px;background:#fff;outline:none;font-size:11.5px;cursor:pointer"><sc-for list="{{ dr.delayOpts }}" as="o" hint-placeholder-count="3"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select></div>
-                  </div>
-                </sc-for>
-                
-                <span style="font-size:11.5px;color:#6b6458">{{ transCountText }}</span>
-              </div>
-              </sc-if>
-            </div>
-
-            <sc-if value="{{ isTransView }}">
-              <div style="display:flex;flex-direction:column;gap:8px">
-                <div style="display:flex;align-items:center;gap:6px">
-                  <span style="flex:1;font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#1f6fb8">Transition {{ transTitle }}</span>
-                  <button onClick="{{ previewTrans }}" style="padding:4px 9px;border:0;border-radius:6px;background:#1f6fb8;color:#fff;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap">▶ Preview</button>
-                  <button onClick="{{ closeTrans }}" title="Close (Esc)" style="width:24px;height:24px;padding:0;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer;font-size:11px">✕</button>
-                </div>
-                <div style="display:flex;flex-direction:column;border:1px solid #d6e2ef;border-radius:9px;background:#fff;overflow:hidden">
-                  <div style="display:grid;grid-template-columns:minmax(0,1fr) 22px minmax(0,1fr);gap:4px;padding:6px 6px 5px;background:#eef3f9;font-family:'JetBrains Mono',monospace;font-size:10px;color:#3d5a78">
-                    <span>{{ transLeftLabel }}</span><span></span><span>{{ transRightLabel }}</span>
-                  </div>
-                  <sc-for list="{{ transRows }}" as="tr" hint-placeholder-count="2">
-                    <div style="display:grid;grid-template-columns:minmax(0,1fr) 22px minmax(0,1fr);gap:4px;align-items:center;padding:4px 6px;border-top:1px solid #eef2f6;background:{{ tr.bg }}">
-                      <button onClick="{{ tr.onLeft }}" title="{{ tr.leftTitle }}" style="min-width:0;height:28px;padding:0 7px;border:{{ tr.leftBorder }};border-radius:6px;background:{{ tr.leftBg }};color:{{ tr.leftColor }};cursor:pointer;font-size:12px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ tr.leftName }}</button>
-                      <span title="{{ tr.change }}" style="font-size:14px;line-height:1;text-align:center;color:{{ tr.changeColor }}">→</span>
-                      <button onClick="{{ tr.onRight }}" title="{{ tr.rightTitle }}" style="min-width:0;height:28px;padding:0 7px;border:{{ tr.rightBorder }};border-radius:6px;background:{{ tr.rightBg }};color:{{ tr.rightColor }};cursor:pointer;font-size:12px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ tr.rightName }}</button>
-                    </div>
-                  </sc-for>
-                </div>
-                <sc-if value="{{ hasTransLayer }}">
-                  <div style="display:flex;flex-direction:column;gap:7px;padding:10px 10px 12px;border-radius:9px;background:#eef3f9;border:1px solid #d6e2ef">
-                    <span style="font-size:12px;font-weight:700;color:#1f4f80;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ transLayerTitle }}</span>
-                    <sc-if value="{{ hasActRows }}">
-                      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;align-items:center;font-family:'JetBrains Mono',monospace;font-size:10px;color:#3d5a78"><span>Easing</span><span>Duration ms</span><span>Delay ms</span></div>
-                      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;align-items:center"><button onClick="{{ allT.ease.onClick }}" title="When on, changing this column changes it for every action" style="height:20px;padding:0;border:1px solid {{ allT.ease.border }};border-radius:5px;background:{{ allT.ease.bg }};color:{{ allT.ease.color }};cursor:pointer;font-size:10px;font-weight:700">{{ allT.ease.label }}</button><button onClick="{{ allT.dur.onClick }}" title="When on, changing this column changes it for every action" style="height:20px;padding:0;border:1px solid {{ allT.dur.border }};border-radius:5px;background:{{ allT.dur.bg }};color:{{ allT.dur.color }};cursor:pointer;font-size:10px;font-weight:700">{{ allT.dur.label }}</button><button onClick="{{ allT.delay.onClick }}" title="When on, changing this column changes it for every action" style="height:20px;padding:0;border:1px solid {{ allT.delay.border }};border-radius:5px;background:{{ allT.delay.bg }};color:{{ allT.delay.color }};cursor:pointer;font-size:10px;font-weight:700">{{ allT.delay.label }}</button></div>
-                      <sc-for list="{{ actRows }}" as="ar" hint-placeholder-count="2">
-                        <div style="display:flex;flex-direction:column;gap:3px;padding-top:5px;border-top:1px solid #d6e2ef">
-                          <span style="font-size:12px;font-weight:700;color:#1d1b17">{{ ar.label }}</span>
-                          <sc-if value="{{ ar.isMove }}">
-                            <div style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:#3d5a78">
-                              <span style="flex:1">Path: {{ ar.pathLabel }}</span>
-                              <button onClick="{{ ar.onResetPath }}" style="padding:2px 8px;border:1px solid #9db8d3;border-radius:5px;background:#fff;color:#1f6fb8;cursor:pointer;font-size:11px;font-weight:600;opacity:{{ ar.resetOp }}">Reset</button>
-                            </div>
-                          </sc-if>
-                          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;align-items:center">
-                            <select value="{{ ar.ease }}" onChange="{{ ar.onEase }}" style="width:100%;min-width:0;height:26px;padding:0 2px;border:1px solid #d6e2ef;border-radius:6px;background:#fff;outline:none;font-size:11.5px;cursor:pointer">
-                              <sc-for list="{{ ar.easeOpts }}" as="o" hint-placeholder-count="3"><option value="{{ o.v }}">{{ o.l }}</option></sc-for>
-                            </select>
-                            <select value="{{ ar.dur }}" onChange="{{ ar.onDur }}" style="width:100%;min-width:0;height:26px;padding:0 2px;border:1px solid #d6e2ef;border-radius:6px;background:#fff;outline:none;font-size:11.5px;cursor:pointer">
-                              <sc-for list="{{ ar.durOpts }}" as="o" hint-placeholder-count="3"><option value="{{ o.v }}">{{ o.l }}</option></sc-for>
-                            </select>
-                            <select value="{{ ar.delay }}" onChange="{{ ar.onDelay }}" style="width:100%;min-width:0;height:26px;padding:0 2px;border:1px solid #d6e2ef;border-radius:6px;background:#fff;outline:none;font-size:11.5px;cursor:pointer">
-                              <sc-for list="{{ ar.delayOpts }}" as="o" hint-placeholder-count="3"><option value="{{ o.v }}">{{ o.l }}</option></sc-for>
-                            </select>
-                          </div>
-                        </div>
-                      </sc-for>
-                    </sc-if>
-                    <sc-if value="{{ noActRows }}">
-                      <span style="font-size:12px;color:#3d5a78">Nothing changes for this layer between these frames. Move, resize, rotate or recolour it in one frame to add an action.</span>
-                    </sc-if>
-                  </div>
-                </sc-if>
-                <span style="font-size:11.5px;line-height:1.45;color:#6b6458">Click a layer on either side to select it in that frame, then move, resize or rotate it on the slide. An empty cell means the layer appears or disappears; click it to copy the layer into that frame.</span>
-              </div>
-            </sc-if>
-            </div>
             </sc-if>
             <sc-if value="{{ stabLayers }}">
               <div style="display:flex;flex-direction:column;gap:6px;padding:0 10px 10px">
@@ -1017,12 +877,12 @@ const SRC = DECK ? '../decks/' + DECK + '/' + DECK + '.md' : SRC_ARG && okUrl(SR
 const layoutUrl = src => /\.md(\?.*)?$/i.test(src) ? src.replace(/\.md(\?.*)?$/i, '-layout.json$1') : null;
 const RO_MSG = 'Linked slides are read-only here: change them in their own markdown file';
 const EMPTY_MSG = 'Add a # heading to make a slide';
-const MD = window.StrataMd;
+const MD = window.StrataMd, BUILDS = window.StrataBuilds;
 const TOUR = 'https://github.com/aaronp/strata/blob/master/examples/strata-tour/strata-tour.md';
 const UIKEY = 'strata-ui', DRAFT_KEY = src => 'strata-draft:' + src;
 const webUrl = u => { u = String(u || '').trim(); if (u && !/^[a-z][a-z0-9+.-]*:/i.test(u)) u = 'https://' + u; return /^https?:\/\//i.test(u) ? u : null; };   // only http(s) targets open
 const AUTOSAVE_MS = 800;
-const DECK_FIELDS = ['title', 'source', 'card', 'nodes', 'bg', 'customBg', 'customAspect', 'bgScale', 'bgRepeat', 'bgY', 'opacity', 'base', 'offset', 'gap', 'tone', 'speed', 'tdef', 'titlePage', 'titleView', 'spacing', 'rowGap', 'styles', 'layouts', 'layoutDefaults', 'images'];
+const DECK_FIELDS = ['title', 'source', 'card', 'nodes', 'bg', 'customBg', 'customAspect', 'bgScale', 'bgRepeat', 'bgY', 'opacity', 'base', 'offset', 'gap', 'tone', 'speed', 'titlePage', 'titleView', 'spacing', 'rowGap', 'styles', 'layouts', 'layoutDefaults', 'images'];
 const SAVED = [...DECK_FIELDS, 'md'];   // what save writes (markdown + layout file); dirty tracking compares these
 // Named text styles: built-ins live here; deck.styles holds only their differences and added styles. A styled layer's own STYLE_KEYS are overrides.
 const STYLE_KEYS = ['font', 'size', 'weight', 'color', 'align', 'valign', 'lh', 'ls', 'bullets', 'gap', 'card', 'box'];
@@ -1131,7 +991,10 @@ const isGen = l => String(l.id).startsWith('gen-');
 const genLayers = (L, idx) => L && L.number ? [{ id: 'gen-number', type: 'text', text: String(idx + 1).padStart(2, '0'), ...L.number, opacity: 1,
   font: 'grot', size: 144, weight: 700, lh: 0.9, color: 'impact', align: 'left', valign: 'bottom', bullets: 'none' }] : [];
 // ---- Enrichment: markdown sections + layout files -> nodes (never saved), and layoutOf, its inverse (what the layout file keeps).
-// LayoutFile: { version: 1, deck: { deck fields but nodes/title/source }, slides: { [id]: node minus content } }; ROOT is stored whole.
+// LayoutFile: { version: 2, deck: { deck fields but nodes/title/source }, slides: { [id]: a layer override (node minus content), or just SLIDE_KEEP } }; ROOT is stored whole.
+// A slide's own build and template settings: kept for every slide that has them, with or without a layer override.
+const SLIDE_KEEP = ['steps', 'trans', 'build', 'showSteps', 'template', 'barStyle', 'side'];
+const keepOf = o => Object.fromEntries(SLIDE_KEEP.filter(k => o && o[k] != null).map(k => [k, o[k]]));
 const MD_CONTENT = ['text', 'src', 'imgKey', 'alt'];   // what markdown owns on an md-* layer (a layer's link and bullets are the user's)
 const CHIP_BOX = { bg: '#ffffff', bgOpacity: 0.75, blur: 0, border: 0, borderColor: '#ffffff', radius: 12, pad: 12 };   // link chips draw their own container
 const bodySize = t => Math.max(22, Math.min(40, Math.round(40 - (t.length - 120) / 20)));
@@ -1174,27 +1037,26 @@ function enrich(sections, layouts, opts = {}) {
     const id = prefix + sec.slug, gen = blockLayers(sec, depth, prefix, src, styles), sig = sigKey(sigOf(gen));
     for (const l of gen) if (l.imgKey) images[l.imgKey] = l.imgKey.slice(3);
     // The host's override is keyed by full id; a linked doc's own layout file by its local slug. Only the host may embed components.
-    // Per file, in order: its override for the slide, then its layout for the shape; then the built-ins.
-    let i = -1, ov = null, lay = null;
-    for (const [j, F] of layouts.entries()) { ov = (F.slides || {})[j ? sec.slug : id] || null; if (ov) { i = j; break; } if ((lay = shapeIn(F, gen, sig))) break; }
+    // Per file, in order: its layer override for the slide, then its layout for the shape; then the built-ins. The first entry found keeps its build settings.
+    let i = -1, ov = null, lay = null, keep = null;
+    for (const [j, F] of layouts.entries()) { const o = (F.slides || {})[j ? sec.slug : id]; keep = keep || o; if (o && o.layers) { ov = o; i = j; break; } if ((lay = shapeIn(F, gen, sig))) break; }
     if (!ov && !lay) { const k = Object.keys(BUILTIN_LAYOUTS).find(k => fitsTemplate(gen, BUILTIN_LAYOUTS[k])); lay = k ? { id: k, ...BUILTIN_LAYOUTS[k] } : null; }
     let extra;
     if (ov) {
-      const byId = new Map(gen.map(g => [g.id, g])), kept = {};
-      const frames = (ov.frames || [{ id: 'f1', layers: [] }]).map(f => {
-        const ls = f.layers.filter(l => !(i && l.type === 'component') && !isGen(l));
-        const gone = ls.filter(l => isMd(l) && !byId.has(l.id)); if (gone.length) kept[f.id] = gone;   // back in the layout file, out of the slide
-        const have = new Set(ls.map(l => l.id));
-        return { ...f, layers: ls.filter(l => !isMd(l) || byId.has(l.id)).map(l => isMd(l) ? mergeContent(l, byId.get(l.id)) : l).concat(gen.filter(g => !have.has(g.id)).map(g => ({ ...g, _warn: true }))) };
-      });
-      frames[0] = { ...frames[0], layers: [...genLayers(byLid(ov.layout), idx), ...frames[0].layers] };
-      const { _kept: _k, ...rest } = ov; extra = { ...rest, frames, custom: true, ...(Object.keys(kept).length ? { _kept: kept } : {}) };
+      const byId = new Map(gen.map(g => [g.id, g]));
+      const ls = ov.layers.filter(l => !(i && l.type === 'component') && !isGen(l));
+      const gone = ls.filter(l => isMd(l) && !byId.has(l.id));   // back in the layout file, out of the slide
+      const have = new Set(ls.map(l => l.id));
+      const layers = [...genLayers(byLid(ov.layout), idx), ...ls.filter(l => !isMd(l) || byId.has(l.id)).map(l => isMd(l) ? mergeContent(l, byId.get(l.id)) : l).concat(gen.filter(g => !have.has(g.id)).map(g => ({ ...g, _warn: true })))];
+      const { _kept: _k, ...rest } = ov; extra = { ...rest, layers, custom: true, ...(gone.length ? { _kept: gone } : {}) };
     } else {
-      if (lay) { const boxes = fillSlots(gen, lay); extra = { frames: [{ id: 'f1', layers: [...genLayers(lay, idx), ...backFirst(gen.map(l => boxes[l.id] ? { ...l, ...boxes[l.id] } : l), boxes)] }], layout: lay.id }; }
+      if (lay) { const boxes = fillSlots(gen, lay); extra = { layers: [...genLayers(lay, idx), ...backFirst(gen.map(l => boxes[l.id] ? { ...l, ...boxes[l.id] } : l), boxes)], layout: lay.id }; }
       else { const rest = gen.filter(l => counted(l) && l.block !== 'title'), st = stackOf(rest.length, [24, 88]);   // no match: stack the blocks, and flag them
-        extra = { frames: [{ id: 'f1', layers: gen.map(l => { const k = rest.indexOf(l); return k < 0 ? l : { ...l, ...st[k], _warn: true }; }) }] }; }
+        extra = { layers: gen.map(l => { const k = rest.indexOf(l); return k < 0 ? l : { ...l, ...st[k], _warn: true }; }) }; }
     }
-    for (const f of extra.frames.slice(0, 1)) for (const l of f.layers) if (l._warn) warnings.push({ id, block: l.id.slice(3) });
+    extra = { ...extra, ...keepOf(keep) };
+    if (extra.steps) extra.steps = BUILDS.pruneSteps(extra.steps, extra.layers.map(l => l.id));   // a step whose layer is gone (a removed bullet) goes too
+    for (const l of extra.layers) if (l._warn) warnings.push({ id, block: l.id.slice(3) });
     nodes[id] = { ...extra, id, title: plainText(sec.title), _line: sec.line, body: sec.body, children: sec.children.map(c => prefix + c.slug), childSrc: sec.childSrc || [], ...(from ? { _from: from } : {}) };
     sec.children.forEach((c, j) => add(c, depth + 1, j));
   };
@@ -1209,12 +1071,13 @@ function layoutOf(nodes, deckFields = {}, linkedOv = {}) {   // linkedOv: the ho
   const deck = {}; for (const k of DECK_FIELDS) if (k in deckFields && !['nodes', 'title', 'source'].includes(k)) deck[k] = deckFields[k];
   if (deck.images) deck.images = Object.fromEntries(Object.entries(deck.images).filter(([k]) => !k.startsWith('md:')));
   const slides = { ...linkedOv, ...(nodes.ROOT ? { ROOT: nodes.ROOT } : {}) };
-  for (const id in nodes) { const n = nodes[id]; if (id === 'ROOT' || n.custom !== true || n._from) continue;
+  for (const id in nodes) { const n = nodes[id]; if (id === 'ROOT' || n._from) continue;
+    if (n.custom !== true) { const k = keepOf(n); if (Object.keys(k).length) slides[id] = k; continue; }
     const o = Object.fromEntries(Object.entries(n).filter(([k]) => !NOT_SAVED.includes(k)));
-    if (n.frames) o.frames = n.frames.map(f => ({ ...f, layers: f.layers.filter(l => !(isMd(l) && l._warn) && !isGen(l))   // an unclaimed block isn't part of the override yet
-      .map(l => isMd(l) ? Object.fromEntries(Object.entries(l).filter(([k]) => !MD_CONTENT.includes(k))) : l).concat(((n._kept || {})[f.id]) || []) }));
+    o.layers = (n.layers || []).filter(l => !(isMd(l) && l._warn) && !isGen(l))   // an unclaimed block isn't part of the override yet
+      .map(l => isMd(l) ? Object.fromEntries(Object.entries(l).filter(([k]) => !MD_CONTENT.includes(k))) : l).concat(n._kept || []);
     slides[id] = o; }
-  return { version: 1, deck, slides };
+  return { version: 2, deck, slides };
 }
 // ---- Inline markup: **bold**, *italic*, [words]{style=h2 size=72 color=#hex font=serif weight=600}, \ escapes. Per line; malformed markup is literal.
 const ESC = '*[]{}\\';
@@ -1460,29 +1323,24 @@ const ICONS = {
   pin: 'M12 21s6-5.6 6-11a6 6 0 1 0-12 0c0 5.4 6 11 6 11zM12 12a2 2 0 1 0 0-4 2 2 0 0 0 0 4z', chart: 'M5 20V11M11 20V5M17 20v-7M3 20h18',
   users: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21a7 7 0 0 1 14 0M17 11a3 3 0 1 0 0-6M22 21a6 6 0 0 0-4-5.7', key: 'M8 15a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM11.5 11H21M18 11v3M21 11v2',
 };
-const EASE_PTS = { linear: [0, 0, 1, 1], in: [0.55, 0, 1, 0.45], out: [0, 0.55, 0.45, 1], both: [0.65, 0, 0.35, 1], spring: [0.34, 1.56, 0.64, 1] };
-const easeFn = k => { const [x1, y1, x2, y2] = EASE_PTS[k] || EASE_PTS.both; const bx = (t, a, b) => 3 * a * t * (1 - t) * (1 - t) + 3 * b * t * t * (1 - t) + t * t * t;
-  return p => { if (p <= 0) return 0; if (p >= 1) return 1; let lo = 0, hi = 1, t = p; for (let i = 0; i < 24; i++) { const x = bx(t, x1, x2); if (x < p) lo = t; else hi = t; t = (lo + hi) / 2; } return bx(t, y1, y2); }; };
-const bez = (p0, c1, c2, p3, t) => { const u = 1 - t; return { x: u * u * u * p0.x + 3 * u * u * t * c1.x + 3 * u * t * t * c2.x + t * t * t * p3.x, y: u * u * u * p0.y + 3 * u * u * t * c1.y + 3 * u * t * t * c2.y + t * t * t * p3.y }; };
-const DEF_ACTS = ['move', 'scale', 'rotate', 'colour', 'size', 'fade'];
 const SWATCH = ['#15171c', '#fbf9f4', '#d9432b', '#1f6fb8', '#2f8f4e', '#e0a019', '#7a4bb0', 'rgba(255,255,255,0.75)', 'rgba(10,14,28,0.55)'];
 // Component layers: the default snippet (a self-documenting demo) and the brief for an AI writing one.
 const COMPONENT_DEFAULT = `<div id="out" style="height:100%;display:grid;place-items:center;font:600 7vw system-ui;color:#fbf9f4;background:rgba(31,111,184,.35);border-radius:12px"></div>
 <script>
   // Talks to the slide via the injected \`strata\` helper.
-  let frame = 0, step = 0;
-  const show = () => out.textContent = 'frame ' + (frame + 1) + ' · step ' + step;
-  strata.on('enter', m => { frame = m.frame; show(); });
-  strata.on('frame', m => { frame = m.frame; show(); });
-  strata.on('next', () => { if (step < 3) { step++; show(); } else strata.done(); });
-  strata.on('prev', () => { if (step > 0) { step--; show(); } else strata.back(); });
+  let at = 0, count = 0;
+  const show = () => out.textContent = 'step ' + at + ' · count ' + count;
+  strata.on('enter', m => { at = m.step; show(); });
+  strata.on('step', m => { at = m.n; show(); });
+  strata.on('next', () => { if (count < 3) { count++; show(); } else strata.done(); });
+  strata.on('prev', () => { if (count > 0) { count--; show(); } else strata.back(); });
   strata.ready({ steps: true });   // claim →/← in Present
 <\/script>`;
 const COMPONENT_GUIDE = `Write a Strata slide component: one HTML snippet (markup + <style> + <script>) that runs in a sandboxed iframe filling a box on a slide.
 Rules: no access to the parent page, cookies or storage; you may load libraries from CDNs and fetch public URLs. Use a transparent background unless asked; size everything to the iframe (100% width/height, vw/vh units).
 A global \`strata\` object connects it to the slide:
-  strata.on('enter', m => …)   // arrived on the slide: m.frame (0-based), m.frames, m.mode ('build'|'present'), m.slide {id,title}
-  strata.on('frame', m => …)   // the slide's frame changed: m.frame, m.frames, m.from, m.duration (ms this layer's own tween takes; 0 for a jump)
+  strata.on('enter', m => …)   // arrived on the slide: m.step (its current build step; 0 = before any), m.steps (how many build steps it has), m.mode ('build'|'present'), m.slide {id,title}
+  strata.on('step', m => …)    // the slide's build step changed: m.n (the step now showing), m.steps, m.duration (ms the slide's reveal takes)
   strata.ready({ steps: true }) // claim the presenter's → / ← keys in Present mode
   strata.on('next', () => …)   // → pressed (only after claiming); call strata.done() when there's nothing left to show
   strata.on('prev', () => …)   // ← pressed; call strata.back() when already at the start
@@ -1508,7 +1366,7 @@ class Component extends DCLogic {
   state = {
     md: SEED, mdIssues: [], nodes: enrich(MD.parseMarkdown(SEED).sections, []).nodes, cur: 'a', prev: null, phase: 'idle', dx: 0, dy: 0, type: 'swipe', mode: STATIC ? 'present' : 'build', view: 'slide', rtab: 'content', applyTo: 'slide',
     query: '', bg: 'balloons', customBg: null, customAspect: 1, opacity: 1, base: '#0b1220', offset: 0,
-    tAll: { ease: false, dur: false, delay: false }, tdef: {}, dAll: { ease: false, dur: false, delay: false }, secOpen: { layout: true, frames: true, layers: true, tdef: false }, collapsed: {}, rowGap: -0.7, gap: -0.7, tone: 'light', editMode: 'rich', speed: 900, lastChild: {}, navW: 280, rightW: 340, images: {}, layerSel: null, editing: null, guides: {},
+    at: 0, preview: false, secOpen: { layout: true, layers: true }, collapsed: {}, rowGap: -0.7, gap: -0.7, tone: 'light', editMode: 'rich', speed: 900, lastChild: {}, navW: 280, rightW: 340, images: {}, layerSel: null, editing: null, guides: {},
   };
   _linked = {};
   treeRef = React.createRef(); mdRef = React.createRef(); titleRef = React.createRef(); searchRef = React.createRef(); stageRef = React.createRef(); editRef = React.createRef(); wysRef = React.createRef(); imgInputRef = React.createRef(); openInputRef = React.createRef();
@@ -1534,27 +1392,24 @@ class Component extends DCLogic {
     this._as = setTimeout(() => { if (this.state.saving) this.scheduleSave(); else if (this.isDirty()) this.save(); }, this.state.saveMsg ? 5000 : AUTOSAVE_MS);
   }
   // ---- component layers: messaging (see the helper in Layers.dc.html) ----
-  compFrames() {
+  compWins() {
     const st = this.stageRef.current; if (!st || !st.querySelectorAll) return [];
     return [...st.querySelectorAll('[data-stage="main"] iframe[data-lid]')].map(el => ({ lid: el.dataset.lid, win: el.contentWindow }));
   }
   postComp(win, msg) { try { win && win.postMessage(Object.assign({ strata: 1 }, msg), '*'); } catch (e) {} }
-  compInfo() { const id = this.curId(); return { frame: this.fiFor(id), frames: this.framesOf(id).length }; }
+  compInfo() { return { step: this.state.at || 0, steps: this.stepsOf(this.curId()).length }; }
   claimer() { const c = this._claims || {}; return this.layersOf(this.curId()).filter(l => !l.hidden && c[l.id]).map(l => l.id).pop() || null; }
-  // Code and name belong to the component, not a frame: write them to every frame so stepping frames never reloads it.
-  updLayerAllFrames(id, lid, patch) { this.setState(s => { const n = s.nodes[id], { layers: _legacy, ...rest } = n;
-    return { nodes: { ...s.nodes, [id]: { ...rest, frames: this.framesOfNode(n).map(f => ({ ...f, layers: f.layers.map(l => l.id === lid ? { ...l, ...patch } : l) })) } } }; }); }
   deckMove(act) { if (act === 'right' || act === 'left') this.go(act); else this.step(act === 'step+' ? 1 : -1); }
   // Present-mode →/←/Space: a claiming component gets next/prev; an unacknowledged forward is bypassed on the next press.
   routeToComponent(act) {
     const fwd = act === 'right' || act === 'step+', lid = this.claimer(); if (!lid) return false;
     const p = this._fwd; if (p && !p.acked && p.fwd === fwd) { this._fwd = null; return false; }
-    const f = this.compFrames().find(x => x.lid === lid); if (!f) return false;
+    const f = this.compWins().find(x => x.lid === lid); if (!f) return false;
     this._fwd = { lid, act, fwd, acked: false }; this.postComp(f.win, { type: fwd ? 'next' : 'prev' }); return true;
   }
   onCompMessage(e) {
     const m = e && e.data; if (!m || m.strata !== 1) return;
-    const f = this.compFrames().find(x => x.win === e.source); if (!f) return;
+    const f = this.compWins().find(x => x.win === e.source); if (!f) return;
     const lid = f.lid, N = this.state.nodes, id = this.curId();
     // While editing, component navigation only runs with Interact on for it (else an auto-advancing snippet makes its own slide uneditable).
     if (['done', 'back', 'jumpTo', 'nav'].includes(m.type) && this.state.mode !== 'present' && this.state.interact !== lid) { this.flash('Component asked to navigate (ignored while editing: turn on Interact to try it)'); return; }
@@ -1603,6 +1458,7 @@ class Component extends DCLogic {
         if (/text\/html/i.test((r.headers && r.headers.get('content-type')) || '') || /^\s*<(!doctype|html)/i.test(md)) throw new Error('not a markdown file');
         let layout = null; const lr = layoutUrl(src) && await fetch(layoutUrl(src), { cache: 'no-store' }).catch(() => null);   // missing or invalid: the built-ins
         if (lr && lr.ok) try { layout = JSON.parse(await lr.text()); } catch (e) {}
+        if (layout && layout.version !== 2) layout = null;   // an old (frames) file: the built-ins
         return { src, md, layout };
       } catch (e) { return { src, error: e.message }; }
     }));
@@ -1630,11 +1486,12 @@ class Component extends DCLogic {
   }
   // A loaded markdown + layout file pair becomes the deck: not an undo step, and nothing to save.
   adopt(md, L, then) {
+    if (L && L.version !== 2) { L = null; this.flash('Old layout file ignored', 8000); }   // no migration: an older (frames) file means the defaults
     this._linked = {}; this._goneOv = {}; this._linkedOv = Object.fromEntries(Object.entries((L && L.slides) || {}).filter(([k]) => k.includes('.')));   // linked slides are read-only: their host overrides stay as loaded
     const d = (L && L.deck) || {}, r = this.enrichMd(md, L), pick = Object.fromEntries(DECK_FIELDS.filter(k => k in d).map(k => [k, d[k]]));
     this._lastNodes = r.nodes;
     this.setState({ ...pick, md, nodes: r.nodes, mdIssues: r.mdIssues, images: { ...mapImgs(d.images, absUrl), ...r.mdImages }, customBg: d.customBg ? absUrl(d.customBg) : null,
-      cur: d.titlePage ? 'ROOT' : r.nodes.ROOT.children[0], prev: null, phase: 'idle' }, () => { this._loaded = true; this.markSaved(); if (then) then(); });
+      cur: d.titlePage ? 'ROOT' : r.nodes.ROOT.children[0], at: 0, prev: null, phase: 'idle' }, () => { this._loaded = true; this.markSaved(); if (then) then(); });
   }
   setMd(md) { this.setState({ md }); clearTimeout(this._mdT); this._mdT = setTimeout(() => this.reenrich(), 200); }
   // + on the slide: a new heading in the markdown, after this slide's subtree (sibling) or as its last child (below), then go to it.
@@ -1655,31 +1512,31 @@ class Component extends DCLogic {
     let cur = S.cur; while (cur && cur !== 'ROOT' && !nodes[cur]) cur = up[cur] || cur.slice(0, Math.max(0, cur.lastIndexOf('.')));
     if (!cur || (cur === 'ROOT' && !S.titlePage)) cur = nodes.ROOT.children[0];
     this._lastNodes = nodes; this.allowLayout(nodes);
-    this.setState(s => ({ nodes, mdIssues: r.mdIssues, images: { ...Object.fromEntries(Object.entries(s.images || {}).filter(([k]) => !k.startsWith('md:'))), ...r.mdImages }, cur }));
+    const at = cur !== S.cur || !nodes[cur] ? 0 : Math.max(0, ...BUILDS.stepList(nodes[cur].steps || {}, (nodes[cur].layers || []).map(l => l.id)).filter(n => n <= (S.at || 0)));   // a step that went away: the highest left below it
+    this.setState(s => ({ nodes, at, mdIssues: r.mdIssues, images: { ...Object.fromEntries(Object.entries(s.images || {}).filter(([k]) => !k.startsWith('md:'))), ...r.mdImages }, cur }));
   }
   allowLayout(nodes) { this._layoutNodes = nodes; }   // tags the one nodes object a layout action commits, so it doesn't count as a hand edit
-  // Any hand edit to a slide's frames (boxes, extras added or removed, frames) makes it a per-slide override. Layout and enrich commits, undo/redo and loads don't.
-  // Apply to Layout: a single-frame slide with no extras and a layout updates that layout instead. A hand-edited unplaced (_warn) block is placed: the override keeps it.
+  // Any hand edit to a slide's layers (boxes, extras added or removed) makes it a per-slide override; steps and transitions don't. Layout and enrich commits, undo/redo and loads don't.
+  // Apply to Layout: a slide with no extras and a layout updates that layout instead. A hand-edited unplaced (_warn) block is placed: the override keeps it.
   markCustom() {
     const S = this.state, prev = this._lastNodes;
     if (!prev || S.nodes === prev) return;
     if (this._layoutNodes && S.nodes === this._layoutNodes) { this._layoutNodes = null; return; }
-    const ro = Object.keys(S.nodes).find(k => { const n = S.nodes[k], p = prev[k]; return p && n._from && n.frames !== p.frames; });
+    const ro = Object.keys(S.nodes).find(k => { const n = S.nodes[k], p = prev[k]; return p && n._from && n.layers !== p.layers; });
     if (ro) { const nodes = { ...S.nodes }; for (const k in nodes) if (nodes[k]._from && prev[k]) nodes[k] = prev[k];   // linked slides are read-only: put them back
       this.flash('This slide comes from ' + S.nodes[ro]._from + ': open it to edit'); this._lastNodes = nodes; this.setState({ nodes }); return true; }   // and no undo step (the caller skips histTrack)
-    const hits = Object.keys(S.nodes).filter(k => { const n = S.nodes[k], p = prev[k]; return k !== 'ROOT' && p && n !== p && n.frames !== p.frames; });
-    const toLayout = S.applyTo === 'layout' && hits.find(k => !S.nodes[k].custom && this.framesOf(k).length === 1 && !this.hasExtras(k) && this.effectiveLayout(k));
+    const hits = Object.keys(S.nodes).filter(k => { const n = S.nodes[k], p = prev[k]; return k !== 'ROOT' && p && n !== p && n.layers !== p.layers; });
+    const toLayout = S.applyTo === 'layout' && hits.find(k => !S.nodes[k].custom && !this.hasExtras(k) && this.effectiveLayout(k));
     const nodes = { ...S.nodes }; let changed = false;
-    for (const k of hits) { if (k === toLayout) continue; const n = S.nodes[k], old = new Set((prev[k].frames || []).flatMap(f => f.layers));
-      const frames = n.frames && n.frames.map(f => f.layers.some(l => l._warn && !old.has(l)) ? { ...f, layers: f.layers.map(l => l._warn && !old.has(l) ? unwarn(l) : l) } : f);
-      const placed = frames && frames.some((f, i) => f !== n.frames[i]); if (n.custom && !placed) continue;
-      nodes[k] = { ...n, ...(placed ? { frames } : {}), custom: true }; changed = true; }
+    for (const k of hits) { if (k === toLayout) continue; const n = S.nodes[k], old = new Set(prev[k].layers || []);
+      const placed = (n.layers || []).some(l => l._warn && !old.has(l)); if (n.custom && !placed) continue;
+      nodes[k] = { ...n, ...(placed ? { layers: n.layers.map(l => l._warn && !old.has(l) ? unwarn(l) : l) } : {}), custom: true }; changed = true; }
     if (toLayout) this.updateLayoutFrom(toLayout, nodes); else if (changed) this.setState({ nodes });
   }
   // ⚠️ click places the block at its box. This slide: in the slide's override. Layout: in its shape's layout (made from this slide if there's none); an override keeps it too.
   claimBlock(id, lid) {
     const S = this.state, n = S.nodes[id]; if (!n || n._from) return;
-    const own = { ...n, frames: n.frames.map(f => ({ ...f, layers: f.layers.map(l => l.id === lid ? unwarn(l) : l) })), custom: true };
+    const own = { ...n, layers: this.layersOfNode(n).map(l => l.id === lid ? unwarn(l) : l), custom: true };
     const keep = () => this.setState(s => { const nodes = { ...s.nodes, [id]: own }; this.allowLayout(nodes); return { nodes }; });
     if (S.applyTo !== 'layout') { keep(); return; }
     const L = this.effectiveLayout(id), made = !L && this.saveAsLayout(id); if (L) this.updateLayoutFrom(id);   // both lay this slide out as a default one
@@ -1734,7 +1591,7 @@ class Component extends DCLogic {
   downloadDeck() { const S = this.state, n = DECK || (SRC && SRC.split('/').pop().replace(/\.md$/, '')) || 'deck'; this.download(n + '.md', S.md); this.download(n + '-layout.json', JSON.stringify(layoutOf(S.nodes, S, this._linkedOv), null, 2), 'application/json'); }
   async openAt(id) {
     for (let p; !this.state.nodes[id] && (p = this.unloadedAbove(id));) await this.loadChildren(p);
-    if (this.state.nodes[id] && id !== 'ROOT') this.setState({ cur: id }); else this.flash('No slide "' + id + '"');
+    if (this.state.nodes[id] && id !== 'ROOT') this.setState({ cur: id, at: 0 }); else this.flash('No slide "' + id + '"');
   }
   async save() {
     if (!DECK || STATIC || this.state.saving || !this._loaded) return;   // never overwrite a deck we failed (or haven't finished) loading
@@ -1791,13 +1648,11 @@ class Component extends DCLogic {
     if (S.cur !== this._lastCur) { this._lastCur = S.cur; this.scrollTree(); this.scrollMd(); if (S.showCrumbs === 'fade') this.litCrumbs(); }
     if (S.rtab !== this._lastRtab) { this._lastRtab = S.rtab; this.scrollMd(); }   // the Content tab's textarea is new each time it opens
     if (this.measureStage()) this.forceUpdate();
-    const ck = this.curId(), cf = this.fiFor(ck);
-    if (ck !== this._compCur) { this._compCur = ck; this._compFi = cf; this._claims = {}; this._fwd = null; }
-    else if (cf !== this._compFi) {   // per component: its own transition time for this step (0 for a multi-frame jump)
-      const from = this._compFi; this._compFi = cf; const info = this.compInfo(), a = Math.min(from, cf), adj = Math.abs(cf - from) === 1;
-      this.compFrames().forEach(f => { const t = this.transFor(ck, a, f.lid);
-        const duration = adj ? Math.max(...DEF_ACTS.map(act => { const s = this.actT(t, act); return s.dur + s.delay; })) : 0;
-        this.postComp(f.win, { type: 'frame', ...info, from, duration }); });
+    const ck = this.curId(), ca = S.at || 0;
+    if (ck !== this._compCur) { this._compCur = ck; this._compAt = ca; this._claims = {}; this._fwd = null; }
+    else if (ca !== this._compAt) {   // a build step changed on this slide
+      this._compAt = ca; const msg = { type: 'step', n: ca, steps: this.stepsOf(ck).length, duration: this.buildOf(ck).dur };
+      this.compWins().forEach(f => this.postComp(f.win, msg));
     }
     // Rich editor: attach native listeners once per element; (re)build when editing opens or the text changed from outside.
     const root = this.wysRef.current;
@@ -1864,13 +1719,13 @@ class Component extends DCLogic {
   layouts() { if (this._layoutsOf !== this.state.layouts || !this._layouts) { this._layoutsOf = this.state.layouts; const o = {};
       for (const k in BUILTIN_LAYOUTS) o[k] = { id: k, ...BUILTIN_LAYOUTS[k] }; for (const k in this.state.layouts || {}) o[k] = { id: k, ...this.state.layouts[k] }; this._layouts = o; }
     return this._layouts; }
-  slideSig(id) { const fr = this.framesOf(id); return sigKey(sigOf(fr[0] ? fr[0].layers : [], this.styles())); }
+  slideSig(id) { return sigKey(sigOf(this.layersOf(id), this.styles())); }
   // The slide's own layout if it still matches, else its shape's (shapeLayout), else none.
   effectiveLayout(id) {
     const n = this.state.nodes[id]; if (!n) return null; const sig = this.slideSig(id); if (!sig) return null;
-    const L = this.layouts()[n.layout]; return fitsTemplate(this.framesOf(id)[0].layers, L) ? L : this.shapeLayout(id);
+    const L = this.layouts()[n.layout]; return fitsTemplate(this.layersOf(id), L) ? L : this.shapeLayout(id);
   }
-  isCustom(id) { const n = this.state.nodes[id]; return !!(n && (n.custom || this.framesOf(id).length > 1)); }
+  isCustom(id) { const n = this.state.nodes[id]; return !!(n && n.custom); }
   // A styled text layer over its style: the host's style of that id, else (for a linked-in slide) its own deck's. Display and comparison only.
   resolveLayer(l, nodeId) {
     if (!l || l.type !== 'text') return l;
@@ -1918,9 +1773,9 @@ class Component extends DCLogic {
   // Title page on/off. First enable names ROOT after the deck (defaultLayers renders it); off keeps ROOT's slide for next time.
   setTitlePage(on) {
     const S = this.state, N = S.nodes, R = N.ROOT, first = R.children[0];
-    const seed = on && !R.title && !R.frames ? { nodes: { ...N, ROOT: { ...R, title: S.title || (N[first] && N[first].title) || 'Title' } } } : {};
+    const seed = on && !R.title && !R.layers ? { nodes: { ...N, ROOT: { ...R, title: S.title || (N[first] && N[first].title) || 'Title' } } } : {};
     const go = on ? { cur: 'ROOT' } : S.cur === 'ROOT' ? { cur: first } : null;
-    this.setState({ titlePage: on, ...seed, ...(go ? { ...go, prev: null, phase: 'idle', fi: 0, layerSel: null, editing: null, tween: null, transSel: null, fprev: false, confirmDup: null } : {}) });
+    this.setState({ titlePage: on, ...seed, ...(go ? { ...go, prev: null, phase: 'idle', at: 0, layerSel: null, editing: null } : {}) });
   }
   setNode(id, patch) { this.setState(s => ({ nodes: { ...s.nodes, [id]: { ...s.nodes[id], ...patch } } })); }
   // Nav tree zoom (view preference): 30%–150%, stepped, or fit to the panel's width.
@@ -1980,41 +1835,41 @@ class Component extends DCLogic {
   histDeck() { return { layoutDefaults: this.state.layoutDefaults, layouts: this.state.layouts }; }
   restore({ nodes, ...deck }) {
     this._burst = false;
-    const keep = (s, n) => s.editing && n && this.framesOfNode(n).some(f => f.layers.some(l => l.id === s.editing)) ? s.editing : null;   // undo while editing keeps the editor open
+    const keep = (s, n) => s.editing && n && this.layersOfNode(n).some(l => l.id === s.editing) ? s.editing : null;   // undo while editing keeps the editor open
     this.setState(s => ({ ...deck, layerSel: null, editing: keep(s, nodes[s.cur]), prev: null, phase: 'idle' }));
     this.reenrich(nodes, deck);   // the layout comes back; the markdown stays as it is now
   }
   undo() { if (!this._past.length) return; this._future.push({ nodes: this.state.nodes, ...this.histDeck() }); this.restore(this._past.pop()); }
   redo() { if (!this._future.length) return; this._past.push({ nodes: this.state.nodes, ...this.histDeck() }); this.restore(this._future.pop()); }
 
-  // A layout applied to one node: its single frame's counted boxes; layout recorded, custom cleared. Null for multi-frame / linked-in slides.
-  layoutPatch(n, L) { const fr = this.framesOfNode(n); if (!L || n._from || fr.length !== 1) return null;
+  // A layout applied to one node: its counted boxes; layout recorded, custom cleared. Null for linked-in slides.
+  layoutPatch(n, L) { if (!L || n._from) return null; const ls0 = this.layersOfNode(n).filter(l => !isGen(l));
     // The old layout's template props come off before the new layout's go on, so a layer carries exactly the new template's.
-    const old = tplProps(fr[0].layers.filter(l => !isGen(l)), this.layouts()[n.layout]), strip = l => { const o = { ...l }; for (const k of old[l.id] || []) delete o[k]; return o; };
-    const ls = fr[0].layers.filter(l => !isGen(l)).map(strip), boxes = fillSlots(ls, L), { custom: _c, layers: _l, ...rest } = n;
+    const old = tplProps(ls0, this.layouts()[n.layout]), strip = l => { const o = { ...l }; for (const k of old[l.id] || []) delete o[k]; return o; };
+    const ls = ls0.map(strip), boxes = fillSlots(ls, L), { custom: _c, layers: _l, ...rest } = n;
     const par = Object.values(this.state.nodes).find(p => (p.children || []).includes(n.id)), gen = genLayers(L, par ? par.children.indexOf(n.id) : 0);
-    return { ...rest, frames: [{ ...fr[0], layers: [...gen, ...backFirst(ls.map(l => (boxes[l.id] ? { ...l, ...boxes[l.id] } : l)), boxes)] }], layout: L.id }; }
+    return { ...rest, layers: [...gen, ...backFirst(ls.map(l => (boxes[l.id] ? { ...l, ...boxes[l.id] } : l)), boxes)], layout: L.id }; }
   // Extras (layers not from the markdown) live only in a per-slide override.
-  hasExtras(id) { return this.framesOf(id).some(f => f.layers.some(l => !isMd(l) && !isGen(l))); }
+  hasExtras(id) { return this.layersOf(id).some(l => !isMd(l) && !isGen(l)); }
   // The layout enrich gives a shape with no override: the deck default, else the deck's first match, else the built-in.
-  shapeLayout(id) { const fr = this.framesOf(id), own = this.state.layouts || {}, L = this.layouts(), fits = x => !!fr[0] && fitsTemplate(fr[0].layers, x), d = (this.state.layoutDefaults || {})[this.slideSig(id)];
+  shapeLayout(id) { const ls = this.layersOf(id), own = this.state.layouts || {}, L = this.layouts(), fits = x => fitsTemplate(ls, x), d = (this.state.layoutDefaults || {})[this.slideSig(id)];
     return fits(L[d]) ? L[d] : L[Object.keys(own).find(k => fits(own[k]))] || Object.values(L).find(fits) || null; }
   // A slide given a layout other than its shape's (or with extras) becomes an override, else the next enrich would undo it.
   applyLayout(id, lid) { const p = this.layoutPatch(this.state.nodes[id], this.layouts()[lid]); if (!p) return;
     const own = this.hasExtras(id) || (this.shapeLayout(id) || {}).id !== lid, nodes = { ...this.state.nodes, [id]: own ? { ...p, custom: true } : p }; this.allowLayout(nodes); this.setState({ nodes }); }
   ownSlideIds() { return Object.keys(this.state.nodes).filter(k => !this.state.nodes[k]._from && (k !== 'ROOT' || this.state.titlePage)); }
-  // Make L the default for its type and lay out every default (non-custom, single-frame) slide of that type.
+  // Make L the default for its type and lay out every default (non-custom) slide of that type.
   applyToAll(lid) {
     const L = this.layouts()[lid]; if (!L) return; const N = this.state.nodes, nodes = { ...N }; let updated = 0, kept = 0;
     const sigs = new Set(Object.values(L.match || {}).includes('items') ? [] : [sigKey(L.match)]);   // an 'items' layout is the default for each shape it laid out
-    for (const k of this.ownSlideIds()) { const fr = this.framesOf(k); if (!fr[0] || !fitsTemplate(fr[0].layers, L)) continue; sigs.add(this.slideSig(k)); if (this.isCustom(k)) { kept++; continue; } const p = this.layoutPatch(N[k], L); if (p) { nodes[k] = p; updated++; } }
+    for (const k of this.ownSlideIds()) { if (!fitsTemplate(this.layersOf(k), L)) continue; sigs.add(this.slideSig(k)); if (this.isCustom(k)) { kept++; continue; } const p = this.layoutPatch(N[k], L); if (p) { nodes[k] = p; updated++; } }
     this.allowLayout(nodes); this.setState(s => ({ nodes, layoutDefaults: { ...(s.layoutDefaults || {}), ...Object.fromEntries([...sigs].map(g => [g, lid])) } }));
     this.flash('Updated ' + updated + ' slide' + (updated === 1 ? '' : 's') + ' · kept ' + kept + ' custom');
   }
   resetToDefault(id) { const d = this.shapeLayout(id); if (d) this.applyLayout(id, d.id); }
   saveAsLayout(id) {
     if (!this.state.nodes[id] || this.state.nodes[id]._from) return null;   // linked-in slides belong to their own deck
-    const fr = this.framesOf(id), layers = fr[0] ? fr[0].layers : [], match = sigOf(layers, this.styles()); if (!sigKey(match)) { this.flash('Nothing on this slide to lay out'); return null; }
+    const layers = this.layersOf(id), match = sigOf(layers, this.styles()); if (!sigKey(match)) { this.flash('Nothing on this slide to lay out'); return null; }
     const L = this.layouts(), names = Object.values(L).map(x => x.name); let n = 1; while (names.includes('Layout ' + n)) n++;
     const name = 'Layout ' + n; let lid = 'layout-' + n, i = 2; while (L[lid]) lid = 'layout-' + n + '-' + i++;
     this.setState(s => ({ layouts: { ...(s.layouts || {}), [lid]: { name, match, slots: slotsOf(layers, this.styles()) } } }));
@@ -2024,8 +1879,8 @@ class Component extends DCLogic {
   // The slide's effective layout takes this slide's boxes; every default slide using it follows. Uses the new layout object directly (no read-after-setState).
   updateLayoutFrom(id, N = this.state.nodes) {
     if (!this.state.nodes[id] || this.state.nodes[id]._from) return;
-    const L0 = this.effectiveLayout(id); if (!L0 || this.framesOf(id).length !== 1) return;
-    const rec = slotsOf(this.framesOf(id)[0].layers);   // new boxes; each slot keeps its template extras (a colour, the kicker's font)
+    const L0 = this.effectiveLayout(id); if (!L0) return;
+    const rec = slotsOf(this.layersOf(id));   // new boxes; each slot keeps its template extras (a colour, the kicker's font)
     for (const k in rec) rec[k] = rec[k].map((b, i) => ({ ...(((L0.slots || {})[k] || [])[i] || {}), ...b }));
     const { id: lid, ...stored } = { ...L0, slots: rec }, L = { id: lid, ...stored };
     this.setState(s => ({ layouts: { ...(s.layouts || {}), [lid]: stored } }));
@@ -2049,84 +1904,18 @@ class Component extends DCLogic {
     if (n.body) L.push({ id: 'b-' + n.id, type: 'text', style: 'body', x: 14, y: 56, w: 72, h: 16, text: n.body, font: 'grot', size: 36, weight: 400, color: null, align: 'center', valign: 'top', lh: 1.35, bullets: 'none', gap: 0.15 });
     return L;
   }
-  framesOfNode(n) { return n.frames || [{ id: 'f0-' + n.id, layers: n.layers || this.defaultLayers(n) }]; }
-  framesOf(id) { const n = this.state.nodes[id]; return n ? this.framesOfNode(n) : []; }
-  fiFor(id) { return id === this.curId() ? Math.max(0, Math.min(this.state.fi || 0, this.framesOf(id).length - 1)) : 0; }
-  layersOf(id, fi) { const fr = this.framesOf(id); if (!fr.length) return []; const i = Math.max(0, Math.min(fi ?? this.fiFor(id), fr.length - 1)); return fr[i].layers; }
-  setLayers(id, fn, fi) {
-    this.setState(s => { const n = s.nodes[id]; const fr = this.framesOfNode(n).slice(); const i = Math.max(0, Math.min(fi ?? (id === this.curId() ? (s.fi || 0) : 0), fr.length - 1));
-      fr[i] = { ...fr[i], layers: fn(fr[i].layers) }; return { nodes: { ...s.nodes, [id]: { ...n, frames: fr, layers: undefined } } }; });
+  layersOfNode(n) { return n.layers || this.defaultLayers(n); }
+  layersOf(id) { const n = this.state.nodes[id]; return n ? this.layersOfNode(n) : []; }
+  setLayers(id, fn) { this.setState(s => { const n = s.nodes[id]; return { nodes: { ...s.nodes, [id]: { ...n, layers: fn(this.layersOfNode(n)) } } }; }); }
+  // Build steps: a layer's step number (0 = always shown); at is the current slide's step. Steps may have gaps (1, 3, 7).
+  stepsOf(id) { const n = this.state.nodes[id]; return n ? BUILDS.stepList(n.steps || {}, this.layersOf(id).map(l => l.id)) : []; }
+  buildOf(id) { return { ...BUILDS.DEFAULT_BUILD, ...((this.state.nodes[id] || {}).build || {}) }; }
+  stepBuild(delta) {   // the next (or previous) step of the current slide; false at either end
+    const at = this.state.at || 0, list = [0, ...this.stepsOf(this.curId())], to = delta > 0 ? list.find(n => n > at) : list.filter(n => n < at).pop();
+    if (to === undefined) return false;
+    this.goStep(to); return true;
   }
-  setFrames(id, frames, ftrans, extra) { this.setState(s => ({ nodes: { ...s.nodes, [id]: { ...s.nodes[id], frames, layers: undefined, ...(ftrans ? { ftrans } : {}) } }, ...(extra || {}) })); }
-  dupFrame(i, force) {
-    const id = this.curId(); const n = this.state.nodes[id]; const fr = this.framesOfNode(n); const A = fr[i]; if (!A) return; const ft = n.ftrans || {};
-    if (!force && i < fr.length - 1 && ft[A.id] && Object.keys(ft[A.id]).length) { this.setState({ confirmDup: i }); return; }
-    const copy = { id: 'f' + uid(), layers: A.layers.map(l => ({ ...l })) }; const nf = fr.slice(); nf.splice(i + 1, 0, copy);
-    const nft = { ...ft }; if (i < fr.length - 1) delete nft[A.id];
-    this.setFrames(id, nf, nft, { fi: i + 1, confirmDup: null, transSel: null, layerSel: null });
-  }
-  // Add as sequence: frame F (the current one) becomes the start with the selected layers hidden at their start spots; one new frame
-  // per layer (reading order) reveals it, easing out. kind: fade | up | left | cascade (start at the previous layer's spot).
-  addSequence(kind) {
-    const id = this.curId(), n = this.state.nodes[id], fr = this.framesOfNode(n), i = this.fiFor(id), F = fr[i], ids = this.selIds();
-    if (n._from) { this.flash(RO_MSG); return; }
-    const items = F.layers.filter(l => ids.includes(l.id)).sort((a, b) => a.y - b.y || a.x - b.x); if (items.length < 2) return;
-    const start = items.map((l, k) => kind === 'up' ? { x: l.x, y: rd(l.y + 6) } : kind === 'left' ? { x: rd(l.x - 6), y: l.y } : kind === 'cascade' && k ? { x: items[k - 1].x, y: items[k - 1].y } : { x: l.x, y: l.y });
-    const frameAt = shown => ({ layers: F.layers.map(l => { const k = items.indexOf(l); return k < 0 || k < shown ? l : { ...l, ...start[k], opacity: 0 }; }) });
-    const added = items.map((_, k) => ({ id: 'f' + uid(), ...frameAt(k + 1) }));
-    const nf = fr.slice(); nf.splice(i, 1, { ...F, ...frameAt(0) }, ...added);
-    const td = this.state.tdef || {}, ft = { ...(n.ftrans || {}) };
-    if (ft[F.id] && i < fr.length - 1) { ft[added[added.length - 1].id] = ft[F.id]; delete ft[F.id]; }   // F → next keeps its settings as last new → next
-    [F, ...added.slice(0, -1)].forEach((A, k) => { ft[A.id] = { ...(ft[A.id] || {}), [items[k].id]: { move: { ease: 'out', dur: (td.move || {}).dur ?? 500 }, fade: { ease: 'out', dur: (td.fade || {}).dur ?? 500 } } }; });
-    this.setFrames(id, nf, ft, { transSel: null });
-  }
-  delFrame(i) {
-    const id = this.curId(); const n = this.state.nodes[id]; const fr = this.framesOfNode(n); if (fr.length < 2) return;
-    const nft = { ...(n.ftrans || {}) }; delete nft[fr[i].id]; if (i > 0) delete nft[fr[i - 1].id];
-    this.setFrames(id, fr.filter((_, k) => k !== i), nft, { fi: Math.max(0, i - 1), transSel: null, layerSel: null });
-  }
-  transFor(id, a, lid) { const n = this.state.nodes[id]; const fr = this.framesOfNode(n); const A = fr[a]; return (A && n.ftrans && n.ftrans[A.id] && n.ftrans[A.id][lid]) || {}; }
-  setTrans(id, a, lids, patch) {
-    this.setState(s => { const n = s.nodes[id]; const fr = this.framesOfNode(n); const A = fr[a]; if (!A) return null; const ft = { ...(n.ftrans || {}) }; const m = { ...(ft[A.id] || {}) };
-      lids.forEach(lid => { m[lid] = { ...(m[lid] || {}), ...patch }; }); ft[A.id] = m; return { nodes: { ...s.nodes, [id]: { ...n, ftrans: ft } } }; });
-  }
-  actT(t, act) { const s = (t && t[act]) || {}; const d = (this.state.tdef || {})[act] || {}; return { ease: s.ease ?? (t && t.ease) ?? d.ease ?? 'both', dur: s.dur ?? (t && t.dur) ?? d.dur ?? 600, delay: s.delay ?? (t && t.delay) ?? d.delay ?? 0 }; }
-  resetTransKey(key) {
-    this.setState(s => { const nodes = {}; Object.entries(s.nodes).forEach(([k, n]) => { if (!n.ftrans || n._from) { nodes[k] = n; return; }
-      const ft = {}; Object.entries(n.ftrans).forEach(([fid, m]) => { const nm = {}; Object.entries(m || {}).forEach(([lid, o]) => { const no = {}; Object.entries(o || {}).forEach(([p, v]) => {
-        if (p === key) return; if (v && typeof v === 'object' && DEF_ACTS.includes(p)) { const { [key]: _, ...r } = v; no[p] = r; } else no[p] = v; }); nm[lid] = no; }); ft[fid] = nm; });
-      nodes[k] = { ...n, ftrans: ft }; }); return { nodes }; });
-  }
-  resetAllTrans() { this.setState(s => { const nodes = {}; Object.entries(s.nodes).forEach(([k, n]) => { if (n.ftrans && !n._from) { const { ftrans, ...rest } = n; nodes[k] = rest; } else nodes[k] = n; }); return { nodes }; }); }
-  setTransAct(id, a, lid, acts, patch) {
-    this.setState(s => { const n = s.nodes[id]; const fr = this.framesOfNode(n); const A = fr[a]; if (!A) return null; const ft = { ...(n.ftrans || {}) }; const m = { ...(ft[A.id] || {}) };
-      const cur = { ...(m[lid] || {}) }; acts.forEach(act => { cur[act] = { ...this.actT(m[lid], act), ...patch }; }); m[lid] = cur; ft[A.id] = m; return { nodes: { ...s.nodes, [id]: { ...n, ftrans: ft } } }; });
-  }
-  setPath(id, a, lid, path) {
-    this.setState(s => { const n = s.nodes[id]; const A = this.framesOfNode(n)[a]; if (!A) return null; const ft = { ...(n.ftrans || {}) }; const m = { ...(ft[A.id] || {}) };
-      const cur = { ...(m[lid] || {}) }; if (path) cur.path = path; else delete cur.path; m[lid] = cur; ft[A.id] = m; return { nodes: { ...s.nodes, [id]: { ...n, ftrans: ft } } }; });
-  }
-  startPathDrag(ev, lid, which, a, def) {
-    ev.stopPropagation(); ev.preventDefault(); const st = this.stageRef.current; if (!st) return; const r = st.getBoundingClientRect(); const id = this.curId();
-    const base = this.transFor(id, a, lid).path || def;
-    const move = e => { const x = rd((e.clientX - r.left) / r.width * 100), y = rd((e.clientY - r.top) / r.height * 100); const cur = this.transFor(id, a, lid).path || base; this.setPath(id, a, lid, { ...cur, [which]: { x, y } }); };
-    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
-    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
-  }
-  stepFrame(delta) {
-    const id = this.curId(); const fr = this.framesOf(id); const from = this.fiFor(id); const to = from + delta;
-    if (to < 0 || to >= fr.length) return false;
-    const a = Math.min(from, to); const ids = new Set([...fr[from].layers, ...fr[to].layers].map(l => l.id));
-    let maxT = 0; ids.forEach(lid => { const t = this.transFor(id, a, lid); ['move', 'scale', 'rotate', 'colour', 'fade', 'size'].forEach(act => { const s = this.actT(t, act); maxT = Math.max(maxT, s.dur + s.delay); }); });
-    clearTimeout(this.ft);
-    const start = performance.now();
-    this.setState({ fi: to, tween: { a, fwd: to > from, start }, editing: null });
-    this.ft = setTimeout(() => this.setState({ tween: null }), maxT + 80);
-    const curved = [...ids].some(lid => this.transFor(id, a, lid).path);
-    if (curved) { cancelAnimationFrame(this.praf); const tick = () => { if (!this.state.tween || this.state.tween.start !== start) return; this.setState({ ptick: performance.now() }); this.praf = requestAnimationFrame(tick); }; this.praf = requestAnimationFrame(tick); }
-    return true;
-  }
-  goFrame(k) { const cur = this.fiFor(this.curId()); if (k === cur) return; if (Math.abs(k - cur) === 1) this.stepFrame(k - cur); else this.setState({ fi: k, tween: null }); }
+  goStep(n) { this.setState({ at: n, editing: null }); }
   updLayer(id, lid, patch) { this.setLayers(id, ls => ls.map(l => l.id === lid ? { ...l, ...patch } : l)); }
   setStyle(id, patch) { this.setState(s => ({ styles: { ...(s.styles || {}), [id]: { ...((s.styles || {})[id] || {}), ...patch } } })); }
   clearKeys(id, lid, keys) { this.setLayers(id, ls => ls.map(l => { if (l.id !== lid) return l; const o = { ...l }; keys.forEach(k => delete o[k]); return o; })); }
@@ -2184,8 +1973,8 @@ class Component extends DCLogic {
     if (BUILTIN_STYLES[sid]) return; const st = this.styles()[sid]; if (!st || st.deleted) return;
     this.setState(s => { const nodes = {};
       for (const k in s.nodes) { const n = s.nodes[k];
-        nodes[k] = n._from || !n.frames ? n : { ...n, frames: n.frames.map(f => ({ ...f, layers: f.layers.map(l => { if (l.style !== sid) return l;
-          const o = { ...l, style: '' }; STYLE_KEYS.forEach(q => { if (o[q] === undefined && st[q] !== undefined) o[q] = st[q]; }); return o; }) })) }; }
+        nodes[k] = n._from || !n.layers ? n : { ...n, layers: n.layers.map(l => { if (l.style !== sid) return l;
+          const o = { ...l, style: '' }; STYLE_KEYS.forEach(q => { if (o[q] === undefined && st[q] !== undefined) o[q] = st[q]; }); return o; }) }; }
       return { nodes, styles: { ...(s.styles || {}), [sid]: { ...st, deleted: true } } }; });   // tombstone: undone layers still resolve, and the id is never reused
   }
 
@@ -2337,7 +2126,7 @@ class Component extends DCLogic {
     if (S.layerSel || S.editing) this.setState({ layerSel: null, editing: null });
     const D = this.derive(); const lastChild = { ...S.lastChild }; let x = id; while (D.parent[x]) { lastChild[D.parent[x]] = x; x = D.parent[x]; }
     clearTimeout(this.t);
-    const fiNew = dir === 'left' ? Math.max(0, this.framesOf(id).length - 1) : 0; const fx = { fprev: false, fi: fiNew, prevFi: this.fiFor(S.cur), tween: null, transSel: null, confirmDup: null };
+    const fx = { at: dir === 'left' ? Math.max(0, ...this.stepsOf(id)) : 0, prevAt: S.at || 0 };   // ← lands on the slide's last step, anything else on its start
     if (S.speed < 50 || (S.mode === 'build' && S.view === 'wire')) { this.setState({ cur: id, prev: null, phase: 'idle', lastChild, ...fx }); return; }
     const [dx, dy] = DIRS[dir];
     this.setState({ cur: id, prev: S.cur, dx, dy, type: id === 'ROOT' || S.cur === 'ROOT' ? 'zoom' : dir === 'jump' ? 'fade' : 'swipe', phase: 'start', lastChild, ...fx });
@@ -2345,9 +2134,9 @@ class Component extends DCLogic {
     this.t = setTimeout(() => this.setState({ prev: null, phase: 'idle' }), S.speed + 60);
   }
   go(dir) { const id = this.state.cur; if (dir === 'down' && this.unloaded(id)) { this.loadChildren(id).then(() => this.state.cur === id && this.go('down')); return; }   // unless the viewer moved meanwhile
-    if ((dir === 'right' && this.stepFrame(1)) || (dir === 'left' && this.stepFrame(-1))) return; const D = this.derive(); this.nav(this.neighbour(this.state.cur, dir, D), dir); }
+    if ((dir === 'right' && this.stepBuild(1)) || (dir === 'left' && this.stepBuild(-1))) return; const D = this.derive(); this.nav(this.neighbour(this.state.cur, dir, D), dir); }
   step(delta) {
-    if (this.stepFrame(delta)) return; const cur0 = this.curId();
+    if (this.stepBuild(delta)) return; const cur0 = this.curId();
     if (delta > 0 && this.unloaded(cur0)) { this.loadChildren(cur0).then(() => this.curId() === cur0 && this.step(delta)); return; }   // next into a first child is going down
     const D = this.derive(), cur = this.curId();
     const order = this.state.titlePage ? ['ROOT', ...D.order] : D.order, dep = x => x === 'ROOT' ? -1 : D.depth[x];
@@ -2368,13 +2157,6 @@ class Component extends DCLogic {
       if (k === 'Enter' && t === this.titleRef.current) { e.preventDefault(); t.blur(); }
       return;
     }
-    if (S.fprev && S.mode !== 'present') {
-      if (k === 'ArrowRight' || k === 'ArrowDown' || (k === ' ' && !e.shiftKey) || k === 'Enter') { e.preventDefault(); if (!this.stepFrame(1)) this.setState({ fprev: false }); }
-      else if (k === 'ArrowLeft' || k === 'ArrowUp' || (k === ' ' && e.shiftKey)) { e.preventDefault(); this.stepFrame(-1); }
-      else if (k === 'Escape') this.setState({ fprev: false });
-      return;
-    }
-    if (k === 'Escape' && S.transSel != null && !S.layerSel) { this.setState({ transSel: null }); return; }
     if ((e.metaKey || e.ctrlKey) && (k === 'z' || k === 'Z')) { e.preventDefault(); if (e.shiftKey) this.redo(); else this.undo(); return; }
     if ((e.metaKey || e.ctrlKey) && (k === 'y' || k === 'Y')) { e.preventDefault(); this.redo(); return; }
     if ((e.metaKey || e.ctrlKey) && (k === 'a' || k === 'A') && S.mode === 'build' && S.view === 'slide') { e.preventDefault(); this.setSelection(this.layersOf(this.curId()).map(l => l.id)); return; }
@@ -2503,6 +2285,9 @@ class Component extends DCLogic {
     const tvL = Math.max(0, TC.view.l), tvT = Math.max(0, TC.view.t);   // clamp to the canvas, else the letterboxed edges fall outside the box
     const titleFrame = S.titlePage ? { show: true, l: f3(tvL), t: f3(tvT), w: f3(Math.min(TC.view.l + TC.view.w, L.CW / CW * 100) - tvL), h: f3(Math.min(TC.view.t + TC.view.h, 100) - tvT) } : { show: false };
 
+    // build steps: Present (or a playing preview) draws each layer's build style at the step; the editor shows every layer
+    const staged = (id, at) => { const ls = this.shown(id, this.layersOf(id)); if (!isPresent && !S.preview) return ls;
+      const n = N[id], b = this.buildOf(id); return ls.map(l => ({ ...l, build: BUILDS.buildStyle(l, at, n.steps || {}, ls, n.trans || {}, b) })); };
     // layer editing
     const editable = !isPresent && !isWire && !active && !curN._from;
     const curLayers = this.layersOf(cur); const ly = S.layerSel ? curLayers.find(l => l.id === S.layerSel && !isGen(l)) : null;
@@ -2532,17 +2317,17 @@ class Component extends DCLogic {
     const colorKey = ly && ly.type === 'text' ? 'color' : 'fill';
     const curColor = lv ? lv[colorKey] : null;
     const layerVals = {
-      editable, curLayers, prevLayers: active ? this.shown(S.prev, this.layersOf(S.prev, S.prevFi || 0)) : [], images: S.images, editingId: S.editing || '', stageRef: this.stageRef, editRef: this.editRef, wysRef: this.wysRef, imgInputRef: this.imgInputRef,
+      editable, curLayers, prevLayers: active ? staged(S.prev, S.prevAt || 0) : [], images: S.images, editingId: S.editing || '', stageRef: this.stageRef, editRef: this.editRef, wysRef: this.wysRef, imgInputRef: this.imgInputRef,
       onImgFile: e => this.onImgFile(e), overlays, guideV: !!S.guides.v, guideH: !!S.guides.h, isEditingText: !!edL && !(editable && S.editMode !== 'markup'), ed,
       onEditText: e => edL && this.updLayer(cur, edL.id, { text: e.target.value }), stopEditing: () => setTimeout(() => { if (!this.focusInBar()) this.setState({ editing: null }); }, 0),   // a click into the formatting bar keeps editing
       onEditSel: e => { this._sel = { start: e.target.selectionStart, end: e.target.selectionEnd }; }, stopProp: e => e.stopPropagation(),
       onStageDown: ev => this.startMarquee(ev), allowDrop: e => e.preventDefault(), onStageDrop: e => this.dropOn(e, null),
       rightW: Math.max(240, Math.min(S.rightW, (typeof window !== 'undefined' ? window.innerWidth : 1400) - S.navW - 380)), onRightResize: e => this.rightResize(e),
-      lyIsComponent: !!(ly && ly.type === 'component'), compName: ly && ly.name || '', onCompName: e => this.updLayerAllFrames(cur, ly.id, { name: e.target.value }),
+      lyIsComponent: !!(ly && ly.type === 'component'), compName: ly && ly.name || '', onCompName: e => this.updLayer(cur, ly.id, { name: e.target.value }),
       compCode: ly && ly.type === 'component' ? ((S.compDraft || {})[ly.id] ?? ly.code ?? '') : '',
       onCompCode: e => { const v = e.target.value; this.setState(s => ({ compDraft: { ...(s.compDraft || {}), [ly.id]: v } })); },
       compDirty: !!(ly && (S.compDraft || {})[ly.id] != null && S.compDraft[ly.id] !== ly.code),
-      onCompApply: () => { const d = (S.compDraft || {})[ly.id]; if (d != null) this.updLayerAllFrames(cur, ly.id, { code: d }); this.setState(s => { const cd = { ...(s.compDraft || {}) }, ce = { ...(s.compErr || {}) }; delete cd[ly.id]; delete ce[ly.id]; return { compDraft: cd, compErr: ce }; }); },
+      onCompApply: () => { const d = (S.compDraft || {})[ly.id]; if (d != null) this.updLayer(cur, ly.id, { code: d }); this.setState(s => { const cd = { ...(s.compDraft || {}) }, ce = { ...(s.compErr || {}) }; delete cd[ly.id]; delete ce[ly.id]; return { compDraft: cd, compErr: ce }; }); },
       onCompRevert: () => this.setState(s => { const cd = { ...(s.compDraft || {}) }; delete cd[ly.id]; return { compDraft: cd }; }),
       compErrText: ly && (S.compErr || {})[ly.id] || '', hasCompErr: !!(ly && (S.compErr || {})[ly.id]),
       compInteract: !!(ly && S.interact === ly.id), onCompInteract: () => this.setState(s => ({ interact: s.interact === ly.id ? null : ly.id })),
@@ -2614,101 +2399,12 @@ class Component extends DCLogic {
       numField('Line ht', 'lh', 0.05, 0.5, '', 1.2),
       numField('Gap', 'gap', 0.05, 0, 'em', 0.15),
     ] : [];
-    // frames
-    const framesCur = this.framesOf(cur); const fiCur = this.fiFor(cur); const nCur = N[cur];
-    const framesShow = framesCur.map(f => ({ ...f, layers: this.shown(cur, f.layers) }));   // resolved, for display and change detection; framesCur stays raw for edits
-    const EASE = { linear: 'linear', in: 'cubic-bezier(.55,0,1,.45)', out: 'cubic-bezier(0,.55,.45,1)', both: 'cubic-bezier(.65,0,.35,1)', spring: 'cubic-bezier(.34,1.56,.64,1)' };
-    const allIds = []; framesShow.forEach(f => f.layers.forEach(l => { if (!allIds.includes(l.id)) allIds.push(l.id); }));
-    const tgt = framesShow[fiCur].layers;
-    const stageLayers = allIds.map(lid => {
-      const k = tgt.findIndex(l => l.id === lid);
-      let tr = 'none', tr2 = 'none';
-      if (S.tween) { const t = this.transFor(cur, S.tween.a, lid); const part = (act, props) => { const s = this.actT(t, act); return props.map(p => `${p} ${s.dur}ms ${EASE[s.ease] || EASE.both} ${s.delay}ms`); };
-        tr = [...part('move', ['left', 'top']), ...part('scale', ['width', 'height']), ...part('rotate', ['transform']), ...part('fade', ['opacity'])].join(', ');
-        tr2 = [...part('colour', ['color', 'background-color', 'background', 'stroke']), ...part('size', ['font-size']), ...part('scale', ['border-radius'])].join(', '); }
-      if (k >= 0 && S.tween) { const t = this.transFor(cur, S.tween.a, lid); const A0 = framesShow[S.tween.a].layers.find(l => l.id === lid), B0 = framesShow[S.tween.a + 1].layers.find(l => l.id === lid);
-        if (t.path && A0 && B0) { const now = performance.now() - S.tween.start; const mv = this.actT(t, 'move'), sc = this.actT(t, 'scale');
-          const pr = s => Math.max(0, Math.min(1, (now - s.delay) / Math.max(1, s.dur))); const em = easeFn(mv.ease)(pr(mv)), es = easeFn(sc.ease)(pr(sc));
-          const tm = S.tween.fwd ? em : 1 - em, ts = S.tween.fwd ? es : 1 - es;
-          const c = bez({ x: A0.x + A0.w / 2, y: A0.y + A0.h / 2 }, t.path.c1, t.path.c2, { x: B0.x + B0.w / 2, y: B0.y + B0.h / 2 }, tm);
-          const w = A0.w + (B0.w - A0.w) * ts, hh = A0.h + (B0.h - A0.h) * ts;
-          const rest = tr.split(', ').filter(p => !/^(left|top|width|height) /.test(p)).join(', ') || 'none';
-          return { ...tgt[k], x: c.x - w / 2, y: c.y - hh / 2, w, h: hh, _z: k + 1, _tr: rest, _tr2: tr2 }; } }
-      if (k >= 0) return { ...tgt[k], _z: k + 1, _tr: tr, _tr2: tr2 };
-      let g = null; for (let d = 1; d < framesCur.length && !g; d++) { for (const j of [fiCur - d, fiCur + d]) { const f = framesShow[j]; const l = f && f.layers.find(x => x.id === lid); if (l) { g = l; break; } } }
-      return { ...g, opacity: 0, hidden: false, _z: 0, _tr: tr, _tr2: tr2 };
-    });
-    const tv = S.transSel != null && S.transSel < framesCur.length - 1 ? S.transSel : null;
-    const lname2 = l => l.type === 'text' ? short(plainText(l.text).split('\n')[0] || 'Text', 20) : l.type === 'image' ? 'Image' : l.type === 'shape' ? (l.shape || 'Shape') : l.type === 'component' ? '⧉ ' + (l.name || 'Component') : 'Icon · ' + (l.icon || '');
-    const diff = (a, b) => { if (!a) return 'appears'; if (!b) return 'disappears'; const c = [];
-      if (Math.abs(a.x - b.x) > 0.05 || Math.abs(a.y - b.y) > 0.05) c.push('move'); if (Math.abs(a.w - b.w) > 0.05 || Math.abs(a.h - b.h) > 0.05) c.push('scale');
-      if ((a.rot || 0) !== (b.rot || 0)) c.push('rotate'); if ((a.color || a.fill) !== (b.color || b.fill)) c.push('colour'); if ((a.opacity ?? 1) !== (b.opacity ?? 1) || !!a.hidden !== !!b.hidden) c.push('fade');
-      if ((a.size || 0) !== (b.size || 0)) c.push('size'); if (a.text !== b.text) c.push('text'); return c.length ? c.join(' · ') : '—'; };
-    const actsOf = (a, b) => { if (!a || !b) return [['fade', a ? 'Fade out' : 'Fade in']]; const c = [];
-      if (Math.abs(a.x - b.x) > 0.05 || Math.abs(a.y - b.y) > 0.05) c.push(['move', 'Move']); if (Math.abs(a.w - b.w) > 0.05 || Math.abs(a.h - b.h) > 0.05) c.push(['scale', 'Scale']);
-      if ((a.rot || 0) !== (b.rot || 0)) c.push(['rotate', 'Rotate']); if ((a.color || a.fill) !== (b.color || b.fill)) c.push(['colour', 'Colour']);
-      if ((a.size || 0) !== (b.size || 0)) c.push(['size', 'Text size']); if ((a.opacity ?? 1) !== (b.opacity ?? 1) || !!a.hidden !== !!b.hidden) c.push(['fade', 'Fade']); return c; };
-    let transVals = { isTransView: false, notTransView: true, transRows: [], hasTransLayer: false, hasGhost: false, ghostLayers: [], showPaths: false, pathLines: [], pathDots: [] };
-    if (tv != null) {
-      const A = framesShow[tv].layers, B = framesShow[tv + 1].layers; const ids = []; [...A, ...B].forEach(l => { if (!ids.includes(l.id)) ids.push(l.id); });
-      const tl = S.layerSel && ids.includes(S.layerSel) ? S.layerSel : null;
-      const copyInto = (lid, from, into) => { const src = framesCur[from].layers.find(l => l.id === lid); if (src) this.setLayers(cur, ls => [...ls, { ...src }], into); this.setState({ fi: into, layerSel: lid }); };
-      const cell = (l, side, lid) => { const on = l && tl === lid && fiCur === (side === 'L' ? tv : tv + 1);
-        return { name: l ? lname2(l) : '+ add here', title: l ? 'Select in frame ' + (side === 'L' ? tv + 1 : tv + 2) : 'Copy this layer into this frame', border: l ? (on ? '2px solid #1f6fb8' : '1px solid #e0d9cb') : '1.5px dashed #cfd9e4', bg: on ? '#eef3f9' : l ? '#fff' : 'transparent', color: l ? '#1d1b17' : '#8aa0b6' }; };
-      const transRows = ids.map(lid => { const a = A.find(l => l.id === lid), b = B.find(l => l.id === lid); const L1 = cell(a, 'L', lid), R1 = cell(b, 'R', lid); const ch = diff(a, b);
-        return { leftName: L1.name, leftTitle: L1.title, leftBorder: L1.border, leftBg: L1.bg, leftColor: L1.color, rightName: R1.name, rightTitle: R1.title, rightBorder: R1.border, rightBg: R1.bg, rightColor: R1.color,
-          change: ch, changeColor: ch === '—' ? '#b9c4cf' : '#1f6fb8', bg: tl === lid ? '#f7fafd' : '#fff',
-          onLeft: () => a ? this.setState({ fi: tv, layerSel: lid, tween: null }) : copyInto(lid, tv + 1, tv), onRight: () => b ? this.setState({ fi: tv + 1, layerSel: lid, tween: null }) : copyInto(lid, tv, tv + 1) }; });
-      const ts = tl ? this.transFor(cur, tv, tl) : {};
-      const other = fiCur === tv ? tv + 1 : tv;
-      const ctr = l => ({ x: l.x + l.w / 2, y: l.y + l.h / 2 });
-      const pathLines = [], pathDots = [];
-      if (!S.tween) ids.forEach(lid => { const a = A.find(l => l.id === lid), b = B.find(l => l.id === lid); if (!a || !b) return;
-        if (Math.abs(a.x - b.x) < 0.05 && Math.abs(a.y - b.y) < 0.05) return;
-        const p0 = ctr(a), p3 = ctr(b); const tp = this.transFor(cur, tv, lid).path; const def = { c1: { x: rd(p0.x + (p3.x - p0.x) / 3), y: rd(p0.y + (p3.y - p0.y) / 3) }, c2: { x: rd(p0.x + 2 * (p3.x - p0.x) / 3), y: rd(p0.y + 2 * (p3.y - p0.y) / 3) } };
-        const pth = tp || def; const on = lid === tl;
-        pathLines.push({ d: `M${p0.x} ${p0.y} C${pth.c1.x} ${pth.c1.y} ${pth.c2.x} ${pth.c2.y} ${p3.x} ${p3.y}`, color: on ? '#1f6fb8' : 'rgba(251,249,244,.8)', sw: on ? 2 : 1.5, dash: on ? 'none' : '5 4' });
-        pathDots.push({ x: p0.x, y: p0.y, size: 9, bg: '#fbf9f4', border: '#1f6fb8', cursor: 'default', pe: 'none', title: '' }, { x: p3.x, y: p3.y, size: 9, bg: '#1f6fb8', border: '#fbf9f4', cursor: 'default', pe: 'none', title: '' });
-        if (on) { pathLines.push({ d: `M${p0.x} ${p0.y} L${pth.c1.x} ${pth.c1.y}`, color: 'rgba(31,111,184,.7)', sw: 1, dash: '3 3' }, { d: `M${p3.x} ${p3.y} L${pth.c2.x} ${pth.c2.y}`, color: 'rgba(31,111,184,.7)', sw: 1, dash: '3 3' });
-          ['c1', 'c2'].forEach(w => pathDots.push({ x: pth[w].x, y: pth[w].y, size: 13, bg: '#fff', border: '#1f6fb8', cursor: 'grab', pe: 'auto', title: 'Drag to curve the path', onDown: ev => this.startPathDrag(ev, lid, w, tv, def) })); }
-      });
-      const acts = tl ? actsOf(A.find(l => l.id === tl), B.find(l => l.id === tl)) : [];
-      const actKeys = acts.map(x => x[0]);
-      const setCol = (act, key, val) => this.setTransAct(cur, tv, tl, S.tAll[key] ? actKeys : [act], { [key]: val });
-      const opt = list => list.map(([v, l]) => ({ v: String(v), l }));
-      const tla = tl && (A.find(l => l.id === tl) || B.find(l => l.id === tl));
-      transVals = { isTransView: true, notTransView: false, transRows, transTitle: `· frame ${tv + 1} → ${tv + 2}`, transLeftLabel: 'Frame ' + (tv + 1), transRightLabel: 'Frame ' + (tv + 2),
-        previewTrans: () => { this.setState({ fi: tv, tween: null, layerSel: null }); setTimeout(() => this.stepFrame(1), 120); }, closeTrans: () => this.setState({ transSel: null }),
-        hasTransLayer: !!tl, transLayerTitle: tla ? 'Transition for ' + lname2(tla) : '', 
-        hasGhost: !S.tween && editable, ghostLayers: framesShow[other].layers.filter(l => !l.hidden), showPaths: editable && !S.tween, pathLines, pathDots,
-        hasActRows: acts.length > 0, noActRows: !!tl && acts.length === 0,
-        actRows: acts.map(([act, label]) => { const s = this.actT(ts, act); return { label, isMove: act === 'move', pathLabel: ts.path ? 'Curved' : 'Straight', resetOp: ts.path ? 1 : 0.4, onResetPath: () => this.setPath(cur, tv, tl, null),
-          ease: s.ease, easeOpts: opt([['linear', 'Linear'], ['in', 'In'], ['out', 'Out'], ['both', 'Both'], ['spring', 'Spring']]), onEase: e => setCol(act, 'ease', e.target.value),
-          dur: String(s.dur), durOpts: opt([150, 250, 400, 600, 800, 1000, 1400, 2000].map(v => [v, String(v)])), onDur: e => setCol(act, 'dur', +e.target.value),
-          delay: String(s.delay), delayOpts: opt([0, 100, 200, 300, 500, 800, 1200].map(v => [v, String(v)])), onDelay: e => setCol(act, 'delay', +e.target.value) }; }),
-        allT: Object.fromEntries(['ease', 'dur', 'delay'].map(key => { const on = !!S.tAll[key]; return [key, { label: on ? '✓ All' : 'All', bg: on ? '#1f6fb8' : '#fff', color: on ? '#fff' : '#1f6fb8', border: on ? '#1f6fb8' : '#9db8d3',
-          onClick: () => { const next = !on; this.setState(st => ({ tAll: { ...st.tAll, [key]: next } })); if (next && tl && actKeys.length) this.setTransAct(cur, tv, tl, actKeys, { [key]: this.actT(ts, actKeys[0])[key] }); } }]; })),
-        tEase: ts.ease || 'both', easeOpts: opt([['linear', 'Linear'], ['in', 'Ease in'], ['out', 'Ease out'], ['both', 'Ease both'], ['spring', 'Spring']]), onTEase: e => this.setTrans(cur, tv, [tl], { ease: e.target.value }),
-        tDur: String(ts.dur ?? 600), durOpts: opt([150, 250, 400, 600, 800, 1000, 1400, 2000].map(v => [v, v + ' ms'])), onTDur: e => this.setTrans(cur, tv, [tl], { dur: +e.target.value }),
-        tDelay: String(ts.delay || 0), delayOpts: opt([0, 100, 200, 300, 500, 800, 1200].map(v => [v, v + ' ms'])), onTDelay: e => this.setTrans(cur, tv, [tl], { delay: +e.target.value }),
-        applyTransAll: () => this.setTrans(cur, tv, ids, { ease: ts.ease || 'both', dur: ts.dur ?? 600, delay: ts.delay || 0 }) };
-    }
-    const frameVals = {
-      stageLayers, frameCount: framesCur.length, showFramesOn: !!nCur.showFrames, onShowFrames: e => this.setState(s => ({ nodes: { ...s.nodes, [cur]: { ...s.nodes[cur], showFrames: e.target.checked } } })),
-      frameItems: framesShow.map((f, k) => ({ layers: f.layers, label: 'F' + (k + 1), outline: k === fiCur && tv == null ? '2px solid #d9432b' : (tv != null && (k === tv || k === tv + 1)) ? '2px solid #1f6fb8' : '1px solid #e0d9cb',
-        labelColor: k === fiCur ? '#1d1b17' : '#6b6458', weight: k === fiCur ? 700 : 500, onClick: () => this.setState({ fi: k, transSel: null, tween: null, layerSel: null, view: 'slide' }),
-        hasArrow: k > 0, arrowTitle: `Edit transition F${k} → F${k + 1}`, arrowBg: tv === k - 1 ? '#1f6fb8' : '#fff', arrowColor: tv === k - 1 ? '#fff' : '#1f6fb8', arrowBorder: tv === k - 1 ? '0' : '1.5px solid #9db8d3',
-        onArrow: () => this.setState({ transSel: k - 1, fi: k - 1, layerSel: null, tween: null, view: 'slide', stab: 'frames' }) })),
-      seqOn: this.selIds().length > 1, seqKind: S.seqKind || 'fade', onSeqKind: e => this.setState({ seqKind: e.target.value }), onAddSequence: () => this.addSequence(S.seqKind || 'fade'),
-      seqKinds: [['fade', 'Fade in'], ['up', 'Slide up'], ['left', 'Slide from left'], ['cascade', 'Cascade']].map(([v, l]) => ({ v, l })),
-      dupFrame: () => this.dupFrame(fiCur), delFrame: () => this.delFrame(fiCur), delFrameOp: framesCur.length > 1 ? 1 : 0.4,
-      confirmDupOpen: S.confirmDup != null, confirmDupText: S.confirmDup != null ? `Frame ${S.confirmDup + 1} has transition settings into frame ${S.confirmDup + 2}. The copy goes between them, so those settings will be lost.` : '',
-      cancelDup: () => this.setState({ confirmDup: null }), forceDup: () => this.dupFrame(S.confirmDup, true),
-      showFrameDots: (!!nCur.showFrames || !!S.fprev) && framesCur.length > 1 && !active,
-      fprevOn: !!S.fprev && !isPresent, fprevPos: `${fiCur + 1} / ${framesCur.length}`, fprevLabel: S.fprev ? '■ Stop' : '▶ Preview', fprevBg: S.fprev ? '#a8301d' : '#1d1b17',
-      previewFrames: e => { e && e.currentTarget && e.currentTarget.blur(); if (S.fprev) { this.setState({ fprev: false }); return; } this.setState({ fprev: true, fi: 0, tween: null, transSel: null, layerSel: null, editing: null, view: 'slide' }); },
-      frameDots: framesShow.map((f, k) => ({ title: 'Frame ' + (k + 1), w: k === fiCur ? 18 : 7, bg: k <= fiCur ? '#fbf9f4' : 'rgba(251,249,244,.4)', onClick: () => this.goFrame(k) })),
-      ...transVals,
+    // build steps
+    const stepsCur = this.stepsOf(cur), atCur = S.at || 0, lastStep = Math.max(0, ...stepsCur);
+    const stepVals = {
+      stageLayers: staged(cur, atCur),
+      showStepDots: isPresent && !!curN.showSteps && stepsCur.length > 0 && !active,
+      stepDots: [0, ...stepsCur].map(n => ({ title: n ? 'Step ' + n : 'Start', w: n === atCur ? 18 : 7, bg: n <= atCur ? '#fbf9f4' : 'rgba(251,249,244,.4)', onClick: () => this.goStep(n) })),
     };
     const linkOf = ly && ly.link ? ly.link : null;
     const pathName = id => pathOf(id).map(name).join(' › ');
@@ -2728,23 +2424,23 @@ class Component extends DCLogic {
     };
     const results = isPresent && q ? D.order.filter(id => match[id]).slice(0, 10).map(id => ({ title: name(id), path: pathOf(id).slice(0, -1).map(name).join(' › ') || 'Top level', onClick: () => { this.setState({ query: '' }); this.nav(id, 'jump'); } })) : [];
 
-    const styleCount = {}; for (const k of this.ownSlideIds()) { this.framesOf(k).forEach(f => f.layers.forEach(l => { if (l.style) styleCount[l.style] = (styleCount[l.style] || 0) + 1; })); }   // ponytail: per-render scan; memoise on nodes if it shows in a profile
+    const styleCount = {}; for (const k of this.ownSlideIds()) { this.layersOf(k).forEach(l => { if (l.style) styleCount[l.style] = (styleCount[l.style] || 0) + 1; }); }   // ponytail: per-render scan; memoise on nodes if it shows in a profile
     const rich = !!edL && editable && S.editMode !== 'markup';
     const wl = rich ? (this._wysLines || linesOf(edL.text)) : null, ws = S.wysSel || this._wysSel || null;
     const lk = rich && ws ? linkAt(wl, ws.start) : null;
     // ---- Layout panel. ponytail: effectiveLayout for every node per render; fine for hundreds of slides, memoise on nodes if it shows in a profile.
-    const LAY = this.layouts(), STY = this.styles(), curFr0 = (this.framesOf(cur)[0] || { layers: [] }).layers;
-    const sigM = sigOf(curFr0, STY), sigK = sigKey(sigM), effL = sigK ? this.effectiveLayout(cur) : null, animated = this.framesOf(cur).length > 1;
+    const LAY = this.layouts(), STY = this.styles();
+    const sigM = sigOf(curLayers, STY), sigK = sigKey(sigM), effL = sigK ? this.effectiveLayout(cur) : null;
     const keyName = k => k[0].toUpperCase() + k.slice(1), chipsOf = m => Object.keys(m).sort().map(k => keyName(k) + ' ×' + m[k]);
     const users = {}; for (const k of this.ownSlideIds()) { const e = this.effectiveLayout(k); if (e) (users[e.id] = users[e.id] || []).push(k); }
-    const defId = (S.layoutDefaults || {})[sigK], firstFit = Object.values(LAY).find(x => fitsTemplate(curFr0, x));
+    const defId = (S.layoutDefaults || {})[sigK], firstFit = Object.values(LAY).find(x => fitsTemplate(curLayers, x));
     const listOf = lid => (users[lid] || []).map(k => ({ name: name(k), onClick: () => { this.nav(k, 'jump'); this.setState({ rtab: 'slide', stab: 'layout' }); } }));
-    const tileOf = L => ({ id: L.id, name: L.name, star: L.id === (fitsTemplate(curFr0, LAY[defId]) ? defId : firstFit && firstFit.id), count: (users[L.id] || []).length + ' slides',
+    const tileOf = L => ({ id: L.id, name: L.name, star: L.id === (fitsTemplate(curLayers, LAY[defId]) ? defId : firstFit && firstFit.id), count: (users[L.id] || []).length + ' slides',
       open: S.layOpen === L.id, slides: listOf(L.id), onToggle: () => this.setState({ layOpen: S.layOpen === L.id ? null : L.id }),
       onApply: () => this.applyLayout(cur, L.id), onApplyAll: () => this.applyToAll(L.id), onName: e => this.renameLayout(L.id, e.target.value),
       regions: Object.keys(L.slots || {}).flatMap(k => (L.slots[k] || []).map((_, i) => ({ label: k + '-' + (i + 1), value: ((L.names || {})[k] || [])[i] || k + '-' + (i + 1), onChange: e => this.renameRegion(L.id, k, i, e.target.value) }))),
       canDelete: !BUILTIN_LAYOUTS[L.id], onDelete: () => this.deleteLayout(L.id), chips: chipsOf(L.match),
-      layers: (b => this.shown(cur, curFr0.map(l => (b[l.id] ? { ...l, ...b[l.id] } : l))))(fillSlots(curFr0, L, STY)) });
+      layers: (b => this.shown(cur, curLayers.map(l => (b[l.id] ? { ...l, ...b[l.id] } : l))))(fillSlots(curLayers, L, STY)) });
     // ---- Present map (Tree / Radial). ponytail: every slide's thumbnail is rendered; fine for hundreds of slides.
     let mapCards = [], mapEdges = [], mapW = 0, mapH = 0;
     if (mapView) {
@@ -2763,8 +2459,8 @@ class Component extends DCLogic {
     const tvFree = [TC.Wc <= 1.001 && 'Pan X', TC.Hc <= 1.001 && 'Pan Y'].filter(Boolean);
 
     return {
-      ...(st => ({ stabBtns: [['layout', 'Layout'], ['frames', 'Frames'], ['layers', 'Layers']].map(([v, label]) => ({ label, ...tab(st === v), onClick: () => this.setState(v === 'frames' ? { stab: v } : { stab: v, transSel: null }) })),   // leaving Frames closes the transition view
-        stabLayout: st === 'layout', stabFrames: st === 'frames', stabLayers: st === 'layers', layerPane: st === 'layers' || transVals.isTransView }))(S.stab || 'layers'),
+      ...(st => ({ stabBtns: [['layout', 'Layout'], ['layers', 'Layers']].map(([v, label]) => ({ label, ...tab(st === v), onClick: () => this.setState({ stab: v }) })),
+        stabLayout: st === 'layout', stabLayers: st === 'layers', layerPane: st === 'layers' }))(S.stab === 'layout' ? 'layout' : 'layers'),
       fromDeck: curN._from || '', fromHref: '?src=' + encodeURIComponent(curN._from || ''), ownSlide: !curN._from,
       styleOpts: [{ v: '', l: 'Custom' }].concat(Object.entries(this.styles()).filter(([, st]) => !st.deleted).map(([id, st]) => ({ v: id, l: st.name || id }))),
       lyStyle: styled ? ly.style : '', onLyStyle: e => ly && this.chooseStyle(cur, ly.id, e.target.value), lyStyled: styled,
@@ -2800,13 +2496,13 @@ class Component extends DCLogic {
       onLinkPick: e => { const v = e.target.value; if (!v) return; const r = lk || ws || { start: 0, end: 0 };
         if (v === '@url') { this._linkTarget = r; this.setState({ fmtUrl: true, fmtUrlVal: '' }); return; }
         this.formatRange(r.start, r.end, { attrs: v === '-' ? { link: null, href: null } : { link: v, href: null } }); this.setState({ linkPick: false }); },
-      layChips: chipsOf(sigM), layMulti: animated, layEditable: !(curN && curN._from) && !animated, layCustom: !!(curN && curN.custom) && !animated && !curN._from && !!effL,
-      layStatus: animated ? 'Animated (' + this.framesOf(cur).length + ' frames) · layouts don\'t apply' : !sigK ? 'Nothing on this slide to lay out' : !effL ? 'No layout for this type yet' : curN.custom ? 'This slide · ' + effL.name : 'Default · ' + effL.name,
+      layChips: chipsOf(sigM), layEditable: !(curN && curN._from), layCustom: !!(curN && curN.custom) && !curN._from && !!effL,
+      layStatus: !sigK ? 'Nothing on this slide to lay out' : !effL ? 'No layout for this type yet' : curN.custom ? 'This slide · ' + effL.name : 'Default · ' + effL.name,
       onLayReset: () => this.resetToDefault(cur),
       applyItems: [['slide', 'This slide'], ['layout', 'Layout']].map(([v, label]) => ({ label, ...tab((S.applyTo || 'slide') === v), onClick: () => this.setState({ applyTo: v }) })),
       warnBadges: isPresent ? [] : curLayers.filter(l => l._warn && !l.hidden).map(l => ({ x: l.x, y: l.y, title: 'Not placed by this slide\'s layout — click to add a region for it', onClick: () => this.claimBlock(cur, l.id), onDown: e => e.stopPropagation() })),
-      layTiles: animated || !sigK ? [] : Object.values(LAY).filter(L => fitsTemplate(curFr0, L)).map(tileOf), layNoTiles: !animated && !!sigK && !firstFit,
-      onLaySave: () => this.saveAsLayout(cur), layCanUpdate: !!effL && !animated, layUpdateLabel: effL ? 'Update “' + effL.name + '” from this slide' : '', onLayUpdate: () => this.updateLayoutFrom(cur),
+      layTiles: !sigK ? [] : Object.values(LAY).filter(L => fitsTemplate(curLayers, L)).map(tileOf), layNoTiles: !!sigK && !firstFit,
+      onLaySave: () => this.saveAsLayout(cur), layCanUpdate: !!effL, layUpdateLabel: effL ? 'Update “' + effL.name + '” from this slide' : '', onLayUpdate: () => this.updateLayoutFrom(cur),
       layAll: Object.values(LAY).map(L => ({ ...tileOf(L), layers: [] })), layAllOpen: !!S.layAllOpen, onLayAllToggle: () => this.setState({ layAllOpen: !S.layAllOpen }),
       mapCards, mapEdges, mapW, mapH, mapCardW: MAP_W, mapCardH: MAP_H, mapZoom: mapZ, mapWz: Math.ceil(mapW * mapZ), mapHz: Math.ceil(mapH * mapZ),
       onMapZoomIn: () => this.setState({ mapZoom: Math.min(3, mapZ * 1.25) }), onMapZoomOut: () => this.setState({ mapZoom: Math.max(0.02, mapZ / 1.25) }), onMapFit: () => this.setState({ mapZoom: null }),
@@ -2832,19 +2528,8 @@ class Component extends DCLogic {
       tvX: tvw.x, tvXLabel: Math.round(tvw.x * 100) + '%', onTvX: e => setTv({ x: +e.target.value }),
       tvY: tvw.y, tvYLabel: Math.round(tvw.y * 100) + '%', onTvY: e => setTv({ y: +e.target.value }),
       tvHint: tvFree.length ? 'The whole canvas fits this way, so ' + tvFree.join(' and ') + ' has no effect.' : '',
-      ...layerVals, ...linkVals, textFields, boxModes, boxModeLabel, boxTitle, boxColors, boxFields, ...frameVals,
-      sec: Object.fromEntries(['layout', 'frames', 'layers', 'tdef', 'box', 'insert', 'spacing'].map(k => { const open = !!((S.secOpen || {})[k] ?? k === 'spacing'); return [k, { open, caret: open ? '▾' : '▸', toggle: () => this.setState(st => ({ secOpen: { ...st.secOpen, [k]: !open } })) }]; })),
-      defAll: Object.fromEntries(['ease', 'dur', 'delay'].map(key => { const on = !!S.dAll[key]; const fb = { ease: 'both', dur: 600, delay: 0 }[key];
-        return [key, { label: on ? '✓ All' : 'All', bg: on ? '#1d1b17' : '#fff', color: on ? '#fbf9f4' : '#1d1b17', border: on ? '#1d1b17' : '#cfc6b4',
-          onClick: () => this.setState(st => { const next = !on; const out = { dAll: { ...st.dAll, [key]: next } }; if (next) { const v = ((st.tdef || {}).move || {})[key] ?? fb; const td = { ...(st.tdef || {}) }; DEF_ACTS.forEach(a => { td[a] = { ...(td[a] || {}), [key]: v }; }); out.tdef = td; } return out; }) }]; })),
-      defRows: [['move', 'Move'], ['scale', 'Scale'], ['rotate', 'Rotate'], ['colour', 'Colour'], ['size', 'Text size'], ['fade', 'Fade in / out']].map(([act, label]) => { const d = (S.tdef || {})[act] || {}; const set = patch => { const key = Object.keys(patch)[0]; const targets = S.dAll[key] ? DEF_ACTS : [act];
-          this.setState(st => { const td = { ...(st.tdef || {}) }; targets.forEach(a => { td[a] = { ...(td[a] || {}), ...patch }; }); return { tdef: td }; }); };
-        const o = list => list.map(([v, l]) => ({ v: String(v), l }));
-        return { label, ease: d.ease || 'both', easeOpts: o([['linear', 'Linear'], ['in', 'In'], ['out', 'Out'], ['both', 'Both'], ['spring', 'Spring']]), onEase: e => set({ ease: e.target.value }),
-          dur: String(d.dur ?? 600), durOpts: o([150, 250, 400, 600, 800, 1000, 1400, 2000].map(v => [v, String(v)])), onDur: e => set({ dur: +e.target.value }),
-          delay: String(d.delay ?? 0), delayOpts: o([0, 100, 200, 300, 500, 800, 1200].map(v => [v, String(v)])), onDelay: e => set({ delay: +e.target.value }) }; }),
-      resetAllTrans: () => this.resetAllTrans(), defApply: { ease: () => this.resetTransKey('ease'), dur: () => this.resetTransKey('dur'), delay: () => this.resetTransKey('delay') },
-      transCountText: (c => c ? `${c} slide${c === 1 ? ' has' : 's have'} custom transition settings. Undo restores them.` : 'No custom settings yet: every transition uses these defaults.')(Object.values(N).filter(n => n.ftrans && Object.values(n.ftrans).some(m => Object.keys(m || {}).length)).length),
+      ...layerVals, ...linkVals, textFields, boxModes, boxModeLabel, boxTitle, boxColors, boxFields, ...stepVals,
+      sec: Object.fromEntries(['layout', 'layers', 'box', 'insert', 'spacing'].map(k => { const open = !!((S.secOpen || {})[k] ?? k === 'spacing'); return [k, { open, caret: open ? '▾' : '▸', toggle: () => this.setState(st => ({ secOpen: { ...st.secOpen, [k]: !open } })) }]; })),
       undo: () => this.undo(), redo: () => this.redo(), undoOp: this._past && this._past.length ? 1 : 0.4, redoOp: this._future && this._future.length ? 1 : 0.4,
       deckTitle: (S.titlePage && N.ROOT.title) || (N.ROOT.children[0] ? name(N.ROOT.children[0]) : DECK || 'Untitled'), emptyMsg: !N.ROOT.children.length ? EMPTY_MSG : S.loading && S.loading === cur ? 'Loading…' : '',
       keyHint: S.saveMsg || S.note || (isPresent ? '← → ↑ ↓  ·  Space next  ·  / search' + (STATIC ? '' : '  ·  Esc') : ''),
@@ -2891,8 +2576,8 @@ class Component extends DCLogic {
       crumbRows, crumbTx, crumbTy, crumbH, hasDownHint: !!downHint, downHint: downHint || {},
       steps, stepsBg: isPresent ? 'rgba(251,249,244,.18)' : 'rgba(29,27,23,.08)', sepColor: isPresent ? '#fbf9f4' : '#6b6458', navRight: isPresent ? '270px' : '14px',
       searchRef: this.searchRef, results, hasResults: results.length > 0,
-      hasLeft: ci > 0 || fiCur > 0, leftTitle: fiCur > 0 ? 'Previous frame' : ci > 0 ? name(sibs[ci - 1]) : '', goLeft: () => this.go('left'),
-      hasRight: ci < sibs.length - 1 || fiCur < framesCur.length - 1, rightTitle: fiCur < framesCur.length - 1 ? 'Next frame' : ci < sibs.length - 1 ? name(sibs[ci + 1]) : '', goRight: () => this.go('right'),
+      hasLeft: ci > 0 || atCur > 0, leftTitle: atCur > 0 ? 'Previous step' : ci > 0 ? name(sibs[ci - 1]) : '', goLeft: () => this.go('left'),
+      hasRight: ci < sibs.length - 1 || atCur < lastStep, rightTitle: atCur < lastStep ? 'Next step' : ci < sibs.length - 1 ? name(sibs[ci + 1]) : '', goRight: () => this.go('right'),
       hasUp: !!upT, upTitle: upT ? short(name(upT), 24) : '', goUp: () => this.go('up'),
       hasDown: !!downT, goDown: () => this.go('down'), downLabel: downT ? `${curN.children.length} below · ${short(name(downT), 22)}` : '',
 

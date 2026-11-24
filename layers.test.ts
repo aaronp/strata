@@ -76,7 +76,7 @@ test("a live component renders a sandboxed iframe running the helper, then the s
   expect(html).not.toContain("allow-same-origin");
 });
 
-test("the same component keeps an identical src across frames (no reload), but not across slides", () => {
+test("the same component keeps an identical src across steps (no reload), but not across slides", () => {
   const a = render({ layers: [comp({ x: 0 })], live: "s1" }).items[0].src;
   expect(render({ layers: [comp({ x: 40, w: 20, opacity: 0.5 })], live: "s1" }).items[0].src).toBe(a);
   expect(render({ layers: [comp()], live: "s2" }).items[0].src).not.toBe(a);
@@ -119,7 +119,7 @@ test("helper relays navigation keys pressed inside the component unless it handl
   expect(posted).toEqual([{ strata: 1, type: "key", key: "ArrowRight", shiftKey: false }, { strata: 1, type: "key", key: " ", shiftKey: true }]);
 });
 
-test("a component that isn't showing in this frame doesn't catch clicks", () => {
+test("a component that isn't showing in this step doesn't catch clicks", () => {
   expect(render({ layers: [comp()], live: "s1" }).items[0].pe).toBe("auto");
   expect(render({ layers: [comp({ opacity: 0 })], live: "s1" }).items[0].pe).toBe("none");
   expect(html).toContain("pointer-events:{{ e.pe }}");
@@ -142,4 +142,13 @@ test("link runs are underlined and clickable only when links are live; broken on
   const off = render({ layers: [txt({ text: "abc", _lines: L })] }).items[0].lines[0].runs;
   expect(off.map((r: any) => r.pe)).toEqual(["", "", ""]);
   expect(html).toContain('data-link="{{ r.lnk }}"');
+});
+
+test("a layer's build style (opacity, transform, clip, transition) goes on its outer div", () => {
+  const b = { opacity: 0, transform: "scale(0.6)", clip: "inset(0 0 0 0)", transition: "none" };
+  const it = render({ layers: [{ ...shape, rot: 5, build: b }] }).items[0];
+  expect(it).toMatchObject({ op: 0, transform: "scale(0.6) rotate(5deg)", bclip: "inset(0 0 0 0)", tr: "none" });
+  expect(render({ layers: [shape] }).items[0]).toMatchObject({ op: 1, transform: "rotate(0deg)", bclip: "none", tr: "none" });
+  expect(html).toMatch(/data-lid="\{\{ e\.lid \}\}" style="[^"]*transform:\{\{ e\.transform \}\};[^"]*clip-path:\{\{ e\.bclip \}\};[^"]*transition:\{\{ e\.tr \}\}/);
+  expect(html).not.toContain("e.tr2");
 });

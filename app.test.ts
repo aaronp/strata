@@ -49,8 +49,8 @@ const nudge = (c: any, id: string, lid: string, dx: number) => { c.setLayers(id,
 const reply = (body: string, type: string, status = 200) => new Response(body, { status, headers: { "content-type": type } });
 
 test("app: loads deck markdown and layout", async () => {
-  await writeMd("talk", TALK, { version: 1, deck: { bg: "space", styles: { h1: { size: 80 } } },
-    slides: { intro: { custom: true, frames: [{ id: "f1", layers: [{ id: "md-title", type: "text", block: "title", x: 1, y: 2, w: 50, h: 10 }, { id: "x1", type: "shape", x: 0, y: 0, w: 5, h: 5 }] }] } } });
+  await writeMd("talk", TALK, { version: 2, deck: { bg: "space", styles: { h1: { size: 80 } } },
+    slides: { intro: { custom: true, layers: [{ id: "md-title", type: "text", block: "title", x: 1, y: 2, w: 50, h: 10 }, { id: "x1", type: "shape", x: 0, y: 0, w: 5, h: 5 }] } } });
   const { c } = await mount("?deck=talk");
   expect(c.state.md).toBe(TALK);
   expect(c.state.nodes.ROOT.children).toEqual(["intro", "next"]);
@@ -118,7 +118,7 @@ test("app: save writes md and layout", async () => {
 
 test("app: src loads https url", async () => {
   const files: Record<string, Response> = { "https://x/a.md": reply("# Remote\nslug: r\n\n![pic](img/p.png)\n", "text/markdown"),
-    "https://x/a-layout.json": reply(JSON.stringify({ version: 1, deck: { bg: "space", images: { im1: "img/a.png", im2: "data:image/png;base64,AA" }, customBg: "img/bg.jpg" }, slides: {} }), "application/json") };
+    "https://x/a-layout.json": reply(JSON.stringify({ version: 2, deck: { bg: "space", images: { im1: "img/a.png", im2: "data:image/png;base64,AA" }, customBg: "img/bg.jpg" }, slides: {} }), "application/json") };
   const { c } = await mount("?src=https://x/a.md", { fetch: u => files[u] });
   expect(c.state.saveMsg).toBeFalsy();
   expect(c.state.nodes.r.title).toBe("Remote"); expect(c.state.bg).toBe("space");
@@ -252,12 +252,12 @@ const slideNode = (id: string, title: string, children: string[] = [], extra: ob
 const writeDeck = (slug: string, nodes: Record<string, any>, extra: object = {}) => {
   let md = ""; const slides: Record<string, any> = { ROOT: nodes.ROOT };
   const walk = (id: string, d: number) => { for (const k of nodes[id].children) {
-    const { id: _i, title, body, children: _c, layers, ...rest } = nodes[k], frames = rest.frames || (layers && [{ id: "f0-" + k, layers }]);
+    const { id: _i, title, body, children: _c, layers, ...rest } = nodes[k];
     md += `${"#".repeat(d)} ${title || k}\nslug: ${k}\n\n${body ? body + "\n\n" : ""}`;
-    if (frames) slides[k] = { ...rest, frames, custom: true };
+    if (layers) slides[k] = { ...rest, layers, custom: true }; else if (Object.keys(rest).length) slides[k] = rest;
     walk(k, d + 1); } };
   walk("ROOT", 1);
-  return writeMd(slug, md, { version: 1, deck: { images: {}, customBg: null, ...extra }, slides });
+  return writeMd(slug, md, { version: 2, deck: { images: {}, customBg: null, ...extra }, slides });
 };
 const deckTalk = (t: object = {}) => writeDeck("talk", { ROOT: slideNode("ROOT", "", ["t"]), t: slideNode("t", "Intro", [], t) });
 
@@ -304,7 +304,7 @@ const L3 = [
   { id: "r", type: "shape", x: 70, y: 70, w: 10, h: 10 },
 ];
 async function multiDeck() {
-  await writeDeck("talk", { ROOT: slideNode("ROOT", "", ["a"]), a: slideNode("a", "A", [], { frames: [{ id: "f1", layers: L3 }] }) });
+  await writeDeck("talk", { ROOT: slideNode("ROOT", "", ["a"]), a: slideNode("a", "A", [], { layers: L3 }) });
   const { c } = await mount("?deck=talk");
   c.setState({ cur: "a" });
   return c;
@@ -412,9 +412,7 @@ test("every {{ name }} the app template uses is provided by renderVals", async (
   const loopVars = new Set([...tpl.matchAll(/\bas="(\w+)"/g)].map(m => m[1]));
   const heads = new Set([...tpl.matchAll(/\{\{\s*([A-Za-z_$][\w$]*)/g)].map(m => m[1]).filter(h => !loopVars.has(h)));
   const vals = c.renderVals();
-  // Defined only while the frame-transition view is open (all inside <sc-if isTransView>), plus the literal {{ true }}.
-  const onlyInTransView = new Set(["actRows", "allT", "closeTrans", "hasActRows", "noActRows", "previewTrans", "transLayerTitle", "transLeftLabel", "transRightLabel", "transTitle", "true"]);
-  expect([...heads].filter(h => !(h in vals) && !onlyInTransView.has(h)).sort()).toEqual([]);
+  expect([...heads].filter(h => !(h in vals) && h !== "true").sort()).toEqual([]);   // {{ true }} is a literal
 });
 
 // ---- background scale / repeat / vertical position ----
@@ -478,7 +476,8 @@ test("tree panel has zoom controls, a zoom wrapper and the Focus toggle", async 
 // ---- component layers: protocol ----
 async function compDeck() {
   await writeDeck("talk", { ROOT: slideNode("ROOT", "", ["a", "b"]),
-    a: slideNode("a", "Alpha", [], { frames: [{ id: "f1", layers: [{ id: "c1", type: "component", x: 0, y: 0, w: 50, h: 50, code: "" }] }, { id: "f2", layers: [{ id: "c1", type: "component", x: 0, y: 0, w: 50, h: 50, code: "" }] }] }),
+    a: slideNode("a", "Alpha", [], { layers: [{ id: "c1", type: "component", x: 0, y: 0, w: 50, h: 50, code: "" }, { id: "x1", type: "shape", x: 60, y: 0, w: 5, h: 5 }, { id: "x2", type: "shape", x: 70, y: 0, w: 5, h: 5 }],
+      steps: { x1: 1, x2: 2 } }),
     b: slideNode("b", "Beta") });
   const { c, listeners } = await mount("?deck=talk");
   const win: any = { posted: [] as any[], postMessage(m: any) { this.posted.push(m); } };
@@ -487,14 +486,15 @@ async function compDeck() {
   return { c, win, send };
 }
 
-test("hello is answered with enter (frame, frames, mode, slide); frame changes are posted", async () => {
+test("hello is answered with enter (step, steps, mode, slide); step changes are posted with the build's duration", async () => {
   const { c, win, send } = await compDeck();
   send({ type: "hello" });
-  expect(win.posted.at(-1)).toEqual({ strata: 1, type: "enter", frame: 0, frames: 2, mode: "build", slide: { id: "a", title: "Alpha" } });
+  expect(win.posted.at(-1)).toEqual({ strata: 1, type: "enter", step: 0, steps: 2, mode: "build", slide: { id: "a", title: "Alpha" } });
   c.componentDidUpdate();                                  // React runs an update after the load; the stub harness doesn't
-  c.setState({ nodes: { ...c.state.nodes, a: { ...c.state.nodes.a, ftrans: { f1: { c1: { move: { dur: 900, delay: 100 }, fade: { dur: 300 } } } } } } });
-  c.setState({ fi: 1 }); c.componentDidUpdate();
-  expect(win.posted.at(-1)).toEqual({ strata: 1, type: "frame", frame: 1, frames: 2, from: 0, duration: 1000 });
+  c.setState({ mode: "present" }); key(c, "ArrowRight"); c.componentDidUpdate();
+  expect(win.posted.at(-1)).toEqual({ strata: 1, type: "step", n: 1, steps: 2, duration: 500 });
+  c.setNode("a", { build: { dur: 900 } }); key(c, "ArrowRight"); c.componentDidUpdate();
+  expect(win.posted.at(-1)).toEqual({ strata: 1, type: "step", n: 2, steps: 2, duration: 900 });
 });
 
 test("messages from anything but a main-stage component iframe are ignored", async () => {
@@ -511,25 +511,25 @@ test("Present: a claiming component gets → as next; done advances, ack doesn't
   send({ type: "ready", steps: true });
   key(c, "ArrowRight");
   expect(win.posted.at(-1)).toEqual({ strata: 1, type: "next" });
-  expect(c.fiFor("a")).toBe(0);
+  expect(c.state.at).toBe(0);
   send({ type: "ack" });
   key(c, "ArrowRight");                                   // acknowledged → forwarded again
   expect(win.posted.filter((m: any) => m.type === "next").length).toBe(2);
-  send({ type: "done" });                                 // component finished → deck moves (next frame)
-  expect(c.fiFor("a")).toBe(1);
+  send({ type: "done" });                                 // component finished → deck moves (next step)
+  expect(c.state.at).toBe(1);
   key(c, "ArrowRight");                                   // forwarded, never acknowledged…
   key(c, "ArrowRight");                                   // …so this one bypasses the component
-  expect(c.state.cur).toBe("b");
+  expect(c.state.at).toBe(2);
 });
 
 test("Present: ← and Shift+Space go to the component as prev; back moves the deck back", async () => {
   const { c, win, send } = await compDeck();
-  c.setState({ mode: "present", fi: 1 });
+  c.setState({ mode: "present", at: 1 });
   send({ type: "ready", steps: true });
   key(c, " ", { shiftKey: true });
   expect(win.posted.at(-1)).toEqual({ strata: 1, type: "prev" });
   send({ type: "back" });
-  expect(c.fiFor("a")).toBe(0);
+  expect(c.state.at).toBe(0);
 });
 
 test("keys are never routed in build mode, and claims end when the slide changes", async () => {
@@ -549,10 +549,10 @@ test("component-initiated navigation: done without a pending key, jumpTo by id o
   c.setState({ cur: "a" });
   send({ type: "jumpTo", slug: "b" });
   expect(c.state.cur).toBe("b");
-  c.setState({ cur: "a", fi: 0 });
+  c.setState({ cur: "a", at: 0 });
   send({ type: "done" });
-  expect(c.fiFor("a")).toBe(1);
-  send({ type: "nav", dir: "right" });
+  expect(c.state.at).toBe(1);
+  send({ type: "nav", dir: "right" }); send({ type: "nav", dir: "right" });   // the last step, then the next slide
   expect(c.state.cur).toBe("b");
   send({ type: "jumpTo", slug: "nowhere" });
   expect(c.state.note).toContain('"nowhere"');
@@ -592,14 +592,87 @@ test("the layers list and template know about components", async () => {
     expect(html).toContain(s);
 });
 
-// ---- component review fixes ----
-test("Apply and Name write to every frame of the slide, so stepping frames never reloads with old code", async () => {
-  const { c } = await compDeck();
-  c.setState({ layerSel: "c1" });
-  const v = c.renderVals(); v.onCompCode({ target: { value: "<p>new</p>" } }); c.renderVals().onCompApply(); c.renderVals().onCompName({ target: { value: "Clock" } });
-  expect(c.framesOf("a").map((f: any) => [f.layers[0].code, f.layers[0].name])).toEqual([["<p>new</p>", "Clock"], ["<p>new</p>", "Clock"]]);
+// ---- steps: one layer set per slide, revealed by build step ----
+const STEPPED = { version: 2, deck: {}, slides: { intro: { layers: [{ id: "md-title", type: "text", block: "title", x: 6, y: 6, w: 88, h: 14 },
+  { id: "md-body-1", type: "text", block: "body", x: 6, y: 30, w: 88, h: 20 }, { id: "x1", type: "shape", x: 0, y: 0, w: 5, h: 5 }],
+  steps: { "md-body-1": 1, x1: 3 }, trans: { 1: "rise", 3: "pop" } } } };
+
+test("a v2 layout's steps load; in Present → walks the steps, then the slides; ← lands on the last step, ↓/↑/jump on 0", async () => {
+  await writeMd("talk", TALK, STEPPED);
+  const { c } = await mount("?deck=talk");
+  expect(c.state.nodes.intro).toMatchObject({ custom: true, steps: { "md-body-1": 1, x1: 3 }, trans: { 1: "rise", 3: "pop" } });
+  expect(layerOf(c, "intro", "x1")).toBeDefined(); expect(c.stepsOf("intro")).toEqual([1, 3]);
+  c.setState({ mode: "present", cur: "intro", at: 0 });
+  const body = () => c.renderVals().stageLayers.find((l: any) => l.id === "md-body-1");
+  expect(body().build).toMatchObject({ opacity: 0, transform: "translateY(3cqw)" });       // rise, not yet revealed
+  key(c, "ArrowRight"); expect(c.state.at).toBe(1); expect(body().build).toMatchObject({ opacity: 1, transform: "none" });
+  key(c, "ArrowRight"); expect(c.state.at).toBe(3); expect(c.state.cur).toBe("intro");
+  key(c, "ArrowRight"); expect(c.state.cur).toBe("next"); expect(c.state.at).toBe(0);
+  key(c, "ArrowLeft"); expect(c.state.cur).toBe("intro"); expect(c.state.at).toBe(3);
+  key(c, "ArrowDown"); expect(c.state.cur).toBe("detail"); expect(c.state.at).toBe(0);
+  c.setState({ at: 1, cur: "intro" }); key(c, "ArrowDown"); key(c, "ArrowUp"); expect([c.state.cur, c.state.at]).toEqual(["intro", 0]);
+  c.setState({ at: 3 }); c.nav("next", "jump"); c.nav("intro", "jump"); expect(c.state.at).toBe(0);
+  c.setState({ mode: "build" }); expect(body().build).toBeUndefined();                     // the editor shows every layer
+  c.setState({ preview: true }); expect(body().build).toMatchObject({ opacity: 0 });       // unless a preview is playing
 });
 
+test("steps with gaps walk 1 → 3 → 7; stepBuild is false at either end", async () => {
+  await writeMd("talk", "# A\nslug: a\n\n- one\n- two\n- three\n");
+  const { c } = await mount("?deck=talk");
+  c.setNode("a", { steps: { "md-list-1-1": 1, "md-list-1-2": 3, "md-list-1-3": 7 } }); c.setState({ cur: "a", at: 0 });
+  expect(c.stepBuild(-1)).toBe(false);
+  const seen = []; while (c.stepBuild(1)) seen.push(c.state.at);
+  expect(seen).toEqual([1, 3, 7]); expect(c.stepBuild(1)).toBe(false);
+  expect(c.stepBuild(-1)).toBe(true); expect(c.state.at).toBe(3);
+  c.goStep(0); expect(c.state.at).toBe(0);
+  expect(c.buildOf("a")).toEqual({ dur: 500, ease: "cubic-bezier(0.2, 0.7, 0.2, 1)", earlier: "dim", replace: true });
+  c.setNode("a", { build: { dur: 250 } }); expect(c.buildOf("a").dur).toBe(250);
+});
+
+test("removing a bullet drops its step; the current step clamps to the highest remaining one", async () => {
+  await writeMd("talk", "# A\nslug: a\n\n- one\n- two\n- three\n");
+  const { c } = await mount("?deck=talk");
+  c.setNode("a", { steps: { "md-list-1-1": 1, "md-list-1-2": 2, "md-list-1-3": 3 } }); c.setState({ cur: "a", at: 3 });
+  c.setMd("# A\nslug: a\n\n- one\n- two\n"); c.reenrich();
+  expect(c.state.nodes.a.steps).toEqual({ "md-list-1-1": 1, "md-list-1-2": 2 }); expect(c.state.at).toBe(2);
+  expect(c.state.nodes.a.custom).toBeUndefined();                                          // steps alone don't make a slide custom
+});
+
+test("a v1 (frames) layout file is ignored: default layers, with a note", async () => {
+  await writeMd("talk", TALK, { version: 1, deck: { bg: "space" }, slides: { intro: { custom: true, frames: [{ id: "f1", layers: [{ id: "md-title", type: "text", block: "title", x: 1, y: 2, w: 50, h: 10 }] }] } } });
+  const { c } = await mount("?deck=talk");
+  expect(c.state.note).toBe("Old layout file ignored"); expect(c.state.bg).toBe("balloons");
+  expect(layerOf(c, "intro", "md-title").x).not.toBe(1); expect(c.state.nodes.intro.frames).toBeUndefined();
+});
+
+test("saving writes a version 2 file: no frames, ftrans or tdef; a slide's steps are kept without a layer override", async () => {
+  await writeMd("talk", TALK, STEPPED);
+  const { c } = await mount("?deck=talk");
+  c.setNode("next", { steps: { "md-title": 1 }, trans: { 1: "fade" } }); await c.save();
+  const d = await onDisk(), txt = JSON.stringify(d);
+  expect(d.version).toBe(2); for (const k of ['"frames"', '"ftrans"', '"tdef"']) expect(txt).not.toContain(k);
+  expect(d.slides.intro).toMatchObject({ steps: { "md-body-1": 1, x1: 3 }, trans: { 1: "rise", 3: "pop" } }); expect(d.slides.intro.layers.length).toBe(3);
+  expect(d.slides.next).toEqual({ steps: { "md-title": 1 }, trans: { 1: "fade" } });
+  const { c: c2 } = await mount("?deck=talk"); expect(c2.state.nodes.next).toMatchObject({ steps: { "md-title": 1 } }); expect(c2.state.nodes.next.custom).toBeUndefined();
+});
+
+test("undo restores steps and trans edits", async () => {
+  await writeMd("talk", TALK); const { c } = await mount("?deck=talk"); await Bun.sleep(150);
+  c.setNode("intro", { steps: { "md-body-1": 1 }, trans: { 1: "rise" } }); c.componentDidUpdate();
+  c.undo(); c.componentDidUpdate(); expect(c.state.nodes.intro.steps).toBeUndefined(); expect(c.state.nodes.intro.trans).toBeUndefined();
+  c.redo(); c.componentDidUpdate(); expect(c.state.nodes.intro).toMatchObject({ steps: { "md-body-1": 1 }, trans: { 1: "rise" } });
+});
+
+test("Present draws step dots when the slide has steps and showSteps is on", async () => {
+  await writeMd("talk", TALK, STEPPED);
+  const { c } = await mount("?deck=talk"); c.setState({ cur: "intro", mode: "present" });
+  expect(c.renderVals().showStepDots).toBe(false);
+  c.setNode("intro", { showSteps: true }); const v = c.renderVals();
+  expect(v.showStepDots).toBe(true); expect(v.stepDots.length).toBe(3);
+  v.stepDots[2].onClick(); expect(c.state.at).toBe(3);
+});
+
+// ---- component review fixes ----
 test("a claim made before hello survives it (the helper replays ready)", async () => {
   const { c, win, send } = await compDeck();
   c.setState({ mode: "present" });
@@ -612,14 +685,14 @@ test("keys pressed inside a component reach the deck in Present", async () => {
   const { c, send } = await compDeck();
   c.setState({ mode: "present" });
   send({ type: "key", key: "ArrowRight", shiftKey: false });
-  expect(c.fiFor("a")).toBe(1);
+  expect(c.state.at).toBe(1);
 });
 
 test("while editing, a component can't navigate unless Interact is on for it", async () => {
   const { c, send } = await compDeck();
   send({ type: "done" });
   expect(c.state.cur).toBe("a");
-  expect(c.fiFor("a")).toBe(0);
+  expect(c.state.at).toBe(0);
   expect(c.state.note).toContain("Interact");
   c.setState({ interact: "c1", layerSel: "c1" });
   send({ type: "jumpTo", slug: "b" });
@@ -628,7 +701,7 @@ test("while editing, a component can't navigate unless Interact is on for it", a
 
 test("a hidden component can't claim the keys", async () => {
   const { c, send } = await compDeck();
-  c.setState({ nodes: { ...c.state.nodes, a: { ...c.state.nodes.a, frames: c.state.nodes.a.frames.map((f: any) => ({ ...f, layers: f.layers.map((l: any) => ({ ...l, hidden: true })) })) } } });
+  c.setState({ nodes: { ...c.state.nodes, a: { ...c.state.nodes.a, layers: c.state.nodes.a.layers.map((l: any) => ({ ...l, hidden: true })) } } });
   send({ type: "ready", steps: true });
   expect(c.claimer()).toBeNull();
 });
@@ -644,7 +717,7 @@ test("a repeated error doesn't re-render; Interact only applies while the compon
   expect(c.renderVals().overlays[0].pe).toBe("auto");
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
   expect(html).toContain('<sc-if value="{{ compDirty }}">');
-  expect((html.match(/cards="true"/g) || []).length).toBe(4);   // tree, layout previews, frame strip, present tree view
+  expect((html.match(/cards="true"/g) || []).length).toBe(3);   // tree, layout previews, present tree view
 });
 
 test("regression: every tree node carries its selection, thumbnail framing and layers", async () => {
@@ -796,14 +869,6 @@ test("Title view controls set zoom/Fit/Cover/pan; the Canvas tab toggles the tit
   expect(c.state.titlePage).toBe(false); expect(c.renderVals().isTitlePage).toBe(false);
 });
 
-test("toggling the title page mid frame-tween clears the tween, so render doesn't read a missing frame", async () => {
-  const c = await titleDeck({});
-  c.setState({ tween: { a: 0 }, transSel: 0, fprev: true });
-  c.setTitlePage(true);
-  expect(c.state.tween).toBeNull(); expect(c.state.fprev).toBe(false);
-  expect(() => c.renderVals()).not.toThrow();
-});
-
 test("the wireframe title rect is clamped to the canvas, so all four dashed edges show at Fit", async () => {
   const c = await titleDeck();
   const f = c.renderVals().titleFrame;
@@ -848,21 +913,6 @@ test("Even steps (default): every sibling move is one step, whatever the subtree
   expect(html).toContain("{{ spacingBtns }}");
 });
 
-test("Slide tab: Layout / Frames / Layers tabs, with transition defaults inside Frames", async () => {
-  await deckTalk(); const { c } = await mount("?deck=talk");
-  let v = c.renderVals();
-  expect(v.stabBtns.map((b: any) => b.label)).toEqual(["Layout", "Frames", "Layers"]);
-  expect([v.stabLayout, v.stabFrames, v.stabLayers]).toEqual([false, false, true]);          // Layers by default
-  c.renderVals().stabBtns[1].onClick(); v = c.renderVals(); expect(v.stabFrames).toBe(true); expect(v.layerPane).toBe(false);
-  c.setState({ transSel: 0 }); c.renderVals().stabBtns[2].onClick();
-  expect(c.state.transSel).toBeNull(); expect(c.renderVals().stabLayers).toBe(true);           // leaving Frames closes the transition view
-  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
-  for (const gone of ["onExportMd", "onInsertToggle", "onCopyDeck", "onSplitLines"]) expect(html).not.toContain(gone);   // export, include/copy deck and split lines are gone
-  const frames = html.slice(html.indexOf('<sc-if value="{{ stabFrames }}">'), html.indexOf('<sc-if value="{{ stabLayers }}">'));
-  expect(frames).toContain("Transition defaults"); expect(frames).toContain("{{ isTransView }}");
-  expect(html).not.toContain("sec.insert.toggle");
-});
-
 test("row step: 100% stacks rows edge to edge and fills the canvas; below 100% overlaps", async () => {
   const tree = { ROOT: slideNode("ROOT", "", ["a"]), a: slideNode("a", "A", ["a1"]), a1: slideNode("a1", "A1", ["a2"]), a2: slideNode("a2", "A2") };
   await writeDeck("talk", tree, { rowGap: 0 });
@@ -880,7 +930,7 @@ test("row step: 100% stacks rows edge to edge and fills the canvas; below 100% o
 // ---- text styles ----
 const TL = (id: string, extra: object = {}) => ({ id, type: "text", text: id, x: 5, y: 5, w: 50, h: 20, ...extra });
 const styledDeck = async (extra: object = {}, layers: any[] = [TL("a", { style: "h1" }), TL("b", { style: "h1", size: 50 }), TL("c", { size: 20 })]) => {
-  await writeDeck("talk", { ROOT: slideNode("ROOT", "", ["s"]), s: slideNode("s", "S", [], { frames: [{ id: "f0", layers }] }) }, extra);
+  await writeDeck("talk", { ROOT: slideNode("ROOT", "", ["s"]), s: slideNode("s", "S", [], { layers }) }, extra);
   return (await mount("?deck=talk")).c;
 };
 
@@ -905,13 +955,6 @@ test("styles save only what differs from the built-ins, and round-trip", async (
   await c.save(); expect((await onDisk()).deck.styles).toBeUndefined();
   c.setState({ styles: { h2: { size: 48 } } }); await c.save();
   expect((await onDisk()).deck.styles).toEqual({ h2: { size: 48 } });
-});
-
-test("a size change that comes from different styles in two frames is detected and tweened", async () => {
-  const c = await styledDeck({}, []);
-  c.setNode("s", { frames: [{ id: "f0", layers: [TL("a", { style: "h1" })] }, { id: "f1", layers: [TL("a", { style: "body" })] }] });
-  c.setState({ transSel: 0, stab: "frames" });
-  expect(JSON.stringify(c.renderVals().transRows)).toContain("size");
 });
 
 test("choosing a style clears overrides; Custom writes the resolved values back; each is one undo step", async () => {
@@ -1120,7 +1163,7 @@ test("inline links: parsed into runs, broken targets flagged, followed in presen
   const { parseRich } = await rich();
   expect(parseRich("see [the costs]{link=costs} or [r]{href=https://e.x/r?a=b}")).toEqual([{ text: "see " }, { text: "the costs", link: "costs" }, { text: " or " }, { text: "r", href: "https://e.x/r?a=b" }]);
   expect(parseRich("[x]{href=javascript:alert(1)}")).toEqual([{ text: "x" }]);              // only http(s)/mailto
-  await writeDeck("talk", { ROOT: slideNode("ROOT", "", ["s", "costs"]), s: slideNode("s", "S", [], { frames: [{ id: "f", layers: [TL("a", { text: "go [here]{link=costs} or [there]{link=gone}" })] }] }), costs: slideNode("costs", "Costs") });
+  await writeDeck("talk", { ROOT: slideNode("ROOT", "", ["s", "costs"]), s: slideNode("s", "S", [], { layers: [TL("a", { text: "go [here]{link=costs} or [there]{link=gone}" })] }), costs: slideNode("costs", "Costs") });
   const { c } = await mount("?deck=talk");
   const runs = c.resolveLayer(c.layersOf("s")[0], "s")._lines[0];
   expect(runs[1]).toMatchObject({ text: "here", link: "costs" }); expect(runs[1].broken).toBeUndefined();
@@ -1254,7 +1297,7 @@ test("rich editing: the editor fills in, Enter goes through the model, bar actio
 });
 
 test("link popover: shown with the cursor in a link run; Remove clears the whole link; ⌘K opens the chooser for a selection", async () => {
-  await writeDeck("talk", { ROOT: slideNode("ROOT", "", ["s", "costs"]), s: slideNode("s", "S", [], { frames: [{ id: "f", layers: [TL("a", { text: "see [the costs]{link=costs} now" })] }] }), costs: slideNode("costs", "Costs") });
+  await writeDeck("talk", { ROOT: slideNode("ROOT", "", ["s", "costs"]), s: slideNode("s", "S", [], { layers: [TL("a", { text: "see [the costs]{link=costs} now" })] }), costs: slideNode("costs", "Costs") });
   const { c } = await mount("?deck=talk");
   c.setState({ cur: "s", editing: "a", layerSel: "a", wysSel: { start: 6, end: 6 } }); let v = c.renderVals();
   expect(v.linkPopShow).toBe(true); expect(v.linkPopLabel).toBe("→ Costs");
@@ -1268,7 +1311,7 @@ test("link popover: shown with the cursor in a link run; Remove clears the whole
 });
 
 test("rich editor: ⌘Z undoes model edits and keeps editing; clicking back from the bar keeps editing; popover web address and position", async () => {
-  await writeDeck("talk", { ROOT: slideNode("ROOT", "", ["s", "costs"]), s: slideNode("s", "S", [], { frames: [{ id: "f", layers: [TL("a", { text: "see [the costs]{link=costs} now", y: 8 })] }] }), costs: slideNode("costs", "Costs") });
+  await writeDeck("talk", { ROOT: slideNode("ROOT", "", ["s", "costs"]), s: slideNode("s", "S", [], { layers: [TL("a", { text: "see [the costs]{link=costs} now", y: 8 })] }), costs: slideNode("costs", "Costs") });
   const { c } = await mount("?deck=talk"); await Bun.sleep(150);
   const w = new Window(); const root = w.document.createElement("div"); w.document.body.appendChild(root); c.wysRef.current = root;
   c.setState({ cur: "s", editing: "a", layerSel: "a" }); c.componentDidUpdate(); await Bun.sleep(500);
@@ -1325,7 +1368,7 @@ const LTX = (id: string, style: string | undefined, x: number, y: number, extra:
 const TWO = (t: string) => `# ${t}\nslug: ${t.toLowerCase()}\n\nOne ${t}.\n\nTwo ${t}.\n\n`;
 const layDeck = async (slides: Record<string, any[]>, extra: object = {}) => {
   const ids = Object.keys(slides);
-  await writeDeck("talk", { ROOT: slideNode("ROOT", "", ids), ...Object.fromEntries(ids.map(k => [k, slideNode(k, k.toUpperCase(), [], { frames: [{ id: "f", layers: slides[k] }] })])) }, extra);
+  await writeDeck("talk", { ROOT: slideNode("ROOT", "", ids), ...Object.fromEntries(ids.map(k => [k, slideNode(k, k.toUpperCase(), [], { layers: slides[k] })])) }, extra);
   return (await mount("?deck=talk")).c;
 };
 
@@ -1346,7 +1389,7 @@ test("shapes count blocks (a list once); layouts match exactly; slots fill by ke
 
 test("templates: one layer per bullet, stacked inside the list region", async () => {
   const { enrich } = (await mount("")).c.constructor.md, { sigOf, sigKey } = await lay(), MDp = await import("./markdown");
-  const n = enrich(MDp.parseMarkdown("# T\n- a\n- b\n- c\n").sections, []).nodes.t, ls = n.frames[0].layers, items = ["md-list-1-1", "md-list-1-2", "md-list-1-3"].map(id => ls.find((l: any) => l.id === id));
+  const n = enrich(MDp.parseMarkdown("# T\n- a\n- b\n- c\n").sections, []).nodes.t, ls = n.layers, items = ["md-list-1-1", "md-list-1-2", "md-list-1-3"].map(id => ls.find((l: any) => l.id === id));
   expect(items.map((l: any) => [l.text, l.block, l.list, l.item, l.kind, l.bullets])).toEqual([["a", "list", 1, 1, "item", "disc"], ["b", "list", 1, 2, "item", "disc"], ["c", "list", 1, 3, "item", "disc"]]);
   expect(sigKey(sigOf(ls))).toBe("list:1,title:1"); expect(n.layout).toBe("list");
   const h = (66 - 4) / 3;
@@ -1357,35 +1400,35 @@ test("templates: one layer per bullet, stacked inside the list region", async ()
 test("templates: list + detail pairs bodies with bullets (t-split); a mismatch warns; section numbers", async () => {
   const { enrich } = (await mount("")).c.constructor.md, { BUILTIN_LAYOUTS, fitsTemplate } = await lay(), MDp = await import("./markdown");
   const run = (md: string, layouts: any[] = []) => enrich(MDp.parseMarkdown(md).sections, layouts).nodes;
-  const at = (n: any, id: string) => n.frames[0].layers.find((l: any) => l.id === id);
+  const at = (n: any, id: string) => n.layers.find((l: any) => l.id === id);
   const s = run("# T\n- a\n- b\n\nA.\n\nB.\n").t;
-  expect(s.layout).toBe("t-split"); expect(fitsTemplate(s.frames[0].layers, BUILTIN_LAYOUTS["t-split"])).toBe(true);
+  expect(s.layout).toBe("t-split"); expect(fitsTemplate(s.layers, BUILTIN_LAYOUTS["t-split"])).toBe(true);
   const d1 = at(s, "md-body-1"), d2 = at(s, "md-body-2");
   expect(d1.kind).toBe("detail"); expect(d2.kind).toBe("detail");
   expect([d2.x, d2.y, d2.w, d2.h]).toEqual([d1.x, d1.y, d1.w, d1.h]); expect(d1).toMatchObject(BUILTIN_LAYOUTS["t-split"].slots.body[0]);
   const w = run("# T\n- a\n- b\n- c\n\nA.\n\nB.\n").t;
-  expect(w.layout).toBeUndefined(); expect(fitsTemplate(w.frames[0].layers, BUILTIN_LAYOUTS["t-split"])).toBe(false);
-  for (const l of w.frames[0].layers) expect(!!l._warn).toBe(l.id !== "md-title");
+  expect(w.layout).toBeUndefined(); expect(fitsTemplate(w.layers, BUILTIN_LAYOUTS["t-split"])).toBe(false);
+  for (const l of w.layers) expect(!!l._warn).toBe(l.id !== "md-title");
   const sec = run("# A\n# B\n", [{ deck: { layoutDefaults: { "title:1": "t-section" } } }]);
   expect(sec.b.layout).toBe("t-section"); expect(at(sec.b, "gen-number")).toMatchObject({ text: "02", color: "impact" }); expect(at(sec.a, "gen-number").text).toBe("01");
-  expect(run("# A\n").a.frames[0].layers.some((l: any) => l.id === "gen-number")).toBe(false);   // the plain title layout has no number
+  expect(run("# A\n").a.layers.some((l: any) => l.id === "gen-number")).toBe(false);   // the plain title layout has no number
   expect(BUILTIN_LAYOUTS["t-statement"].match).toEqual({ title: 1, body: 2 });
   expect(Object.keys(BUILTIN_LAYOUTS).filter(k => k.startsWith("t-"))).toEqual(["t-title", "t-title-sub", "t-bar", "t-split", "t-two", "t-cards", "t-section", "t-statement", "t-shapes"]);
 });
 
-test("effective layout: the slide's own if it still matches, else the deck default, else the first match; multi-frame counts as custom", async () => {
-  await writeMd("talk", TWO("A") + "# Z\nslug: z\n", { version: 1, deck: { layoutDefaults: { "body:2,title:1": "cols-2" } }, slides: {} });
+test("effective layout: the slide's own if it still matches, else the deck default, else the first match", async () => {
+  await writeMd("talk", TWO("A") + "# Z\nslug: z\n", { version: 2, deck: { layoutDefaults: { "body:2,title:1": "cols-2" } }, slides: {} });
   const { c } = await mount("?deck=talk");
   expect(c.effectiveLayout("a").id).toBe("cols-2"); expect(layerOf(c, "a", "md-body-2")).toMatchObject({ x: 52, y: 24 });   // laid out by it on load
   c.setNode("a", { layout: "stacked-2" }); expect(c.effectiveLayout("a").id).toBe("stacked-2");
   c.setNode("a", { layout: "title" }); expect(c.effectiveLayout("a").id).toBe("cols-2");     // no longer matches → default
   c.setState({ layoutDefaults: {} }); expect(c.effectiveLayout("a").id).toBe("stacked-2");   // first match
   expect(c.effectiveLayout("z").id).toBe("title"); expect(c.effectiveLayout("ROOT")).toBeNull();
-  expect(c.isCustom("a")).toBe(false); c.setNode("a", { frames: [{ id: "f", layers: [] }, { id: "g", layers: [] }] }); expect(c.isCustom("a")).toBe(true);
+  expect(c.isCustom("a")).toBe(false); c.setNode("a", { custom: true }); expect(c.isCustom("a")).toBe(true);
   expect(c.layouts()["cols-2"]).toMatchObject({ id: "cols-2", name: "Two columns" });
 });
 
-test("a hand edit to a slide's frames makes it an override (same undo step); layout and enrich commits, undo and title edits don't", async () => {
+test("a hand edit to a slide's layers makes it an override (same undo step); layout and enrich commits, undo and title edits don't", async () => {
   await writeMd("talk", TWO("A")); const { c } = await mount("?deck=talk"); await Bun.sleep(150);
   c.setState({ cur: "a" });
   c.setNode("a", { title: "Renamed" }); c.componentDidUpdate(); expect(c.state.nodes.a.custom).toBeUndefined();
@@ -1396,7 +1439,7 @@ test("a hand edit to a slide's frames makes it an override (same undo step); lay
   await Bun.sleep(500);
   c.addLayer("shape"); c.componentDidUpdate(); expect(c.state.nodes.a.custom).toBe(true);                // an extra is an override
   c.undo(); c.componentDidUpdate(); expect(c.state.nodes.a.custom).toBeUndefined(); expect(c.hasExtras("a")).toBe(false);
-  const nodes = { ...c.state.nodes, a: { ...c.state.nodes.a, frames: [{ id: "f", layers: c.layersOf("a").map((l: any) => l.id === "md-title" ? { ...l, y: 50 } : l) }] } };
+  const nodes = { ...c.state.nodes, a: { ...c.state.nodes.a, layers: c.layersOf("a").map((l: any) => l.id === "md-title" ? { ...l, y: 50 } : l) } };
   c.allowLayout(nodes); c.setState({ nodes }); c.componentDidUpdate(); expect(c.state.nodes.a.custom).toBeUndefined();
   c.setMd(TWO("A") + "More.\n"); c.reenrich(); c.componentDidUpdate(); expect(c.state.nodes.a.custom).toBeUndefined();
 });
@@ -1406,7 +1449,7 @@ test("layout actions: apply, apply to all (default slides only), reset, save as,
   const { c } = await mount("?deck=talk"); await Bun.sleep(150);
   const at = (id: string) => layerOf(c, id, "md-body-2");
   expect(at("b")).toMatchObject({ x: 6, y: 58, w: 88, h: 32 });                                                    // stacked-2: its shape's first match
-  c.setNode("d", { custom: true }); c.setNode("m", { frames: [{ id: "f", layers: c.layersOf("m") }, { id: "g", layers: c.layersOf("m") }] }); c.componentDidUpdate(); await Bun.sleep(500);
+  c.setNode("d", { custom: true }); c.setNode("m", { custom: true }); c.componentDidUpdate(); await Bun.sleep(500);
   c.applyLayout("a", "cols-2"); c.componentDidUpdate();
   expect(at("a")).toMatchObject({ x: 52, y: 24, w: 42, h: 66 }); expect(c.state.nodes.a).toMatchObject({ layout: "cols-2", custom: true });   // not its shape's layout: an override
   c.setState({ cur: "x" }); c.addLayer("shape"); c.componentDidUpdate(); c.applyLayout("x", "stacked-2"); expect(c.state.nodes.x.custom).toBe(true);   // extras keep it an override
@@ -1431,7 +1474,7 @@ test("layout actions: apply, apply to all (default slides only), reset, save as,
 });
 
 test("Layout panel: shape chips, status, matching tiles with default star, counts and jump lists, actions, all layouts", async () => {
-  await writeMd("talk", TWO("A") + TWO("B"), { version: 1, deck: { layoutDefaults: { "body:2,title:1": "cols-2" } }, slides: {} });
+  await writeMd("talk", TWO("A") + TWO("B"), { version: 2, deck: { layoutDefaults: { "body:2,title:1": "cols-2" } }, slides: {} });
   const { c } = await mount("?deck=talk");
   c.setState({ cur: "a", stab: "layout" }); let v = c.renderVals();
   expect(v.layChips).toEqual(["Body ×2", "Title ×1"]); expect(v.layStatus).toBe("Default · Two columns");
@@ -1446,13 +1489,11 @@ test("Layout panel: shape chips, status, matching tiles with default star, count
   for (const h of ["{{ layTiles }}", "{{ layStatus }}", "{{ onLaySave }}", "{{ onLayUpdate }}", "{{ layAll }}"]) expect(html).toContain(h);
 });
 
-test("layouts: multi-frame slides show status only; the full-bleed slot goes to the back", async () => {
+test("layouts: the full-bleed slot goes to the back", async () => {
   await writeMd("talk", "# A\nslug: a\n\n![pic](p.png)\n"); const { c } = await mount("?deck=talk"); await Bun.sleep(150);
   expect(c.effectiveLayout("a").id).toBe("image-full");
   expect(c.layersOf("a").map((l: any) => l.id)).toEqual(["md-image-1", "md-title"]);                            // the image doesn't cover the title
   c.applyLayout("a", "image-full"); expect(c.layersOf("a").map((l: any) => l.id)).toEqual(["md-image-1", "md-title"]);
-  c.setNode("a", { frames: [{ id: "f", layers: c.layersOf("a") }, { id: "g", layers: [] }] }); c.setState({ cur: "a" });
-  expect(c.renderVals().layEditable).toBe(false);
   const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text();
   expect(html).toContain('<sc-if value="{{ layEditable }}">'); expect(html).toContain("{{ layNoTiles }}");
 });
@@ -1529,36 +1570,6 @@ test("defaults: 30% row and column steps; H1 centred vertically; Body has a cont
   expect(S.body).toMatchObject({ card: "custom", box: { bg: "#0b1220", bgOpacity: 0.6, blur: 3, border: 0, radius: 12, pad: 12 } });
 });
 
-// ---- sequences ----
-test("add as sequence: start frame hides the items, one frame per item in reading order, each reveal eases out; later frames kept", async () => {
-  const fl = { f0: { x: { move: { ease: "both" } } } };
-  await writeDeck("talk", { ROOT: slideNode("ROOT", "", ["s"]), s: slideNode("s", "S", [], { ftrans: fl, frames: [
-    { id: "f0", layers: [TL("x", { y: 60, opacity: 0.8 }), TL("y1", { y: 10 }), TL("z", { y: 35, x: 20 }), TL("w")] }, { id: "fz", layers: [TL("w", { x: 40 })] }] }) });
-  const c = (await mount("?deck=talk")).c; c.setState({ cur: "s", fi: 0 }); await Bun.sleep(150);   // history starts recording after load
-  expect(c.renderVals().seqOn).toBe(false);
-  c.setSelection(["x", "y1", "z"]); let v = c.renderVals(); expect(v.seqOn).toBe(true);
-  expect(v.seqKinds.map((k: any) => k.l)).toEqual(["Fade in", "Slide up", "Slide from left", "Cascade"]);
-  v.onSeqKind({ target: { value: "cascade" } }); c.renderVals().onAddSequence(); c.componentDidUpdate();
-  const n = c.state.nodes.s, F = n.frames, L = (f: number, id: string) => F[f].layers.find((l: any) => l.id === id);
-  expect(F.length).toBe(5); expect(F[0].id).toBe("f0"); expect(F[4].id).toBe("fz");
-  // start frame: all three hidden; cascade starts each item at the previous one's spot (the first in place)
-  expect([L(0, "y1").opacity, L(0, "z").opacity, L(0, "x").opacity]).toEqual([0, 0, 0]);
-  expect([L(0, "y1").y, L(0, "z").y, L(0, "z").x, L(0, "x").y]).toEqual([10, 10, 5, 35]);
-  expect(L(0, "w").opacity).toBeUndefined();
-  // frame k reveals item k (reading order y1, z, x) at its final place and opacity
-  expect([L(1, "y1").opacity ?? 1, L(1, "z").opacity]).toEqual([1, 0]);
-  expect([L(2, "z").opacity ?? 1, L(2, "z").y, L(2, "z").x, L(2, "x").opacity, L(2, "x").y]).toEqual([1, 35, 20, 0, 35]);
-  expect([L(3, "x").opacity, L(3, "x").y]).toEqual([0.8, 60]);
-  expect(n.ftrans[F[1].id].z).toMatchObject({ move: { ease: "out" }, fade: { ease: "out" } });
-  expect(n.ftrans[F[0].id].y1.fade.ease).toBe("out");
-  expect(n.ftrans[F[3].id]).toEqual(fl.f0);   // the old f0 → fz settings now sit on the last new frame → fz
-  c.undo(); c.componentDidUpdate(); expect(c.state.nodes.s.frames.length).toBe(2);
-  // slide up: start 6% below, in place horizontally
-  c.setSelection(["x", "y1"]); c.renderVals().onSeqKind({ target: { value: "up" } }); c.renderVals().onAddSequence();
-  const G = c.state.nodes.s.frames; expect(G.length).toBe(4); expect(G[0].layers.find((l: any) => l.id === "y1")).toMatchObject({ y: 16, x: 5, opacity: 0 });
-  const html = await Bun.file(join(import.meta.dir, "design/strata.dc.html")).text(); for (const h of ["{{ onAddSequence }}", "{{ seqKinds }}"]) expect(html).toContain(h);
-});
-
 // ---- layouts by markdown block ----
 const BL = (id: string, block: string, extra: object = {}) => ({ id, type: "text", text: id, x: 0, y: 0, w: 10, h: 10, block, ...extra });
 
@@ -1617,7 +1628,7 @@ test("templates: Update layout from a statement slide keeps the slots' impact co
 });
 
 test("templates: generated layers aren't on the stage or in the layers list, and can't be selected, edited, dragged, deleted or duplicated", async () => {
-  await writeMd("talk", "# A\nslug: a\n\n# B\nslug: b\n", { version: 1, deck: { layoutDefaults: { "title:1": "t-section" } }, slides: {} });
+  await writeMd("talk", "# A\nslug: a\n\n# B\nslug: b\n", { version: 2, deck: { layoutDefaults: { "title:1": "t-section" } }, slides: {} });
   const { c } = await mount("?deck=talk"); c.setState({ cur: "b" });
   expect(layerOf(c, "b", "gen-number").text).toBe("02");
   let v = c.renderVals();
@@ -1736,14 +1747,14 @@ test("apply: slide mode makes an override", async () => {
 
 test("warn: badge shown and claim on custom slide clears it", async () => {
   const T = (x: number) => ({ id: "md-title", type: "text", block: "title", x, y: 6, w: 88, h: 14 });
-  await writeMd("talk", "# A\nslug: a\n\nOne.\n\nTwo.\n", { version: 1, deck: {}, slides: { a: { custom: true, frames: [{ id: "f1", layers: [T(6), { id: "md-body-1", type: "text", block: "body", x: 50, y: 30, w: 40, h: 40 }] }] } } });
+  await writeMd("talk", "# A\nslug: a\n\nOne.\n\nTwo.\n", { version: 2, deck: {}, slides: { a: { custom: true, layers: [T(6), { id: "md-body-1", type: "text", block: "body", x: 50, y: 30, w: 40, h: 40 }] } } });
   const { c } = await mount("?deck=talk"); c.setState({ cur: "a" });
   const b2 = layerOf(c, "a", "md-body-2"); let v = c.renderVals();
   expect(v.warnBadges.length).toBe(1); expect(v.warnBadges[0]).toMatchObject({ x: b2.x, y: b2.y, title: WARN });
   c.setState({ mode: "present" }); expect(c.renderVals().warnBadges).toEqual([]); c.setState({ mode: "build" });
   v.warnBadges[0].onClick();
   expect(layerOf(c, "a", "md-body-2")._warn).toBeUndefined(); expect(c.renderVals().warnBadges).toEqual([]);
-  expect(c.constructor.md.layoutOf(c.state.nodes).slides.a.frames[0].layers.map((l: any) => l.id)).toContain("md-body-2");   // the override records it
+  expect(c.constructor.md.layoutOf(c.state.nodes).slides.a.layers.map((l: any) => l.id)).toContain("md-body-2");   // the override records it
 });
 
 test("warn: a hand edit of an unplaced block clears its warning, so the override keeps it", async () => {
@@ -1775,11 +1786,11 @@ test("warn: claim on unmatched shape in Layout mode saves a layout and clears al
 // ---- linked children ----
 const HOST = "# A\nslug: a\n<!-- children: ./team.md -->\n\nHost body.\n\n# B\nslug: b\n<!-- children: ./missing.md -->\n\n# C\nslug: c\n<!-- children: ./page.md -->\n";
 const TEAM = "# Costs\nslug: costs\n\nSee [link:plan][Plan] or [link:a][Home].\n\n# Plan\nslug: plan\n";
-const titleAt = (x: number) => ({ custom: true, frames: [{ id: "f1", layers: [{ id: "md-title", type: "text", block: "title", x, y: 2, w: 50, h: 10 }] }] });
+const titleAt = (x: number) => ({ custom: true, layers: [{ id: "md-title", type: "text", block: "title", x, y: 2, w: 50, h: 10 }] });
 async function linked(team = TEAM, hostLayout: any = null) {
   const hits: Record<string, number> = {};
   const files: Record<string, () => Response> = { "https://h/host.md": () => reply(HOST, "text/markdown"), "https://h/team.md": () => reply(team, "text/markdown"),
-    "https://h/team-layout.json": () => reply(JSON.stringify({ version: 1, deck: {}, slides: { costs: titleAt(20), plan: titleAt(21) } }), "application/json"),
+    "https://h/team-layout.json": () => reply(JSON.stringify({ version: 2, deck: {}, slides: { costs: titleAt(20), plan: titleAt(21) } }), "application/json"),
     "https://h/page.md": () => reply("<!doctype html><p>hi</p>", "text/html") };
   if (hostLayout) files["https://h/host-layout.json"] = () => reply(JSON.stringify(hostLayout), "application/json");
   const { c } = await mount("?src=https://h/host.md", { fetch: u => { if (!u.startsWith("https://")) return undefined; hits[u] = (hits[u] || 0) + 1; return files[u] ? files[u]() : reply("", "text/plain", 404); } });
@@ -1808,9 +1819,9 @@ test("linked: ids namespaced and _from set", async () => {
 });
 
 test("linked: host override beats linked layout file", async () => {
-  const { c } = await linked(TEAM, { version: 1, deck: {}, slides: { "a.costs": titleAt(33) } }); await down(c, "a");
+  const { c } = await linked(TEAM, { version: 2, deck: {}, slides: { "a.costs": titleAt(33) } }); await down(c, "a");
   expect(layerOf(c, "a.costs", "md-title").x).toBe(33);
-  expect(c.constructor.md.layoutOf(c.state.nodes, c.state, c._linkedOv).slides["a.costs"].frames[0].layers[0].x).toBe(33);   // saving keeps it
+  expect(c.constructor.md.layoutOf(c.state.nodes, c.state, c._linkedOv).slides["a.costs"].layers[0].x).toBe(33);   // saving keeps it
 });
 
 test("linked: loop shows error slide", async () => {
@@ -1984,10 +1995,10 @@ test("example: the Strata tour loads from the dev server; going down chains thre
 
 test("opening local files: a .md with its layout becomes the scratch deck; a lone layout file restyles it", async () => {
   const { c, listeners, store } = await mount("");
-  await c.openFiles([new File([TALK], "talk.md"), new File([JSON.stringify({ deck: { bg: "space" } })], "talk-layout.json")]);
+  await c.openFiles([new File([TALK], "talk.md"), new File([JSON.stringify({ version: 2, deck: { bg: "space" } })], "talk-layout.json")]);
   expect(c.state.nodes.ROOT.children).toEqual(["intro", "next"]); expect(c.state.bg).toBe("space");
   c.componentDidUpdate(); expect(JSON.parse(store["strata-v8"]).md).toBe(TALK);
-  await c.openFiles([new File([JSON.stringify({ deck: { bg: "forest" } })], "other-layout.json")]);
+  await c.openFiles([new File([JSON.stringify({ version: 2, deck: { bg: "forest" } })], "other-layout.json")]);
   expect(c.state.md).toBe(TALK); expect(c.state.bg).toBe("forest");
   await c.openFiles([new File(["x"], "pic.png")]); expect(c.state.note).toMatch(/\.md file/);
   let prevented = false;   // a file dropped anywhere opens too

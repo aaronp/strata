@@ -1,6 +1,6 @@
 import { test, expect } from "bun:test";
 import { join } from "node:path";
-import { sanitizeLayout, safeImageUrl } from "./layout-sanitize";
+import { sanitizeLayout, safeImageUrl, sanitizeUi } from "./layout-sanitize";
 
 const EVIL = "1;background:url(http://t)";
 const hostile = () => JSON.parse(JSON.stringify({
@@ -12,7 +12,7 @@ const hostile = () => JSON.parse(JSON.stringify({
     styles: { evil: { name: "Evil", color: "red;top:0", font: "x;y", size: 40, _x: 1 }, constructor: { size: 1 } },
     layouts: {
       evil: { name: "x".repeat(81), icon: "constructor", match: { title: 1, body: "items", list: "x" }, opts: ["bar", "x;y"],
-        slots: { title: [{ x: "1;top:0", y: 0, w: 10, h: 10 }, { x: 500, y: -90, w: 10, h: 10, color: "red;x" }], body: "nope" }, number: { x: 1, y: 2, w: 3, h: 4, font: "x;y" } },
+        slots: { title: [{ x: "1;top:0", y: 0, w: 10, h: 10 }, { x: 5000, y: -90, w: 10, h: 10, color: "red;x" }], body: "nope" }, number: { x: 1, y: 2, w: 3, h: 4, font: "x;y" } },
       ok: { name: "Fine", icon: "split", match: { title: 1 }, slots: { title: [{ x: 6, y: 6, w: 88, h: 14, rot: 0 }] } },
     },
     layoutDefaults: { "title:1": "ok", "body:1": "a;b", x: "constructor" },
@@ -45,7 +45,7 @@ test("sanitizeLayout: deck numbers, enums, theme and image urls", () => {
 
 test("sanitizeLayout: user templates", () => {
   const { layouts, layoutDefaults } = sanitizeLayout(hostile())!.deck;
-  expect(layouts.evil).toEqual({ match: { title: 1, body: "items" }, opts: ["bar"], slots: { title: [{ x: 150, y: -50, w: 10, h: 10 }] }, number: { x: 1, y: 2, w: 3, h: 4 } });
+  expect(layouts.evil).toEqual({ match: { title: 1, body: "items" }, opts: ["bar"], slots: { title: [{ x: 1000, y: -90, w: 10, h: 10 }] }, number: { x: 1, y: 2, w: 3, h: 4 } });
   expect(layouts.ok).toEqual({ name: "Fine", icon: "split", match: { title: 1 }, slots: { title: [{ x: 6, y: 6, w: 88, h: 14, rot: 0 }] } });
   expect(layoutDefaults).toEqual({ "title:1": "ok" });
 });
@@ -77,8 +77,8 @@ test("sanitizeLayout: __proto__ / constructor / prototype keys are ignored at ev
 });
 
 test("safeImageUrl", () => {
-  for (const u of ["data:image/svg+xml;base64,PHN2Zz4=", "data:image/gif,AA%20", "blob:https://x/1", "http://x/a.png", "img/a.png"]) expect([u, safeImageUrl(u)]).toEqual([u, true]);
-  for (const u of ["data:text/html,x", "data:image/png;charset=x,AA", "https://x/a(1).png", "https://x/a;b", "javascript:x", "img/a'.png", "", 5]) expect([u, safeImageUrl(u)]).toEqual([u, false]);
+  for (const u of ["data:image/avif;base64,AAAA", "data:image/x-icon;base64,AA", "data:image/svg+xml;base64,PHN2Zz4=", "data:image/gif,AA%20", "blob:https://x/1", "http://x/a.png", "img/a.png"]) expect([u, safeImageUrl(u)]).toEqual([u, true]);
+  for (const u of ["data:text/html,x", "data:image/png;charset=x,AA", "https://x/a(1).png", "https://x/a;b", "javascript:x", "img/a'.png", "//evil.org/a.png", "data:image/png,a;b", "", 5]) expect([u, safeImageUrl(u)]).toEqual([u, false]);
 });
 
 test("sanitizeLayout: not an object is null; the example decks come through unchanged", async () => {
@@ -87,4 +87,17 @@ test("sanitizeLayout: not an object is null; the example decks come through unch
     const L = await Bun.file(join(import.meta.dir, f)).json();
     expect([f, sanitizeLayout(L)]).toEqual([f, L]);
   }
+});
+
+test("allow-lists: unknown deck, slide, layer, template and slot keys are dropped (a layer's or a slot's build too)", () => {
+  const B = { transition: "x;top:0", transform: "top:0", clip: "x" };
+  const out = sanitizeLayout({ version: 2, extra: 1, deck: { bogus: "top:0", bg: "x", layouts: { t: { name: "T", bogus: 1, slots: { title: [{ x: 1, y: 2, w: 3, h: 4, build: B, bogus: 1, kind: "detail", size: 20 }] } } } },
+    slides: { s: { bogus: "top:0", frames: [], layers: [{ id: "a", type: "text", build: B, bogus: "top:0", box: { bg: "#fff", evil: "top:0" }, border: { width: 1, style: "dashed", evil: 1 } }] } } })!;
+  expect(out).toEqual({ version: 2, deck: { layouts: { t: { name: "T", slots: { title: [{ x: 1, y: 2, w: 3, h: 4, kind: "detail", size: 20 }] } } } },
+    slides: { s: { layers: [{ id: "a", type: "text", box: { bg: "#fff" }, border: { width: 1, style: "dashed" } }] } } });
+});
+
+test("sanitizeUi keeps only the UI keys the app writes, each of its type", () => {
+  expect(sanitizeUi({ navW: 300, rightW: "1;x", rtab: "theme", view: "x;y", secOpen: { a: true, b: "x" }, presentFit: "max", evil: "top:0" }))
+    .toEqual({ navW: 300, rtab: "theme", secOpen: { a: true }, presentFit: "max" });
 });

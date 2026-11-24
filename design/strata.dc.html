@@ -1336,7 +1336,7 @@ const spanFmt = (fmt, a, lookupStyle, raw) => {
   if (+a.size > 0) f.size = +a.size;
   if (/^[1-9]00$/.test(a.weight || '')) f.weight = +a.weight;
   if (/^(#[0-9a-f]{3,8}|[a-z]+)$/i.test(a.color || '')) f.color = a.color;
-  if (a.font && FONT_CSS[a.font]) f.font = a.font;
+  if (a.font && Object.hasOwn(FONT_CSS, a.font)) f.font = a.font;
   if (/^[A-Za-z0-9._!-]+$/.test(a.link || '')) f.link = a.link;            // a slide id (linked-in ids are dotted)
   if (/^https?:\/\/\S+$/i.test(a.href || '')) f.href = a.href;  // web links only; anything else is plain text
   return f;
@@ -1555,8 +1555,7 @@ const TW = 76, COLW = 96, ROWH = 92, TPX = 28, TPY = 18;   // TPX leaves room fo
 const FONT_LIST = [['head', 'Theme heading', TH.fontFor('head', TH.FONTS[0])], ['body', 'Theme body', TH.fontFor('body', TH.FONTS[0])], ['grot', 'Grotesk', "'Bricolage Grotesque',sans-serif"], ['serif', 'Serif', "'DM Serif Display',serif"], ['news', 'Book', "'Newsreader',serif"], ['mono', 'Mono', "'JetBrains Mono',monospace"], ['hand', 'Hand', "'Caveat',cursive"]];
 const FONT_CSS = Object.fromEntries(FONT_LIST.map(f => [f[0], f[2]]));
 // Trust boundary: layout files are cleaned on load (StrataSanitize.sanitizeLayout); safeLayer guards every layer drawn, as defence in depth.
-const { safeCol, safeFont, finite, numsOnly, safeLayer, sanitizeLayout, TPL_ICONS } = window.StrataSanitize;
-const cssUrl = u => typeof u === 'string' && !!u && !/["\\\s]/.test(u) && !/;(?!base64,)/.test(u);   // safe inside url("…") in a style string (split on ';')
+const { safeCol, safeFont, finite, numsOnly, safeLayer, sanitizeLayout, sanitizeUi, cssUrl, TPL_ICONS } = window.StrataSanitize;
 const ICONS = {
   arrow: 'M5 12h14M13 6l6 6-6 6', check: 'M5 12.5l4.5 4.5L19 7.5', star: 'M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z',
   heart: 'M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z', info: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 11v6M12 7.5v.5',
@@ -1623,7 +1622,7 @@ class Component extends DCLogic {
   treeRef = React.createRef(); mdRef = React.createRef(); titleRef = React.createRef(); searchRef = React.createRef(); stageRef = React.createRef(); editRef = React.createRef(); wysRef = React.createRef(); imgInputRef = React.createRef(); openInputRef = React.createRef();
 
   componentDidMount() {
-    if (!STATIC) try { const ui = JSON.parse(localStorage.getItem(UIKEY) || 'null'); if (ui) this.setState({ ...ui, rtab: ['content', 'theme', 'slides', 'builds'].includes(ui.rtab) ? ui.rtab : 'content' }); } catch (e) {}
+    if (!STATIC) try { const ui = JSON.parse(localStorage.getItem(UIKEY) || 'null'); const u = sanitizeUi(ui); if (u) this.setState(u); } catch (e) {}   // only the keys the app writes, each of its type
     if (SRC) this.loadDeck();
     else if (SRC_ARG) this.setState({ saveMsg: "Can't load " + SRC_ARG + ': must be https:' });
     else try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && typeof s.md === 'string') this.adopt(s.md, s.layout); } catch (e) {}   // scratch deck
@@ -1812,7 +1811,7 @@ class Component extends DCLogic {
       if (lr && lr.ok) try { L = JSON.parse(await lr.text()); } catch (e) { this.flash('Layout file ignored: ' + e.message, 8000); }
       let dr = null; if (!DECK && this.state.mode !== 'present') try { dr = JSON.parse(localStorage.getItem(DRAFT_KEY(SRC)) || 'null'); } catch (e) {}   // present always shows the remote file
       this.adopt(md, L, () => { const S = this.state;   // compare with the remote deck as the app would write it, not the raw layout file
-        this._draft = dr && typeof dr.md === 'string' && (dr.md !== md || JSON.stringify(dr.layout) !== JSON.stringify(layoutOf(S.nodes, S, this._linkedOv))) ? dr : null;
+        this._draft = dr && typeof dr.md === 'string' && (dr.md !== md || JSON.stringify(sanitizeLayout(dr.layout)) !== JSON.stringify(sanitizeLayout(layoutOf(S.nodes, S, this._linkedOv)))) ? dr : null;
         this.setState({ draftPrompt: !!this._draft }); if (SLIDE) this.openAt(SLIDE); });
     } catch (e) { this.setState({ saveMsg: (DECK ? 'Could not load deck "' + DECK + '": ' : "Can't load " + SRC + ': ') + e.message }); }
   }
@@ -2723,7 +2722,7 @@ class Component extends DCLogic {
     const ordering = !!S.ordering && !isPresent, dets = this.layersOf(cur).filter(l => l.kind === 'detail'), peek = dets.some(l => l.id === S.peek) ? S.peek : (dets[0] || {}).id;
     const staged = (id, at) => { const ls = this.shown(id, this.layersOf(id));
       if (ordering && id === cur) return ls.map(l => l.kind === 'detail' && l.id !== peek ? { ...l, build: { opacity: 0, transform: 'none', clip: 'inset(0 0 0 0)', transition: 'none' } } : l);   // ordering: stacked detail panels show one at a time
-      if (!isPresent && !S.preview) return ls;
+      if (!isPresent && !S.preview) return ls.map(({ build: _b, ...l }) => l);   // editing: no build styles (only Present and preview compute them)
       const n = N[id], b = this.buildOf(id); return ls.map(l => ({ ...l, build: BUILDS.buildStyle(l, at, n.steps || {}, ls, n.trans || {}, b) })); };
     // layer editing
     const editable = !isPresent && !isWire && !active && !curN._from;

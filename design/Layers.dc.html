@@ -65,6 +65,8 @@ const ICONS = {
   users: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21a7 7 0 0 1 14 0M17 11a3 3 0 1 0 0-6M22 21a6 6 0 0 0-4-5.7', key: 'M8 15a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM11.5 11H21M18 11v3M21 11v2',
 };
 const MARKS = { disc: '•', dash: '–', check: '✓', arrow: '→' };
+// The shared url guard (layout-sanitize.ts, loaded by the app as window.StrataSanitize). Without it no image url is trusted.
+const cssUrl = (typeof window !== 'undefined' && window.StrataSanitize && window.StrataSanitize.cssUrl) || (() => false);
 // Defensive: values reach inline style strings, so anything that could end a declaration (';', ':', 'url(') falls back to the default.
 const col = (v, d) => typeof v === 'string' && /^(#[0-9a-f]{3,8}|[a-z]+|rgba?\([\d.,\s]+\))$/i.test(v) ? v : d;
 const fam = (v, d) => Object.hasOwn(FONTS, v) ? FONTS[v] : typeof v === 'string' && /^[\w\s',.-]+$/.test(v) ? v : d;
@@ -106,7 +108,7 @@ class Component extends DCLogic {
           lnk: r.broken ? '' : (r.link || ''), href: r.broken ? '' : (r.href || ''), deco: r.broken ? 'underline dashed' : (r.link || r.href ? 'underline' : ''),
           pe: p.links && !r.broken && (r.link || r.href) ? 'auto' : '', cur: p.links && !r.broken && (r.link || r.href) ? 'pointer' : '' });   // links click only when live (present)
         const lines = raw.map((t, i) => ({ text: t === '' ? '\u00a0' : t, runs: ((l._lines && l._lines[i]) || [{ text: t === '' ? '\u00a0' : t }]).map(run),
-          hasMark: b !== 'none' && t !== '', mark: b === 'number' ? (raw.slice(0, i + 1).filter(x => x !== '').length) + '.' : MARKS[b] || '' }));
+          hasMark: b !== 'none' && t !== '', mark: b === 'number' ? (raw.slice(0, i + 1).filter(x => x !== '').length) + '.' : (Object.hasOwn(MARKS, b) ? MARKS[b] : '') }));
         const align = l.align || 'left';
         return { ...base, lines, font: fam(l.font, FONTS.grot), fs: (l.size || 40) / 16, weight: l.weight || 400, color: col(l.color, ink), align, lh: l.lh || 1.2, ls: l.ls || 0,
           gap: l.gap ?? 0.15, hjust: b !== 'none' ? 'flex-start' : align === 'center' ? 'center' : align === 'right' ? 'flex-end' : 'flex-start',
@@ -136,7 +138,7 @@ class Component extends DCLogic {
         // Name cards only in builder thumbnails (cards); the swipe/ghost planes show nothing rather than a card popping in.
         return { ...base, isComponent: true, live, placeholder: !live && !!p.cards, name: l.name || 'Component', src, pe: base.op > 0 ? 'auto' : 'none' };
       }
-      const u0 = l.imgKey && Object.hasOwn(imgs, l.imgKey) ? imgs[l.imgKey] : null, u = typeof u0 === 'string' && !/["\\\s]/.test(u0) && !/;(?!base64,)/.test(u0) ? u0 : null;   // only a url that stays inside url("…")
+      const u0 = l.imgKey && Object.hasOwn(imgs, l.imgKey) ? imgs[l.imgKey] : null, u = cssUrl(u0) ? u0 : null;   // only a url that stays inside url("…")
       // Zoom scales the image about its focus point; the focus also chooses which part shows when the image is cropped.
       const fx = l.focusX ?? 50, fy = l.focusY ?? 50;
       return { ...base, radius: (l.radius || 0) / 16, hasImg: !!u, imgBg: u ? `url("${u}") ${fx}% ${fy}% / ${l.fit === 'contain' ? 'contain' : 'cover'} no-repeat` : 'none',

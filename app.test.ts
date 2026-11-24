@@ -2429,7 +2429,7 @@ test("layout-file values that could inject CSS resolve to safe defaults (font, c
   c.setState({ cur: "s", mode: "build", view: "slide" }); expect(hasSemi(c.renderVals().overlays.map((o: any) => [o.l, o.t, o.w, o.h, o.rot]))).toBe(false);   // the stage's own boxes too
   expect(e.color).toBeUndefined(); expect(e.font).toBeUndefined(); for (const k of ["color", "font"]) expect(e._lines[0][0][k]).toBeUndefined();   // the style is cleaned on load, the run guarded on display
   expect(s1.border).toEqual({ width: 10, style: "solid" }); for (const k of ["fill", "stroke", "blend"]) expect(s1[k]).toBeUndefined();
-  expect(s2.border).toEqual({ width: 0, style: "dashed" }); expect(s2.token).toBeUndefined(); expect(s3.border).toEqual({ width: 0, style: "solid" });
+  expect(s2.border).toEqual({ width: 0, style: "dashed" }); expect(s2.token).toBeUndefined(); expect(s3.border).toBeUndefined();   // not an object: dropped on load (safeLayer would default it)
   for (const r of [t, e, s1, s2, s3]) expect(hasSemi({ ...r, text: "" })).toBe(false);
   const P = c.theme(); expect(c.resolveLayer(TL("b", { font: "head", color: "impact", blend: "screen" }), "s")).toMatchObject({ font: P.fonts.head, color: P.palette.impact, blend: "screen" });
   expect(c.resolveLayer(TL("b", { font: "serif", color: "#abc" }), "s")).toMatchObject({ font: "serif", color: "#abc" });
@@ -2467,25 +2467,43 @@ const strings = (o: any, seen = new Set<any>(), out: string[] = []): string[] =>
   else if (o && typeof o === "object" && !seen.has(o)) { seen.add(o); for (const v of Object.values(o)) strings(v, seen, out); }
   return out;
 };
+const EVIL_BUILD = { transition: "x;background:url(http://t)", transform: "top:7px", clip: "x;top:7px", opacity: 1 };
 const HOSTILE_LAYOUT = () => JSON.parse(JSON.stringify({ version: 2,
-  deck: { opacity: "1;top:7px", customBg: "javascript:x", images: { k: 'data:x");top:7px;("' }, theme: { background: "image:custom" },
-    layouts: { evil: { name: "Evil", icon: "constructor", match: { title: 1, body: 1 }, slots: { title: [{ x: "1;top:7px", y: 0, w: 10, h: 10 }], body: [{ x: 6, y: 24, w: 88, h: 60 }] } } } },
-  slides: { s: { custom: true, layers: [{ id: "md-title", type: "text", block: "title", x: 6, y: 6, w: 88, h: 14 },
+  deck: { opacity: "1;top:7px", customBg: "javascript:x", images: { k: 'data:x");top:7px;("' }, theme: { background: "image:custom" }, bogus: "top:7px",
+    layouts: { evil: { name: "Evil", icon: "constructor", match: { title: 1, body: 1 }, bogus: "top:7px",
+      slots: { title: [{ x: "1;top:7px", y: 0, w: 10, h: 10 }, { x: 6, y: 6, w: 88, h: 14, build: EVIL_BUILD, bogus: "top:7px" }], body: [{ x: 6, y: 24, w: 88, h: 60, build: EVIL_BUILD }] } } },
+    layoutDefaults: { "body:1,title:1": "evil" } },
+  slides: { s: { custom: true, bogus: "top:7px", layers: [{ id: "md-title", type: "text", block: "title", x: 6, y: 6, w: 88, h: 14, build: EVIL_BUILD, bogus: "top:7px" },
     { id: "w", type: "shape", x: "1;background:url(http://t)", y: "top:7px", w: 5, h: 5, _warn: true },
     { id: "a);background:url(http://t);x:(a", type: "shape", kind: "arrow", x: 0, y: 0, w: 5, h: 5 },
-    { id: "im", type: "image", imgKey: "k", x: 0, y: 0, w: 5, h: 5 }] } } })
+    { id: "im", type: "image", imgKey: "k", x: 0, y: 0, w: 5, h: 5, build: EVIL_BUILD }] } } })
   .replace("{", '{"__proto__":{"polluted":1},'));
-const leaks = (c: any) => strings([c.renderVals(), c.shown("s", c.layersOf("s"))]).filter(s => s.includes("background:url(http://t") || s.includes("top:7px"));
-test("a hostile layout file (deck, ?src= and linked) loads without throwing and none of its CSS reaches renderVals", async () => {
-  await writeMd("evil", "# S\nslug: s\n\nBody.\n", HOSTILE_LAYOUT());
+const HOSTILE_MD = "# S\nslug: s\n\nBody.\n\n# T\nslug: t\n\nMore.\n";
+// The stage renderer, as the app mounts it: its render values for the app's stageLayers.
+const layersJs = (await Bun.file(join(import.meta.dir, "design/Layers.dc.html")).text()).split(/<script type="text\/x-dc" data-dc-script[^>]*>/)[1].split("</script>")[0];
+const LayersC = new Function("DCLogic", "window", layersJs + "\nreturn Component;")(class { props: any; constructor(p: any) { this.props = p; } }, { StrataSanitize: await import("./layout-sanitize") });
+const bad = (s: string) => s.includes("background:url(http://t") || s.includes("top:7px");
+const leaks = (c: any, id: string) => { const v = c.renderVals(); return strings([v, c.shown(id, c.layersOf(id)), new LayersC({ layers: v.stageLayers, images: v.images, live: v.cur }).renderVals()]).filter(bad); };
+test("a hostile layout file (deck, ?src= and linked) loads without throwing and none of its CSS reaches renderVals or the stage renderer", async () => {
+  await writeMd("evil", HOSTILE_MD, HOSTILE_LAYOUT());
   const { c } = await mount("?deck=evil");
   expect(c.state.saveMsg).toBeFalsy(); expect(c.state.nodes.s).toBeDefined(); expect(({} as any).polluted).toBeUndefined();
-  expect(c.layersOf("s").map((l: any) => l.id)).toEqual(["md-title", "w", "im", "md-body-1"]); expect(c.layersOf("s")[1]._warn).toBeUndefined(); expect(c.renderVals().warnBadges.length).toBe(1); expect(c.state.opacity).toBe(1); expect(c.state.customBg).toBeNull();
-  for (const v of [{ mode: "build", view: "slide", rtab: "slides" }, { rtab: "theme" }, { layerSel: "im", rtab: "content" }, { mode: "present" }]) { c.setState({ cur: "s", ...v }); expect(leaks(c)).toEqual([]); }
-  const files: Record<string, string> = { "https://h/host.md": "# A\nslug: a\n<!-- children: ./kid.md -->\n", "https://h/kid.md": "# S\nslug: s\n\nBody.\n", "https://h/kid-layout.json": JSON.stringify(HOSTILE_LAYOUT()) };
+  expect(c.layersOf("s").map((l: any) => l.id)).toEqual(["md-title", "w", "im", "md-body-1"]); expect(c.layersOf("s")[1]._warn).toBeUndefined(); expect(c.state.opacity).toBe(1); expect(c.state.customBg).toBeNull();
+  c.setState({ cur: "s", mode: "build", view: "slide" }); expect(c.renderVals().warnBadges.length).toBe(1);
+  expect(c.state.nodes.t.layout).toBe("evil"); expect(c.layersOf("t").find((l: any) => l.id === "md-body-1")).toMatchObject({ x: 6, y: 24 });   // the template applies, without its build
+  for (const id of ["s", "t"]) for (const v of [{ mode: "build", view: "slide", rtab: "slides" }, { rtab: "theme" }, { layerSel: "im", rtab: "content" }, { mode: "present" }, { mode: "build", preview: true }]) {
+    c.setState({ cur: id, preview: false, ...v }); expect([id, v, leaks(c, id)]).toEqual([id, v, []]); }
+  const files: Record<string, string> = { "https://h/host.md": "# A\nslug: a\n<!-- children: ./kid.md -->\n", "https://h/kid.md": HOSTILE_MD, "https://h/kid-layout.json": JSON.stringify(HOSTILE_LAYOUT()) };
   const m = await mount("?src=https://h/host.md", { fetch: u => files[u] ? reply(files[u], "text/plain") : u.startsWith("https://") ? reply("", "text/plain", 404) : undefined });
   await down(m.c, "a"); expect(m.c.state.cur).toBe("a.s");
-  m.c.setState({ mode: "build", view: "slide" }); expect(strings(m.c.renderVals()).filter(s => s.includes("background:url(http://t") || s.includes("top:7px"))).toEqual([]);
+  for (const id of ["a.s", "a.t"]) { m.c.setState({ cur: id, mode: "build", view: "slide" }); expect(leaks(m.c, id)).toEqual([]); }
+});
+
+test("the editor draws no build styles: a layer's build is stripped outside Present and preview", async () => {
+  await writeMd("talk", TALK);
+  const { c } = await mount("?deck=talk"); c.setState({ cur: "intro", mode: "build", view: "slide" });
+  c.setLayers("intro", (ls: any[]) => ls.map(l => ({ ...l, build: EVIL_BUILD })));
+  expect(c.renderVals().stageLayers.some((l: any) => l.build)).toBe(false);
 });
 
 test("a normal deck (the Strata tour) round-trips unchanged through sanitize and save", async () => {
@@ -2494,4 +2512,26 @@ test("a normal deck (the Strata tour) round-trips unchanged through sanitize and
   const { c } = await mount("?deck=tour"); await c.save();
   const out = await Bun.file(deckDir("tour") + "tour-layout.json").json(); delete out.slides.ROOT;   // save always writes the tree root
   expect(out).toEqual(JSON.parse(L));
+});
+
+test("a deck using every feature (images, components, links, shapes, styles, templates, steps, theme) round-trips through sanitize: save → load → save is unchanged", async () => {
+  await writeMd("full", "# Intro\nslug: intro\n\nHello.\n\n- one\n- two\n\n# Next\nslug: next\n");
+  const { c } = await mount("?deck=full"); c.setState({ cur: "intro", mode: "build", view: "slide" });
+  const im = c.addLayer("image"); c.setImage("intro", im.id, "data:image/avif;base64,AAAA"); c.componentDidUpdate();
+  c.addLayer("component"); c.addLayer("shape", { kind: "arrow", flip: true, back: true }); c.addLayer("icon", { icon: "check", fill: "primary" });
+  const tx = c.addLayer("text", { link: { type: "url", url: "example.com" }, color: "#ff0000", font: "serif", size: 30, card: "custom", box: { bg: "#ffffff", bgOpacity: 0.5, blur: 2, border: 1, borderColor: "#000000", radius: 8, pad: 4 } });
+  c.addLayer("text", { link: { type: "slide", id: "next" }, hidden: true }); c.componentDidUpdate();
+  c.newStyleFrom("intro", tx.id); c.componentDidUpdate();
+  c.setNode("intro", { steps: { "md-list-1-1": 1, "md-list-1-2": 2 }, trans: { 1: "rise", 2: "wipe" }, build: { dur: 250, ease: "linear", earlier: "keep", replace: false }, showSteps: true }); c.componentDidUpdate();
+  c.setState({ cur: "next" }); c.saveAsLayout("next"); c.componentDidUpdate();
+  c.setTheme({ background: "aurora", scheme: { deep: "#000000", mid: "#111111", accent: "#222222" }, palette: "ember", fonts: "elegant", surface: "card", motion: { speedIdx: 3 } });
+  c.setState({ bgScale: 1.5, bgRepeat: "xy", bgY: 0.2, spacing: "fit", titlePage: true, titleView: { zoom: 2, x: 0.3, y: 0.4 }, opacity: 0.8 }); c.componentDidUpdate();
+  await c.save(); const A = await Bun.file(deckDir("full") + "full-layout.json").json();
+  expect(Object.values(A.deck.images)[0]).toMatch(/^img\/\w+\.avif$/); expect(Object.keys(A.deck.layouts).length).toBe(1); expect(Object.keys(A.deck.styles).length).toBe(1);
+  expect(A.slides.intro.layers.length).toBeGreaterThan(6);
+  expect(JSON.parse(JSON.stringify((await import("./layout-sanitize")).sanitizeLayout(A)))).toEqual(A);
+  const m = await mount("?deck=full"); await m.c.save();
+  expect(await Bun.file(deckDir("full") + "full-layout.json").json()).toEqual(A);
+  const draft = { md: "# X\n", layout: { ...A, deck: { ...A.deck, images: { a: "data:image/bmp;base64,AA", b: "data:image/x-icon;base64,AA" } } } };   // scratch decks keep data: uploads of any image type
+  const s = await mount("", { store: { "strata-v8": JSON.stringify(draft) } }); expect(Object.keys(s.c.state.images).sort()).toEqual(["a", "b"]);
 });

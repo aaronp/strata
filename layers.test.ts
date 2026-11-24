@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 const html = await Bun.file(join(import.meta.dir, "design/Layers.dc.html")).text();
 const js = html.split(/<script type="text\/x-dc" data-dc-script[^>]*>/)[1].split("</script>")[0];
-const Component = new Function("DCLogic", js + "\nreturn Component;")(class { props: any; constructor(p: any) { this.props = p; } });
+const Component = new Function("DCLogic", "window", js + "\nreturn Component;")(class { props: any; constructor(p: any) { this.props = p; } }, { StrataSanitize: await import("./layout-sanitize") });
 const render = (props: any) => new Component(props).renderVals();
 const HELPER = new Function("DCLogic", js + "\nreturn HELPER;")(class {});
 

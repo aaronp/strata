@@ -1163,14 +1163,24 @@ const BUILTIN_LAYOUTS = {
 };
 const SOURCES_BOX = B(6, 89, 88, 5);
 // What a template's regions need beyond the slide's own section (md, heading on `line`): bodies, a list, one detail per bullet, a subtitle. Images and links get none.
+const sectionAt = (md, line) => { const flat = [], walk = ss => ss.forEach(s => { flat.push(s); walk(s.children); }); walk(MD.parseMarkdown(md).sections); return flat.find(s => s.line === line); };
 const placeholderNeeds = (md, line, L, lid) => {
-  const flat = [], walk = ss => ss.forEach(s => { flat.push(s); walk(s.children); }); walk(MD.parseMarkdown(md).sections);
-  const bs = ((flat.find(s => s.line === line) || {}).blocks || []), m = L.match || {}, bodies = bs.filter(b => b.key === 'body').length;
+  const bs = ((sectionAt(md, line) || {}).blocks || []), m = L.match || {}, bodies = bs.filter(b => b.key === 'body').length;
   const list = !!m.list && !bs.some(b => b.key === 'list'), items = bs.reduce((a, b) => a + (b.key === 'list' ? b.items.length : 0), 0) + (list ? 3 : 0);
   if (m.body === 'items') return { list, detail: Math.max(0, items - bodies) };
   if (lid === 't-title-sub') return { list, subtitle: bodies < 1 };
   return { list, body: Math.max(0, (m.body || 0) - bodies) };
 };
+// Old md layer id → new, across a placeholder rewrite of the slide's section (heading on `line`): blocks matched by source line, less the removed lines before it
+// (placeholders are only added after the section's last block). null: the block was removed. Layers without a line (image, links, sources) keep their ids.
+const mdIdMap = (md0, md, line, gone) => { const was = sectionAt(md0, line), now = sectionAt(md, line), map = {}; if (!was || !now) return map;
+  const nl = blockLayers(now, 1), at = ln => ln - gone.filter(g => g < ln).length;
+  for (const l of blockLayers(was, 1)) if (l.line) { const m = gone.includes(l.line) ? null : nl.find(x => x.block === l.block && x.line === at(l.line)); map[l.id] = m ? m.id : null; }
+  return map; };
+// A node's steps and layers under the new ids; a removed block's go.
+const renameMd = (n, map) => { const to = k => k in map ? map[k] : k;
+  return { ...n, ...(n.steps ? { steps: Object.fromEntries(Object.entries(n.steps).filter(([k]) => to(k)).map(([k, v]) => [to(k), v])) } : {}),
+    ...(n.layers ? { layers: n.layers.filter(l => to(l.id)).map(l => ({ ...l, id: to(l.id) })) } : {}) }; };
 // Markdown layers carry block: title|body|list|links|sources|image. Sources never count toward the shape; layers without a block (extras) don't either. The styles arg is vestigial.
 const counted = l => !l.hidden && !!l.block && l.block !== 'sources';
 const keyOf = l => l.block;
@@ -2159,13 +2169,15 @@ class Component extends DCLogic {
   applyLayout(id, lid, n = this.state.nodes[id], N = this.state.nodes) { const p = this.layoutPatch(n, this.layouts()[lid]); if (!p) return; const ls = this.layersOfNode(n);
     const own = this.hasExtras(id, ls) || (this.shapeLayout(id, ls) || {}).id !== lid, nodes = { ...N, [id]: own ? { ...p, custom: true } : p }; this.allowLayout(nodes); this.setState({ nodes }); }
   // A template tile: the slide's old placeholders go, then ##…## placeholder blocks fill the regions its markdown leaves empty, then the layout applies. One undo step (markdown and layout).
+  // An open in-place edit is committed first. Md layer ids count blocks by position, so the slide's steps and override layers follow their blocks to the new ids.
   pickTemplate(id, lid) {
+    if (this.endMdEdit(() => this.pickTemplate(id, lid))) return;
     const N0 = this.flushMd() || this.state.nodes, n = N0[id], L = this.layouts()[lid], md0 = this.state.md;
     if (!n || n._from || !n._line || !L) { if (n) this.applyLayout(id, lid, n, N0); return; }
-    const stripped = MD.stripPlaceholders(md0, n._line), md = MD.addPlaceholders(stripped, n._line, placeholderNeeds(stripped, n._line, L, lid));
+    const gone = MD.placeholderLines(md0, n._line), stripped = MD.stripPlaceholders(md0, n._line), md = MD.addPlaceholders(stripped, n._line, placeholderNeeds(stripped, n._line, L, lid));
     if (md === md0) { this.applyLayout(id, lid, n, N0); return; }
     this._past.push({ nodes: N0, ...this.histDeck(), md: md0 }); if (this._past.length > 100) this._past.shift(); this._future = []; this._burst = false;
-    this.setState({ md }); this.reenrich(N0, {}, md); const N = this._lastNodes;
+    this.setState({ md }); this.reenrich({ ...N0, [id]: renameMd(n, mdIdMap(md0, md, n._line, gone)) }, {}, md); const N = this._lastNodes;
     this.applyLayout(id, lid, N[id], N); this._lastNodes = this._layoutNodes;   // the layout lands in the same undo step
   }
   ownSlideIds() { return Object.keys(this.state.nodes).filter(k => !this.state.nodes[k]._from && (k !== 'ROOT' || this.state.titlePage)); }

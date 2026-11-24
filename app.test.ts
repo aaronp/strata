@@ -1566,6 +1566,37 @@ test("template pick: List + detail adds a ##Detail## per bullet; a title-only sl
   pickTpl(c, "image-right"); expect(c.state.md.endsWith("# U\nslug: u\n\n##Text##\n")).toBe(true);   // no placeholder for an image
 });
 
+test("template pick: a step on a block after a removed placeholder stays on that block (body and bullet)", async () => {
+  await writeMd("talk", "# T\nslug: t\n\nOne.\n\n##Text##\n\nMine.\n\n# U\nslug: u\n\n- a\n- ##Point##\n- c\n");
+  const { c } = await mount("?deck=talk"); await Bun.sleep(150); c.setState({ cur: "t", rtab: "slides" });
+  c.setNode("t", { steps: { "md-body-2": 1, "md-body-3": 2 }, trans: { 1: "fade", 2: "fade" } }); c.componentDidUpdate();
+  pickTpl(c, "t-two");
+  expect(c.state.md).toContain("# T\nslug: t\n\nOne.\n\nMine.\n\n# U");
+  expect(layerOf(c, "t", "md-body-2").text).toBe("Mine."); expect(c.state.nodes.t.steps).toEqual({ "md-body-2": 2 });   // the placeholder's own step goes
+  c.setState({ cur: "u" }); c.setNode("u", { steps: { "md-list-1-3": 1 }, trans: { 1: "fade" } }); c.componentDidUpdate();
+  pickTpl(c, "list");
+  expect(c.state.md.endsWith("# U\nslug: u\n\n- a\n- c\n")).toBe(true);
+  expect(layerOf(c, "u", "md-list-1-2").text).toBe("c"); expect(c.state.nodes.u.steps).toEqual({ "md-list-1-2": 1 });
+});
+
+test("template pick: a custom per-slide box on a block after a removed placeholder stays on that block", async () => {
+  await writeMd("talk", "# T\nslug: t\n\nOne.\n\n##Text##\n\nMine.\n\n# U\nslug: u\n");
+  const { c } = await mount("?deck=talk"); await Bun.sleep(150); c.setState({ cur: "t", rtab: "slides" });
+  const box = { bg: "#ff0000", bgOpacity: 1, blur: 0, border: 0, borderColor: "#ffffff", radius: 4, pad: 8 };
+  c.updLayer("t", "md-body-3", { card: "custom", box }); c.componentDidUpdate(); expect(c.state.nodes.t.custom).toBe(true);
+  pickTpl(c, "t-two");
+  expect(layerOf(c, "t", "md-body-2")).toMatchObject({ text: "Mine.", card: "custom", box });
+  expect(layerOf(c, "t", "md-body-1").box).toBeUndefined();
+});
+
+test("template pick: an open in-place edit is committed first, then the pick lands", async () => {
+  await writeMd("talk", PICK); const { c } = await mount("?deck=talk"); await Bun.sleep(150); c.setState({ cur: "t", rtab: "slides" });
+  c.startEdit("md-body-1"); c.updLayer("t", "md-body-1", { text: "One typed." }); c.componentDidUpdate();
+  pickTpl(c, "stacked-3");
+  expect(c.state.editing).toBeNull();
+  expect(c.state.md).toBe("# T\nslug: t\n\nOne typed.\n\n##Text##\n\n##Text##\n\n# U\nslug: u\n"); expect(c.state.nodes.t.layout).toBe("stacked-3");
+});
+
 test("template pick: a linked slide's markdown isn't written; its layout applies as before", async () => {
   const { c } = await linked(); await down(c, "a"); const md = c.state.md;
   c.setState({ cur: "a.plan", rtab: "slides" }); pickTpl(c, "stacked-2");

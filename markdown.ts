@@ -246,29 +246,37 @@ export function writeBlock(md: string, kind: "title" | "body" | "group" | "item"
   return lines.join("\n");
 }
 
-// ---- Template placeholders: a whole line ##words## (no space after ##, so never a heading). A paragraph that is just that, or a bullet "- ##words##".
-const PH_LINE = /^##[^#\n]+##$/, PH_ITEM = /^\s*[-*]\s+##[^#\n]+##\s*$/;
-// The slide's own section (heading on `line`): its lines as indexes [line, end) — up to the next heading, its children's included.
+// ---- Template placeholders: a whole line ##words## (no space after ##, so never a heading). A paragraph that is just that, or an unindented bullet "- ##words##".
+const PH_LINE = /^##[^#\n]+##$/, PH_ITEM = /^[-*]\s+##[^#\n]+##\s*$/;
+// The slide's own section (heading on `line`): its lines as indexes [line, end) — up to the next heading, its children's included — and its parsed section.
 function ownSection(md: string, line: number) {
   const flat: Section[] = [], walk = (ss: Section[]) => ss.forEach(s => { flat.push(s); walk(s.children); });
   walk(parseMarkdown(md).sections);
   const lines = md.split("\n"), next = flat.find(s => s.line > line);
-  return { lines, end: next ? next.line - 1 : lines.length };
+  return { lines, end: next ? next.line - 1 : lines.length, sec: flat.find(s => s.line === line) };
 }
 const blank = (s?: string) => s !== undefined && !s.trim();
-// Removes every placeholder in the slide's own section; a run of them goes with the blank line before it when a blank (or the section's end) follows.
-export function stripPlaceholders(md: string, line: number): string {
-  const { lines, end } = ownSection(md, line), t = (i: number) => (lines[i] ?? "").replace(/\r$/, "");
-  const gone = new Set<number>();
-  for (let i = line; i < end; i++) {
-    const s = t(i).trim();
-    if (PH_ITEM.test(t(i)) || (PH_LINE.test(s) && (i === line || blank(t(i - 1))) && (i + 1 >= end || blank(t(i + 1))))) gone.add(i);
+// The lines (1-based, ascending) stripPlaceholders removes. Candidates come from the parser, so text in comments, groups and longer paragraphs is never touched:
+// a one-line paragraph that is exactly ##…##, and a list item whose own line is exactly "- ##…##" with no indented line under it. A run of them goes with the
+// blank line before it when a blank (or the section's end) follows, so an emptied list leaves no gap.
+export function placeholderLines(md: string, line: number): number[] {
+  const { lines, end, sec } = ownSection(md, line), t = (i: number) => (lines[i] ?? "").replace(/\r$/, "");
+  const gone = new Set<number>();   // 0-based
+  for (const b of sec?.blocks ?? []) {
+    if (b.key === "body" && !b.group && b.line === b.endLine && PH_LINE.test(b.text) && PH_LINE.test(t(b.line - 1).trim())) gone.add(b.line - 1);
+    if (b.key === "list") for (const ln of b.items!) if (PH_ITEM.test(t(ln - 1)) && !(ln < b.endLine && /^\s/.test(t(ln)))) gone.add(ln - 1);
   }
-  for (let i = line; i < end; i++) if (gone.has(i) && !gone.has(i - 1)) {
+  for (const i of [...gone].sort((x, y) => x - y)) if (!gone.has(i - 1)) {
     let j = i; while (gone.has(j + 1)) j++;
     if (i - 1 >= line && blank(t(i - 1)) && (j + 1 >= end || blank(t(j + 1)))) gone.add(i - 1);
   }
-  return lines.filter((_, i) => !gone.has(i)).join("\n");
+  return [...gone].sort((x, y) => x - y).map(i => i + 1);
+}
+// Removes the slide's untouched placeholders (see placeholderLines).
+export function stripPlaceholders(md: string, line: number): string {
+  const gone = new Set(placeholderLines(md, line)), lines = md.split("\n"), out = lines.filter((_, i) => !gone.has(i + 1));
+  if (gone.has(lines.length) && out.length) out[out.length - 1] = out[out.length - 1].replace(/\r$/, "");   // the file's last line went: no stray \r
+  return out.join("\n");
 }
 // Adds placeholder blocks after the section's last non-blank line (subtitle, bodies, a three-point list, details), blank-line separated.
 export function addPlaceholders(md: string, line: number, needs: { body?: number; list?: boolean; detail?: number; subtitle?: boolean }): string {
@@ -278,6 +286,7 @@ export function addPlaceholders(md: string, line: number, needs: { body?: number
   const { lines, end } = ownSection(md, line), cr = md.includes("\r\n") ? "\r" : "";
   let last = end - 1; while (last >= line && blank(lines[last])) last--;
   const put = blocks.flatMap(b => ["", ...b.split("\n")]).map(r => r + cr);
+  if (cr && last + 1 === lines.length) { lines[last] = lines[last].replace(/\r?$/, cr); put[put.length - 1] = put[put.length - 1].slice(0, -1); }   // at the end of a file with no final newline
   lines.splice(last + 1, 0, ...put);
   return lines.join("\n");
 }

@@ -294,3 +294,25 @@ test("stripPlaceholders: removes exactly-##…## paragraphs and items in that se
   expect(stripPlaceholders(md, 1)).toBe("# A\nslug: a\n\n##My own text, edited##x\n\n- real\n- also\n\nEnd.\n\n# B\nslug: b\n\n##Text##\n");
   expect(stripPlaceholders("# A\nslug: a\n\nOne\n##Text##\n", 1)).toBe("# A\nslug: a\n\nOne\n##Text##\n");   // part of a paragraph: real text
 });
+
+test.each([
+  ["a ##…## line in a <!-- block --> group", "<!-- block -->\nKept.\n\n##Note##\n\n<!-- /block -->"],
+  ["##…## and - ##…## inside an HTML comment (speaker notes)", "<!--\n\n##Todo##\n\n- ##Ask##\n-->"],
+  ["a - ##…## line continuing a paragraph", "Intro line\n- ##Point##"],
+  ["nested and indented list continuations", "- real\n  - ##Sub##\n- ##Point##\n  continued text"],
+  ["a - ##…## item with a nested line under it", "- ##Point##\n  - real sub"],
+  ["a ##…## line carrying a comment", "##Todo## <!-- why -->"],
+])("stripPlaceholders keeps user text byte-for-byte: %s", (_, body) => {
+  const md = "# A\nslug: a\n\n" + body + "\n\n# B\nslug: b\n";
+  expect(stripPlaceholders(md, 1)).toBe(md);
+});
+
+test("stripPlaceholders: the real placeholders next to a comment still go", () => {
+  expect(stripPlaceholders("# A\nslug: a\n\n<!--\n##Todo##\n-->\n\n##Text##\n\n- ##Point##\n- ##Point##\n\nEnd.\n", 1)).toBe("# A\nslug: a\n\n<!--\n##Todo##\n-->\n\nEnd.\n");
+});
+
+test("addPlaceholders / stripPlaceholders: a CRLF file with no trailing newline keeps CRLF throughout", () => {
+  const out = addPlaceholders("# A\r\nslug: a", 1, { body: 1 });
+  expect(out).toBe("# A\r\nslug: a\r\n\r\n##Text##");
+  expect(stripPlaceholders(out, 1)).toBe("# A\r\nslug: a");
+});

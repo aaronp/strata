@@ -52,7 +52,7 @@ export async function mdBundle(root: string): Promise<string> {
   const entry = join(root, "md-entry.ts");
   const r = await Bun.build({
     entrypoints: [entry], format: "iife", minify: false,
-    files: { [entry]: `import { parseMarkdown, plainText, insertSlide } from "./markdown"; window.StrataMd = { parseMarkdown, plainText, insertSlide };` },
+    files: { [entry]: `import { parseMarkdown, plainText, insertSlide } from "./markdown"; import * as StrataTheme from "./theme"; import * as StrataBuilds from "./builds"; window.StrataMd = { parseMarkdown, plainText, insertSlide }; window.StrataTheme = StrataTheme; window.StrataBuilds = StrataBuilds;` },
   });
   if (!r.success) throw new Error("md.js: " + r.logs.join("\n"));
   return await r.outputs[0].text();

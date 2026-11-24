@@ -8,9 +8,11 @@ test("build copies app + decks, writes index, injects static flag", async () => 
   const root = await mkdtemp(join(tmpdir(), "strata-b-"));
   await Bun.write(join(root, "design/strata.dc.html"), '<head>\n<script src="./support.js"></script>\n</head>');
   await Bun.write(join(root, "markdown.ts"), Bun.file("markdown.ts"));
+  for (const f of ["theme.ts", "builds.ts"]) await Bun.write(join(root, f), Bun.file(f));
   await Bun.write(join(root, "decks/talk/talk.md"), "# T\n");
   await Bun.write(join(root, "decks/talk/img/x.png"), "png");
   await Bun.write(join(root, "markdown.ts"), Bun.file("markdown.ts"));
+  for (const f of ["theme.ts", "builds.ts"]) await Bun.write(join(root, f), Bun.file(f));
   const out = join(root, "dist");
   await build(root, out);
   const app = await Bun.file(join(out, "design/strata.dc.html")).text();
@@ -32,6 +34,7 @@ test("build: copies all decks and md.js; deck arg redirects", async () => {
   const root = await mkdtemp(join(tmpdir(), "strata-b-"));
   await Bun.write(join(root, "design/strata.dc.html"), '<head>\n<script src="./support.js"></script>\n</head>');
   await Bun.write(join(root, "markdown.ts"), Bun.file("markdown.ts"));
+  for (const f of ["theme.ts", "builds.ts"]) await Bun.write(join(root, f), Bun.file(f));
   for (const s of ["talk", "scratch"]) await Bun.write(join(root, `decks/${s}/${s}.md`), `# ${s}\n`);
   const out = join(root, "dist");
   await build(root, out, "talk");
@@ -47,6 +50,7 @@ test("build with no decks/ (CI) writes the redirecting index", async () => {
   const root = await mkdtemp(join(tmpdir(), "strata-b-"));
   await Bun.write(join(root, "design/strata.dc.html"), '<head>\n<script src="./support.js"></script>\n</head>');
   await Bun.write(join(root, "markdown.ts"), Bun.file("markdown.ts"));
+  for (const f of ["theme.ts", "builds.ts"]) await Bun.write(join(root, f), Bun.file(f));
   const out = join(root, "dist");
   await build(root, out);
   expect(await Bun.file(join(out, "decks/index.json")).json()).toEqual([]);

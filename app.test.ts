@@ -25,7 +25,7 @@ async function mount(search: string, opts: { href?: string; batched?: boolean; i
   opts = { deckMode: /(deck=[a-z0-9-]+|src=)/.test(search), ...opts };
   const store: Record<string, string> = opts.store ?? {}, listeners: Record<string, Function> = {};
   const g = {
-    location: { search, href: opts.href }, window: { StrataMd: await import("./markdown"), STRATA_STATIC: !!opts.isStatic, addEventListener: (t: string, f: Function) => (listeners[t] = f), removeEventListener() {} },
+    location: { search, href: opts.href }, window: { StrataMd: await import("./markdown"), StrataTheme: await import("./theme"), StrataBuilds: await import("./builds"), STRATA_STATIC: !!opts.isStatic, addEventListener: (t: string, f: Function) => (listeners[t] = f), removeEventListener() {} },
     localStorage: { getItem: (k: string) => store[k] ?? null, setItem: (k: string, v: string) => (store[k] = v), removeItem: (k: string) => delete store[k] },
     fetch: async (u: string, o: RequestInit = {}) => opts.fetch?.(u) ?? handler(root)(new Request(new URL(u, "http://x/design/strata.dc.html"), o)),
     setTimeout, requestAnimationFrame: () => {},

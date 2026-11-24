@@ -30,6 +30,10 @@ export function plainText(t: string): string {
 const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 
 type Line = { text: string; line: number };
+// A body line's own escapes (what writeBlock adds): a leading \ before - # ! keeps it from being a list item, heading or image; <\!-- isn't a comment.
+const unline = (t: string) => t.trim().replace(/^\\([-#!])/, "$1").replace(/<\\!--/g, "<!--");
+// A line ending in an unescaped \ is a hard break (as in CommonMark): the paragraph keeps a line break there.
+const hardBreak = (t: string) => /(^|[^\\])(\\\\)*\\$/.test(t);
 
 function parseBody(lines: Line[]) {
   const links: Chip[] = [], inline: Chip[] = [], sources: Source[] = [], blocks: Block[] = [];
@@ -74,7 +78,7 @@ function parseBody(lines: Line[]) {
     }
     let txt: Line[] = [];
     const flushText = () => {
-      const t = txt.map(l => l.text.trim()).join(" ");
+      const t = txt.map((l, k) => { const u = unline(l.text), h = hardBreak(u); return (h ? u.slice(0, -1) : u) + (k === txt.length - 1 ? "" : h ? "\n" : " "); }).join("");
       if (txt.length && !special(t, txt[0].line)) blocks.push({ key: "body", text: rewrite(t, txt[0].line), line: txt[0].line, endLine: txt[txt.length - 1].line });
       txt = [];
     };
@@ -86,7 +90,7 @@ function parseBody(lines: Line[]) {
   };
   const group = (g: Line[]) => {
     const full = g.filter(l => l.text.trim());
-    if (full.length) blocks.push({ key: "body", text: g.map(l => rewrite(l.text.trim(), l.line)).join("\n").trim(), line: full[0].line, endLine: full[full.length - 1].line });
+    if (full.length) blocks.push({ key: "body", text: g.map(l => { const u = unline(l.text); return rewrite(hardBreak(u) ? u.slice(0, -1) : u, l.line); }).join("\n").trim(), line: full[0].line, endLine: full[full.length - 1].line });
   };
   let cur: Line[] = [], grp: Line[] | null = null;
   const flush = () => { if (cur.length) para(cur); cur = []; };
@@ -193,9 +197,10 @@ export function insertSlide(md: string, line: number, where: "after" | "below"):
 
 // Writes an in-place edit back: `text` (inline markup, lines split on \n) replaces lines line..endLine of md.
 // title: the heading line, keeping its #s (one line; empty is refused: null). item: one list line per text line, keeping marker and indent; empty lines go.
-// body: the paragraph's lines (empty: removed, with one blank line after it). Other lines are untouched.
+// body: one markdown line per text line, joined by hard breaks (a trailing \); a line that would parse as something else is escaped; empty: removed, with one blank line after it.
+// Other lines are untouched; written lines keep the file's line ending.
 export function writeBlock(md: string, kind: "title" | "body" | "item", line: number, endLine: number, text: string): string | null {
-  const lines = md.split("\n"), old = lines[line - 1] ?? "", rows = text.split("\n").map(r => r.trim());
+  const lines = md.split("\n"), cr = md.includes("\r\n") ? "\r" : "", old = (lines[line - 1] ?? "").replace(/\r$/, ""), rows = text.split("\n").map(r => r.trim());
   let put: string[];
   if (kind === "title") {
     const t = rows.filter(Boolean).join(" ");
@@ -205,8 +210,11 @@ export function writeBlock(md: string, kind: "title" | "body" | "item", line: nu
   else {
     while (rows.length && !rows[0]) rows.shift();
     while (rows.length && !rows[rows.length - 1]) rows.pop();
-    put = rows;
+    put = rows.map((r, k) => r.replace(/<!--/g, "<\\!--").replace(/^(?=#{1,6}(\s|$)|[-*](\s|$)|!\[)/, "\\") + (k < rows.length - 1 ? "\\" : ""));
+    const probe = parseBody(put.map(text => ({ text, line: 1 }))).blocks;
+    if (put.length === 1 && probe[0]?.key !== "body") put[0] = "[" + put[0] + "]{}";   // a lone chip or source link: an empty span keeps it text
   }
+  put = put.map(r => r + cr);
   const gap = !put.length && kind === "body" && !lines[line - 2]?.trim() && !lines[endLine]?.trim() && endLine < lines.length - 1 ? 1 : 0;   // don't leave two blank lines
   lines.splice(line - 1, endLine - line + 1 + gap, ...put);
   return lines.join("\n");

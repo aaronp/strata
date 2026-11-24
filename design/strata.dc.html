@@ -1752,6 +1752,7 @@ class Component extends DCLogic {
       cur: d.titlePage ? 'ROOT' : r.nodes.ROOT.children[0], at: 0, prev: null, phase: 'idle' }, () => { this._loaded = true; this.markSaved(); if (then) then(); });
   }
   setMd(md) { this.setState({ md }); clearTimeout(this._mdT); this._mdT = setTimeout(() => this.reenrich(), 200); }
+  flushMd() { if (!this._mdT) return null; this.reenrich(); return this._lastNodes; }   // a pending markdown edit, enriched now: its nodes (setState may not have landed yet)
   // + on the slide: a new heading in the markdown, after this slide's subtree (sibling) or as its last child (below), then go to it.
   addSlide(where) {
     const S = this.state, n = S.nodes[S.cur]; if (n && n._from) return;
@@ -1761,7 +1762,7 @@ class Component extends DCLogic {
   // Rebuild nodes from the markdown, keeping baseNodes' layout (overrides, ROOT). Neither an undo step nor a hand edit.
   // A current slide that's gone moves to its nearest surviving ancestor, else the first slide.
   reenrich(baseNodes = this.state.nodes, deck = {}, md = this.state.md) {   // deck: layouts/layoutDefaults about to be set (undo), not yet in state; md likewise
-    clearTimeout(this._mdT);
+    clearTimeout(this._mdT); this._mdT = null;
     const S = this.state, L = layoutOf(baseNodes, { ...S, ...deck }, this._linkedOv);
     L.slides = { ...this._goneOv, ...L.slides };   // an override whose slide is gone (an id mid-edit) comes back with the id, for the session
     const r = this.enrichMd(md, L), nodes = r.nodes, up = {};
@@ -2435,11 +2436,11 @@ class Component extends DCLogic {
     window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
   }
   startEdit(lid) {
-    const l = this.layersOf(this.curId()).find(x => x.id === lid); if (!l || isGen(l)) return;
+    const N = this.flushMd() || this.state.nodes, l = (N[this.curId()] ? this.layersOfNode(N[this.curId()]) : []).find(x => x.id === lid); if (!l || isGen(l)) return;
     if (isMd(l)) {   // title, paragraph and bullet words edit in place and write back to the markdown; the rest is edited in Content
       const kind = l.block === 'title' ? 'title' : l.kind === 'item' ? 'item' : l.block === 'body' ? 'body' : null;
       if (!kind || !l.line || this.roCur()) return;
-      const S = this.state; this._mdEdit = { id: this.curId(), lid, kind, text: l.text, md: S.md, nodes: S.nodes, deck: this.histDeck(), past: this._past.length };
+      this._mdEdit = { id: this.curId(), lid, kind, text: l.text, md: this.state.md, nodes: N, deck: this.histDeck(), past: this._past.length };
     }
     if (l.type === 'text') { this.setState({ editing: lid, layerSel: lid }); setTimeout(() => { const t = this.editRef.current; if (t) { t.focus(); t.select(); } }, 40); }
     else if (l.type === 'image') this.chooseImage(lid);
@@ -2447,13 +2448,14 @@ class Component extends DCLogic {
   // Ending an in-place markdown edit: the layer's text replaces its source lines, re-enriched at once, as one undo step (markdown and layout).
   commitMd() {
     const E = this._mdEdit; this._mdEdit = null;
-    const S = this.state, l = this.layersOf(E.id).find(x => x.id === E.lid), text = l ? String(l.text ?? '') : E.text;
+    const S = this.state, typed = this.layersOf(E.id).find(x => x.id === E.lid), text = typed ? String(typed.text ?? '') : E.text;
+    const N = this.flushMd() || S.nodes, l = (N[E.id] ? this.layersOfNode(N[E.id]) : []).find(x => x.id === E.lid);   // line numbers from the markdown as it is now
     this._past.length = Math.min(this._past.length, E.past); this._burst = false;   // the typing's own steps fold into this one
     const md = text === E.text || !l ? S.md : MD.writeBlock(S.md, E.kind, l.line, l.endLine, text);
     if (md === null) this.flash('A slide needs a title — delete it in Content');
     else if (md !== S.md) { this._past.push({ nodes: E.nodes, ...E.deck, md: E.md }); if (this._past.length > 100) this._past.shift(); this._future = []; }
     const out = md === null ? S.md : md;
-    this.setState({ md: out }); this.reenrich(S.nodes, {}, out);
+    this.setState({ md: out }); this.reenrich(N, {}, out);
     if (l && out !== S.md) this.scrollMd(l.line);
   }
   chooseImage(lid) { this._imgTarget = { sid: this.curId(), lid }; const i = this.imgInputRef.current; if (i) i.click(); }

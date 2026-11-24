@@ -1836,8 +1836,8 @@ test("in place: a title edit rewrites only its heading line (level, slug and chi
 test("in place: a paragraph edit rewrites its lines; Enter in it is a line break; emptied it goes", async () => {
   await writeMd("talk", INL); const { c } = await mount("?deck=talk");
   inPlace(c, "intro", "md-body-1", "New **words**\nnext");
-  expect(c.state.md).toBe(INL.replace("First line\nsecond line.", "New **words**\nnext"));
-  expect(layerOf(c, "intro", "md-body-1").text).toBe("New **words** next");
+  expect(c.state.md).toBe(INL.replace("First line\nsecond line.", "New **words**\\\nnext"));   // a hard break: one paragraph, two lines
+  expect(layerOf(c, "intro", "md-body-1").text).toBe("New **words**\nnext"); expect(layerOf(c, "intro", "md-body-2")).toBeUndefined();
   inPlace(c, "intro", "md-body-1", "");
   expect(c.state.md).toBe(INL.replace("First line\nsecond line.\n\n", ""));
 });
@@ -1852,6 +1852,36 @@ test("in place: a bullet edit rewrites only its line (marker and indent kept); E
   expect(layerOf(c, "intro", "md-list-1-2").text).toBe("new"); expect(layerOf(c, "intro", "md-list-1-4").text).toBe("three");
   inPlace(c, "intro", "md-list-1-2", "");
   expect(c.state.md).toBe(INL.replace("  * two", "  * TWO"));
+});
+test("in place: paragraph lines that would parse as something else are escaped, and show unescaped", async () => {
+  await writeMd("talk", INL); const { c } = await mount("?deck=talk");
+  const rows = ["- dash", "\\* star", "+ plus", "1. one", "# hash", "![a](b.png)", "x <!-- c --> y"];
+  inPlace(c, "intro", "md-body-1", rows.join("\n"));
+  expect(c.state.md).toContain("\\- dash\\\n\\* star\\\n+ plus\\\n1. one\\\n\\# hash\\\n\\![a](b.png)\\\nx <\\!-- c --> y\n");
+  expect(c.state.nodes.intro.children).toEqual([]);                                       // no heading made
+  expect(layerOf(c, "intro", "md-body-1").text).toBe("- dash\n\\* star\n+ plus\n1. one\n# hash\n![a]{href=b.png}\nx <!-- c --> y");   // \\* is the app's own escape: shown as *
+  expect(layerOf(c, "intro", "md-image-1")).toBeUndefined(); expect(layerOf(c, "intro", "md-list-1-1").text).toBe("one");   // still one paragraph, the list untouched
+  inPlace(c, "intro", "md-body-1", "[Next]{link=next}");                                      // a lone slide link stays a paragraph, not a chip
+  expect(c.state.md).toContain("\n[[Next]{link=next}]{}\n"); expect(layerOf(c, "intro", "md-body-1").text).toBe("[[Next]{link=next}]{}");
+  expect(c.constructor.rich.textOf(c.constructor.rich.linesOf("[[Next]{link=next}]{}"))).toBe("[Next]{link=next}");   // the empty span is no format
+});
+test("in place: a markdown edit still waiting to re-enrich is applied before editing starts and before the write-back", async () => {
+  await writeMd("talk", INL); const { c } = await mount("?deck=talk"); c.setState({ cur: "intro" });
+  c.setMd(INL.replace("First line", "Top\n\nFirst line"));                                      // a paragraph above: body lines move down
+  inPlace(c, "intro", "md-body-2", "Edited");
+  expect(c.state.md).toBe(INL.replace("First line\nsecond line.", "Top\n\nEdited"));
+  c.startEdit("md-list-1-3"); c.updLayer("intro", "md-list-1-3", { text: "THREE" });
+  c.setMd(c.state.md.replace("Top", "Top\nmore"));                                                // typed in Content while the editor is open: the list moves down a line
+  c.setState({ editing: null }); c.componentDidUpdate();
+  expect(c.state.md).toBe(INL.replace("First line\nsecond line.", "Top\nmore\n\nEdited").replace("- three", "- THREE"));
+});
+test("in place: CRLF markdown keeps CRLF on replaced and added lines", async () => {
+  const CR = INL.replace(/\n/g, "\r\n");
+  await writeMd("talk", CR); const { c } = await mount("?deck=talk");
+  inPlace(c, "intro", "md-title", "T");
+  inPlace(c, "intro", "md-body-1", "a\nb");
+  inPlace(c, "intro", "md-list-1-1", "one\nnew");
+  expect(c.state.md).toBe(INL.replace("# Intro **big**", "# T").replace("First line\nsecond line.", "a\\\nb").replace("- one", "- one\n- new").replace(/\n/g, "\r\n"));
 });
 test("in place: an emptied heading is refused; an unchanged commit leaves the markdown alone", async () => {
   const MD0 = "# A\nslug: a\n\nSee [x](https://e.org).\n";

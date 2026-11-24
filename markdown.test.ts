@@ -212,3 +212,8 @@ test("blocks carry endLine; lists carry each item's line", () => {
   expect(group).toMatchObject({ key: "body", text: "x\n\ny", line: 13, endLine: 15 });
   expect(img).toMatchObject({ key: "image", line: 18, endLine: 18 });
 });
+
+test("body lines: a trailing \\ is a line break; a leading \\ before - # ! is dropped; <\\!-- is text", () => {
+  const b = parseMarkdown("# T\nslug: t\n\na\\\n\\- b\n\\# c \\\\\nd <\\!-- e\n\n<!-- block -->\n\\- x\\\n<!-- /block -->\n").sections[0].blocks;
+  expect(b.map(x => [x.key, x.text])).toEqual([["body", "a\n- b # c \\\\ d <!-- e"], ["body", "- x"]]);
+});

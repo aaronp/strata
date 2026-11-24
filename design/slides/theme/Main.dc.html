@@ -1,0 +1,856 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Deck theme — canvas and picker</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;family=IBM+Plex+Sans:wght@400;600&amp;family=IBM+Plex+Mono:wght@400&amp;family=Playfair+Display:wght@600;700&amp;family=Source+Sans+3:wght@400;600&amp;family=Fraunces:opsz,wght@9..144,600&amp;family=Sora:wght@600;700&amp;family=Manrope:wght@400;600&amp;family=DM+Mono:wght@400&amp;display=swap">
+<style>
+body{margin:0;background:#16181D}
+a{color:#AFC6FF}a:hover{color:#D6E2FF}
+@keyframes drift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+.anim{animation:drift 16s ease-in-out infinite}
+@keyframes rise{0%{top:110%;opacity:0;transform:translateX(0)}12%{opacity:1}50%{transform:translateX(14px)}88%{opacity:1}100%{top:-12%;opacity:0;transform:translateX(-8px)}}
+.bubble{position:absolute;top:110%;animation:rise 14s linear infinite}
+@keyframes sky{0%{background-position:50% 0%}50%{background-position:50% 100%}100%{background-position:50% 0%}}
+.sky{animation:sky 40s ease-in-out infinite}
+@keyframes sunx{0%{left:-14%}100%{left:114%}}
+.sunx{position:absolute;top:0;bottom:0;width:0;left:-14%;animation:sunx 40s linear infinite}
+@keyframes suny{0%{top:100%;animation-timing-function:cubic-bezier(0.25,0.6,0.5,1)}50%{top:20%;animation-timing-function:cubic-bezier(0.5,0,0.75,0.4)}100%{top:100%}}
+.suny{position:absolute;top:100%;border-radius:50%;animation:suny 40s infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{animation:spin 40s linear infinite}
+.spinr{animation:spin 40s linear infinite reverse}
+@media (prefers-reduced-motion: reduce){.anim,.sky,.sunx,.suny,.bubble,.spin,.spinr{animation:none}}
+.slide{container-type:inline-size}
+button{font:inherit}
+</style>
+</helmet>
+<div style="height: 100vh; min-height: 640px; overflow: hidden; background: #16181D; color: #E8EAEE; font-family: Inter, system-ui, sans-serif; display: flex; flex-direction: column">
+
+  <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding: 12px 20px; border-bottom: 1px solid #2C3039; background: #1B1E24">
+    <div style="display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 15px">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7AA2FF" stroke-width="1.8" aria-hidden="true"><rect x="3" y="4" width="8" height="6" rx="1"></rect><rect x="13" y="4" width="8" height="6" rx="1"></rect><rect x="3" y="14" width="8" height="6" rx="1"></rect><rect x="13" y="14" width="8" height="6" rx="1"></rect></svg>
+      <span>Untitled deck</span>
+    </div>
+    <nav aria-label="Editor mode" style="display: flex; gap: 4px; background: #23262E; padding: 4px; border-radius: 10px; margin-left: 12px">
+      <a href="Main.dc.html" style="padding: 8px 14px; border-radius: 7px; background: #343944; color: #FFFFFF; text-decoration: none; font-size: 13px; font-weight: 600">Theme</a>
+      <a href="Templates.dc.html" style="padding: 8px 14px; border-radius: 7px; color: #C3C8D2; text-decoration: none; font-size: 13px; font-weight: 500">Slides</a>
+      <a href="Builds.dc.html" style="padding: 8px 14px; border-radius: 7px; color: #C3C8D2; text-decoration: none; font-size: 13px; font-weight: 500">Builds</a>
+    </nav>
+    <div style="flex: 1"></div>
+    <span style="font-size: 12px; color: #9AA1AD">6 slides · 16:9</span>
+    <button style="padding: 9px 16px; border-radius: 8px; border: 0; background: #7AA2FF; color: #0B1020; font-weight: 600; font-size: 13px; cursor: pointer">Present</button>
+  </header>
+
+  <div style="display: flex; flex: 1; min-height: 0">
+
+    <main style="flex: 1 1 560px; min-width: 0; min-height: 0; overflow: hidden; display: flex; flex-direction: column; padding: 20px; gap: 14px">
+      <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px">
+        <h1 style="margin: 0; font-size: 14px; font-weight: 600; color: #E8EAEE">Presentation canvas</h1>
+        <span style="font-size: 12px; color: #9AA1AD">One background behind every slide — the deck moves across it like a camera.</span>
+        <div style="flex: 1"></div>
+        <div role="group" aria-label="Slide flow" style="display: flex; gap: 2px; background: #23262E; padding: 3px; border-radius: 8px">
+          <button onClick="{{ setAcross }}" aria-pressed="{{ isAcross }}" style="padding: 7px 12px; border: 0; border-radius: 6px; font-size: 12px; cursor: pointer; background: {{ acrossBg }}; color: #E8EAEE">Flow across →</button>
+          <button onClick="{{ setDown }}" aria-pressed="{{ isDown }}" style="padding: 7px 12px; border: 0; border-radius: 6px; font-size: 12px; cursor: pointer; background: {{ downBg }}; color: #E8EAEE">Flow down ↓</button>
+        </div>
+      </div>
+
+      <div class="{{ bg.cls }}" style="position: relative; flex: 1; border-radius: 14px; border: 1px solid #2C3039; padding: 40px; background: {{ bg.css }}; background-size: {{ bg.size }}; animation-duration: {{ fx.dur }}; overflow: auto">
+        <div aria-hidden="true" style="position: absolute; inset: 0; overflow: hidden; pointer-events: none; border-radius: 14px">
+          <sc-if value="{{ fx.isBubbles }}" hint-placeholder-val="{{ false }}">
+            <div style="position: absolute; inset: 0; opacity: {{ fx.opacity }}">
+              <sc-for list="{{ fx.bubbles }}" as="u" hint-placeholder-count="12">
+                <span class="bubble" style="left: {{ u.left }}; width: {{ u.size }}; height: {{ u.size }}; border-radius: 50%; border: 1px solid {{ fx.tintEdge }}; background: radial-gradient(circle at 32% 30%, {{ fx.tintHi }}, {{ fx.tintLo }} 62%); animation-duration: {{ u.dur }}; animation-delay: {{ u.delay }}"></span>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{ fx.isSunset }}" hint-placeholder-val="{{ false }}">
+            <sc-if value="{{ fx.sunOn }}" hint-placeholder-val="{{ true }}">
+              <span class="sunx" style="opacity: {{ fx.opacity }}; animation-duration: {{ fx.dur }}">
+                <span class="suny" style="left: -130px; width: 260px; height: 260px; margin-top: -130px; background: radial-gradient(circle, rgba(255,236,179,0.97) 0%, rgba(253,186,116,0.8) 30%, rgba(251,146,60,0) 70%); animation-duration: {{ fx.dur }}"></span>
+              </span>
+            </sc-if>
+            <span style="position: absolute; left: 0; right: 0; bottom: 0; height: 24%; background: linear-gradient(180deg, transparent 0%, {{ fx.horizon }} 100%)"></span>
+          </sc-if>
+          <sc-if value="{{ fx.isGears }}" hint-placeholder-val="{{ false }}">
+            <div style="position: absolute; inset: 0; opacity: {{ fx.opacity }}">
+              <sc-for list="{{ fx.gearGroups }}" as="grp" hint-placeholder-count="2">
+                <div style="position: absolute; left: {{ grp.left }}; top: {{ grp.top }}; width: 0; height: 0; transform: scale({{ fx.gearScale }}); transform-origin: 0 0">
+                  <sc-for list="{{ grp.gears }}" as="g" hint-placeholder-count="2">
+                    <svg class="{{ g.cls }}" width="{{ g.w }}" height="{{ g.w }}" viewBox="{{ g.vb }}" style="position: absolute; left: {{ g.x }}; top: {{ g.y }}; animation-duration: {{ g.dur }}"><g transform="rotate({{ g.phase }})"><path d="{{ g.d }}" fill="{{ fx.gearFill }}" stroke="{{ fx.gearStroke }}" stroke-width="2" fill-rule="evenodd"></path></g></svg>
+                  </sc-for>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+        </div>
+        <div style="position: relative; display: grid; grid-template-columns: {{ gridCols }}; gap: 36px 28px; max-width: {{ gridMax }}; margin: 0 auto">
+          <sc-for list="{{ slides }}" as="s" hint-placeholder-count="6">
+            <div style="display: flex; flex-direction: column; gap: 6px">
+              <span style="font-family: {{ font.mono }}; font-size: 11px; color: {{ pal.muted }}; letter-spacing: 0.04em">{{ s.label }}</span>
+              <div class="slide" style="aspect-ratio: 16 / 9; border-radius: 6px; border: 1px solid {{ pal.line }}; background: {{ surfaceBg }}; backdrop-filter: {{ surfaceBlur }}; overflow: hidden; position: relative; color: {{ pal.text }}; font-family: {{ font.body }}">
+
+                <sc-if value="{{ s.isTitle }}" hint-placeholder-val="{{ false }}">
+                  <div style="position: absolute; inset: 0; padding: 9cqw 8cqw; display: flex; flex-direction: column; justify-content: center; gap: 2.2cqw">
+                    <span style="font-family: {{ font.mono }}; font-size: 2.1cqw; letter-spacing: 0.12em; color: {{ pal.tertiary }}">DECK SYSTEM · DRAFT</span>
+                    <span style="font-family: {{ font.head }}; font-weight: 600; font-size: 7.6cqw; line-height: 1.05">Slides on a canvas</span>
+                    <span style="width: 12cqw; height: 0.6cqw; background: {{ pal.primary }}"></span>
+                    <span style="font-size: 2.8cqw; color: {{ pal.muted }}">Theme, layout and motion in one place</span>
+                  </div>
+                </sc-if>
+
+                <sc-if value="{{ s.isBar }}" hint-placeholder-val="{{ false }}">
+                  <div style="position: absolute; inset: 0; display: flex; flex-direction: column">
+                    <div style="padding: 4.5cqw 6cqw 3cqw; border-bottom: 0.3cqw solid {{ pal.primary }}; font-family: {{ font.head }}; font-weight: 600; font-size: 4.6cqw">One background, many slides</div>
+                    <div style="padding: 4cqw 6cqw; display: flex; flex-direction: column; gap: 2.6cqw; font-size: 2.9cqw">
+                      <span style="display: flex; gap: 2cqw; align-items: center"><span style="width: 1.4cqw; height: 1.4cqw; border-radius: 50%; background: {{ pal.primary }}"></span>The canvas is a single picture</span>
+                      <span style="display: flex; gap: 2cqw; align-items: center"><span style="width: 1.4cqw; height: 1.4cqw; border-radius: 50%; background: {{ pal.primary }}"></span>Each slide is a window onto it</span>
+                      <span style="display: flex; gap: 2cqw; align-items: center"><span style="width: 1.4cqw; height: 1.4cqw; border-radius: 50%; background: {{ pal.primary }}"></span>Advancing moves the camera</span>
+                    </div>
+                  </div>
+                </sc-if>
+
+                <sc-if value="{{ s.isSplit }}" hint-placeholder-val="{{ false }}">
+                  <div style="position: absolute; inset: 0; display: flex">
+                    <div style="width: 36%; padding: 5cqw 3.5cqw; display: flex; flex-direction: column; gap: 1.6cqw; border-right: 0.25cqw solid {{ pal.line }}; font-size: 2.6cqw">
+                      <span style="font-family: {{ font.mono }}; font-size: 1.9cqw; color: {{ pal.muted }}; letter-spacing: 0.1em">THEME PARTS</span>
+                      <span style="padding: 1.4cqw 2cqw; border-radius: 1cqw; background: {{ pal.primary }}; color: {{ pal.onPrimary }}; font-weight: 600">1 · Background</span>
+                      <span style="padding: 1.4cqw 2cqw; color: {{ pal.muted }}">2 · Colour theme</span>
+                      <span style="padding: 1.4cqw 2cqw; color: {{ pal.muted }}">3 · Typography</span>
+                      <span style="padding: 1.4cqw 2cqw; color: {{ pal.muted }}">4 · Surfaces</span>
+                    </div>
+                    <div style="flex: 1; padding: 5cqw 5cqw; display: flex; flex-direction: column; gap: 2cqw">
+                      <span style="font-family: {{ font.head }}; font-weight: 600; font-size: 4.4cqw">Background</span>
+                      <span style="font-size: 2.6cqw; line-height: 1.5; color: {{ pal.muted }}">Solid, gradient, slowly moving gradient or a pattern — chosen once for the whole deck.</span>
+                      <span style="margin-top: auto; font-family: {{ font.mono }}; font-size: 2cqw; color: {{ pal.secondary }}">list ↔ detail layout</span>
+                    </div>
+                  </div>
+                </sc-if>
+
+                <sc-if value="{{ s.isSection }}" hint-placeholder-val="{{ false }}">
+                  <div style="position: absolute; inset: 0; padding: 7cqw 8cqw; display: flex; flex-direction: column; justify-content: flex-end; gap: 1cqw">
+                    <span style="font-family: {{ font.head }}; font-weight: 700; font-size: 16cqw; line-height: 0.9; color: {{ pal.impact }}">02</span>
+                    <span style="font-family: {{ font.head }}; font-weight: 600; font-size: 5.4cqw">Builds &amp; frames</span>
+                  </div>
+                </sc-if>
+
+                <sc-if value="{{ s.isVenn }}" hint-placeholder-val="{{ false }}">
+                  <div style="position: absolute; inset: 0">
+                    <span style="position: absolute; left: 6cqw; top: 4.5cqw; font-family: {{ font.head }}; font-weight: 600; font-size: 4.2cqw">Where a good slide comes from</span>
+                    <span style="position: absolute; left: 31cqw; top: 15cqw; width: 22cqw; height: 22cqw; border-radius: 50%; background: {{ pal.primaryA }}; border: 0.3cqw solid {{ pal.primary }}"></span>
+                    <span style="position: absolute; left: 45cqw; top: 15cqw; width: 22cqw; height: 22cqw; border-radius: 50%; background: {{ pal.secondaryA }}; border: 0.3cqw solid {{ pal.secondary }}"></span>
+                    <span style="position: absolute; left: 38cqw; top: 27cqw; width: 22cqw; height: 22cqw; border-radius: 50%; background: {{ pal.tertiaryA }}; border: 0.3cqw solid {{ pal.tertiary }}"></span>
+                    <span style="position: absolute; left: 33cqw; top: 22cqw; font-size: 2.4cqw; font-weight: 600">Theme</span>
+                    <span style="position: absolute; left: 56cqw; top: 22cqw; font-size: 2.4cqw; font-weight: 600">Layout</span>
+                    <span style="position: absolute; left: 45cqw; top: 41cqw; font-size: 2.4cqw; font-weight: 600">Motion</span>
+                  </div>
+                </sc-if>
+
+                <sc-if value="{{ s.isStatement }}" hint-placeholder-val="{{ false }}">
+                  <div style="position: absolute; inset: 0; padding: 8cqw; display: flex; flex-direction: column; justify-content: center; font-family: {{ font.head }}; font-weight: 600; font-size: 8cqw; line-height: 1.08">
+                    <span>One canvas.</span>
+                    <span style="color: {{ pal.impact }}">Many frames.</span>
+                  </div>
+                </sc-if>
+
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </main>
+
+    <aside aria-label="Theme settings" style="flex: 0 0 470px; max-width: 48%; min-width: 0; min-height: 0; border-left: 1px solid #2C3039; background: #1B1E24; display: flex">
+
+      <div role="tablist" aria-orientation="vertical" aria-label="Theme sections" style="flex: none; width: 88px; display: flex; flex-direction: column; gap: 4px; padding: 14px 8px; border-right: 1px solid #2C3039; background: #181A20">
+        <sc-for list="{{ tabs }}" as="tb" hint-placeholder-count="3">
+          <button role="tab" aria-selected="{{ tb.on }}" onClick="{{ tb.pick }}" style="display: flex; flex-direction: column; align-items: center; gap: 7px; padding: 12px 4px; border: 0; border-radius: 10px; cursor: pointer; background: {{ tb.bg }}; color: {{ tb.fg }}; font-size: 11px; font-weight: 600">
+            <sc-if value="{{ tb.isBg }}" hint-placeholder-val="{{ false }}">
+              <span aria-hidden="true" style="width: 34px; height: 26px; border-radius: 6px; border: 1px solid #3A3F4B; background: {{ bg.css }}; background-size: {{ bg.size }}"></span>
+            </sc-if>
+            <sc-if value="{{ tb.isTheme }}" hint-placeholder-val="{{ false }}">
+              <span aria-hidden="true" style="height: 26px; display: flex; align-items: center; gap: 3px">
+                <span style="width: 9px; height: 18px; border-radius: 3px; background: {{ pal.primary }}"></span>
+                <span style="width: 9px; height: 18px; border-radius: 3px; background: {{ pal.secondary }}"></span>
+                <span style="width: 9px; height: 18px; border-radius: 3px; background: {{ pal.impact }}"></span>
+              </span>
+            </sc-if>
+            <sc-if value="{{ tb.isType }}" hint-placeholder-val="{{ false }}">
+              <span aria-hidden="true" style="height: 26px; display: flex; align-items: center; font-family: {{ font.head }}; font-size: 22px; font-weight: 600; line-height: 1">Aa</span>
+            </sc-if>
+            {{ tb.label }}
+          </button>
+        </sc-for>
+      </div>
+
+      <div role="tabpanel" aria-label="{{ tabLabel }}" style="flex: 1; min-width: 0; min-height: 0; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 22px">
+
+      <sc-if value="{{ tabBg }}" hint-placeholder-val="{{ true }}">
+      <section style="display: flex; flex-direction: column; gap: 12px">
+        <div style="display: flex; align-items: baseline; gap: 8px">
+          <h2 style="margin: 0; font-size: 15px; font-weight: 600">Background</h2>
+          <span style="font-size: 12px; color: #9AA1AD">{{ bg.name }} · {{ bg.schemeName }}</span>
+        </div>
+        <div role="group" aria-label="Background kind" style="display: flex; flex-wrap: wrap; gap: 4px">
+          <sc-for list="{{ kinds }}" as="k" hint-placeholder-count="5">
+            <button onClick="{{ k.pick }}" aria-pressed="{{ k.on }}" style="padding: 6px 10px; border-radius: 999px; border: 1px solid #343944; font-size: 12px; cursor: pointer; background: {{ k.bg }}; color: {{ k.fg }}">{{ k.label }}</button>
+          </sc-for>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px">
+          <sc-for list="{{ bgList }}" as="b" hint-placeholder-count="8">
+            <button onClick="{{ b.pick }}" aria-label="{{ b.name }} background" aria-pressed="{{ b.on }}" style="padding: 0; border: 0; background: none; cursor: pointer; display: flex; flex-direction: column; gap: 5px; color: #C3C8D2; text-align: left">
+              <span class="{{ b.cls }}" style="position: relative; overflow: hidden; display: block; width: 100%; aspect-ratio: 4 / 3; border-radius: 8px; background: {{ b.css }}; background-size: {{ b.size }}; outline: {{ b.outline }}; outline-offset: 2px; animation-duration: {{ b.dur }}">
+                <sc-if value="{{ b.isBubbles }}" hint-placeholder-val="{{ false }}">
+                  <span class="bubble" style="left: 18%; width: 9px; height: 9px; border-radius: 50%; border: 1px solid {{ b.tintEdge }}; animation-duration: 5s; animation-delay: -1s"></span>
+                  <span class="bubble" style="left: 52%; width: 6px; height: 6px; border-radius: 50%; border: 1px solid {{ b.tintEdge }}; animation-duration: 4s; animation-delay: -3s"></span>
+                  <span class="bubble" style="left: 72%; width: 12px; height: 12px; border-radius: 50%; border: 1px solid {{ b.tintEdge }}; animation-duration: 6s; animation-delay: -4s"></span>
+                </sc-if>
+                <sc-if value="{{ b.isSunset }}" hint-placeholder-val="{{ false }}">
+                  <span class="sunx" style="animation-duration: {{ b.dur }}">
+                    <span class="suny" style="left: -15px; width: 30px; height: 30px; margin-top: -15px; background: radial-gradient(circle, rgba(255,236,179,0.97) 0%, rgba(253,186,116,0.8) 30%, rgba(251,146,60,0) 70%); animation-duration: {{ b.dur }}"></span>
+                  </span>
+                </sc-if>
+                <sc-if value="{{ b.isGears }}" hint-placeholder-val="{{ false }}">
+                  <svg class="spin" width="46" height="46" viewBox="-50 -50 100 100" style="position: absolute; left: 50%; top: 50%; margin: -23px 0 0 -23px; animation-duration: 14s"><path d="{{ b.gearD }}" fill="{{ b.gearFill }}" stroke="{{ b.gearStroke }}" stroke-width="3" fill-rule="evenodd"></path></svg>
+                </sc-if>
+              </span>
+              <span style="font-size: 11px">{{ b.name }}</span>
+            </button>
+          </sc-for>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 8px; padding: 14px; border-radius: 12px; background: #23262E; border: 1px solid #2C3039">
+          <div style="display: flex; flex-direction: column; gap: 2px">
+            <h3 style="margin: 0; font-size: 13px; font-weight: 600">Colours · {{ bg.name }}</h3>
+            <span style="font-size: 12px; color: #9AA1AD">Each background keeps its own colours. Text colours follow automatically.</span>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px">
+            <sc-for list="{{ schemeOpts }}" as="c" hint-placeholder-count="10">
+              <button onClick="{{ c.pick }}" aria-pressed="{{ c.on }}" aria-label="{{ c.name }} colours" style="display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 4px; border-radius: 8px; background: #1B1E24; border: 1px solid {{ c.border }}; cursor: pointer; color: #C3C8D2">
+                <span style="display: flex; width: 100%; height: 18px; border-radius: 4px; overflow: hidden"><span style="flex: 1; background: {{ c.deep }}"></span><span style="flex: 1; background: {{ c.mid }}"></span><span style="flex: 1; background: {{ c.accent }}"></span></span>
+                <span style="font-size: 10px">{{ c.name }}</span>
+              </button>
+            </sc-for>
+          </div>
+          <sc-if value="{{ isCustom }}" hint-placeholder-val="{{ false }}">
+            <div style="display: flex; flex-wrap: wrap; gap: 12px; padding-top: 6px">
+              <sc-for list="{{ customSlots }}" as="k" hint-placeholder-count="3">
+                <label style="display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: #C3C8D2">
+                  {{ k.label }}
+                  <span style="display: flex; align-items: center; gap: 6px">
+                    <input type="color" value="{{ k.value }}" onInput="{{ k.set }}" style="width: 44px; height: 32px; padding: 0; border: 1px solid #343944; border-radius: 6px; background: none; cursor: pointer">
+                    <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #E8EAEE">{{ k.value }}</span>
+                  </span>
+                </label>
+              </sc-for>
+            </div>
+          </sc-if>
+          <button onClick="{{ applyAll }}" style="align-self: flex-start; margin-top: 4px; display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-radius: 8px; border: 1px solid #3E5A92; background: #1F2533; color: #D6E2FF; font-size: 12px; font-weight: 600; cursor: pointer">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>
+            {{ applyAllLabel }}
+          </button>
+          <sc-if value="{{ appliedNote }}" hint-placeholder-val="{{ false }}">
+            <span role="status" style="font-size: 11px; color: #9AA1AD">{{ appliedNote }}</span>
+          </sc-if>
+        </div>
+      </section>
+
+      <sc-if value="{{ isMotion }}" hint-placeholder-val="{{ false }}">
+        <section aria-label="Motion settings" style="display: flex; flex-direction: column; gap: 14px; margin-top: -10px; padding: 14px; border-radius: 12px; background: #23262E; border: 1px solid #2C3039">
+          <div style="display: flex; flex-direction: column; gap: 2px">
+            <h2 style="margin: 0; font-size: 13px; font-weight: 600">Motion · {{ bg.name }}</h2>
+            <span style="font-size: 12px; color: #9AA1AD">{{ ms.hint }}</span>
+          </div>
+          <label style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #C3C8D2">
+            <span style="display: flex; justify-content: space-between">Speed <span style="color: #E8EAEE">{{ ms.speedLabel }}</span></span>
+            <input type="range" min="0" max="{{ ms.speedMax }}" step="1" value="{{ ms.speedIdx }}" onInput="{{ setSpeed }}" style="accent-color: #7AA2FF">
+            <span style="display: flex; justify-content: space-between; font-size: 11px; color: #9AA1AD"><span>Barely moving</span><span>Faster</span></span>
+          </label>
+          <sc-if value="{{ ms.hasCount }}" hint-placeholder-val="{{ true }}">
+            <label style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #C3C8D2">
+              <span style="display: flex; justify-content: space-between">{{ ms.countLabel }} <span style="color: #E8EAEE">{{ ms.count }}</span></span>
+              <input type="range" min="{{ ms.countMin }}" max="{{ ms.countMax }}" step="{{ ms.countStep }}" value="{{ ms.count }}" onInput="{{ setCount }}" style="accent-color: #7AA2FF">
+            </label>
+          </sc-if>
+          <sc-if value="{{ ms.hasOpacity }}" hint-placeholder-val="{{ true }}">
+            <label style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #C3C8D2">
+              <span style="display: flex; justify-content: space-between">Opacity <span style="color: #E8EAEE">{{ ms.opacity }}%</span></span>
+              <input type="range" min="10" max="100" step="5" value="{{ ms.opacity }}" onInput="{{ setOpacity }}" style="accent-color: #7AA2FF">
+            </label>
+          </sc-if>
+          <sc-if value="{{ ms.hasExtra }}" hint-placeholder-val="{{ true }}">
+            <div style="display: flex; flex-direction: column; gap: 6px">
+              <span style="font-size: 12px; color: #C3C8D2">{{ ms.extraLabel }}</span>
+              <div role="group" aria-label="{{ ms.extraLabel }}" style="display: flex; gap: 2px; background: #1B1E24; padding: 3px; border-radius: 8px">
+                <sc-for list="{{ extraOpts }}" as="o" hint-placeholder-count="3">
+                  <button onClick="{{ o.pick }}" aria-pressed="{{ o.on }}" style="flex: 1; padding: 7px 8px; border: 0; border-radius: 6px; font-size: 12px; cursor: pointer; background: {{ o.bg }}; color: #E8EAEE">{{ o.label }}</button>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+          <span style="font-size: 11px; color: #9AA1AD">Motion stops for viewers who have Reduce motion turned on.</span>
+        </section>
+      </sc-if>
+      </sc-if>
+
+      <sc-if value="{{ tabTheme }}" hint-placeholder-val="{{ false }}">
+      <section style="display: flex; flex-direction: column; gap: 10px">
+        <div style="display: flex; align-items: baseline; gap: 8px">
+          <h2 style="margin: 0; font-size: 15px; font-weight: 600">Theme</h2>
+          <span style="font-size: 12px; color: #9AA1AD">for {{ bg.tone }} backgrounds</span>
+        </div>
+        <sc-for list="{{ palList }}" as="p" hint-placeholder-count="4">
+          <button onClick="{{ p.pick }}" aria-pressed="{{ p.on }}" style="display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-radius: 10px; cursor: pointer; text-align: left; background: #23262E; color: #E8EAEE; border: 1px solid {{ p.border }}">
+            <span style="display: flex; align-items: center; gap: 8px; width: 100%">
+              <span style="font-size: 13px; font-weight: 600">{{ p.name }}</span>
+              <sc-if value="{{ p.pairs }}" hint-placeholder-val="{{ false }}">
+                <span style="font-size: 10px; padding: 2px 6px; border-radius: 999px; background: #2A3A5C; color: #C9D8FF">Pairs with these colours</span>
+              </sc-if>
+            </span>
+            <span style="display: flex; gap: 6px; align-items: flex-end">
+              <span style="display: flex; flex-direction: column; gap: 3px; align-items: center"><span style="width: 30px; height: 22px; border-radius: 5px; background: {{ p.primary }}"></span><span style="font-size: 9px; color: #9AA1AD">Primary</span></span>
+              <span style="display: flex; flex-direction: column; gap: 3px; align-items: center"><span style="width: 30px; height: 22px; border-radius: 5px; background: {{ p.secondary }}"></span><span style="font-size: 9px; color: #9AA1AD">Second</span></span>
+              <span style="display: flex; flex-direction: column; gap: 3px; align-items: center"><span style="width: 30px; height: 22px; border-radius: 5px; background: {{ p.tertiary }}"></span><span style="font-size: 9px; color: #9AA1AD">Third</span></span>
+              <span style="display: flex; flex-direction: column; gap: 3px; align-items: center"><span style="width: 30px; height: 22px; border-radius: 5px; background: {{ p.text }}; border: 1px solid #343944"></span><span style="font-size: 9px; color: #9AA1AD">Text</span></span>
+              <span style="width: 1px; height: 30px; background: #343944; margin: 0 2px"></span>
+              <span style="display: flex; flex-direction: column; gap: 3px; align-items: center"><span style="width: 30px; height: 22px; border-radius: 5px; background: {{ p.impact }}; box-shadow: 0 0 0 2px #23262E, 0 0 0 3px {{ p.impact }}"></span><span style="font-size: 9px; color: #E8EAEE; font-weight: 600">Impact</span></span>
+            </span>
+          </button>
+        </sc-for>
+        <div style="display: flex; align-items: center; gap: 10px; margin-top: 4px">
+          <span style="font-size: 12px; color: #C3C8D2">Slide surface</span>
+          <div role="group" aria-label="Slide surface" style="display: flex; gap: 2px; background: #23262E; padding: 3px; border-radius: 8px">
+            <sc-for list="{{ surfaces }}" as="f" hint-placeholder-count="3">
+              <button onClick="{{ f.pick }}" aria-pressed="{{ f.on }}" style="padding: 6px 10px; border: 0; border-radius: 6px; font-size: 12px; cursor: pointer; background: {{ f.bg }}; color: #E8EAEE">{{ f.label }}</button>
+            </sc-for>
+          </div>
+        </div>
+      </section>
+      </sc-if>
+
+      <sc-if value="{{ tabType }}" hint-placeholder-val="{{ false }}">
+      <section style="display: flex; flex-direction: column; gap: 10px">
+        <h2 style="margin: 0; font-size: 15px; font-weight: 600">Typography <span style="font-weight: 400; font-size: 13px; color: #9AA1AD">· Google Fonts</span></h2>
+        <sc-for list="{{ fontList }}" as="t" hint-placeholder-count="5">
+          <button onClick="{{ t.pick }}" aria-pressed="{{ t.on }}" style="display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 4px 12px; align-items: center; padding: 10px 12px; border-radius: 10px; cursor: pointer; text-align: left; background: #23262E; color: #E8EAEE; border: 1px solid {{ t.border }}">
+            <span style="grid-row: span 3; font-family: {{ t.head }}; font-weight: 600; font-size: 32px; line-height: 1">Aa</span>
+            <span style="font-family: {{ t.head }}; font-weight: 600; font-size: 15px">{{ t.mood }} · {{ t.headName }}</span>
+            <span style="font-family: {{ t.body }}; font-size: 12px; color: #C3C8D2">Body in {{ t.bodyName }}, readable at a distance</span>
+            <span style="font-family: {{ t.mono }}; font-size: 11px; color: #9AA1AD">SUBTEXT · {{ t.monoName }}</span>
+          </button>
+        </sc-for>
+      </section>
+      </sc-if>
+
+      </div>
+    </aside>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+// ---------- colour helpers ----------
+function parseHex(hex) {
+  const m = /^#([0-9a-fA-F]{6})$/.exec(hex);
+  if (!m) throw new Error('bug: this should never happen — not a #RRGGBB colour: "' + hex + '"');
+  const n = parseInt(m[1], 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+function hexA(hex, alpha) {
+  const c = parseHex(hex);
+  return 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + alpha + ')';
+}
+function luminance(hex) {
+  const lin = parseHex(hex).map((v) => { const s = v / 255; return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4); });
+  return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
+}
+
+// ---------- background styles ----------
+// Each style turns three colour slots into CSS. `slots` = the slots this style actually uses, with the label shown in the Custom picker.
+// deep = the dominant base colour, mid = the second colour, accent = the highlight / lines / effect colour.
+const STYLES = {
+  solid: { slots: [['deep', 'Colour']], build: (c) => ({ css: c.deep, size: 'auto' }) },
+  gradient: { slots: [['deep', 'Start'], ['mid', 'Middle'], ['accent', 'End']], build: (c) => ({ css: 'linear-gradient(135deg, ' + c.deep + ' 0%, ' + c.mid + ' 55%, ' + c.accent + ' 100%)', size: 'auto' }) },
+  flow: { slots: [['deep', 'Base'], ['mid', 'Drift 1'], ['accent', 'Drift 2']], build: (c) => ({ css: 'linear-gradient(120deg, ' + c.deep + ', ' + c.mid + ', ' + c.accent + ', ' + c.mid + ', ' + c.deep + ')', size: '400% 400%' }) },
+  bubbles: { slots: [['deep', 'Top'], ['mid', 'Bottom'], ['accent', 'Glow & bubbles']], build: (c, tone) => ({ css: 'radial-gradient(ellipse at 50% 120%, ' + hexA(c.accent, tone === 'dark' ? 0.9 : 0.25) + ' 0%, ' + hexA(c.accent, 0) + ' 60%), linear-gradient(180deg, ' + c.deep + ' 0%, ' + c.mid + ' 100%)', size: 'auto' }) },
+  sunset: { slots: [['deep', 'Night sky'], ['mid', 'Dusk'], ['accent', 'Sunset glow']], build: (c) => ({ css: 'linear-gradient(180deg, ' + c.deep + ' 0%, ' + c.deep + ' 12%, ' + c.mid + ' 50%, ' + c.accent + ' 100%)', size: '100% 300%' }) },
+  gears: { slots: [['deep', 'Base'], ['mid', 'Light spot'], ['accent', 'Gears']], build: (c) => ({ css: 'radial-gradient(ellipse at 30% 20%, ' + c.mid + ' 0%, ' + c.deep + ' 70%)', size: 'auto' }) },
+  stripes: { slots: [['deep', 'Base'], ['mid', 'Stripe']], build: (c) => ({ css: 'repeating-linear-gradient(135deg, ' + c.mid + ' 0 14px, ' + c.deep + ' 14px 28px)', size: 'auto' }) },
+  blueprint: { slots: [['deep', 'Base'], ['accent', 'Grid lines']], build: (c) => ({ css: 'linear-gradient(' + hexA(c.accent, 0.16) + ' 1px, transparent 1px), linear-gradient(90deg, ' + hexA(c.accent, 0.16) + ' 1px, transparent 1px), ' + c.deep, size: '40px 40px, 40px 40px, auto' }) },
+  dots: { slots: [['deep', 'Base'], ['accent', 'Dots']], build: (c) => ({ css: 'radial-gradient(' + hexA(c.accent, 0.22) + ' 1.2px, transparent 1.5px), ' + c.deep, size: '22px 22px, auto' }) },
+  pinstripe: { slots: [['deep', 'Base'], ['accent', 'Lines']], build: (c) => ({ css: 'repeating-linear-gradient(90deg, ' + hexA(c.accent, 0.09) + ' 0 1px, transparent 1px 18px), ' + c.deep, size: 'auto' }) },
+};
+
+// `original` = the background's own colours; `pairs` = the colour theme suggested with them.
+const BACKGROUNDS = [
+  { id: 'ink', name: 'Ink', kind: 'solid', style: 'solid', pairs: 'midnight', original: { deep: '#0F172A', mid: '#1E293B', accent: '#94A3B8' } },
+  { id: 'paper', name: 'Paper', kind: 'solid', style: 'solid', pairs: 'paper', original: { deep: '#F5F3EE', mid: '#E9E4D8', accent: '#8A7E66' } },
+  { id: 'forest', name: 'Forest', kind: 'solid', style: 'solid', pairs: 'botanical', original: { deep: '#0E2620', mid: '#1F4D3A', accent: '#7FB069' } },
+  { id: 'charcoal', name: 'Charcoal', kind: 'solid', style: 'solid', pairs: 'mono', original: { deep: '#18181B', mid: '#27272A', accent: '#A1A1AA' } },
+  { id: 'dusk', name: 'Dusk', kind: 'gradient', style: 'gradient', pairs: 'midnight', original: { deep: '#1E1B4B', mid: '#4C1D95', accent: '#831843' } },
+  { id: 'ocean', name: 'Ocean', kind: 'gradient', style: 'gradient', pairs: 'botanical', original: { deep: '#082F49', mid: '#0E7490', accent: '#065F46' } },
+  { id: 'ember', name: 'Ember', kind: 'gradient', style: 'gradient', pairs: 'ember', original: { deep: '#1C1917', mid: '#7C2D12', accent: '#B45309' } },
+  { id: 'mist', name: 'Mist', kind: 'gradient', style: 'gradient', pairs: 'coastal', original: { deep: '#EEF2FF', mid: '#F5F3FF', accent: '#FDF2F8' } },
+  { id: 'aurora', name: 'Aurora', kind: 'motion', style: 'flow', effect: 'flow', pairs: 'midnight', original: { deep: '#0B1023', mid: '#1E3A8A', accent: '#0F766E' } },
+  { id: 'lagoon', name: 'Lagoon', kind: 'motion', style: 'flow', effect: 'flow', pairs: 'botanical', original: { deep: '#04263A', mid: '#0E7490', accent: '#134E4A' } },
+  { id: 'embers', name: 'Embers', kind: 'motion', style: 'flow', effect: 'flow', pairs: 'ember', original: { deep: '#1C1917', mid: '#7C2D12', accent: '#9F1239' } },
+  { id: 'pearl', name: 'Pearl', kind: 'motion', style: 'flow', effect: 'flow', pairs: 'coastal', original: { deep: '#F8FAFC', mid: '#E0F2FE', accent: '#FCE7F3' } },
+  { id: 'bubbles', name: 'Bubbles', kind: 'motion', style: 'bubbles', effect: 'bubbles', pairs: 'midnight', original: { deep: '#041C2C', mid: '#06354F', accent: '#0E7490' } },
+  { id: 'fizz', name: 'Fizz', kind: 'motion', style: 'bubbles', effect: 'bubbles', pairs: 'coastal', original: { deep: '#F0FDFA', mid: '#E0F2FE', accent: '#0E7490' } },
+  { id: 'sunset', name: 'Sunset', kind: 'motion', style: 'sunset', effect: 'sunset', pairs: 'ember', original: { deep: '#120A2A', mid: '#6B1D5C', accent: '#C76A12' } },
+  { id: 'gears', name: 'Gears', kind: 'motion', style: 'gears', effect: 'gears', pairs: 'mono', original: { deep: '#12151A', mid: '#262B35', accent: '#E2E8F0' } },
+  { id: 'stripes', name: 'Stripes', kind: 'pattern', style: 'stripes', pairs: 'mono', original: { deep: '#111827', mid: '#1A2131', accent: '#94A3B8' } },
+  { id: 'blueprint', name: 'Blueprint', kind: 'pattern', style: 'blueprint', pairs: 'midnight', original: { deep: '#0B2545', mid: '#13315C', accent: '#93C5FD' } },
+  { id: 'dots', name: 'Dot grid', kind: 'pattern', style: 'dots', pairs: 'paper', original: { deep: '#F5F3EE', mid: '#EAE6DC', accent: '#0F172A' } },
+  { id: 'pinstripe', name: 'Pinstripe', kind: 'pattern', style: 'pinstripe', pairs: 'paper', original: { deep: '#FAFAF7', mid: '#F0F0EA', accent: '#0F172A' } },
+];
+
+// Named colour schemes that can be applied to any background. 'original' and 'custom' are handled separately.
+const SCHEMES = [
+  { id: 'oxford', name: 'Oxford', pairs: 'midnight', deep: '#00152E', mid: '#002147', accent: '#7A9CC6' },
+  { id: 'ember', name: 'Ember', pairs: 'ember', deep: '#1C1917', mid: '#7C2D12', accent: '#D97706' },
+  { id: 'lagoon', name: 'Lagoon', pairs: 'botanical', deep: '#04263A', mid: '#0E7490', accent: '#2DD4BF' },
+  { id: 'forest', name: 'Forest', pairs: 'botanical', deep: '#0B2018', mid: '#1F4D3A', accent: '#86B06A' },
+  { id: 'plum', name: 'Plum', pairs: 'midnight', deep: '#1A0B2E', mid: '#4C1D95', accent: '#DB2777' },
+  { id: 'graphite', name: 'Graphite', pairs: 'mono', deep: '#111317', mid: '#2A2F38', accent: '#A1A1AA' },
+  { id: 'sand', name: 'Sand', pairs: 'paper', deep: '#FAF6EE', mid: '#F1E6D2', accent: '#A47C48' },
+  { id: 'mistlight', name: 'Mist', pairs: 'coastal', deep: '#F5F7FF', mid: '#E6ECFF', accent: '#5B74C2' },
+];
+
+const PALETTES = [
+  { id: 'midnight', name: 'Midnight Signal', tone: 'dark', text: '#F1F5F9', muted: '#B6C0D0', primary: '#93C5FD', secondary: '#C4B5FD', tertiary: '#5EEAD4', impact: '#FBBF24', onPrimary: '#0B1530' },
+  { id: 'ember', name: 'Ember Editorial', tone: 'dark', text: '#FFF7ED', muted: '#E7CBB4', primary: '#FDBA74', secondary: '#FCA5A5', tertiary: '#FDE68A', impact: '#FB7185', onPrimary: '#2A1405' },
+  { id: 'botanical', name: 'Botanical', tone: 'dark', text: '#ECFDF5', muted: '#B5D6CA', primary: '#6EE7B7', secondary: '#A5F3FC', tertiary: '#FCD34D', impact: '#F472B6', onPrimary: '#052E22' },
+  { id: 'mono', name: 'Mono Contrast', tone: 'dark', text: '#FAFAFA', muted: '#B4B4BC', primary: '#E4E4E7', secondary: '#A1A1AA', tertiary: '#71717A', impact: '#22D3EE', onPrimary: '#18181B' },
+  { id: 'paper', name: 'Paper & Ink', tone: 'light', text: '#111827', muted: '#4B5563', primary: '#1D4ED8', secondary: '#0F766E', tertiary: '#9CA3AF', impact: '#DC2626', onPrimary: '#FFFFFF' },
+  { id: 'coastal', name: 'Coastal', tone: 'light', text: '#0C2A3A', muted: '#3F5866', primary: '#0E7490', secondary: '#4F46E5', tertiary: '#94A3B8', impact: '#EA580C', onPrimary: '#FFFFFF' },
+];
+
+const FONTS = [
+  { id: 'technical', mood: 'Technical', headName: 'Space Grotesk', bodyName: 'Inter', monoName: 'JetBrains Mono', head: "'Space Grotesk', sans-serif", body: 'Inter, sans-serif', mono: "'JetBrains Mono', monospace" },
+  { id: 'professional', mood: 'Professional', headName: 'IBM Plex Sans', bodyName: 'IBM Plex Sans', monoName: 'IBM Plex Mono', head: "'IBM Plex Sans', sans-serif", body: "'IBM Plex Sans', sans-serif", mono: "'IBM Plex Mono', monospace" },
+  { id: 'elegant', mood: 'Elegant', headName: 'Playfair Display', bodyName: 'Source Sans 3', monoName: 'DM Mono', head: "'Playfair Display', serif", body: "'Source Sans 3', sans-serif", mono: "'DM Mono', monospace" },
+  { id: 'editorial', mood: 'Editorial', headName: 'Fraunces', bodyName: 'Inter', monoName: 'IBM Plex Mono', head: 'Fraunces, serif', body: 'Inter, sans-serif', mono: "'IBM Plex Mono', monospace" },
+  { id: 'geometric', mood: 'Geometric', headName: 'Sora', bodyName: 'Manrope', monoName: 'DM Mono', head: 'Sora, sans-serif', body: 'Manrope, sans-serif', mono: "'DM Mono', monospace" },
+];
+
+const KINDS = [
+  { id: 'all', label: 'All' }, { id: 'solid', label: 'Solid' }, { id: 'gradient', label: 'Gradient' },
+  { id: 'motion', label: 'Moving' }, { id: 'pattern', label: 'Pattern' },
+];
+
+const TABS = [
+  { id: 'background', label: 'Background' },
+  { id: 'theme', label: 'Theme' },
+  { id: 'type', label: 'Typography' },
+];
+
+const SURFACES = [{ id: 'clear', label: 'Clear' }, { id: 'frosted', label: 'Frosted' }, { id: 'card', label: 'Card' }];
+
+const SLIDES = [
+  { label: '01 · Title', type: 'title' }, { label: '02 · Title bar', type: 'bar' }, { label: '03 · List + detail', type: 'split' },
+  { label: '04 · Section', type: 'section' }, { label: '05 · Shapes', type: 'venn' }, { label: '06 · Statement', type: 'statement' },
+];
+
+// ---------- motion ----------
+// Speed multipliers offered by the slider (index into this list is what the slider stores). 1 = the base cycle.
+const SPEEDS = [0.03, 0.05, 0.08, 0.12, 0.17, 0.25, 0.35, 0.5, 0.7, 1, 1.4, 2];
+
+// base = cycle length in seconds at ×1. controls = settings beyond speed.
+const MOTION = {
+  aurora: { base: 16, controls: [], hint: 'Colours drift slowly behind the slides' },
+  lagoon: { base: 16, controls: [], hint: 'Colours drift slowly behind the slides' },
+  embers: { base: 16, controls: [], hint: 'Colours drift slowly behind the slides' },
+  pearl: { base: 16, controls: [], hint: 'Colours drift slowly behind the slides' },
+  bubbles: { base: 14, controls: ['count', 'opacity'], hint: 'Bubbles rise gently behind the slides' },
+  fizz: { base: 14, controls: ['count', 'opacity'], hint: 'Bubbles rise gently behind the slides' },
+  sunset: { base: 40, controls: ['opacity', 'sun'], hint: 'The sun rises from the left, arcs across and sets on the right' },
+  gears: { base: 40, controls: ['count', 'opacity', 'size'], hint: 'Meshed gears turn slowly in the corners' },
+};
+
+const MOTION_DEFAULTS = {
+  aurora: { speedIdx: 9 }, lagoon: { speedIdx: 9 }, embers: { speedIdx: 9 }, pearl: { speedIdx: 9 },
+  bubbles: { speedIdx: 9, opacity: 60, count: 18 },
+  fizz: { speedIdx: 9, opacity: 70, count: 18 },
+  sunset: { speedIdx: 9, opacity: 90, sun: 'show' },
+  gears: { speedIdx: 8, opacity: 35, count: 4, size: 'medium' },
+};
+
+const COUNT_CONTROLS = {
+  bubbles: { label: 'Number of bubbles', min: 4, max: 60, step: 2 },
+  gears: { label: 'Number of gears', min: 1, max: 8, step: 1 },
+};
+
+const EXTRA_CONTROLS = {
+  sun: { label: 'Sun', options: [{ value: 'show', label: 'Show' }, { value: 'hide', label: 'Hide' }] },
+  size: { label: 'Gear size', options: [{ value: 'small', label: 'Small' }, { value: 'medium', label: 'Medium' }, { value: 'large', label: 'Large' }] },
+};
+
+const GEAR_SCALE = { small: 0.65, medium: 1, large: 1.4 };
+const GEAR_DEPTH = 14;
+
+// Gear chains anchored to canvas corners. Each gear after the first meshes with the one before it, at `angle` degrees.
+const GEAR_CHAINS = {
+  bl: { left: '5%', top: '76%', gears: [{ R: 150, teeth: 18 }, { R: 96, teeth: 12, angle: -28 }, { R: 60, teeth: 7, angle: 12 }] },
+  tr: { left: '90%', top: '14%', gears: [{ R: 120, teeth: 14 }, { R: 60, teeth: 7, angle: 136 }] },
+  br: { left: '95%', top: '94%', gears: [{ R: 110, teeth: 13 }, { R: 72, teeth: 9, angle: 200 }] },
+  tl: { left: '3%', top: '5%', gears: [{ R: 84, teeth: 10 }] },
+};
+// The order gears are added as the count goes up: [chain, how many gears of that chain are then shown].
+const GEAR_ORDER = [['bl', 1], ['tr', 1], ['bl', 2], ['tr', 2], ['br', 1], ['bl', 3], ['br', 2], ['tl', 1]];
+
+function seededRandom(seed) {
+  let s = seed >>> 0;
+  return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+}
+
+function makeBubbles(count, baseSeconds, factor, seed) {
+  const rnd = seededRandom(seed);
+  return Array.from({ length: count }, () => {
+    const size = 8 + rnd() * 28;
+    const left = rnd() * 96;
+    const dur = baseSeconds * (0.7 + rnd() * 0.6) * factor;
+    const delay = -(rnd() * dur);
+    return { left: left.toFixed(1) + '%', size: size.toFixed(1) + 'px', dur: dur.toFixed(2) + 's', delay: delay.toFixed(2) + 's' };
+  });
+}
+
+function gearPath(teeth, R, depth, hole) {
+  const r = R - depth;
+  const a = (Math.PI * 2) / teeth;
+  const pt = (rad, ang) => (rad * Math.cos(ang)).toFixed(2) + ' ' + (rad * Math.sin(ang)).toFixed(2);
+  const pts = [];
+  for (let i = 0; i < teeth; i++) pts.push(pt(r, i * a), pt(R, (i + 0.15) * a), pt(R, (i + 0.45) * a), pt(r, (i + 0.6) * a));
+  const h = hole.toFixed(2);
+  return 'M' + pts.join(' L') + ' Z M' + h + ' 0 A' + h + ' ' + h + ' 0 1 0 -' + h + ' 0 A' + h + ' ' + h + ' 0 1 0 ' + h + ' 0 Z';
+}
+
+const GEAR_SWATCH_PATH = gearPath(10, 46, 12, 13);
+
+function layoutGears(count, baseSeconds, factor) {
+  const shown = {};
+  GEAR_ORDER.slice(0, count).forEach((entry) => { shown[entry[0]] = entry[1]; });
+  return Object.keys(shown).map((key) => {
+    const chain = GEAR_CHAINS[key];
+    let x = 0; let y = 0;
+    const gears = chain.gears.slice(0, shown[key]).map((g, i, list) => {
+      if (i > 0) {
+        const prev = list[i - 1];
+        const dist = prev.R + g.R - GEAR_DEPTH;
+        const rad = (g.angle * Math.PI) / 180;
+        x += dist * Math.cos(rad); y += dist * Math.sin(rad);
+      }
+      return {
+        cls: i % 2 === 0 ? 'spin' : 'spinr', w: g.R * 2, vb: -g.R + ' ' + -g.R + ' ' + g.R * 2 + ' ' + g.R * 2,
+        x: (x - g.R).toFixed(1) + 'px', y: (y - g.R).toFixed(1) + 'px', phase: i === 0 ? 0 : 180 / g.teeth,
+        dur: (baseSeconds * factor * (g.teeth / 18)).toFixed(1) + 's',
+        d: gearPath(g.teeth, g.R, GEAR_DEPTH, g.R * 0.28),
+      };
+    });
+    return { left: chain.left, top: chain.top, gears };
+  });
+}
+
+// ---------- resolving a background ----------
+function findById(list, id, what) {
+  const hit = list.find((x) => x.id === id);
+  if (!hit) throw new Error('bug: this should never happen — unknown ' + what + ' id "' + id + '"');
+  return hit;
+}
+
+function styleOf(bg) {
+  const st = STYLES[bg.style];
+  if (!st) throw new Error('bug: this should never happen — unknown background style "' + bg.style + '"');
+  return st;
+}
+
+function motionSpec(bgId) {
+  const spec = MOTION[bgId];
+  if (!spec) throw new Error('bug: this should never happen — no motion spec for "' + bgId + '"');
+  return spec;
+}
+
+function effectClass(bg) {
+  if (bg.kind !== 'motion') return '';
+  if (bg.effect === 'flow') return 'anim';
+  if (bg.effect === 'sunset') return 'sky';
+  if (bg.effect === 'bubbles' || bg.effect === 'gears') return '';
+  throw new Error('bug: this should never happen — unknown motion effect "' + bg.effect + '"');
+}
+
+// Pure: the colours, CSS, tone and suggested palette for one background under the given scheme choices.
+function resolveBackground(bg, schemeChoice, customColours) {
+  let colours; let pairs; let schemeName;
+  if (schemeChoice === 'original') { colours = bg.original; pairs = bg.pairs; schemeName = 'Original'; }
+  else if (schemeChoice === 'custom') {
+    if (!customColours) throw new Error('bug: this should never happen — no custom colours for "' + bg.id + '"');
+    colours = customColours; pairs = null; schemeName = 'Custom';
+  } else {
+    const sch = findById(SCHEMES, schemeChoice, 'colour scheme');
+    colours = { deep: sch.deep, mid: sch.mid, accent: sch.accent }; pairs = sch.pairs; schemeName = sch.name;
+  }
+  const st = styleOf(bg);
+  const usesMid = st.slots.some((s) => s[0] === 'mid');
+  const lum = usesMid ? (luminance(colours.deep) + luminance(colours.mid)) / 2 : luminance(colours.deep);
+  const tone = lum > 0.4 ? 'light' : 'dark';
+  const built = st.build(colours, tone);
+  return Object.assign({}, bg, { colours, pairs, schemeName, tone, css: built.css, size: built.size, cls: effectClass(bg) });
+}
+
+// A palette's suggestion for a resolved background: its pair if it has one, else the first palette of its tone.
+function paletteFor(resolved) {
+  if (resolved.pairs) return resolved.pairs;
+  const first = PALETTES.find((p) => p.tone === resolved.tone);
+  if (!first) throw new Error('bug: this should never happen — no palette for tone "' + resolved.tone + '"');
+  return first.id;
+}
+
+function surfaceStyle(surfaceId, tone) {
+  if (surfaceId === 'clear') return { bg: 'transparent', blur: 'none' };
+  if (surfaceId === 'frosted') return { bg: tone === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.55)', blur: 'blur(6px)' };
+  if (surfaceId === 'card') return { bg: tone === 'dark' ? 'rgba(10,12,20,0.72)' : 'rgba(255,255,255,0.92)', blur: 'none' };
+  throw new Error('bug: this should never happen — unknown surface "' + surfaceId + '"');
+}
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    const schemes = {}; const custom = {};
+    BACKGROUNDS.forEach((b) => { schemes[b.id] = 'original'; custom[b.id] = Object.assign({}, b.original); });
+    this.state = {
+      bgId: 'dusk', palId: 'midnight', fontId: 'technical', kind: 'all', flow: 'across', surface: 'clear',
+      motion: JSON.parse(JSON.stringify(MOTION_DEFAULTS)), schemes, custom, tab: 'background', appliedNote: '',
+    };
+  }
+
+  // Copy the selected background's colour choice onto every background (custom colours are copied, not shared).
+  applyToAll() {
+    const s = this.state;
+    const choice = s.schemes[s.bgId];
+    const schemes = {}; const custom = Object.assign({}, s.custom);
+    BACKGROUNDS.forEach((b) => {
+      schemes[b.id] = choice;
+      if (choice === 'custom') custom[b.id] = Object.assign({}, s.custom[s.bgId]);
+    });
+    const name = this.resolved(s.bgId, s.schemes, s.custom).schemeName;
+    this.applyBackgroundChange({
+      schemes, custom,
+      appliedNote: choice === 'original' ? 'Every background is back to its original colours.' : 'All ' + BACKGROUNDS.length + ' backgrounds now use ' + name + ' colours.',
+    });
+  }
+
+  resolved(bgId, schemes, custom) {
+    const bg = findById(BACKGROUNDS, bgId, 'background');
+    return resolveBackground(bg, schemes[bgId], custom[bgId]);
+  }
+
+  // Apply a change to which background / colours are shown; switch the colour theme only when the tone flips.
+  applyBackgroundChange(patch) {
+    const next = Object.assign({}, this.state, patch);
+    const r = this.resolved(next.bgId, next.schemes, next.custom);
+    const current = findById(PALETTES, next.palId, 'palette');
+    const out = Object.assign({ appliedNote: '' }, patch);
+    if (current.tone !== r.tone) out.palId = paletteFor(r);
+    this.setState(out);
+  }
+
+  setScheme(id) {
+    const schemes = Object.assign({}, this.state.schemes, { [this.state.bgId]: id });
+    this.applyBackgroundChange({ schemes });
+  }
+
+  setCustomColour(slot, value) {
+    const id = this.state.bgId;
+    const custom = Object.assign({}, this.state.custom, { [id]: Object.assign({}, this.state.custom[id], { [slot]: value }) });
+    const schemes = Object.assign({}, this.state.schemes, { [id]: 'custom' });
+    this.applyBackgroundChange({ custom, schemes });
+  }
+
+  motionSettings(bg) {
+    if (bg.kind !== 'motion') return null;
+    const m = this.state.motion[bg.id];
+    if (!m) throw new Error('bug: this should never happen — no motion settings for "' + bg.id + '"');
+    return m;
+  }
+
+  updateMotion(patch) {
+    const id = this.state.bgId;
+    const motion = Object.assign({}, this.state.motion);
+    motion[id] = Object.assign({}, motion[id], patch);
+    this.setState({ motion });
+  }
+
+  speedOf(m) {
+    const v = SPEEDS[m.speedIdx];
+    if (v === undefined) throw new Error('bug: this should never happen — speed index ' + m.speedIdx + ' out of range');
+    return v;
+  }
+
+  effectView(bg) {
+    const m = this.motionSettings(bg);
+    const empty = {
+      isBubbles: false, isSunset: false, isGears: false, sunOn: false, opacity: 1, dur: '0s', horizon: 'transparent',
+      bubbles: [], gearGroups: [], gearScale: 1, gearFill: 'transparent', gearStroke: 'transparent',
+      tintEdge: 'transparent', tintHi: 'transparent', tintLo: 'transparent',
+    };
+    if (!m) return empty;
+    const spec = motionSpec(bg.id);
+    const factor = 1 / this.speedOf(m);
+    const c = bg.colours;
+    const view = Object.assign({}, empty, {
+      dur: (spec.base * factor).toFixed(1) + 's',
+      opacity: spec.controls.indexOf('opacity') >= 0 ? m.opacity / 100 : 1,
+    });
+    if (bg.effect === 'bubbles') {
+      return Object.assign(view, {
+        isBubbles: true, bubbles: makeBubbles(m.count, spec.base, factor, 7),
+        tintEdge: bg.tone === 'dark' ? 'rgba(255,255,255,0.5)' : hexA(c.accent, 0.5),
+        tintHi: bg.tone === 'dark' ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.9)',
+        tintLo: hexA(c.accent, 0.08),
+      });
+    }
+    if (bg.effect === 'sunset') return Object.assign(view, { isSunset: true, sunOn: m.sun === 'show', horizon: hexA(c.deep, 0.9) });
+    if (bg.effect === 'gears') {
+      const scale = GEAR_SCALE[m.size];
+      if (!scale) throw new Error('bug: this should never happen — unknown gear size "' + m.size + '"');
+      return Object.assign(view, {
+        isGears: true, gearScale: scale, gearGroups: layoutGears(m.count, spec.base, factor),
+        gearFill: hexA(c.accent, 0.07), gearStroke: hexA(c.accent, 0.8),
+      });
+    }
+    if (bg.effect === 'flow') return view;
+    throw new Error('bug: this should never happen — unknown motion effect "' + bg.effect + '"');
+  }
+
+  motionPanel(bg) {
+    const m = this.motionSettings(bg);
+    if (!m) {
+      return { ms: { hint: '', speedIdx: 0, speedMax: SPEEDS.length - 1, speedLabel: '', hasCount: false, countLabel: '', count: 0, countMin: 0, countMax: 0, countStep: 1, hasOpacity: false, opacity: 0, hasExtra: false, extraLabel: '' }, extraOpts: [] };
+    }
+    const spec = motionSpec(bg.id);
+    const speed = this.speedOf(m);
+    const pace = speed < 0.1 ? 'barely moving' : speed < 0.4 ? 'very slow' : speed < 0.8 ? 'slow' : speed <= 1 ? 'normal' : 'brisk';
+    const countCfg = spec.controls.indexOf('count') >= 0 ? COUNT_CONTROLS[bg.effect] : null;
+    if (spec.controls.indexOf('count') >= 0 && !countCfg) throw new Error('bug: this should never happen — no count control for "' + bg.effect + '"');
+    const extraKey = spec.controls.find((k) => EXTRA_CONTROLS[k]);
+    const extra = extraKey ? EXTRA_CONTROLS[extraKey] : null;
+    return {
+      ms: {
+        hint: spec.hint, speedIdx: m.speedIdx, speedMax: SPEEDS.length - 1, speedLabel: '×' + speed + ' · ' + pace,
+        hasCount: !!countCfg, countLabel: countCfg ? countCfg.label : '', count: countCfg ? m.count : 0,
+        countMin: countCfg ? countCfg.min : 0, countMax: countCfg ? countCfg.max : 0, countStep: countCfg ? countCfg.step : 1,
+        hasOpacity: spec.controls.indexOf('opacity') >= 0, opacity: m.opacity,
+        hasExtra: !!extra, extraLabel: extra ? extra.label : '',
+      },
+      extraOpts: extra ? extra.options.map((o) => ({
+        label: o.label, on: m[extraKey] === o.value, bg: m[extraKey] === o.value ? '#343944' : 'transparent',
+        pick: () => this.updateMotion({ [extraKey]: o.value }),
+      })) : [],
+    };
+  }
+
+  renderVals() {
+    const s = this.state;
+    const bg = this.resolved(s.bgId, s.schemes, s.custom);
+    const palBase = findById(PALETTES, s.palId, 'palette');
+    const font = findById(FONTS, s.fontId, 'font');
+    const pal = Object.assign({}, palBase, {
+      line: bg.tone === 'dark' ? 'rgba(255,255,255,0.22)' : 'rgba(15,23,42,0.18)',
+      primaryA: palBase.primary + '55', secondaryA: palBase.secondary + '55', tertiaryA: palBase.tertiary + '55',
+    });
+    const surf = surfaceStyle(s.surface, bg.tone);
+    const on = '#343944';
+    const panel = this.motionPanel(bg);
+    const suggested = paletteFor(bg);
+    const choice = s.schemes[s.bgId];
+    const customNow = s.custom[s.bgId];
+
+    const tab = findById(TABS, s.tab, 'tab');
+    return {
+      bg, pal, font,
+      tabs: TABS.map((t) => ({
+        label: t.label, on: t.id === s.tab,
+        bg: t.id === s.tab ? '#2A3040' : 'transparent', fg: t.id === s.tab ? '#FFFFFF' : '#AEB4BF',
+        isBg: t.id === 'background', isTheme: t.id === 'theme', isType: t.id === 'type',
+        pick: () => this.setState({ tab: t.id }),
+      })),
+      tabLabel: tab.label,
+      tabBg: s.tab === 'background', tabTheme: s.tab === 'theme', tabType: s.tab === 'type',
+      applyAll: () => this.applyToAll(),
+      applyAllLabel: choice === 'original' ? 'Reset every background to its original colours' : 'Use ' + bg.schemeName + ' colours on every background',
+      appliedNote: s.appliedNote,
+      fx: this.effectView(bg),
+      isMotion: bg.kind === 'motion',
+      ms: panel.ms, extraOpts: panel.extraOpts,
+      setSpeed: (e) => this.updateMotion({ speedIdx: Number(e.target.value) }),
+      setCount: (e) => this.updateMotion({ count: Number(e.target.value) }),
+      setOpacity: (e) => this.updateMotion({ opacity: Number(e.target.value) }),
+      surfaceBg: surf.bg, surfaceBlur: surf.blur,
+      isAcross: s.flow === 'across', isDown: s.flow === 'down',
+      acrossBg: s.flow === 'across' ? on : 'transparent', downBg: s.flow === 'down' ? on : 'transparent',
+      setAcross: () => this.setState({ flow: 'across' }), setDown: () => this.setState({ flow: 'down' }),
+      gridCols: s.flow === 'across' ? 'repeat(3, minmax(0, 1fr))' : 'minmax(0, 1fr)',
+      gridMax: s.flow === 'across' ? '1200px' : '520px',
+      slides: SLIDES.map((x) => ({
+        label: x.label, isTitle: x.type === 'title', isBar: x.type === 'bar', isSplit: x.type === 'split',
+        isSection: x.type === 'section', isVenn: x.type === 'venn', isStatement: x.type === 'statement',
+      })),
+      kinds: KINDS.map((k) => ({
+        label: k.label, on: s.kind === k.id,
+        bg: s.kind === k.id ? '#E8EAEE' : 'transparent', fg: s.kind === k.id ? '#16181D' : '#C3C8D2',
+        pick: () => this.setState({ kind: k.id }),
+      })),
+      bgList: BACKGROUNDS.filter((b) => s.kind === 'all' || b.kind === s.kind).map((b) => {
+        const r = this.resolved(b.id, s.schemes, s.custom);
+        const m = this.motionSettings(r);
+        return {
+          name: b.name, css: r.css, size: r.size, cls: r.cls, on: b.id === s.bgId,
+          dur: b.effect === 'sunset' ? '10s' : m ? (motionSpec(b.id).base / this.speedOf(m)).toFixed(1) + 's' : '0s',
+          isBubbles: b.effect === 'bubbles', isSunset: b.effect === 'sunset', isGears: b.effect === 'gears',
+          tintEdge: r.tone === 'dark' ? 'rgba(255,255,255,0.6)' : hexA(r.colours.accent, 0.6),
+          gearD: GEAR_SWATCH_PATH, gearFill: hexA(r.colours.accent, 0.07), gearStroke: hexA(r.colours.accent, 0.8),
+          outline: b.id === s.bgId ? '2px solid #7AA2FF' : '1px solid #343944',
+          pick: () => this.applyBackgroundChange({ bgId: b.id }),
+        };
+      }),
+      schemeOpts: [{ id: 'original', name: 'Original', deep: bg.original.deep, mid: bg.original.mid, accent: bg.original.accent }]
+        .concat(SCHEMES)
+        .concat([{ id: 'custom', name: 'Custom', deep: customNow.deep, mid: customNow.mid, accent: customNow.accent }])
+        .map((c) => ({
+          name: c.name, deep: c.deep, mid: c.mid, accent: c.accent, on: c.id === choice,
+          border: c.id === choice ? '#7AA2FF' : '#2C3039',
+          pick: () => this.setScheme(c.id),
+        })),
+      isCustom: choice === 'custom',
+      customSlots: styleOf(bg).slots.map((slot) => ({
+        label: slot[1], value: customNow[slot[0]],
+        set: (e) => this.setCustomColour(slot[0], e.target.value),
+      })),
+      palList: PALETTES.filter((p) => p.tone === bg.tone)
+        .sort((a, b2) => (a.id === suggested ? -1 : b2.id === suggested ? 1 : 0))
+        .map((p) => Object.assign({}, p, {
+          on: p.id === s.palId, pairs: !!bg.pairs && p.id === bg.pairs,
+          border: p.id === s.palId ? '#7AA2FF' : '#2C3039',
+          pick: () => this.setState({ palId: p.id }),
+        })),
+      surfaces: SURFACES.map((f) => ({
+        label: f.label, on: s.surface === f.id, bg: s.surface === f.id ? on : 'transparent',
+        pick: () => this.setState({ surface: f.id }),
+      })),
+      fontList: FONTS.map((t) => Object.assign({}, t, {
+        on: t.id === s.fontId, border: t.id === s.fontId ? '#7AA2FF' : '#2C3039',
+        pick: () => this.setState({ fontId: t.id }),
+      })),
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -889,7 +889,28 @@ input,textarea,button{font:inherit;color:inherit}
               </sc-for>
               <button onClick="{{ onNewStyle }}" disabled="{{ newStyleOff }}" title="Make a style from the selected text layer's look" style="align-self:flex-start;padding:5px 10px;border:1px solid #e0d9cb;border-radius:7px;background:#fff;cursor:pointer;font-size:12.5px">+ New style from selected layer</button>
             </div>
-            <span style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#6b6458">Canvas image · loops left to right</span>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#6b6458;flex:1">Background</span>
+              <div style="display:flex;gap:2px;padding:3px;border-radius:9px;background:#ece6d9">
+                <sc-for list="{{ themeBtns }}" as="th" hint-placeholder-count="2">
+                  <button onClick="{{ th.onClick }}" style="padding:4px 10px;border:0;border-radius:7px;cursor:pointer;background:{{ th.bg }};color:{{ th.color }};box-shadow:{{ th.shadow }};font-size:12.5px;white-space:nowrap">{{ th.label }}</button>
+                </sc-for>
+              </div>
+            </div>
+            <sc-if value="{{ themeBasic }}">
+              <span style="font-size:12px;color:#6b6458">Plain colours and gradients, the same behind every slide</span>
+              <div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px">
+                <sc-for list="{{ baseSwatches }}" as="sw" hint-placeholder-count="6">
+                  <button onClick="{{ sw.onClick }}" title="{{ sw.value }}" style="height:32px;padding:0;border-radius:6px;cursor:pointer;background:{{ sw.value }};border:{{ sw.border }}"></button>
+                </sc-for>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-size:12px;color:#6b6458;flex:1">Custom colour</span>
+                <input type="color" value="{{ baseColor }}" onChange="{{ onBaseColor }}" style="width:28px;height:24px;padding:0;border:1px solid #e0d9cb;border-radius:6px;background:#fff;cursor:pointer">
+              </div>
+            </sc-if>
+            <sc-if value="{{ themeFun }}">
+            <span style="font-size:12px;color:#6b6458">Canvas image · loops left to right</span>
             <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px">
               <sc-for list="{{ bgTiles }}" as="b" hint-placeholder-count="3">
                 <button onClick="{{ b.onClick }}" title="{{ b.label }}" style="display:flex;flex-direction:column;gap:4px;padding:4px;border-radius:8px;border:{{ b.border }};background:#fff;cursor:pointer">
@@ -928,6 +949,7 @@ input,textarea,button{font:inherit;color:inherit}
               <span style="display:flex;justify-content:space-between;font-size:12px;color:#6b6458"><span>Opacity</span><span style="font-family:'JetBrains Mono',monospace">{{ opacityLabel }}</span></span>
               <input type="range" min="0" max="1" step="0.05" value="{{ opacity }}" onChange="{{ onOpacity }}" style="accent-color:#1d1b17;width:100%;min-width:0">
             </label>
+            </sc-if>
             <div style="display:flex;flex-direction:column;gap:8px;padding-top:8px;border-top:1px solid #f0ebe0">
               <span style="font-size:12px;color:#6b6458">Readability · a card behind text, or over the whole slide</span>
               <div style="display:flex;gap:2px;padding:3px;border-radius:9px;background:#ece6d9">
@@ -976,7 +998,10 @@ const BGS = {
   none: { label: 'None', src: null, aspect: 1 },
   custom: { label: 'Mine', src: null, aspect: 1 },
 };
-const BASES = ['#0b1220', '#1d1b17', '#f4f0e7', '#ffffff'];
+// Basic theme: plain colours and gradients (any CSS background works, since base is used as `background:`).
+const BASES = ['#0b1220', '#1d1b17', '#f4f0e7', '#ffffff', '#1f3a5f', '#2d4a3e',
+  'linear-gradient(135deg, #0b1220, #1f3a5f)', 'linear-gradient(135deg, #1d1b17, #4a3f35)', 'linear-gradient(135deg, #f4f0e7, #dfe7ef)',
+  'linear-gradient(135deg, #ff9a8b, #ff6a88, #ff99ac)', 'linear-gradient(135deg, #43cea2, #185a9d)', 'radial-gradient(circle at 30% 20%, #3b2a6b, #0b1220)'];
 const DIRS = { left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1], jump: [0, 0] };
 const KEY = 'strata-v8', VA = 16 / 9, H = 100;
 const DECK = (s => s && /^[a-z0-9-]+$/.test(s) ? s : null)(new URLSearchParams(location.search).get('deck'));
@@ -2841,14 +2866,19 @@ class Component extends DCLogic {
       levelInfo: `${D.levels} level${D.levels === 1 ? '' : 's'} deep, so each slide is ${(L.h).toFixed(1)}% of the canvas height.`,
       sizeInfo: B.src ? `One copy of the image is ${(tileW / L.w).toFixed(2)} slides wide; the tree spans ${(L.CW / L.w).toFixed(1)} slides.` : `The tree spans ${(L.CW / L.w).toFixed(1)} slides.`,
       speed: S.speed, speedLabel: S.speed + 'ms', onSpeed: e => this.setState({ speed: +e.target.value }),
-      bgTiles: ['balloons', 'london', 'sea', 'space', 'forest', 'sky', 'ocean', 'none'].concat(S.customBg ? ['custom'] : []).map(id => { const src = id === 'custom' ? S.customBg : BGS[id].src;
+      bgTiles: ['balloons', 'london', 'sea', 'space', 'forest', 'sky', 'ocean'].concat(S.customBg ? ['custom'] : []).map(id => { const src = id === 'custom' ? S.customBg : BGS[id].src;
         return { label: BGS[id].label, border: S.bg === id ? '2px solid #1d1b17' : '1px solid #e0d9cb', thumb: src ? `#e9e3d6 url("${src}") center 20% / cover` : '#efeae0', onClick: () => this.setState({ bg: id }) }; }),
       hasBgImage: !!B.src, bgScale: S.bgScale || 1, bgScaleLabel: Math.round((S.bgScale || 1) * 100) + '%', onBgScale: e => this.setState({ bgScale: +e.target.value }),
       bgY: S.bgY || 0, bgYLabel: Math.round((S.bgY || 0) * 100) + '%', onBgY: e => this.setState({ bgY: +e.target.value }),
       bgRepeatBtns: [['x', 'Across'], ['xy', 'Tile'], ['none', 'Once']].map(([v, label]) => ({ label, ...tab((S.bgRepeat || 'x') === v), onClick: () => this.setState({ bgRepeat: v }) })),
       onUpload: e => this.onUpload(e), offset: S.offset, offsetLabel: Math.round(S.offset * 100) + '%', onOffset: e => this.setState({ offset: +e.target.value }),
       opacityLabel: Math.round(S.opacity * 100) + '%', onOpacity: e => this.setState({ opacity: +e.target.value }),
-      baseSwatches: BASES.map(v => ({ value: v, border: S.base === v ? '2px solid #d9432b' : '1px solid rgba(29,27,23,.2)', onClick: () => this.setState({ base: v }) })),
+      // Theme is derived from bg: Basic = no image (bg 'none'), Fun = one of the canvas images.
+      themeBasic: S.bg === 'none', themeFun: S.bg !== 'none',
+      themeBtns: [['fun', 'Fun'], ['basic', 'Basic']].map(([id, label]) => ({ label, ...tab((S.bg === 'none' ? 'basic' : 'fun') === id),
+        onClick: () => this.setState({ bg: id === 'basic' ? 'none' : S.bg === 'none' ? 'balloons' : S.bg }) })),
+      baseSwatches: BASES.map(v => ({ value: v, border: S.base === v ? '2px solid #d9432b' : '1px solid rgba(29,27,23,.2)', onClick: () => this.setState({ bg: 'none', base: v }) })),
+      baseColor: /^#[0-9a-f]{6}$/i.test(S.base) ? S.base : '#ffffff', onBaseColor: e => this.setState({ bg: 'none', base: e.target.value }),
     };
   }
 }

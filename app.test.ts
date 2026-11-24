@@ -1108,7 +1108,7 @@ test("Readability offers None / Whole slide", async () => {
 
 test("London, Under the sea and Space are Canvas backdrops next to the others", async () => {
   const { c } = await mount("?deck=fresh");
-  expect(c.renderVals().bgTiles.map((b: any) => b.label)).toEqual(["Balloons", "London", "Under the sea", "Space", "Forest", "Sky", "Ocean", "None"]);
+  expect(c.renderVals().bgTiles.map((b: any) => b.label)).toEqual(["Balloons", "London", "Under the sea", "Space", "Forest", "Sky", "Ocean"]);
   for (const [id, src, aspect] of [["london", "backdrops/london.png", 1], ["sea", "backdrops/under-the-sea.png", 0.4], ["space", "backdrops/space.png", 0.4], ["forest", "backdrops/forest.png", 0.4]] as const) {
     c.setState({ bg: id }); expect(c.bgInfo()).toEqual({ src, aspect });
     expect(await Bun.file(join(import.meta.dir, "design", src)).exists()).toBe(true);
@@ -1915,3 +1915,16 @@ test("opening local files: a .md with its layout becomes the scratch deck; a lon
   await until(() => c.state.md === "# Dropped\n"); expect(prevented).toBe(true);
 });
 
+
+test("Basic theme: plain colours and gradients with no image; Fun brings the images back", async () => {
+  const { c } = await mount("?deck=fresh");
+  const theme = (id: string) => c.renderVals().themeBtns.find((b: any) => b.label === id);
+  expect(c.renderVals().themeFun).toBe(true);
+  theme("Basic").onClick();
+  expect(c.state.bg).toBe("none"); expect(c.renderVals().themeBasic).toBe(true); expect(c.bgInfo().src).toBeNull();
+  const grad = c.renderVals().baseSwatches.find((s: any) => s.value.includes("gradient"));
+  grad.onClick(); expect(c.renderVals().base).toBe(grad.value);
+  expect(c.renderVals().baseColor).toBe("#ffffff");   // a gradient isn't a picker value
+  c.renderVals().onBaseColor({ target: { value: "#123456" } }); expect(c.state.base).toBe("#123456");
+  theme("Fun").onClick(); expect(c.state.bg).toBe("balloons");
+});

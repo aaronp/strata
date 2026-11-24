@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Slide templates and shape tool</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;background:#16181D}
+a{color:#AFC6FF}a:hover{color:#D6E2FF}
+.slide{container-type:inline-size}
+button{font:inherit}
+</style>
+</helmet>
+<div style="min-height: 900px; background: #16181D; color: #E8EAEE; font-family: Inter, system-ui, sans-serif; display: flex; flex-direction: column">
+
+  <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding: 12px 20px; border-bottom: 1px solid #2C3039; background: #1B1E24">
+    <div style="display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 15px">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7AA2FF" stroke-width="1.8" aria-hidden="true"><rect x="3" y="4" width="8" height="6" rx="1"></rect><rect x="13" y="4" width="8" height="6" rx="1"></rect><rect x="3" y="14" width="8" height="6" rx="1"></rect><rect x="13" y="14" width="8" height="6" rx="1"></rect></svg>
+      <span>Untitled deck</span>
+    </div>
+    <nav aria-label="Editor mode" style="display: flex; gap: 4px; background: #23262E; padding: 4px; border-radius: 10px; margin-left: 12px">
+      <a href="Main.dc.html" style="padding: 8px 14px; border-radius: 7px; color: #C3C8D2; text-decoration: none; font-size: 13px; font-weight: 500">Theme</a>
+      <a href="Templates.dc.html" style="padding: 8px 14px; border-radius: 7px; background: #343944; color: #FFFFFF; text-decoration: none; font-size: 13px; font-weight: 600">Slides</a>
+      <a href="Builds.dc.html" style="padding: 8px 14px; border-radius: 7px; color: #C3C8D2; text-decoration: none; font-size: 13px; font-weight: 500">Builds</a>
+    </nav>
+    <div style="flex: 1"></div>
+    <span style="font-size: 12px; color: #9AA1AD">Theme: Dusk · Midnight Signal · Technical</span>
+    <button style="padding: 9px 16px; border-radius: 8px; border: 0; background: #7AA2FF; color: #0B1020; font-weight: 600; font-size: 13px; cursor: pointer">Present</button>
+  </header>
+
+  <div style="display: flex; flex-wrap: wrap; flex: 1; min-height: 0">
+
+    <aside aria-label="Slide templates" style="flex: 1 1 220px; max-width: 260px; min-width: 0; border-right: 1px solid #2C3039; background: #1B1E24; padding: 16px; display: flex; flex-direction: column; gap: 12px; overflow: auto">
+      <h2 style="margin: 0; font-size: 13px; font-weight: 600">Templates</h2>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+        <sc-for list="{{ templates }}" as="t" hint-placeholder-count="8">
+          <button onClick="{{ t.pick }}" aria-pressed="{{ t.on }}" style="padding: 0; border: 0; background: none; cursor: pointer; display: flex; flex-direction: column; gap: 5px; text-align: left; color: #C3C8D2">
+            <span style="display: block; position: relative; width: 100%; aspect-ratio: 16 / 9; border-radius: 6px; background: #2A2E37; outline: {{ t.outline }}; outline-offset: 2px; overflow: hidden">
+              <sc-if value="{{ t.isTitle }}" hint-placeholder-val="{{ false }}">
+                <span style="position: absolute; left: 12%; top: 34%; width: 60%; height: 14%; background: #8A93A3; border-radius: 2px"></span>
+                <span style="position: absolute; left: 12%; top: 56%; width: 40%; height: 7%; background: #5B6271; border-radius: 2px"></span>
+              </sc-if>
+              <sc-if value="{{ t.isBar }}" hint-placeholder-val="{{ false }}">
+                <span style="position: absolute; left: 0; top: 0; right: 0; height: 24%; background: #4A5263"></span>
+                <span style="position: absolute; left: 10%; top: 36%; width: 70%; height: 6%; background: #5B6271"></span>
+                <span style="position: absolute; left: 10%; top: 50%; width: 60%; height: 6%; background: #5B6271"></span>
+                <span style="position: absolute; left: 10%; top: 64%; width: 65%; height: 6%; background: #5B6271"></span>
+              </sc-if>
+              <sc-if value="{{ t.isSplit }}" hint-placeholder-val="{{ false }}">
+                <span style="position: absolute; left: 0; top: 0; bottom: 0; width: 36%; background: #353A45"></span>
+                <span style="position: absolute; left: 6%; top: 18%; width: 24%; height: 10%; background: #7AA2FF; border-radius: 2px"></span>
+                <span style="position: absolute; left: 6%; top: 36%; width: 24%; height: 8%; background: #5B6271"></span>
+                <span style="position: absolute; left: 6%; top: 52%; width: 24%; height: 8%; background: #5B6271"></span>
+                <span style="position: absolute; left: 44%; top: 20%; width: 40%; height: 12%; background: #8A93A3"></span>
+                <span style="position: absolute; left: 44%; top: 40%; width: 48%; height: 36%; background: #5B6271; border-radius: 2px"></span>
+              </sc-if>
+              <sc-if value="{{ t.isTwo }}" hint-placeholder-val="{{ false }}">
+                <span style="position: absolute; left: 8%; top: 10%; width: 50%; height: 12%; background: #8A93A3"></span>
+                <span style="position: absolute; left: 8%; top: 32%; width: 39%; height: 54%; background: #4A5263; border-radius: 2px"></span>
+                <span style="position: absolute; left: 53%; top: 32%; width: 39%; height: 54%; background: #4A5263; border-radius: 2px"></span>
+              </sc-if>
+              <sc-if value="{{ t.isSection }}" hint-placeholder-val="{{ false }}">
+                <span style="position: absolute; left: 10%; top: 40%; width: 24%; height: 30%; background: #FBBF24; border-radius: 2px"></span>
+                <span style="position: absolute; left: 10%; top: 76%; width: 50%; height: 9%; background: #8A93A3"></span>
+              </sc-if>
+              <sc-if value="{{ t.isStatement }}" hint-placeholder-val="{{ false }}">
+                <span style="position: absolute; left: 12%; top: 34%; width: 64%; height: 13%; background: #8A93A3"></span>
+                <span style="position: absolute; left: 12%; top: 52%; width: 52%; height: 13%; background: #FBBF24"></span>
+              </sc-if>
+              <sc-if value="{{ t.isVenn }}" hint-placeholder-val="{{ false }}">
+                <span style="position: absolute; left: 30%; top: 14%; width: 26%; aspect-ratio: 1; border-radius: 50%; background: rgba(147,197,253,0.55)"></span>
+                <span style="position: absolute; left: 44%; top: 14%; width: 26%; aspect-ratio: 1; border-radius: 50%; background: rgba(196,181,253,0.55)"></span>
+                <span style="position: absolute; left: 37%; top: 40%; width: 26%; aspect-ratio: 1; border-radius: 50%; background: rgba(94,234,212,0.55)"></span>
+              </sc-if>
+              <sc-if value="{{ t.isCards }}" hint-placeholder-val="{{ false }}">
+                <span style="position: absolute; left: 8%; top: 10%; width: 50%; height: 12%; background: #8A93A3"></span>
+                <span style="position: absolute; left: 8%; top: 34%; width: 26%; height: 52%; background: #4A5263; border-radius: 2px"></span>
+                <span style="position: absolute; left: 37%; top: 34%; width: 26%; height: 52%; background: #4A5263; border-radius: 2px"></span>
+                <span style="position: absolute; left: 66%; top: 34%; width: 26%; height: 52%; background: #4A5263; border-radius: 2px"></span>
+              </sc-if>
+            </span>
+            <span style="font-size: 11px">{{ t.name }}</span>
+          </button>
+        </sc-for>
+      </div>
+      <p style="margin: 8px 0 0; font-size: 11px; line-height: 1.5; color: #9AA1AD">Templates only set structure. Colours and fonts always come from the deck theme, so switching theme restyles every slide.</p>
+    </aside>
+
+    <main style="flex: 999 1 520px; min-width: 0; padding: 20px; display: flex; flex-direction: column; gap: 14px; align-items: center">
+      <div role="toolbar" aria-label="Shape tools" style="display: flex; flex-wrap: wrap; gap: 4px; padding: 5px; border-radius: 12px; background: #23262E; border: 1px solid #2C3039">
+        <sc-for list="{{ tools }}" as="tool" hint-placeholder-count="7">
+          <button onClick="{{ tool.pick }}" aria-label="{{ tool.label }}" aria-pressed="{{ tool.on }}" title="{{ tool.label }}" style="width: 44px; height: 44px; border: 0; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; background: {{ tool.bg }}; color: #E8EAEE">
+            <sc-if value="{{ tool.isSelect }}" hint-placeholder-val="{{ false }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 3l14 8-6 2-2 6z"></path></svg></sc-if>
+            <sc-if value="{{ tool.isText }}" hint-placeholder-val="{{ false }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 6V4h14v2M12 4v16M9 20h6"></path></svg></sc-if>
+            <sc-if value="{{ tool.isRect }}" hint-placeholder-val="{{ false }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="4" y="6" width="16" height="12"></rect></svg></sc-if>
+            <sc-if value="{{ tool.isRound }}" hint-placeholder-val="{{ false }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="4" y="6" width="16" height="12" rx="4"></rect></svg></sc-if>
+            <sc-if value="{{ tool.isEllipse }}" hint-placeholder-val="{{ false }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle></svg></sc-if>
+            <sc-if value="{{ tool.isLine }}" hint-placeholder-val="{{ false }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 19L19 5"></path></svg></sc-if>
+            <sc-if value="{{ tool.isArrow }}" hint-placeholder-val="{{ false }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 19L19 5M10 5h9v9"></path></svg></sc-if>
+          </button>
+        </sc-for>
+        <span style="width: 1px; background: #343944; margin: 6px 4px"></span>
+        <span style="align-self: center; padding: 0 8px; font-size: 12px; color: #9AA1AD">{{ toolHint }}</span>
+      </div>
+
+      <div class="slide" style="width: 100%; max-width: 1040px; aspect-ratio: 16 / 9; position: relative; border-radius: 8px; overflow: hidden; background: linear-gradient(135deg, #1E1B4B 0%, #4C1D95 55%, #831843 100%); color: #F1F5F9; font-family: Inter, sans-serif; box-shadow: 0 20px 60px rgba(0,0,0,0.45)">
+
+        <sc-if value="{{ show.title }}" hint-placeholder-val="{{ false }}">
+          <div style="position: absolute; inset: 0; padding: 9cqw 8cqw; display: flex; flex-direction: column; justify-content: center; gap: 2cqw">
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 1.6cqw; letter-spacing: 0.12em; color: #5EEAD4">KICKER · OPTIONAL</span>
+            <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 6.8cqw; line-height: 1.05">Presentation title</span>
+            <span style="width: 10cqw; height: 0.45cqw; background: #93C5FD"></span>
+            <span style="font-size: 2.2cqw; color: #B6C0D0">Subtitle, presenter and date</span>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ show.headed }}" hint-placeholder-val="{{ false }}">
+          <div style="position: absolute; left: 0; right: 0; top: 0; padding: 3.4cqw 5cqw 2.6cqw; background: {{ bar.bg }}; border-bottom: {{ bar.rule }}; display: {{ bar.display }}; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 3.6cqw">Slide title in the title bar</div>
+        </sc-if>
+
+        <sc-if value="{{ show.bar }}" hint-placeholder-val="{{ false }}">
+          <div style="position: absolute; left: 5cqw; right: 5cqw; top: {{ bodyTop }}; bottom: 5cqw; display: flex; flex-direction: column; gap: 2cqw; font-size: 2.3cqw">
+            <span style="display: flex; gap: 1.6cqw; align-items: center"><span style="width: 1cqw; height: 1cqw; border-radius: 50%; background: #93C5FD"></span>First point, one line</span>
+            <span style="display: flex; gap: 1.6cqw; align-items: center"><span style="width: 1cqw; height: 1cqw; border-radius: 50%; background: #93C5FD"></span>Second point, one line</span>
+            <span style="display: flex; gap: 1.6cqw; align-items: center"><span style="width: 1cqw; height: 1cqw; border-radius: 50%; background: #93C5FD"></span>Third point, one line</span>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ show.split }}" hint-placeholder-val="{{ false }}">
+          <div style="position: absolute; left: 0; right: 0; top: {{ bodyTop }}; bottom: 0; display: flex; flex-direction: {{ splitDir }}">
+            <div style="width: 34%; padding: 3.4cqw 3cqw; display: flex; flex-direction: column; gap: 1cqw; background: rgba(10,12,30,0.35); font-size: 2cqw">
+              <span style="padding: 1.2cqw 1.6cqw; border-radius: 0.8cqw; background: #93C5FD; color: #0B1530; font-weight: 600">1 · List item</span>
+              <span style="padding: 1.2cqw 1.6cqw; color: #B6C0D0">2 · List item</span>
+              <span style="padding: 1.2cqw 1.6cqw; color: #B6C0D0">3 · List item</span>
+              <span style="padding: 1.2cqw 1.6cqw; color: #B6C0D0">4 · List item</span>
+            </div>
+            <div style="flex: 1; padding: 3.4cqw 4cqw; display: flex; flex-direction: column; gap: 1.6cqw">
+              <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 3.2cqw">Detail panel</span>
+              <span style="font-size: 2cqw; line-height: 1.55; color: #B6C0D0; max-width: 52cqw">The content for the active list item. In Builds, each list item is paired with its own detail panel.</span>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ show.two }}" hint-placeholder-val="{{ false }}">
+          <div style="position: absolute; left: 5cqw; right: 5cqw; top: {{ bodyTop }}; bottom: 5cqw; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3cqw">
+            <div style="border-radius: 1cqw; border: 0.15cqw solid rgba(255,255,255,0.22); padding: 2.6cqw; display: flex; flex-direction: column; gap: 1.2cqw"><span style="font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 2.6cqw; color: #93C5FD">Left column</span><span style="font-size: 1.9cqw; color: #B6C0D0">Content area</span></div>
+            <div style="border-radius: 1cqw; border: 0.15cqw solid rgba(255,255,255,0.22); padding: 2.6cqw; display: flex; flex-direction: column; gap: 1.2cqw"><span style="font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 2.6cqw; color: #C4B5FD">Right column</span><span style="font-size: 1.9cqw; color: #B6C0D0">Content area</span></div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ show.cards }}" hint-placeholder-val="{{ false }}">
+          <div style="position: absolute; left: 5cqw; right: 5cqw; top: {{ bodyTop }}; bottom: 5cqw; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2.4cqw">
+            <div style="border-radius: 1cqw; background: rgba(255,255,255,0.07); padding: 2.4cqw; display: flex; flex-direction: column; gap: 1cqw"><span style="font-family: 'JetBrains Mono', monospace; font-size: 1.6cqw; color: #93C5FD">01</span><span style="font-weight: 600; font-size: 2.3cqw">Card</span></div>
+            <div style="border-radius: 1cqw; background: rgba(255,255,255,0.07); padding: 2.4cqw; display: flex; flex-direction: column; gap: 1cqw"><span style="font-family: 'JetBrains Mono', monospace; font-size: 1.6cqw; color: #C4B5FD">02</span><span style="font-weight: 600; font-size: 2.3cqw">Card</span></div>
+            <div style="border-radius: 1cqw; background: rgba(255,255,255,0.07); padding: 2.4cqw; display: flex; flex-direction: column; gap: 1cqw"><span style="font-family: 'JetBrains Mono', monospace; font-size: 1.6cqw; color: #5EEAD4">03</span><span style="font-weight: 600; font-size: 2.3cqw">Card</span></div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ show.section }}" hint-placeholder-val="{{ false }}">
+          <div style="position: absolute; inset: 0; padding: 7cqw 8cqw; display: flex; flex-direction: column; justify-content: flex-end; gap: 1cqw">
+            <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 15cqw; line-height: 0.9; color: #FBBF24">02</span>
+            <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 4.6cqw">Section name</span>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ show.statement }}" hint-placeholder-val="{{ false }}">
+          <div style="position: absolute; inset: 0; padding: 8cqw; display: flex; flex-direction: column; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 7cqw; line-height: 1.08">
+            <span>A short statement</span>
+            <span style="color: #FBBF24">with an impact line.</span>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ show.venn }}" hint-placeholder-val="{{ false }}">
+          <div style="position: absolute; inset: 0; mix-blend-mode: normal">
+            <span style="position: absolute; left: 5cqw; top: 4cqw; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 3.4cqw">Where a good slide comes from</span>
+            <sc-for list="{{ shapes }}" as="sh" hint-placeholder-count="3">
+              <button onClick="{{ sh.pick }}" aria-label="Select shape {{ sh.label }}" aria-pressed="{{ sh.on }}" style="position: absolute; left: {{ sh.left }}; top: {{ sh.top }}; width: 24cqw; height: 24cqw; padding: 0; cursor: pointer; border-radius: {{ sh.radius }}; background: {{ sh.fill }}; border: {{ sh.border }}; mix-blend-mode: {{ blend }}; color: #F1F5F9; font-weight: 600; font-size: 2cqw; display: flex; align-items: {{ sh.alignY }}; justify-content: {{ sh.alignX }}; box-sizing: border-box; padding: 4cqw"><span>{{ sh.label }}</span></button>
+            </sc-for>
+            <sc-if value="{{ hasSel }}" hint-placeholder-val="{{ true }}">
+              <span aria-hidden="true" style="position: absolute; left: {{ selBox.left }}; top: {{ selBox.top }}; width: 25cqw; height: 25cqw; margin: -0.5cqw 0 0 -0.5cqw; border: 1px dashed #7AA2FF; pointer-events: none">
+                <span style="position: absolute; left: -5px; top: -5px; width: 8px; height: 8px; background: #FFFFFF; border: 1px solid #7AA2FF"></span>
+                <span style="position: absolute; right: -5px; top: -5px; width: 8px; height: 8px; background: #FFFFFF; border: 1px solid #7AA2FF"></span>
+                <span style="position: absolute; left: -5px; bottom: -5px; width: 8px; height: 8px; background: #FFFFFF; border: 1px solid #7AA2FF"></span>
+                <span style="position: absolute; right: -5px; bottom: -5px; width: 8px; height: 8px; background: #FFFFFF; border: 1px solid #7AA2FF"></span>
+              </span>
+            </sc-if>
+          </div>
+        </sc-if>
+      </div>
+      <span style="font-size: 12px; color: #9AA1AD">{{ stageHint }}</span>
+    </main>
+
+    <aside aria-label="Properties" style="flex: 1 1 300px; max-width: 340px; min-width: 0; border-left: 1px solid #2C3039; background: #1B1E24; padding: 18px; display: flex; flex-direction: column; gap: 22px; overflow: auto">
+
+      <sc-if value="{{ show.venn }}" hint-placeholder-val="{{ false }}">
+        <section style="display: flex; flex-direction: column; gap: 16px">
+          <div style="display: flex; flex-direction: column; gap: 2px">
+            <h2 style="margin: 0; font-size: 13px; font-weight: 600">Shape · {{ sel.label }}</h2>
+            <span style="font-size: 12px; color: #9AA1AD">Colours are theme slots, so they follow theme changes.</span>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 8px">
+            <span style="font-size: 12px; color: #C3C8D2">Shape</span>
+            <div role="group" aria-label="Shape kind" style="display: flex; gap: 2px; background: #23262E; padding: 3px; border-radius: 8px">
+              <sc-for list="{{ kindOpts }}" as="o" hint-placeholder-count="3">
+                <button onClick="{{ o.pick }}" aria-pressed="{{ o.on }}" style="flex: 1; padding: 7px 8px; border: 0; border-radius: 6px; font-size: 12px; cursor: pointer; background: {{ o.bg }}; color: #E8EAEE">{{ o.label }}</button>
+              </sc-for>
+            </div>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 8px">
+            <span style="font-size: 12px; color: #C3C8D2">Fill</span>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px">
+              <sc-for list="{{ fillOpts }}" as="o" hint-placeholder-count="6">
+                <button onClick="{{ o.pick }}" aria-label="Fill {{ o.label }}" aria-pressed="{{ o.on }}" style="display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 0; border: 0; background: none; cursor: pointer; color: #9AA1AD">
+                  <span style="width: 36px; height: 36px; border-radius: 8px; background: {{ o.swatch }}; outline: {{ o.outline }}; outline-offset: 2px"></span>
+                  <span style="font-size: 10px">{{ o.label }}</span>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+
+          <label style="display: flex; flex-direction: column; gap: 8px; font-size: 12px; color: #C3C8D2">
+            <span style="display: flex; justify-content: space-between">Fill opacity <span style="color: #E8EAEE">{{ sel.opacity }}%</span></span>
+            <input type="range" min="0" max="100" step="5" value="{{ sel.opacity }}" onInput="{{ setOpacity }}" style="accent-color: #7AA2FF">
+          </label>
+
+          <div style="display: flex; flex-direction: column; gap: 8px">
+            <span style="font-size: 12px; color: #C3C8D2">Border</span>
+            <div role="group" aria-label="Border width" style="display: flex; gap: 2px; background: #23262E; padding: 3px; border-radius: 8px">
+              <sc-for list="{{ widthOpts }}" as="o" hint-placeholder-count="4">
+                <button onClick="{{ o.pick }}" aria-pressed="{{ o.on }}" style="flex: 1; padding: 7px 8px; border: 0; border-radius: 6px; font-size: 12px; cursor: pointer; background: {{ o.bg }}; color: #E8EAEE">{{ o.label }}</button>
+              </sc-for>
+            </div>
+            <div role="group" aria-label="Border style" style="display: flex; gap: 2px; background: #23262E; padding: 3px; border-radius: 8px">
+              <sc-for list="{{ styleOpts }}" as="o" hint-placeholder-count="3">
+                <button onClick="{{ o.pick }}" aria-pressed="{{ o.on }}" style="flex: 1; padding: 7px 8px; border: 0; border-radius: 6px; font-size: 12px; cursor: pointer; background: {{ o.bg }}; color: #E8EAEE">{{ o.label }}</button>
+              </sc-for>
+            </div>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 8px">
+            <span style="font-size: 12px; color: #C3C8D2">Where shapes overlap</span>
+            <div role="group" aria-label="Overlap blending" style="display: flex; gap: 2px; background: #23262E; padding: 3px; border-radius: 8px">
+              <sc-for list="{{ blendOpts }}" as="o" hint-placeholder-count="2">
+                <button onClick="{{ o.pick }}" aria-pressed="{{ o.on }}" style="flex: 1; padding: 7px 8px; border: 0; border-radius: 6px; font-size: 12px; cursor: pointer; background: {{ o.bg }}; color: #E8EAEE">{{ o.label }}</button>
+              </sc-for>
+            </div>
+          </div>
+        </section>
+      </sc-if>
+
+      <sc-if value="{{ notVenn }}" hint-placeholder-val="{{ true }}">
+        <section style="display: flex; flex-direction: column; gap: 16px">
+          <div style="display: flex; flex-direction: column; gap: 2px">
+            <h2 style="margin: 0; font-size: 13px; font-weight: 600">Layout · {{ current.name }}</h2>
+            <span style="font-size: 12px; color: #9AA1AD">Options this template understands.</span>
+          </div>
+          <sc-if value="{{ current.hasBar }}" hint-placeholder-val="{{ true }}">
+            <div style="display: flex; flex-direction: column; gap: 8px">
+              <span style="font-size: 12px; color: #C3C8D2">Title bar</span>
+              <div role="group" aria-label="Title bar style" style="display: flex; gap: 2px; background: #23262E; padding: 3px; border-radius: 8px">
+                <sc-for list="{{ barOpts }}" as="o" hint-placeholder-count="3">
+                  <button onClick="{{ o.pick }}" aria-pressed="{{ o.on }}" style="flex: 1; padding: 7px 8px; border: 0; border-radius: 6px; font-size: 12px; cursor: pointer; background: {{ o.bg }}; color: #E8EAEE">{{ o.label }}</button>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ show.split }}" hint-placeholder-val="{{ false }}">
+            <div style="display: flex; flex-direction: column; gap: 8px">
+              <span style="font-size: 12px; color: #C3C8D2">List panel side</span>
+              <div role="group" aria-label="List panel side" style="display: flex; gap: 2px; background: #23262E; padding: 3px; border-radius: 8px">
+                <sc-for list="{{ sideOpts }}" as="o" hint-placeholder-count="2">
+                  <button onClick="{{ o.pick }}" aria-pressed="{{ o.on }}" style="flex: 1; padding: 7px 8px; border: 0; border-radius: 6px; font-size: 12px; cursor: pointer; background: {{ o.bg }}; color: #E8EAEE">{{ o.label }}</button>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+          <div style="display: flex; flex-direction: column; gap: 6px">
+            <span style="font-size: 12px; color: #C3C8D2">Placeholders</span>
+            <sc-for list="{{ current.parts }}" as="p" hint-placeholder-count="3">
+              <span style="display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; background: #23262E; font-size: 12px">
+                <span style="width: 6px; height: 6px; border-radius: 50%; background: #7AA2FF"></span>{{ p }}
+              </span>
+            </sc-for>
+          </div>
+        </section>
+      </sc-if>
+
+      <a href="Builds.dc.html" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-radius: 10px; border: 1px solid #343944; text-decoration: none; color: #E8EAEE; font-size: 13px; font-weight: 600">Set up a build for this slide <span aria-hidden="true">→</span></a>
+    </aside>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+const PAL = { primary: '#93C5FD', secondary: '#C4B5FD', tertiary: '#5EEAD4', impact: '#FBBF24', text: '#F1F5F9' };
+
+const TEMPLATES = [
+  { id: 'title', name: 'Title', hasBar: false, parts: ['Kicker', 'Title', 'Subtitle'] },
+  { id: 'bar', name: 'Title bar + content', hasBar: true, parts: ['Title bar', 'Content area'] },
+  { id: 'split', name: 'List + detail', hasBar: true, parts: ['Title bar', 'List panel (4 items)', 'Detail panel (one per item)'] },
+  { id: 'two', name: 'Two columns', hasBar: true, parts: ['Title bar', 'Left column', 'Right column'] },
+  { id: 'cards', name: 'Three cards', hasBar: true, parts: ['Title bar', 'Card × 3'] },
+  { id: 'section', name: 'Section break', hasBar: false, parts: ['Big number', 'Section name'] },
+  { id: 'statement', name: 'Statement', hasBar: false, parts: ['Line', 'Impact line'] },
+  { id: 'venn', name: 'Shapes / Venn', hasBar: false, parts: ['Title', 'Shapes'] },
+];
+
+const TOOLS = [
+  { id: 'select', label: 'Select (V)' }, { id: 'text', label: 'Text (T)' }, { id: 'rect', label: 'Rectangle (R)' },
+  { id: 'round', label: 'Rounded rectangle' }, { id: 'ellipse', label: 'Ellipse (O)' }, { id: 'line', label: 'Line (L)' }, { id: 'arrow', label: 'Arrow (A)' },
+];
+
+const TOOL_HINTS = {
+  select: 'Click a shape to edit it', text: 'Click on the slide to add text', rect: 'Drag on the slide to draw',
+  round: 'Drag on the slide to draw', ellipse: 'Drag to draw · Shift for a circle', line: 'Drag to draw a line', arrow: 'Drag to draw an arrow',
+};
+
+const SHAPE_POS = {
+  a: { left: '30cqw', top: '14cqw', alignX: 'flex-start', alignY: 'flex-start' },
+  b: { left: '46cqw', top: '14cqw', alignX: 'flex-end', alignY: 'flex-start' },
+  c: { left: '38cqw', top: '28cqw', alignX: 'center', alignY: 'flex-end' },
+};
+
+const FILL_TOKENS = ['primary', 'secondary', 'tertiary', 'impact', 'text', 'none'];
+
+function alphaHex(pct) {
+  const v = Math.round((pct / 100) * 255);
+  return (v < 16 ? '0' : '') + v.toString(16);
+}
+
+function radiusFor(kind) {
+  if (kind === 'ellipse') return '50%';
+  if (kind === 'round') return '3cqw';
+  if (kind === 'rect') return '0';
+  throw new Error('bug: this should never happen — unknown shape kind "' + kind + '"');
+}
+
+function byId(list, id) {
+  const hit = list.find((x) => x.id === id);
+  if (!hit) throw new Error('bug: this should never happen — unknown id "' + id + '"');
+  return hit;
+}
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      tpl: 'venn', tool: 'select', barStyle: 'band', side: 'left', blend: 'screen', selected: 'a',
+      shapes: {
+        a: { label: 'Theme', kind: 'ellipse', token: 'primary', opacity: 35, width: 2, style: 'solid' },
+        b: { label: 'Layout', kind: 'ellipse', token: 'secondary', opacity: 35, width: 2, style: 'solid' },
+        c: { label: 'Motion', kind: 'ellipse', token: 'tertiary', opacity: 35, width: 2, style: 'solid' },
+      },
+    };
+  }
+
+  updateShape(patch) {
+    const id = this.state.selected;
+    const shapes = Object.assign({}, this.state.shapes);
+    shapes[id] = Object.assign({}, shapes[id], patch);
+    this.setState({ shapes });
+  }
+
+  segment(options, current, apply) {
+    return options.map((o) => ({
+      label: o.label, on: o.value === current, bg: o.value === current ? '#343944' : 'transparent',
+      pick: () => apply(o.value),
+    }));
+  }
+
+  renderVals() {
+    const s = this.state;
+    const current = byId(TEMPLATES, s.tpl);
+    const sel = s.shapes[s.selected];
+    if (!sel) throw new Error('bug: this should never happen — no selected shape "' + s.selected + '"');
+    const headed = current.hasBar;
+    const barStyles = {
+      band: { bg: 'rgba(10,12,30,0.45)', rule: '0', display: 'block', top: '13cqw' },
+      rule: { bg: 'transparent', rule: '0.3cqw solid #93C5FD', display: 'block', top: '13cqw' },
+      none: { bg: 'transparent', rule: '0', display: 'none', top: '5cqw' },
+    };
+    const bar = barStyles[s.barStyle];
+    if (!bar) throw new Error('bug: this should never happen — unknown bar style "' + s.barStyle + '"');
+
+    return {
+      current,
+      templates: TEMPLATES.map((t) => ({
+        name: t.name, on: t.id === s.tpl, outline: t.id === s.tpl ? '2px solid #7AA2FF' : '1px solid #343944',
+        isTitle: t.id === 'title', isBar: t.id === 'bar', isSplit: t.id === 'split', isTwo: t.id === 'two',
+        isCards: t.id === 'cards', isSection: t.id === 'section', isStatement: t.id === 'statement', isVenn: t.id === 'venn',
+        pick: () => this.setState({ tpl: t.id }),
+      })),
+      tools: TOOLS.map((t) => ({
+        label: t.label, on: t.id === s.tool, bg: t.id === s.tool ? '#3A4A70' : 'transparent',
+        isSelect: t.id === 'select', isText: t.id === 'text', isRect: t.id === 'rect', isRound: t.id === 'round',
+        isEllipse: t.id === 'ellipse', isLine: t.id === 'line', isArrow: t.id === 'arrow',
+        pick: () => this.setState({ tool: t.id }),
+      })),
+      toolHint: TOOL_HINTS[s.tool],
+      stageHint: s.tpl === 'venn' ? 'Click a circle to select it · its properties are on the right' : 'Click any placeholder to type · drag the shape tools onto the slide',
+      show: {
+        title: s.tpl === 'title', headed, bar: s.tpl === 'bar', split: s.tpl === 'split', two: s.tpl === 'two',
+        cards: s.tpl === 'cards', section: s.tpl === 'section', statement: s.tpl === 'statement', venn: s.tpl === 'venn',
+      },
+      notVenn: s.tpl !== 'venn',
+      bar, bodyTop: headed ? bar.top : '5cqw',
+      splitDir: s.side === 'left' ? 'row' : 'row-reverse',
+      blend: s.blend,
+      shapes: Object.keys(s.shapes).map((id) => {
+        const sh = s.shapes[id];
+        const pos = SHAPE_POS[id];
+        const color = sh.token === 'none' ? null : PAL[sh.token];
+        return {
+          label: sh.label, on: id === s.selected, left: pos.left, top: pos.top, alignX: pos.alignX, alignY: pos.alignY,
+          radius: radiusFor(sh.kind),
+          fill: color ? color + alphaHex(sh.opacity) : 'transparent',
+          border: sh.width === 0 ? '0' : sh.width / 10 + 'cqw ' + sh.style + ' ' + (color || '#F1F5F9'),
+          pick: () => this.setState({ selected: id, tool: 'select' }),
+        };
+      }),
+      hasSel: s.tpl === 'venn',
+      selBox: SHAPE_POS[s.selected],
+      sel,
+      kindOpts: this.segment([{ value: 'ellipse', label: 'Ellipse' }, { value: 'round', label: 'Rounded' }, { value: 'rect', label: 'Rectangle' }], sel.kind, (v) => this.updateShape({ kind: v })),
+      fillOpts: FILL_TOKENS.map((tok) => ({
+        label: tok === 'none' ? 'None' : tok.charAt(0).toUpperCase() + tok.slice(1),
+        on: sel.token === tok,
+        swatch: tok === 'none' ? 'repeating-linear-gradient(45deg, #343944 0 4px, #23262E 4px 8px)' : PAL[tok],
+        outline: sel.token === tok ? '2px solid #7AA2FF' : '1px solid #343944',
+        pick: () => this.updateShape({ token: tok }),
+      })),
+      setOpacity: (e) => this.updateShape({ opacity: Number(e.target.value) }),
+      widthOpts: this.segment([{ value: 0, label: 'None' }, { value: 1, label: 'Thin' }, { value: 2, label: 'Medium' }, { value: 5, label: 'Thick' }], sel.width, (v) => this.updateShape({ width: v })),
+      styleOpts: this.segment([{ value: 'solid', label: 'Solid' }, { value: 'dashed', label: 'Dashed' }, { value: 'dotted', label: 'Dotted' }], sel.style, (v) => this.updateShape({ style: v })),
+      blendOpts: this.segment([{ value: 'normal', label: 'Stack' }, { value: 'screen', label: 'Blend colours' }], s.blend, (v) => this.setState({ blend: v })),
+      barOpts: this.segment([{ value: 'band', label: 'Band' }, { value: 'rule', label: 'Underline' }, { value: 'none', label: 'None' }], s.barStyle, (v) => this.setState({ barStyle: v })),
+      sideOpts: this.segment([{ value: 'left', label: 'List left' }, { value: 'right', label: 'List right' }], s.side, (v) => this.setState({ side: v })),
+    };
+  }
+}
+</script>
+</body>
+</html>

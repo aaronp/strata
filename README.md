@@ -68,7 +68,7 @@ type Deck = {
   nodes: Record<string, SlideNode>;   // 'ROOT' is a hidden root; its children are the top-level row
   bg: 'balloons' | 'london' | 'sea' | 'space' | 'forest' | 'sky' | 'ocean' | 'none' | 'custom';   // default 'balloons' customBg?: string /*dataURL*/; customAspect: number;
   opacity: number;        // background opacity 0–1
-  base: string;           // colour behind the background
+  base: string;           // colour or CSS gradient behind the background; the Canvas tab's Basic theme sets bg 'none' and picks this, Fun picks an image
   offset: number;         // horizontal background offset (background loops infinitely)
   rowGap?: number;        // row step − 1: top edge to top edge is h·(1+rowGap); 0 = rows abut, < 0 overlaps (parallax)
   gap: number;            // column step − 1: left edge to left edge is w·(1+gap); 0 = slides abut (background moves in sync), < 0 overlaps (parallax)

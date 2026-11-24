@@ -21,7 +21,7 @@ export function safeLayer(l: Obj) {
   if (r.blend != null && !["normal", "screen"].includes(r.blend)) delete r.blend;
   if (r.align != null && !["left", "center", "right"].includes(r.align)) delete r.align;
   if (r.valign != null && !["top", "middle", "bottom"].includes(r.valign)) delete r.valign;
-  if (r.box != null) { if (typeof r.box !== "object") delete r.box; else { const b = numsOnly({ ...r.box }, ["bgOpacity", "blur", "border", "radius", "pad"]); for (const k of ["bg", "borderColor"]) if (b[k] != null && !safeCol(b[k])) delete b[k]; r.box = b; } }
+  if (r.box != null) { if (typeof r.box !== "object") delete r.box; else { const b = numsOnly({ ...r.box }, ["bgOpacity", "borderOpacity", "blur", "border", "radius", "pad"]); for (const k of ["bg", "borderColor"]) if (b[k] != null && !safeCol(b[k])) delete b[k]; r.box = b; } }
   if (r.border != null) r.border = typeof r.border === "object" ? { ...r.border, style: ["solid", "dashed", "dotted"].includes(r.border.style) ? r.border.style : "solid",
     width: Number.isFinite(r.border.width) ? Math.max(0, Math.min(10, r.border.width)) : 0 } : { width: 0, style: "solid" };
   if (r._lines) r._lines = r._lines.map((line: Obj[]) => line.map(dropUnsafe));
@@ -73,7 +73,7 @@ const numLike: Check = v => typeof v === "number" || typeof v === "string" ? v :
 const word = (v: unknown) => typeof v === "string" && /^[\w-]{0,40}$/.test(v) ? v : undefined;
 
 // Text styling keys (STYLE_KEYS in the app): on layers, named styles and template slots.
-const BOX = allow({ bg: v => safeCol(v) ? v : undefined, borderColor: v => safeCol(v) ? v : undefined, ...Object.fromEntries(["bgOpacity", "blur", "border", "radius", "pad"].map(k => [k, numLike])) });
+const BOX = allow({ bg: v => safeCol(v) ? v : undefined, borderColor: v => safeCol(v) ? v : undefined, ...Object.fromEntries(["bgOpacity", "borderOpacity", "blur", "border", "radius", "pad"].map(k => [k, numLike])) });
 const STYLE: Record<string, Check> = {
   font: v => safeFont(v) ? v : undefined, color: v => safeCol(v) ? v : undefined, markColor: v => safeCol(v) ? v : undefined, size: numLike, weight: numLike, lh: numLike, ls: numLike, gap: numLike,
   align: oneOf(["left", "center", "right"]), valign: oneOf(["top", "middle", "bottom"]), bullets: oneOf(["none", "disc", "dash", "check", "arrow", "number"]), card: word, box: BOX,

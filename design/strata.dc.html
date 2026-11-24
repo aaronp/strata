@@ -1158,6 +1158,11 @@ const B = (x, y, w, h) => ({ x, y, w, h, rot: 0 });
 const HEAD = [B(6, 6, 88, 14)];
 const TBAR = B(5, 6, 90, 12);   // a template's title, in its title bar
 const BODY_Y = [24, 90];
+// Region looks (Templates.dc.html), in theme tokens so a palette or tone change restyles them. Box sizes are px on a 1600-wide slide (16px = 1cqw).
+// surface: white on dark palettes, black on light. CARD: a faint filled card (Three cards); FRAME: a bordered one (Two columns).
+const CARD = { card: 'custom', box: { bg: 'surface', bgOpacity: 0.07, blur: 0, border: 0, borderColor: 'surface', radius: 16, pad: 38 } };
+const FRAME = { card: 'custom', box: { bg: 'surface', bgOpacity: 0, blur: 0, border: 2.4, borderColor: 'surface', borderOpacity: 0.22, radius: 16, pad: 42 } };
+const look = (bs, ex) => bs.map(b => ({ ...b, ...ex }));
 const stackOf = (n, [y0, y1] = BODY_Y) => { const h = (y1 - y0 - 2 * (n - 1)) / n; return Array.from({ length: n }, (_, i) => B(6, +(y0 + i * (h + 2)).toFixed(2), 88, +h.toFixed(2))); };
 const BUILTIN_LAYOUTS = {
   'stacked-1': { name: 'Stacked', match: { title: 1, body: 1 }, slots: { title: HEAD, body: stackOf(1) } },
@@ -1169,26 +1174,38 @@ const BUILTIN_LAYOUTS = {
   'text-list': { name: 'Text + list', match: { title: 1, body: 1, list: 1 }, slots: { title: HEAD, body: [B(6, 24, 42, 66)], list: [B(52, 24, 42, 66)] } },
   'text-links': { name: 'Text + links', match: { title: 1, body: 1, links: 1 }, slots: { title: HEAD, body: [B(6, 24, 56, 66)], links: [B(66, 24, 28, 60)] } },
   links: { name: 'Title + links', match: { title: 1, links: 1 }, slots: { title: HEAD, links: [B(6, 24, 60, 66)] } },
-  'cols-2': { name: 'Two columns', match: { title: 1, body: 2 }, slots: { title: HEAD, body: [B(6, 24, 42, 66), B(52, 24, 42, 66)] } },
-  'cols-3': { name: 'Three columns', match: { title: 1, body: 3 }, slots: { title: HEAD, body: [B(6, 24, 27.3, 66), B(36.3, 24, 27.3, 66), B(66.6, 24, 27.3, 66)] } },
-  'grid-4': { name: 'Grid of four', match: { title: 1, body: 4 }, slots: { title: HEAD, body: [B(6, 24, 42, 31), B(52, 24, 42, 31), B(6, 59, 42, 31), B(52, 59, 42, 31)] } },
+  'cols-2': { name: 'Two columns', match: { title: 1, body: 2 }, slots: { title: HEAD, body: look([B(6, 24, 42, 66), B(52, 24, 42, 66)], FRAME) } },
+  'cols-3': { name: 'Three columns', match: { title: 1, body: 3 }, slots: { title: HEAD, body: look([B(6, 24, 27.3, 66), B(36.3, 24, 27.3, 66), B(66.6, 24, 27.3, 66)], CARD) } },
+  'grid-4': { name: 'Grid of four', match: { title: 1, body: 4 }, slots: { title: HEAD, body: look([B(6, 24, 42, 31), B(52, 24, 42, 31), B(6, 59, 42, 31), B(52, 59, 42, 31)], CARD) } },
   'image-right': { name: 'Image right', match: { title: 1, body: 1, image: 1 }, slots: { title: HEAD, body: [B(6, 24, 42, 66)], image: [B(52, 24, 42, 66)] } },
   'image-full': { name: 'Full image', match: { title: 1, image: 1 }, slots: { image: [B(0, 0, 100, 100)], title: [B(6, 72, 88, 18)] } },
   'body-1': { name: 'Text', match: { body: 1 }, slots: { body: [B(8, 10, 84, 80)] } },
   'body-2': { name: 'Two texts', match: { body: 2 }, slots: { body: [B(6, 10, 42, 80), B(52, 10, 42, 80)] } },
-  'body-3': { name: 'Three texts', match: { body: 3 }, slots: { body: [B(6, 10, 27.3, 80), B(36.3, 10, 27.3, 80), B(66.6, 10, 27.3, 80)] } },
+  'body-3': { name: 'Three texts', match: { body: 3 }, slots: { body: look([B(6, 10, 27.3, 80), B(36.3, 10, 27.3, 80), B(66.6, 10, 27.3, 80)], CARD) } },
   // Templates (design/slides/slides/Templates.dc.html, cqw → %: y = cqw × 16/9). The title bar is 13cqw deep; content sits 5cqw in from the edges.
   // match body 'items': one body per list item, all in the one detail region. number: where the generated section number goes.
   't-title': { name: 'Title', icon: 'title', match: { title: 1 }, slots: { title: [B(8, 43.7, 84, 12.6)] } },
-  't-title-sub': { name: 'Title + subtitle', icon: 'title', match: { title: 1, body: 1 }, slots: { title: [B(8, 37.2, 84, 12.6)], body: [B(8, 57.7, 84, 5.2)] } },
+  't-title-sub': { name: 'Title + subtitle', icon: 'title', match: { title: 1, body: 1 }, slots: { title: [B(8, 37.2, 84, 12.6)], body: [{ ...B(8, 57.7, 84, 5.2), color: 'muted' }] } },
   't-bar': { name: 'Title bar + content', icon: 'bar', opts: ['bar'], match: { title: 1, list: 1 }, slots: { title: [TBAR], list: [B(5, 23.1, 90, 68)] } },
   't-split': { name: 'List + detail', icon: 'split', opts: ['bar', 'side'], match: { title: 1, list: 1, body: 'items' }, slots: { title: [TBAR], list: [B(3, 29.2, 28, 64.8)], body: [B(38, 29.2, 58, 64.8)] } },
-  't-two': { name: 'Two columns', icon: 'two', opts: ['bar'], match: { title: 1, body: 2 }, slots: { title: [TBAR], body: [B(5, 23.1, 43.5, 68), B(51.5, 23.1, 43.5, 68)] } },
-  't-cards': { name: 'Three cards', icon: 'cards', opts: ['bar'], match: { title: 1, body: 3 }, slots: { title: [TBAR], body: [B(5, 23.1, 28.4, 68), B(35.8, 23.1, 28.4, 68), B(66.6, 23.1, 28.4, 68)] } },
+  't-two': { name: 'Two columns', icon: 'two', opts: ['bar'], match: { title: 1, body: 2 }, slots: { title: [TBAR], body: look([B(5, 23.1, 43.5, 68), B(51.5, 23.1, 43.5, 68)], FRAME) } },
+  't-cards': { name: 'Three cards', icon: 'cards', opts: ['bar'], match: { title: 1, body: 3 }, slots: { title: [TBAR], body: look([B(5, 29, 28.4, 62.1), B(35.8, 29, 28.4, 62.1), B(66.6, 29, 28.4, 62.1)], CARD) } },   // cards under their numbers (DECO)
   't-section': { name: 'Section break', icon: 'section', match: { title: 1 }, slots: { title: [B(8, 77.7, 84, 9.8)] }, number: B(8, 51.9, 84, 24) },
   't-statement': { name: 'Statement', icon: 'statement', match: { title: 1, body: 2 }, slots: { title: [{ ...B(8, 14.2, 84, 5), font: 'mono', size: 15, weight: 500, valign: 'top' }],   // the heading as a small kicker
     body: [B(8, 36.5, 84, 13.5), { ...B(8, 50, 84, 13.5), color: 'impact' }] } },
   't-shapes': { name: 'Shapes / Venn', icon: 'venn', match: { title: 1 }, slots: { title: [B(5, 7.1, 90, 7.3)] } },
+};
+// A template's decorations, by layout id: generated (gen-*) layers drawn behind its regions. By id, so a deck's updated copy of a built-in keeps them,
+// and kept out of layout files. Numbers over the cards, accent bars on the columns' top edges, the list panel, the title's rule.
+const accent = (b, token) => ({ type: 'shape', kind: 'rect', token, fillOpacity: 100, x: b.x + 1, y: b.y, w: b.w - 2, h: 0.5 });
+const num = (b, i, color) => ({ type: 'text', text: String(i).padStart(2, '0'), x: b.x, y: 24.6, w: b.w, h: 3.6, font: 'mono', size: 26, weight: 500, lh: 1, color, align: 'left', valign: 'top', bullets: 'none' });
+const rule = y => ({ type: 'shape', kind: 'rect', token: 'primary', fillOpacity: 100, x: 8, y, w: 10, h: 0.8 });
+const accents = bs => ({ 'accent-1': accent(bs[0], 'primary'), 'accent-2': accent(bs[1], 'secondary') });
+const DECO = {
+  't-title': { rule: rule(58.3) }, 't-title-sub': { rule: rule(52.4) },
+  't-split': { panel: { type: 'shape', kind: 'rect', fill: 'panel', x: 0, y: 23.1, w: 34, h: 76.9 } },
+  't-two': accents(BUILTIN_LAYOUTS['t-two'].slots.body), 'cols-2': accents(BUILTIN_LAYOUTS['cols-2'].slots.body),
+  't-cards': Object.fromEntries(BUILTIN_LAYOUTS['t-cards'].slots.body.map((b, i) => ['num-' + (i + 1), num(b, i + 1, ['primary', 'secondary', 'tertiary'][i])])),
 };
 const SOURCES_BOX = B(6, 89, 88, 5);
 // What a template's regions need beyond the slide's own section (md, heading on `line`): bodies, a list, one detail per bullet, a subtitle. Images and links get none.
@@ -1261,15 +1278,22 @@ const slotsOf = layers => { const out = {}, g = groupsOf(layers);
   for (const k in g) out[k] = regionsOf(g[k]).map(r => { if (r.length === 1) { const l = r[0]; return { x: l.x, y: l.y, w: l.w, h: l.h, rot: l.rot || 0 }; }
     const x = Math.min(...r.map(l => l.x)), y = Math.min(...r.map(l => l.y)); return { x, y, w: Math.max(...r.map(l => l.x + l.w)) - x, h: Math.max(...r.map(l => l.y + l.h)) - y, rot: 0 }; });
   return out; };
-// The props a layout puts on each layer beyond its box (kind 'detail', a slot's colour or font), by layer id.
-const tplProps = (layers, L) => { const b = L ? fillSlots(layers, L) : {}, out = {}; for (const id in b) { const { x: _x, y: _y, w: _w, h: _h, rot: _r, ...more } = b[id]; out[id] = Object.keys(more); } return out; };
+// The props a layout puts on each layer beyond its box (kind 'detail', a slot's colour, font or card), by layer id: { key: value }.
+const tplProps = (layers, L) => { const b = L ? fillSlots(layers, L) : {}, out = {}; for (const id in b) { const { x: _x, y: _y, w: _w, h: _h, rot: _r, ...more } = b[id]; out[id] = more; } return out; };
+// A layer less the template props it still has as the template set them (a value the user changed is theirs and stays).
+const sameVal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+const stripTpl = (l, tp) => { const o = { ...l }, t = tp[l.id] || {}; for (const k in t) if (sameVal(o[k], t[k])) delete o[k]; return o; };
+// A slot onto a layer: its box always; its other props only where the layer has none of its own, so user-set values win.
+const GEO = ['x', 'y', 'w', 'h', 'rot'];
+const onSlot = (l, b) => { const o = { ...l }; for (const k in b) if (GEO.includes(k) || !(k in l)) o[k] = b[k]; return o; };
 // Generated layers (gen-*): drawn by a template at enrich time, never saved, never counted. The section number: the slide's 1-based place among its siblings.
 // A template with the 'bar' option draws its title bar from the slide's barStyle: band (default), rule (an underline) or none. 13cqw deep, as in Templates.dc.html.
 const isGen = l => String(l.id).startsWith('gen-');
 const BAR_STYLES = { band: { y: 0, h: 23.1, fill: 'scrim' }, rule: { y: 22.6, h: 0.5, token: 'primary', fillOpacity: 100 } };
 const genLayers = (L, idx, n = {}) => {
-  const bar = L && (L.opts || []).includes('bar') && BAR_STYLES[n.barStyle || 'band'];
-  return [...(bar ? [{ id: 'gen-bar', type: 'shape', kind: 'rect', x: 0, w: 100, rot: 0, opacity: 1, ...bar }] : []),
+  const bar = L && (L.opts || []).includes('bar') && BAR_STYLES[n.barStyle || 'band'], flip = !!(L && n.side === 'right' && (L.opts || []).includes('side'));
+  const deco = Object.entries((L && DECO[L.id]) || {}).map(([k, d]) => ({ id: 'gen-' + k, rot: 0, opacity: 1, ...d, ...(flip ? { x: +(100 - d.x - d.w).toFixed(2) } : {}) }));
+  return [...deco, ...(bar ? [{ id: 'gen-bar', type: 'shape', kind: 'rect', x: 0, w: 100, rot: 0, opacity: 1, ...bar }] : []),
     ...(L && L.number ? [{ id: 'gen-number', type: 'text', text: String(idx + 1).padStart(2, '0'), ...L.number, opacity: 1,
       font: 'head', size: 144, weight: 700, lh: 0.9, color: 'impact', align: 'left', valign: 'bottom', bullets: 'none' }] : [])]; };
 // A template with the 'side' option, on a slide with side 'right', mirrors its slots left to right.
@@ -1317,7 +1341,7 @@ function enrich(sections, layouts, opts = {}) {
   const shapeIn = (F, gen, sig) => { const own = (F.deck || {}).layouts || {}, get = k => own[k] || BUILTIN_LAYOUTS[k], fits = x => fitsTemplate(gen, x);
     const d = ((F.deck || {}).layoutDefaults || {})[sig]; if (fits(get(d))) return { id: d, ...get(d) };
     const k = Object.keys(own).find(k => fits(own[k])); return k ? { id: k, ...own[k] } : null; };
-  const byLid = k => { for (const F of layouts) { const o = ((F.deck || {}).layouts || {})[k]; if (o) return o; } return BUILTIN_LAYOUTS[k]; };
+  const byLid = k => { let o = BUILTIN_LAYOUTS[k]; for (const F of layouts) { const x = ((F.deck || {}).layouts || {})[k]; if (x) { o = x; break; } } return o && { id: k, ...o }; };
   const add = (sec, depth, idx) => {
     const id = prefix + sec.slug, gen = blockLayers(sec, depth, prefix, src, styles), sig = sigKey(sigOf(gen));
     for (const l of gen) if (l.imgKey) images[l.imgKey] = l.imgKey.slice(3);
@@ -1332,10 +1356,12 @@ function enrich(sections, layouts, opts = {}) {
       const ls = ov.layers.filter(l => !(i && l.type === 'component') && !isGen(l));
       const gone = ls.filter(l => isMd(l) && !byId.has(l.id));   // back in the layout file, out of the slide
       const have = new Set(ls.map(l => l.id));
-      const layers = [...genLayers(byLid(ov.layout), idx, ov), ...ls.filter(l => !isMd(l) || byId.has(l.id)).map(l => isMd(l) ? mergeContent(l, byId.get(l.id)) : l).concat(gen.filter(g => !have.has(g.id)).map(g => ({ ...g, _warn: true })))];
+      const own = ls.filter(l => !isMd(l) || byId.has(l.id)).map(l => isMd(l) ? mergeContent(l, byId.get(l.id)) : l).concat(gen.filter(g => !have.has(g.id)).map(g => ({ ...g, _warn: true })));
+      const OL = byLid(ov.layout), tp = tplProps(own, OL);   // the template's props aren't saved (layoutOf): they go back on here
+      const layers = [...genLayers(OL, idx, ov), ...own.map(l => tp[l.id] ? onSlot(l, tp[l.id]) : l)];
       const { _kept: _k, ...rest } = ov; extra = { ...rest, layers, custom: true, ...(gone.length ? { _kept: gone } : {}) };
     } else {
-      if (lay) { const boxes = fillSlots(gen, sided(lay, keep || {})); extra = { layers: [...genLayers(lay, idx, keep || {}), ...backFirst(gen.map(l => boxes[l.id] ? { ...l, ...boxes[l.id] } : l), boxes)], layout: lay.id }; }
+      if (lay) { const boxes = fillSlots(gen, sided(lay, keep || {})); extra = { layers: [...genLayers(lay, idx, keep || {}), ...backFirst(gen.map(l => boxes[l.id] ? onSlot(l, boxes[l.id]) : l), boxes)], layout: lay.id }; }
       else { const rest = gen.filter(l => counted(l) && l.block !== 'title'), st = stackOf(rest.length, [24, 88]);   // no match: stack the blocks, and flag them
         extra = { layers: gen.map(l => { const k = rest.indexOf(l); return k < 0 ? l : { ...l, ...st[k], _warn: true }; }) }; }
     }
@@ -1359,7 +1385,8 @@ function layoutOf(nodes, deckFields = {}, linkedOv = {}) {   // linkedOv: the ho
   for (const id in nodes) { const n = nodes[id]; if (id === 'ROOT' || n._from) continue;
     if (n.custom !== true) { const k = keepOf(n); if (Object.keys(k).length) slides[id] = k; continue; }
     const o = Object.fromEntries(Object.entries(n).filter(([k]) => !NOT_SAVED.includes(k)));
-    o.layers = (n.layers || []).filter(l => !(isMd(l) && l._warn) && !isGen(l))   // an unclaimed block isn't part of the override yet
+    const own = (n.layers || []).filter(l => !isGen(l)), tp = tplProps(own, n.layout && ({ ...BUILTIN_LAYOUTS, ...(deckFields.layouts || {}) })[n.layout]);   // template props: enrich puts them back
+    o.layers = own.filter(l => !(isMd(l) && l._warn)).map(l => stripTpl(l, tp))   // an unclaimed block isn't part of the override yet
       .map(l => isMd(l) ? Object.fromEntries(Object.entries(l).filter(([k]) => !MD_CONTENT.includes(k))) : l).concat(n._kept || []);
     slides[id] = o; }
   return { version: 2, deck, slides };
@@ -2056,6 +2083,7 @@ class Component extends DCLogic {
       return { ...r, fill: c ? c + a.toString(16).padStart(2, '0') : 'transparent', stroke: c || col('text') };
     }
     if (r.fill === 'scrim') return { ...r, fill: this.theme().tone === 'dark' ? 'rgba(10,12,30,0.45)' : 'rgba(255,255,255,0.55)' };   // the title-bar band follows the palette tone
+    if (r.fill === 'panel') return { ...r, fill: this.theme().tone === 'dark' ? 'rgba(10,12,30,0.35)' : 'rgba(0,0,0,0.05)' };        // List + detail's list panel, likewise
     if (r.type !== 'text') return r.fill ? { ...r, fill: col(r.fill) } : r;
     return { ...r, ...(r.color ? { color: col(r.color) } : {}), ...(r.markColor ? { markColor: col(r.markColor) } : {}), ...(r.font ? { font: fam(r.font) } : {}),
       ...(r.box ? { box: { ...r.box, ...(r.box.bg ? { bg: col(r.box.bg) } : {}), ...(r.box.borderColor ? { borderColor: col(r.box.borderColor) } : {}) } } : {}),
@@ -2184,10 +2212,10 @@ class Component extends DCLogic {
   // A layout applied to one node: its counted boxes; layout recorded, custom cleared. Null for linked-in slides.
   layoutPatch(n, L) { if (!L || n._from) return null; const ls0 = this.layersOfNode(n).filter(l => !isGen(l));
     // The old layout's template props come off before the new layout's go on, so a layer carries exactly the new template's.
-    const old = tplProps(ls0, this.layouts()[n.layout]), strip = l => { const o = { ...l }; for (const k of old[l.id] || []) delete o[k]; return o; };
+    const old = tplProps(ls0, this.layouts()[n.layout]), strip = l => stripTpl(l, old);
     const ls = ls0.map(strip), boxes = fillSlots(ls, sided(L, n)), { custom: _c, layers: _l, ...rest } = n, gen = genLayers(L, this.indexOf(n.id), n);
     // A template that doesn't fit places what its regions claim (by key, in reading order); a counted block no region claims is flagged ⚠️.
-    const place = l => boxes[l.id] ? { ...unwarn(l), ...boxes[l.id] } : counted(l) ? { ...l, _warn: true } : l;
+    const place = l => boxes[l.id] ? onSlot(unwarn(l), boxes[l.id]) : counted(l) ? { ...l, _warn: true } : l;
     return { ...rest, layers: [...gen, ...backFirst(ls.map(place), boxes)], layout: L.id }; }
   // Extras (layers not from the markdown) live only in a per-slide override.
   hasExtras(id, ls = this.layersOf(id)) { return ls.some(l => !isMd(l) && !isGen(l)); }
@@ -2232,7 +2260,9 @@ class Component extends DCLogic {
     const layers = this.layersOf(id), match = sigOf(layers, this.styles()); if (!sigKey(match)) { this.flash('Nothing on this slide to lay out'); return null; }
     const L = this.layouts(), names = Object.values(L).map(x => x.name); let n = 1; while (names.includes('Layout ' + n)) n++;
     const name = 'Layout ' + n; let lid = 'layout-' + n, i = 2; while (L[lid]) lid = 'layout-' + n + '-' + i++;
-    this.setState(s => ({ layouts: { ...(s.layouts || {}), [lid]: { name, match, slots: slotsOf(layers, this.styles()) } } }));
+    const slots = slotsOf(layers), L0 = this.effectiveLayout(id);   // each slot keeps the current template's region styling (its cards), so a later switch removes it
+    for (const k in slots) slots[k] = slots[k].map((b, i) => { const { x: _x, y: _y, w: _w, h: _h, rot: _r, kind: _k, ...ex } = (((L0 || {}).slots || {})[k] || [])[i] || {}; return { ...ex, ...b }; });
+    this.setState(s => ({ layouts: { ...(s.layouts || {}), [lid]: { name, match, slots } } }));
     const { custom: _c, ...rest } = this.state.nodes[id], nodes = { ...this.state.nodes, [id]: { ...rest, layout: lid, ...(this.hasExtras(id) ? { custom: true } : {}) } }; this.allowLayout(nodes); this.setState({ nodes });
     return lid;
   }

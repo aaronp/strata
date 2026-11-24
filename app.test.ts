@@ -1372,8 +1372,8 @@ test("shapes count blocks (a list once); layouts match exactly; slots fill by ke
     BL("l1", "list", { list: 1, item: 1 }), BL("l2", "list", { list: 1, item: 2 }), { id: "gen-number", type: "text", text: "01", x: 0, y: 0, w: 1, h: 1 }];
   expect(sigOf(layers)).toEqual({ title: 1, body: 2, image: 1, list: 1 });
   expect(sigKey({ title: 1, body: 2 })).toBe("body:2,title:1"); expect(sigKey({})).toBe("");
-  const boxes = fillSlots(layers.slice(0, 3), BUILTIN_LAYOUTS["cols-2"]);
-  expect(boxes).toEqual({ t: { x: 6, y: 6, w: 88, h: 14, rot: 0 }, b1: { x: 6, y: 24, w: 42, h: 66, rot: 0 }, b2: { x: 52, y: 24, w: 42, h: 66, rot: 0 } });
+  const boxes = fillSlots(layers.slice(0, 3), BUILTIN_LAYOUTS["stacked-2"]);
+  expect(boxes).toEqual({ t: { x: 6, y: 6, w: 88, h: 14, rot: 0 }, b1: { x: 6, y: 24, w: 88, h: 32, rot: 0 }, b2: { x: 6, y: 58, w: 88, h: 32, rot: 0 } });
   for (const L of Object.values<any>(BUILTIN_LAYOUTS)) {
     for (const k in L.match) expect(L.slots[k].length).toBe(L.match[k] === "items" ? 1 : L.match[k]);
     for (const k in L.slots) for (const b of L.slots[k]) { expect(b.x >= 0 && b.y >= 0 && b.x + b.w <= 100.01 && b.y + b.h <= 100.01).toBe(true); }
@@ -1586,7 +1586,7 @@ test("template pick: a custom per-slide box on a block after a removed placehold
   c.updLayer("t", "md-body-3", { card: "custom", box }); c.componentDidUpdate(); expect(c.state.nodes.t.custom).toBe(true);
   pickTpl(c, "t-two");
   expect(layerOf(c, "t", "md-body-2")).toMatchObject({ text: "Mine.", card: "custom", box });
-  expect(layerOf(c, "t", "md-body-1").box).toBeUndefined();
+  expect(layerOf(c, "t", "md-body-1").box).toMatchObject({ bg: "surface", borderOpacity: 0.22 });   // the template's own card, not the user's
 });
 
 test("template pick: an open in-place edit is committed first, then the pick lands", async () => {
@@ -2693,4 +2693,75 @@ test("palette accents: H2/H3 and bullet markers take primary, H1 and body take t
   c.setTheme({ palette: "ember" }); expect(res(h2).color).toBe("#FDBA74"); expect(res(li).markColor).toBe("#FDBA74");
   expect(res({ ...h2, color: "#123456" }).color).toBe("#123456");                       // a user-set hex colour wins
   expect(c.resolveLayer(layerOf(c, "t", "md-title"), "t").color).toBe("#FFF7ED");        // H1: text
+});
+
+// ---- templates style their regions with theme tokens (Templates.dc.html looks) ----
+const THREE = "# T\nslug: t\n\nOne.\n\nTwo.\n\nThree.\n";
+const bodiesOf = (c: any, id: string) => c.layersOf(id).filter((l: any) => l.block === "body");
+const gens = (c: any, id: string) => c.layersOf(id).filter((l: any) => l.id.startsWith("gen-"));
+test("t-cards: three bodies on theme-token cards, numbered 01–03 in primary/secondary/tertiary; switching away removes both", async () => {
+  await writeMd("talk", THREE); const { c } = await mount("?deck=talk"); c.setTheme({ palette: "midnight" });
+  c.applyLayout("t", "t-cards");
+  const bs = bodiesOf(c, "t"); expect(bs.length).toBe(3);
+  for (const b of bs) { expect(b).toMatchObject({ card: "custom", box: { bg: "surface", bgOpacity: 0.07 } });
+    expect(c.resolveLayer(b, "t").box).toMatchObject({ bg: "#FFFFFF", bgOpacity: 0.07 }); }
+  const nums = ["gen-num-1", "gen-num-2", "gen-num-3"].map(k => layerOf(c, "t", k));
+  expect(nums.map((l: any) => [l.text, l.color, l.font])).toEqual([["01", "primary", "mono"], ["02", "secondary", "mono"], ["03", "tertiary", "mono"]]);
+  expect(nums.map((l: any) => c.resolveLayer(l, "t").color)).toEqual(["#93C5FD", "#C4B5FD", "#5EEAD4"]);
+  for (let i = 0; i < 3; i++) expect(nums[i].y + nums[i].h).toBeLessThanOrEqual(bs[i].y);   // above its card
+  const v = c.renderVals(); expect(v.overlays.some((o: any) => o.lid.startsWith("gen-num"))).toBe(false);
+  expect(v.layerRows.length).toBe(c.layersOf("t").length - gens(c, "t").length);   // generated: not selectable rows
+  c.setTheme({ palette: "paper" }); expect(c.resolveLayer(bodiesOf(c, "t")[0], "t").box.bg).toBe("#000000");   // the light tone's surface
+  c.applyLayout("t", "stacked-3");
+  for (const b of bodiesOf(c, "t")) { expect(b.card).toBeUndefined(); expect(b.box).toBeUndefined(); }
+  expect(gens(c, "t")).toEqual([]);
+});
+
+test("t-two: each column is a bordered card with a primary / secondary accent bar; the old Two/Three columns and grid get cards too", async () => {
+  await writeMd("talk", "# T\nslug: t\n\nOne.\n\nTwo.\n"); const { c } = await mount("?deck=talk"); c.setTheme({ palette: "midnight" });
+  c.applyLayout("t", "t-two");
+  for (const b of bodiesOf(c, "t")) expect(c.resolveLayer(b, "t")).toMatchObject({ card: "custom", box: { borderColor: "#FFFFFF", borderOpacity: 0.22, bgOpacity: 0 } });
+  const acc = ["gen-accent-1", "gen-accent-2"].map(k => layerOf(c, "t", k));
+  expect(acc.map((l: any) => c.resolveLayer(l, "t").fill)).toEqual(["#93C5FDff", "#C4B5FDff"]);
+  expect(acc.map((l: any) => l.y)).toEqual(bodiesOf(c, "t").map((b: any) => b.y));   // on each column's top edge
+  c.applyLayout("t", "cols-2"); expect(bodiesOf(c, "t")[0].box).toMatchObject({ borderColor: "surface" }); expect(layerOf(c, "t", "gen-accent-2")).toBeTruthy();
+  c.applyLayout("t", "stacked-2"); expect(bodiesOf(c, "t")[0].card).toBeUndefined(); expect(gens(c, "t")).toEqual([]);
+  await writeMd("t3", THREE); const m = (await mount("?deck=t3")).c;
+  for (const lid of ["cols-3", "body-3"]) { m.applyLayout("t", lid); expect(bodiesOf(m, "t").every((b: any) => b.box && b.box.bgOpacity === 0.07)).toBe(true); }
+});
+
+test("t-split draws a list panel behind the list (tone-aware, mirrored with the list); t-title a primary rule; the subtitle is muted", async () => {
+  await writeMd("talk", "# S\nslug: s\n\n- a\n- b\n\nA.\n\nB.\n\n# T\nslug: t\n\n# U\nslug: u\n\nSub.\n"); const { c } = await mount("?deck=talk");
+  expect(c.state.nodes.s.layout).toBe("t-split"); c.setTheme({ palette: "midnight" });
+  const panel = () => layerOf(c, "s", "gen-panel"), list = layerOf(c, "s", "md-list-1-1");
+  expect(c.layersOf("s").indexOf(panel())).toBeLessThan(c.layersOf("s").indexOf(list));   // behind
+  expect(panel().x).toBeLessThanOrEqual(list.x); expect(panel().x + panel().w).toBeGreaterThanOrEqual(list.x + list.w);
+  expect(c.resolveLayer(panel(), "s").fill).toBe("rgba(10,12,30,0.35)");
+  c.setTheme({ palette: "paper" }); expect(c.resolveLayer(panel(), "s").fill).toBe("rgba(0,0,0,0.05)");
+  c.setTemplateOpt("s", { side: "right" }); c.componentDidUpdate(); expect(panel().x + panel().w).toBe(100);
+  c.applyLayout("t", "t-title"); expect(layerOf(c, "t", "gen-rule")).toMatchObject({ token: "primary" });
+  c.applyLayout("u", "t-title-sub"); expect(layerOf(c, "u", "gen-rule")).toBeTruthy(); expect(layerOf(c, "u", "md-body-1").color).toBe("muted");
+  c.applyLayout("u", "stacked-1"); expect(layerOf(c, "u", "md-body-1").color).toBeUndefined(); expect(layerOf(c, "u", "gen-rule")).toBeUndefined();
+});
+
+test("a user-set colour or box on a body survives template switches; layoutOf saves neither gen layers nor template props, and a reload restores them", async () => {
+  await writeMd("talk", "# U\nslug: u\n\nSub.\n\n# T\nslug: t\n\nOne.\n\nTwo.\n\nThree.\n"); const { c } = await mount("?deck=talk");
+  c.applyLayout("u", "t-title-sub"); c.updLayer("u", "md-body-1", { color: "#ff0000" }); c.componentDidUpdate();
+  c.applyLayout("u", "stacked-1"); expect(layerOf(c, "u", "md-body-1").color).toBe("#ff0000");
+  c.applyLayout("u", "t-title-sub"); expect(layerOf(c, "u", "md-body-1").color).toBe("#ff0000");   // the template's muted doesn't replace it
+  c.applyLayout("t", "t-cards"); c.updLayer("t", "md-body-2", { color: "#00ff00" }); c.componentDidUpdate();
+  expect(c.state.nodes.t.custom).toBe(true);
+  const saved = c.constructor.md.layoutOf(c.state.nodes, c.state), json = JSON.stringify(saved);
+  expect(json).not.toContain("gen-"); expect(json).not.toContain('"bg":"surface"'); expect(json).not.toContain('"card"');
+  expect(saved.slides.t.layers.find((l: any) => l.id === "md-body-2").color).toBe("#00ff00");
+  c.reenrich(); expect(bodiesOf(c, "t").every((b: any) => b.card === "custom" && b.box.bg === "surface")).toBe(true);   // the template puts them back
+  expect(layerOf(c, "t", "md-body-2").color).toBe("#00ff00"); expect(layerOf(c, "t", "gen-num-1")).toBeTruthy();
+  c.applyLayout("t", "stacked-3"); expect(layerOf(c, "t", "md-body-2")).toMatchObject({ color: "#00ff00" }); expect(layerOf(c, "t", "md-body-2").box).toBeUndefined();
+});
+
+test("Save as layout keeps the template's region styling as its own slot extras, so a later switch still removes it", async () => {
+  await writeMd("talk", THREE); const { c } = await mount("?deck=talk"); c.applyLayout("t", "t-cards");
+  const lid = c.saveAsLayout("t"); c.componentDidUpdate();
+  expect(c.state.layouts[lid].slots.body[0]).toMatchObject({ card: "custom", box: { bg: "surface" } });
+  c.applyLayout("t", "stacked-3"); expect(bodiesOf(c, "t")[0].box).toBeUndefined();
 });

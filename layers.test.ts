@@ -193,3 +193,7 @@ test("a bullet's marker takes the layer's markColor; without one it follows the 
   expect(render({ layers: [txt({ bullets: "disc", markColor: "x;y" })] }).items[0].markCol).toBe("");
   expect(html).toContain("color:{{ e.markCol }}");
 });
+
+test("a custom box's border can be translucent (borderOpacity)", () => {
+  expect(render({ layers: [txt({ card: "custom", box: { ...BOX, border: 2.4, borderColor: "#FFFFFF", borderOpacity: 0.22 } })] }).items[0].cardBorder).toBe("0.15cqw solid rgba(255,255,255,0.22)");
+});

@@ -110,3 +110,11 @@ test("text styling: markColor (a token or a hex) is kept on layers, styles and s
   expect(out.deck.styles.h2.markColor).toBe("primary"); expect(out.deck.layouts.t.slots.body[0].markColor).toBe("#93C5FD");
   expect(out.slides.s.layers).toEqual([{ id: "a", type: "text", markColor: "secondary" }, { id: "b", type: "text" }]);
 });
+
+test("boxes: token colours and borderOpacity are kept on layers and template slots", () => {
+  const box = { bg: "surface", bgOpacity: 0.07, borderColor: "primary", borderOpacity: 0.22, border: 2.4, radius: 16, pad: 38 };
+  const out = sanitizeLayout({ version: 2, deck: { layouts: { t: { name: "T", slots: { body: [{ x: 1, y: 2, w: 3, h: 4, card: "custom", box }] } } } },
+    slides: { s: { layers: [{ id: "a", type: "text", card: "custom", box: { ...box, borderOpacity: "x;y" } }] } } })!;
+  expect(out.deck.layouts.t.slots.body[0].box).toEqual(box);
+  const { borderOpacity: _o, ...rest } = box; expect(out.slides.s.layers[0].box).toEqual(rest);
+});

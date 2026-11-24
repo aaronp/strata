@@ -672,6 +672,72 @@ test("Present draws step dots when the slide has steps and showSteps is on", asy
   v.stepDots[2].onClick(); expect(c.state.at).toBe(3);
 });
 
+// ---- Builds tab: click-to-order, transitions, play ----
+const LIST = "# A\nslug: a\n\n- one\n- two\n- three\n";
+test("ordering: clicks join the current step, Next step starts the next; each click is one undo step; titles can't be assigned", async () => {
+  await writeMd("talk", LIST); const { c } = await mount("?deck=talk"); await Bun.sleep(150);
+  c.setState({ cur: "a", rtab: "builds" }); c.componentDidUpdate();
+  c.startOrdering(); expect(c.state).toMatchObject({ ordering: true, orderStep: 1 });
+  c.assignStep("md-list-1-1"); c.componentDidUpdate(); c.nextOrderStep(); c.assignStep("md-list-1-2"); c.componentDidUpdate();
+  expect(c.state.nodes.a.steps).toEqual({ "md-list-1-1": 1, "md-list-1-2": 2 }); expect(c.state.nodes.a.trans).toEqual({ 1: "fade", 2: "fade" });
+  c.assignStep("md-title"); expect(c.state.nodes.a.steps["md-title"]).toBeUndefined();
+  const v = c.renderVals(); expect(v.bElements.map((e: any) => e.badge)).toEqual(["–", "1", "2", "–"]);
+  expect(v.bElements[2].badgeBg).toBe("#FBBF24"); expect(v.bElements[1].meta).toBe("Fade"); expect(v.bElements[0].meta).toBe("Always visible");
+  c.undo(); c.componentDidUpdate(); expect(c.state.nodes.a.steps).toEqual({ "md-list-1-1": 1 });
+  c.setState({ selStep: 1 }); c.renderVals().bTransOpts.find((o: any) => o.label === "Pop").pick(); expect(c.state.nodes.a.trans[1]).toBe("pop");
+  c.assignStep("md-list-1-2"); c.setState({ selStep: 2 }); c.renderVals().bTransOpts.find((o: any) => o.label === "Pop").pick(); expect(c.state.nodes.a.trans[2]).toBe("pop");
+  const o3 = c.renderVals().overlays.find((o: any) => o.lid === "md-list-1-3"); expect(o3.showBadge).toBe(true);
+  o3.onDown({ stopPropagation() {}, button: 0 }); expect(c.state.nodes.a.steps["md-list-1-3"]).toBe(2); expect(c.state.layerSel).toBeFalsy();   // a stage click assigns, doesn't select
+  c.finishOrdering(); expect(c.state).toMatchObject({ ordering: false, at: 2 });
+  c.startOrdering(); c.clearOrder(); expect(c.stepsOf("a")).toEqual([]); expect(c.state.orderStep).toBe(1);
+  c.setState({ rtab: "content" }); c.componentDidUpdate(); expect(c.state.ordering).toBe(false);   // leaving the tab ends ordering
+});
+
+test("ordering a list + detail slide: one stacked detail shows at a time; the Stacked here chips assign and reveal the others", async () => {
+  await writeMd("talk", "# A\nslug: a\n\n- one\n- two\n\nFirst.\n\nSecond.\n"); const { c } = await mount("?deck=talk");
+  c.setState({ cur: "a", rtab: "builds" }); c.startOrdering();
+  const shown = () => c.renderVals().stageLayers.filter((l: any) => l.kind === "detail").map((l: any) => [l.id, l.build ? l.build.opacity : 1]);
+  let v = c.renderVals(); expect(v.hasPeek).toBe(true); expect(v.peekChips.map((p: any) => p.short)).toEqual(["D1", "D2"]);
+  expect(shown()).toEqual([["md-body-1", 1], ["md-body-2", 0]]); expect(v.overlays.some((o: any) => o.lid === "md-body-2")).toBe(false);
+  c.nextOrderStep(); v.peekChips[1].click(); expect(c.state.nodes.a.steps["md-body-2"]).toBe(2); expect(shown()).toEqual([["md-body-1", 0], ["md-body-2", 1]]);
+  expect(c.renderVals().bElements.find((e: any) => e.badge === "2").meta).toBe("Fade · replaced by next");
+});
+
+test("play walks the steps with preview on, then stops at the end with preview off", async () => {
+  await writeMd("talk", LIST); const { c } = await mount("?deck=talk");
+  c.setNode("a", { steps: { "md-list-1-1": 1, "md-list-1-2": 3 } }); c.setState({ cur: "a", rtab: "builds", at: 0 });
+  c.togglePlay(); expect(c.state).toMatchObject({ playing: true, preview: true, at: 1 });
+  c.playTick(); expect(c.state.at).toBe(3);
+  c.playTick(); expect(c.state).toMatchObject({ playing: false, preview: false, at: 3 }); expect(c._play).toBeNull();
+  const v = c.renderVals(); expect(v.bFrames.map((f: any) => [f.n, f.trans])).toEqual([[1, "Fade"], [3, "Fade"]]);
+  v.bFrames[0].pick(); expect(c.state).toMatchObject({ at: 1, preview: true, selStep: 1 });
+  key(c, "Escape"); expect(c.state.preview).toBe(false);
+});
+
+test("timing and list behaviour write the slide's build; showSteps toggles step dots", async () => {
+  await writeMd("talk", LIST); const { c } = await mount("?deck=talk"); c.setState({ cur: "a", rtab: "builds" });
+  const v = c.renderVals();
+  v.bDurOpts.find((o: any) => o.label === "Slow").pick(); v.bEaseOpts.find((o: any) => o.label === "Springy").pick();
+  v.bEarlierOpts.find((o: any) => o.label === "Keep").pick(); v.bReplaceOpts.find((o: any) => o.label === "Build up").pick();
+  expect(c.buildOf("a")).toEqual({ dur: 900, ease: "cubic-bezier(0.34, 1.56, 0.64, 1)", earlier: "keep", replace: false });
+  c.renderVals().bOnShowSteps({ target: { checked: true } }); expect(c.state.nodes.a.showSteps).toBe(true);
+});
+
+test("linked slides refuse ordering and transition picks, but preview works", async () => {
+  const { c } = await linked(); await down(c, "a"); c.setState({ rtab: "builds" });
+  c.setNode(c.state.cur, { steps: { "md-title": 1 }, trans: { 1: "fade" } });
+  c.startOrdering(); expect(c.state.ordering).toBe(false); expect(c.state.note).toBe("Linked slides are read-only here: change them in their own markdown file");
+  c.renderVals().bTransOpts[6].pick(); expect(c.state.nodes[c.state.cur].trans[1]).toBe("fade");
+  c.renderVals().bNext(); expect(c.state).toMatchObject({ at: 1, preview: true });
+});
+
+test("the component AI guide speaks of steps, not frames", async () => {
+  await writeMd("talk", TALK); const { c } = await mount("?deck=talk"); let got = "";
+  Object.defineProperty(globalThis.navigator, "clipboard", { configurable: true, value: { writeText: async (t: string) => { got = t; } } });
+  c.renderVals().onCopyCompGuide(); await Bun.sleep(5);
+  expect(got).toContain("step"); expect(got).not.toContain("'frame'");
+});
+
 // ---- component review fixes ----
 test("a claim made before hello survives it (the helper replays ready)", async () => {
   const { c, win, send } = await compDeck();

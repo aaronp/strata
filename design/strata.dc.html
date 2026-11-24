@@ -264,8 +264,19 @@ select option{background:#23262E;color:#E8EAEE}
                         <div onPointerDown="{{ o.onW }}" style="position:absolute;left:-7px;top:calc(50% - 6px);width:11px;height:11px;border-radius:3px;background:#23262E;border:2px solid #7AA2FF;cursor:ew-resize"></div>
                         <div onPointerDown="{{ o.onE }}" style="position:absolute;right:-7px;top:calc(50% - 6px);width:11px;height:11px;border-radius:3px;background:#23262E;border:2px solid #7AA2FF;cursor:ew-resize"></div>
                       </sc-if>
+                      <sc-if value="{{ o.showBadge }}">
+                        <span aria-hidden="true" style="position:absolute;right:-12px;top:calc(50% - 12px);width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;pointer-events:none;background:{{ o.badgeBg }};color:{{ o.badgeFg }};box-shadow:0 0 0 3px rgba(10,12,30,.55)">{{ o.badge }}</span>
+                      </sc-if>
                     </div>
                   </sc-for>
+                  <sc-if value="{{ hasPeek }}">
+                    <div role="group" aria-label="Stacked detail panels" onPointerDown="{{ stopProp }}" style="position:absolute;left:8px;top:8px;z-index:970;display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:5px 8px;border-radius:999px;background:rgba(10,12,30,.65);font-size:12px;color:#D6E2FF">
+                      <span>Stacked here:</span>
+                      <sc-for list="{{ peekChips }}" as="pc" hint-placeholder-count="3">
+                        <button onClick="{{ pc.click }}" aria-label="Assign {{ pc.name }}" title="{{ pc.name }}" style="display:flex;align-items:center;gap:5px;padding:3px 8px;border-radius:999px;cursor:pointer;font-size:12px;border:1.5px solid {{ pc.border }};background:rgba(10,12,30,.55);color:#F1F5F9">{{ pc.short }} <span style="width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:10px;background:{{ pc.badgeBg }};color:{{ pc.badgeFg }}">{{ pc.badge }}</span></button>
+                      </sc-for>
+                    </div>
+                  </sc-if>
                   <button onPointerDown="{{ stopProp }}" onClick="{{ onAddAfter }}" title="Add a slide after this one (→)" style="position:absolute;right:6px;top:calc(50% - 13px);z-index:960;width:26px;height:26px;padding:0;border:0;border-radius:999px;background:#E8EAEE;color:#16181D;box-shadow:0 1px 4px rgba(0,0,0,.35);cursor:pointer;font-size:17px;font-weight:700;line-height:26px;opacity:.55" style-hover="opacity:1">+</button>
                   <button onPointerDown="{{ stopProp }}" onClick="{{ onAddBelow }}" title="Add a slide below this one (↓)" style="position:absolute;left:calc(50% - 13px);bottom:6px;z-index:960;width:26px;height:26px;padding:0;border:0;border-radius:999px;background:#E8EAEE;color:#16181D;box-shadow:0 1px 4px rgba(0,0,0,.35);cursor:pointer;font-size:17px;font-weight:700;line-height:26px;opacity:.55" style-hover="opacity:1">+</button>
                   <sc-for list="{{ warnBadges }}" as="wb" hint-placeholder-count="0">
@@ -407,6 +418,28 @@ select option{background:#23262E;color:#E8EAEE}
           </div>
         </sc-if>
       </div>
+      <sc-if value="{{ showFrameStrip }}">
+        <div style="flex:none;margin:0 12px 10px;display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;background:#1B1E24;border:1px solid #2C3039">
+          <div style="display:flex;gap:4px">
+            <button onClick="{{ bPrev }}" aria-label="Previous frame" style="width:36px;height:36px;border-radius:8px;border:0;background:#23262E;color:#E8EAEE;cursor:pointer;display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg></button>
+            <button onClick="{{ bTogglePlay }}" aria-label="{{ bPlayLabel }}" title="{{ bPlayLabel }}" style="width:36px;height:36px;border-radius:8px;border:0;background:#7AA2FF;color:#0B1020;cursor:pointer;display:flex;align-items:center;justify-content:center">
+              <sc-if value="{{ bPlaying }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14"></rect><rect x="14" y="5" width="4" height="14"></rect></svg></sc-if>
+              <sc-if value="{{ bNotPlaying }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4l13 8-13 8z"></path></svg></sc-if>
+            </button>
+            <button onClick="{{ bNext }}" aria-label="Next frame" style="width:36px;height:36px;border-radius:8px;border:0;background:#23262E;color:#E8EAEE;cursor:pointer;display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 5l7 7-7 7"></path></svg></button>
+          </div>
+          <span style="font-size:12px;color:#9AA1AD">Frames</span>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;flex:1;min-width:0">
+            <sc-for list="{{ bFrames }}" as="f" hint-placeholder-count="3">
+              <button onClick="{{ f.pick }}" aria-pressed="{{ f.on }}" aria-label="Frame {{ f.n }}" style="min-width:80px;display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:5px 10px;border-radius:8px;cursor:pointer;text-align:left;background:{{ f.bg }};border:1px solid {{ f.border }};color:#E8EAEE">
+                <span style="font-size:12px;font-weight:600">Frame {{ f.n }}</span>
+                <span style="font-size:11px;color:{{ f.sub }}">{{ f.trans }}</span>
+              </button>
+            </sc-for>
+            <sc-if value="{{ bNoFrames }}"><span style="font-size:12px;color:#9AA1AD">No steps yet: everything shows at once. Use Set order by clicking.</span></sc-if>
+          </div>
+        </div>
+      </sc-if>
     </main>
 
     <sc-if value="{{ isBuild }}">
@@ -933,7 +966,91 @@ select option{background:#23262E;color:#E8EAEE}
             </div>
           </sc-if>
           <sc-if value="{{ tabBuilds }}">
-            <h2 style="margin:0;font-family:'Space Grotesk',Inter,sans-serif;font-size:14px;font-weight:600;color:#E8EAEE">Builds</h2>
+            <sc-if value="{{ fromDeck }}">
+              <div style="padding:8px 10px;border:1px solid #343944;border-radius:8px;background:#2A3A5C;font-size:12.5px;line-height:1.45;color:#AFC6FF">From <b>{{ fromDeck }}</b>: read-only here, but you can preview its steps. <a href="{{ fromHref }}">Open</a> it to change them.</div>
+            </sc-if>
+            <section aria-label="Elements" style="display:flex;flex-direction:column;gap:10px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <h2 style="margin:0;font-size:13px;font-weight:600;color:#E8EAEE">Elements</h2>
+                <span style="font-size:12px;color:#9AA1AD">step · transition</span>
+              </div>
+              <sc-if value="{{ bOrdering }}">
+                <div style="display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:10px;background:#22304D;border:1px solid #3E5A92">
+                  <span style="font-size:13px;font-weight:600;color:#FFFFFF">Ordering · step {{ bOrderStep }}</span>
+                  <span style="font-size:12px;line-height:1.5;color:#D6E2FF">Click elements on the slide or here. Everything you click joins step {{ bOrderStep }}. Press Next step to start the next frame.</span>
+                  <div style="display:flex;gap:6px">
+                    <button onClick="{{ bNextOrderStep }}" style="flex:1;padding:10px;border:0;border-radius:8px;background:#7AA2FF;color:#0B1020;font-weight:600;font-size:12px;cursor:pointer">Next step → {{ bNextLabel }}</button>
+                    <button onClick="{{ bFinishOrdering }}" style="padding:10px 12px;border:1px solid #5B77B5;border-radius:8px;background:transparent;color:#FFFFFF;font-size:12px;cursor:pointer">Done</button>
+                  </div>
+                  <button onClick="{{ bClearOrder }}" style="padding:8px;border:0;background:none;color:#C9D8FF;font-size:12px;text-decoration:underline;cursor:pointer;align-self:flex-start">Clear and start from step 1</button>
+                </div>
+              </sc-if>
+              <sc-if value="{{ bNotOrdering }}">
+                <button onClick="{{ bStartOrdering }}" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:11px;border-radius:10px;border:1px dashed #5B77B5;background:#1F2533;color:#D6E2FF;font-size:13px;font-weight:600;cursor:pointer">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M10 8h2v8M10 16h4"></path></svg>
+                  Set order by clicking
+                </button>
+              </sc-if>
+              <ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px">
+                <sc-for list="{{ bElements }}" as="el" hint-placeholder-count="5">
+                  <li>
+                    <button onClick="{{ el.click }}" style="width:100%;display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;cursor:pointer;text-align:left;font-size:12px;color:#E8EAEE;background:{{ el.bg }};border:1px solid {{ el.border }}">
+                      <span style="flex:none;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;background:{{ el.badgeBg }};color:{{ el.badgeFg }}">{{ el.badge }}</span>
+                      <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+                        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ el.name }}</span>
+                        <span style="font-size:11px;color:#9AA1AD">{{ el.meta }}</span>
+                      </span>
+                    </button>
+                  </li>
+                </sc-for>
+              </ul>
+            </section>
+            <section style="display:flex;flex-direction:column;gap:10px;padding-top:12px;border-top:1px solid #2C3039">
+              <h2 style="margin:0;font-size:13px;font-weight:600;color:#E8EAEE">Step {{ bSel }} · enters together</h2>
+              <div style="display:flex;flex-wrap:wrap;gap:6px">
+                <sc-for list="{{ bMembers }}" as="m" hint-placeholder-count="2">
+                  <span style="padding:5px 9px;border-radius:999px;background:#23262E;border:1px solid #343944;font-size:12px">{{ m }}</span>
+                </sc-for>
+                <sc-if value="{{ bNoMembers }}"><span style="font-size:12px;color:#9AA1AD">Nothing in this step yet.</span></sc-if>
+              </div>
+            </section>
+            <section style="display:flex;flex-direction:column;gap:10px">
+              <h2 style="margin:0;font-size:13px;font-weight:600;color:#E8EAEE">Transition</h2>
+              <div style="display:grid;grid-template-columns:repeat(2, minmax(0, 1fr));gap:6px">
+                <sc-for list="{{ bTransOpts }}" as="o" hint-placeholder-count="8">
+                  <button onClick="{{ o.pick }}" aria-pressed="{{ o.on }}" style="display:flex;flex-direction:column;gap:2px;padding:9px 10px;border-radius:8px;cursor:pointer;text-align:left;background:{{ o.bg }};border:1px solid {{ o.border }};color:#E8EAEE">
+                    <span style="font-size:12px;font-weight:600">{{ o.label }}</span>
+                    <span style="font-size:11px;color:#9AA1AD">{{ o.hint }}</span>
+                  </button>
+                </sc-for>
+              </div>
+              <span style="font-size:11px;color:#9AA1AD">Click a frame below the slide to see it play.</span>
+            </section>
+            <section style="display:flex;flex-direction:column;gap:10px">
+              <h2 style="margin:0;font-size:13px;font-weight:600;color:#E8EAEE">Timing <span style="font-weight:400;color:#9AA1AD">· whole slide</span></h2>
+              <div role="group" aria-label="Duration" style="display:flex;gap:2px;background:#23262E;padding:3px;border-radius:8px">
+                <sc-for list="{{ bDurOpts }}" as="o" hint-placeholder-count="3"><button onClick="{{ o.pick }}" aria-pressed="{{ o.on }}" style="flex:1;padding:7px 8px;border:0;border-radius:6px;font-size:12px;cursor:pointer;background:{{ o.bg }};color:#E8EAEE">{{ o.label }}</button></sc-for>
+              </div>
+              <div role="group" aria-label="Easing" style="display:flex;gap:2px;background:#23262E;padding:3px;border-radius:8px">
+                <sc-for list="{{ bEaseOpts }}" as="o" hint-placeholder-count="3"><button onClick="{{ o.pick }}" aria-pressed="{{ o.on }}" style="flex:1;padding:7px 8px;border:0;border-radius:6px;font-size:12px;cursor:pointer;background:{{ o.bg }};color:#E8EAEE">{{ o.label }}</button></sc-for>
+              </div>
+            </section>
+            <sc-if value="{{ bIsList }}">
+              <section style="display:flex;flex-direction:column;gap:10px">
+                <h2 style="margin:0;font-size:13px;font-weight:600;color:#E8EAEE">List behaviour</h2>
+                <span style="font-size:12px;color:#C3C8D2">Earlier list items</span>
+                <div role="group" aria-label="Earlier list items" style="display:flex;gap:2px;background:#23262E;padding:3px;border-radius:8px">
+                  <sc-for list="{{ bEarlierOpts }}" as="o" hint-placeholder-count="2"><button onClick="{{ o.pick }}" aria-pressed="{{ o.on }}" style="flex:1;padding:7px 8px;border:0;border-radius:6px;font-size:12px;cursor:pointer;background:{{ o.bg }};color:#E8EAEE">{{ o.label }}</button></sc-for>
+                </div>
+                <span style="font-size:12px;color:#C3C8D2">Detail panels</span>
+                <div role="group" aria-label="Detail panels" style="display:flex;gap:2px;background:#23262E;padding:3px;border-radius:8px">
+                  <sc-for list="{{ bReplaceOpts }}" as="o" hint-placeholder-count="2"><button onClick="{{ o.pick }}" aria-pressed="{{ o.on }}" style="flex:1;padding:7px 8px;border:0;border-radius:6px;font-size:12px;cursor:pointer;background:{{ o.bg }};color:#E8EAEE">{{ o.label }}</button></sc-for>
+                </div>
+              </section>
+            </sc-if>
+            <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:#C3C8D2;cursor:pointer">
+              <input type="checkbox" checked="{{ bShowSteps }}" onChange="{{ bOnShowSteps }}" style="accent-color:#7AA2FF">Show step dots in Present
+            </label>
           </sc-if>
         </div>
       </aside>
@@ -1485,7 +1602,7 @@ class Component extends DCLogic {
   state = {
     md: SEED, mdIssues: [], nodes: enrich(MD.parseMarkdown(SEED).sections, []).nodes, cur: 'a', prev: null, phase: 'idle', dx: 0, dy: 0, type: 'swipe', mode: STATIC ? 'present' : 'build', view: 'slide', rtab: 'content', applyTo: 'slide',
     query: '', theme: { ...TH.DEFAULT_THEME }, customBg: null, customAspect: 1, opacity: 1, offset: 0,
-    at: 0, preview: false, secOpen: { layout: true, layers: true }, collapsed: {}, rowGap: -0.7, gap: -0.7, editMode: 'rich', speed: 900, lastChild: {}, navW: 280, rightW: 340, images: {}, layerSel: null, editing: null, guides: {},
+    at: 0, preview: false, ordering: false, orderStep: 1, selStep: 1, playing: false, peek: null, secOpen: { layout: true, layers: true }, collapsed: {}, rowGap: -0.7, gap: -0.7, editMode: 'rich', speed: 900, lastChild: {}, navW: 280, rightW: 340, images: {}, layerSel: null, editing: null, guides: {},
   };
   _linked = {};
   treeRef = React.createRef(); mdRef = React.createRef(); titleRef = React.createRef(); searchRef = React.createRef(); stageRef = React.createRef(); editRef = React.createRef(); wysRef = React.createRef(); imgInputRef = React.createRef(); openInputRef = React.createRef();
@@ -1747,7 +1864,7 @@ class Component extends DCLogic {
     } catch (e) { this.setState({ clipMsg: 'Clipboard blocked here: select the layer and press Ctrl/⌘+V' }); }
     clearTimeout(this.cmT); this.cmT = setTimeout(() => this.setState({ clipMsg: null }), 3500);
   }
-  componentWillUnmount() { window.removeEventListener('message', this.onMsg); window.removeEventListener('dragover', this.onDragOver); window.removeEventListener('drop', this.onDropWin); clearTimeout(this._as); clearTimeout(this._mdT); clearTimeout(this._nt); window.removeEventListener('beforeunload', this.onUnload); window.removeEventListener('paste', this.onPaste); window.removeEventListener('focus', this.onFocusWin); window.removeEventListener('keydown', this.onKey); window.removeEventListener('resize', this.onResize); clearTimeout(this.t); clearTimeout(this._crT); }
+  componentWillUnmount() { window.removeEventListener('message', this.onMsg); window.removeEventListener('dragover', this.onDragOver); window.removeEventListener('drop', this.onDropWin); clearTimeout(this._as); clearTimeout(this._mdT); clearTimeout(this._nt); window.removeEventListener('beforeunload', this.onUnload); window.removeEventListener('paste', this.onPaste); window.removeEventListener('focus', this.onFocusWin); window.removeEventListener('keydown', this.onKey); window.removeEventListener('resize', this.onResize); clearTimeout(this.t); clearTimeout(this._crT); clearInterval(this._play); clearTimeout(this._rp); }
   litCrumbs() {   // fade mode: show the breadcrumbs on a transition, then fade them out after crumbFade seconds
     clearTimeout(this._crT); if (!this.state.crumbLit) this.setState({ crumbLit: true });
     this._crT = setTimeout(() => this.setState({ crumbLit: false }), (this.state.crumbFade || 2) * 1000);
@@ -1773,8 +1890,10 @@ class Component extends DCLogic {
       const u = JSON.stringify({ navW: S.navW, rightW: S.rightW, secOpen: S.secOpen, presentFit: S.presentFit, showCrumbs: S.showCrumbs, crumbFade: S.crumbFade, view: S.view, rtab: S.rtab, collapsed: S.collapsed, treeZoom: S.treeZoom, treeFocus: S.treeFocus, applyTo: S.applyTo });
       if (u !== this._u) { this._u = u; try { localStorage.setItem(UIKEY, u); } catch (e) {} }
     }
-    if (S.cur !== this._lastCur) { this._lastCur = S.cur; this.scrollTree(); this.scrollMd(); if (S.showCrumbs === 'fade') this.litCrumbs(); }
+    if (S.cur !== this._lastCur) { if (S.ordering || this._play) { this.stopPlay(); this.setState({ ordering: false }); } this._lastCur = S.cur; this.scrollTree(); this.scrollMd(); if (S.showCrumbs === 'fade') this.litCrumbs(); }
     if (S.rtab !== this._lastRtab) { this._lastRtab = S.rtab; this.scrollMd(); }   // the Content tab's textarea is new each time it opens
+    const inBuilds = S.mode === 'build' && S.rtab === 'builds';
+    if (this._inBuilds && !inBuilds) this.endBuilds(); this._inBuilds = inBuilds;   // leaving the Builds tab (or Build mode) ends ordering, play and the preview
     if (this.measureStage()) this.forceUpdate();
     const ck = this.curId(), ca = S.at || 0;
     if (ck !== this._compCur) { this._compCur = ck; this._compAt = ca; this._claims = {}; this._fwd = null; }
@@ -2073,7 +2192,37 @@ class Component extends DCLogic {
     this.goStep(to); return true;
   }
   stepsShown() { return this.state.mode === 'present' || !!this.state.preview; }   // arrows walk steps only where steps are visible; editing moves between slides
-  goStep(n) { this.setState({ at: n, editing: null }); }
+  goStep(n) { this.setState({ at: n, editing: null, ...(n ? { selStep: n } : {}) }); }
+  // ---- Builds tab: click-to-order (ordering mode), per-step transitions, timing, and a playing preview ----
+  roCur() { if (!(this.state.nodes[this.curId()] || {})._from) return false; this.flash(RO_MSG); return true; }   // linked slides: no build edits
+  startOrdering() { if (this.roCur()) return; this.stopPlay(); this.setSelection([]); this.setState({ ordering: true, orderStep: 1, selStep: 1, preview: false }); }
+  assignStep(lid) {   // ordering mode: the clicked layer joins the current step (one undo step per click)
+    const id = this.curId(), n = this.state.nodes[id], l = this.layersOf(id).find(x => x.id === lid), k = this.state.orderStep || 1;
+    if (!n || n._from || !l || isGen(l) || l.block === 'title') return;
+    this._burst = false; clearTimeout(this._bt);
+    this.setNode(id, { steps: { ...(n.steps || {}), [lid]: k }, trans: { ...(n.trans || {}), [k]: (n.trans || {})[k] || 'fade' } });
+    this.setState({ selStep: k, ...(l.kind === 'detail' ? { peek: lid } : {}) });
+  }
+  nextOrderStep() { this.setState(s => ({ orderStep: (s.orderStep || 1) + 1 })); }
+  finishOrdering() { const last = Math.max(0, ...this.stepsOf(this.curId())); this.setState({ ordering: false, at: last, selStep: last || 1 }); }
+  clearOrder() { if (this.roCur()) return; this.setNode(this.curId(), { steps: {}, trans: {} }); this.setState({ orderStep: 1, selStep: 1 }); }
+  setBuild(patch) { const id = this.curId(); if (this.roCur()) return; this.setNode(id, { build: { ...(this.state.nodes[id].build || {}), ...patch } }); this.replay(); }
+  pickTrans(t) { const id = this.curId(), k = this.state.selStep || 1; if (this.roCur()) return; this.setNode(id, { trans: { ...(this.state.nodes[id].trans || {}), [k]: t } }); this.replay(); }
+  replay() {   // the selected step plays again from the step before it (not while ordering: then every layer shows)
+    const k = this.state.selStep || 1, st = this.stepsOf(this.curId()); if (this.state.ordering || !st.includes(k)) return;
+    this.stopPlay(); this.setState({ preview: true, at: [0, ...st].filter(n => n < k).pop() }); clearTimeout(this._rp); this._rp = setTimeout(() => this.goStep(k), 60);
+  }
+  viewStep(n) { this.stopPlay(); this.setState({ preview: true, ordering: false }); this.goStep(n); }   // a frame chip, ◀ or ▶
+  stepFrame(delta) { const st = this.stepsOf(this.curId()), at = this.state.at || 0, to = delta > 0 ? st.find(n => n > at) : st.filter(n => n < at).pop(); this.viewStep(to ?? (delta > 0 ? st[st.length - 1] : st[0]) ?? 0); }
+  togglePlay() {
+    if (this._play) { this.stopPlay(); return; }
+    const id = this.curId(), st = this.stepsOf(id); if (!st.length) return;
+    this.setState({ ordering: false, playing: true, preview: true }); this.goStep(st[0]);
+    this._play = setInterval(() => this.playTick(), this.buildOf(id).dur + 1100);
+  }
+  playTick() { const at = this.state.at || 0, next = this.stepsOf(this.curId()).find(n => n > at); if (next === undefined) this.stopPlay(); else this.goStep(next); }
+  stopPlay() { if (!this._play) return; clearInterval(this._play); this._play = null; this.setState({ playing: false, preview: false }); }   // at stays on the last step shown
+  endBuilds() { this.stopPlay(); if (this.state.ordering || this.state.preview) this.setState({ ordering: false, preview: false }); }   // leaving the Builds tab, Escape
   updLayer(id, lid, patch) { this.setLayers(id, ls => ls.map(l => l.id === lid ? { ...l, ...patch } : l)); }
   setStyle(id, patch) { this.setState(s => ({ styles: { ...(s.styles || {}), [id]: { ...((s.styles || {})[id] || {}), ...patch } } })); }
   // '' = Custom: keep the look by writing the resolved values onto the layer. Otherwise adopt the style fully.
@@ -2173,7 +2322,7 @@ class Component extends DCLogic {
     this.setLayers(cid, ls => ls.map(l => byId[l.id] || l));
   }
   startGroupResize(ev, mode) {
-    ev.stopPropagation(); if (ev.button) return;
+    ev.stopPropagation(); if (ev.button || this.state.ordering) return;
     const st = this.stageRef.current; if (!st) return; const r = st.getBoundingClientRect();
     const cid = this.curId(), ids = this.selIds(), orig = this.layersOf(cid).filter(l => ids.includes(l.id)), box = groupBox(orig);
     const move = e => this.resizeGroup(cid, orig, box, mode, (e.clientX - ev.clientX) / r.width * 100, (e.clientY - ev.clientY) / r.height * 100, e.shiftKey);
@@ -2222,7 +2371,7 @@ class Component extends DCLogic {
   dupLayer(lid) { const l = this.layersOf(this.curId()).find(x => x.id === lid); if (!l || isGen(l)) return; const nl = { ...l, id: 'l' + uid(), x: l.x + 2, y: l.y + 3 }; this.setLayers(this.curId(), ls => [...ls, nl]); this.setState({ layerSel: nl.id }); }
   zLayer(lid, dir) { this.setLayers(this.curId(), ls => { const a = [...ls]; const i = a.findIndex(l => l.id === lid); const j = i + dir; if (i < 0 || j < 0 || j >= a.length) return ls; [a[i], a[j]] = [a[j], a[i]]; return a; }); }
   startDrag(ev, lid, mode) {
-    ev.stopPropagation(); if (ev.button || isGen({ id: lid })) return; if (this.state.editing === lid) return;
+    ev.stopPropagation(); if (ev.button || isGen({ id: lid }) || this.state.ordering) return; if (this.state.editing === lid) return;   // ordering: nothing drags
     if (mode === 'move' && (ev.shiftKey || ev.metaKey || ev.ctrlKey)) { this.selectToggle(lid); return; }
     const st = this.stageRef.current; if (!st) return; const r = st.getBoundingClientRect();
     const cid = this.curId(); const o = this.layersOf(cid).find(l => l.id === lid); if (!o) return;
@@ -2335,6 +2484,7 @@ class Component extends DCLogic {
       return;
     }
     if ((e.metaKey || e.ctrlKey) && (k === 'z' || k === 'Z')) { e.preventDefault(); if (e.shiftKey) this.redo(); else this.undo(); return; }
+    if (k === 'Escape' && S.mode === 'build' && (S.ordering || S.preview || this._play)) { this.endBuilds(); return; }
     if ((e.metaKey || e.ctrlKey) && (k === 'y' || k === 'Y')) { e.preventDefault(); this.redo(); return; }
     if (S.mode === 'build' && S.view === 'slide' && !(S.nodes[this.curId()] || {})._from && !e.metaKey && !e.ctrlKey && !e.altKey) {   // the shape tools: own slides only
       if (TOOL_KEYS[k.toLowerCase()]) { this.setState({ tool: TOOL_KEYS[k.toLowerCase()] }); return; }
@@ -2511,7 +2661,10 @@ class Component extends DCLogic {
     const titleFrame = S.titlePage ? { show: true, l: f3(tvL), t: f3(tvT), w: f3(Math.min(TC.view.l + TC.view.w, L.CW / CW * 100) - tvL), h: f3(Math.min(TC.view.t + TC.view.h, 100) - tvT) } : { show: false };
 
     // build steps: Present (or a playing preview) draws each layer's build style at the step; the editor shows every layer
-    const staged = (id, at) => { const ls = this.shown(id, this.layersOf(id)); if (!isPresent && !S.preview) return ls;
+    const ordering = !!S.ordering && !isPresent, dets = this.layersOf(cur).filter(l => l.kind === 'detail'), peek = dets.some(l => l.id === S.peek) ? S.peek : (dets[0] || {}).id;
+    const staged = (id, at) => { const ls = this.shown(id, this.layersOf(id));
+      if (ordering && id === cur) return ls.map(l => l.kind === 'detail' && l.id !== peek ? { ...l, build: { opacity: 0, transform: 'none', clip: 'inset(0 0 0 0)', transition: 'none' } } : l);   // ordering: stacked detail panels show one at a time
+      if (!isPresent && !S.preview) return ls;
       const n = N[id], b = this.buildOf(id); return ls.map(l => ({ ...l, build: BUILDS.buildStyle(l, at, n.steps || {}, ls, n.trans || {}, b) })); };
     // layer editing
     const editable = !isPresent && !isWire && !active && !curN._from;
@@ -2522,11 +2675,13 @@ class Component extends DCLogic {
     const lname = l => l.type === 'text' ? short(plainText(l.text).split('\n')[0] || 'Text', 24) : l.type === 'image' ? 'Image' : l.type === 'shape' ? ({ rect: 'Rectangle', round: 'Rounded rectangle', ellipse: 'Ellipse', line: 'Line', arrow: 'Arrow', triangle: 'Triangle' }[l.kind || l.shape] || 'Shape') : l.type === 'component' ? '⧉ ' + (l.name || 'Component') : 'Icon · ' + (l.icon || '');
     const selIds = this.selIds(), multi = selIds.length > 1, hits = S.marqueeHits || [], mh = this._mh || {};
     const tool = TOOLS.some(t => t[0] === S.tool) ? S.tool : 'select';   // a drawing tool draws over layers, so they let the pointer through
-    const overlays = curLayers.map((l, i) => ({ lid: l.id, l: l.x, t: l.y, w: l.w, h: Math.max(l.h, mh[l.id] || 0), rot: l.rot || 0, z: i + 1, pe: tool !== 'select' || (S.interact === l.id && S.layerSel === l.id) ? 'none' : 'auto', selected: selIds.includes(l.id), single: !multi && l.id === S.layerSel, hidden: !!l.hidden,
+    const nS = curN.steps || {}, badge = k => { const on = ordering && k === S.orderStep; return { badge: k ? String(k) : '–', badgeBg: on ? '#FBBF24' : k ? '#7AA2FF' : '#343944', badgeFg: on ? '#1C1405' : k ? '#0B1020' : '#C3C8D2' }; };
+    const overlays = curLayers.map((l, i) => ({ ...badge(nS[l.id] || 0), showBadge: ordering && l.block !== 'title', lid: l.id, l: l.x, t: l.y, w: l.w, h: Math.max(l.h, mh[l.id] || 0), rot: l.rot || 0, z: i + 1, pe: !ordering && (tool !== 'select' || (S.interact === l.id && S.layerSel === l.id)) ? 'none' : 'auto', selected: selIds.includes(l.id), single: !multi && l.id === S.layerSel, hidden: !!l.hidden,
       outline: selIds.includes(l.id) || hits.includes(l.id) ? '2px solid #7AA2FF' : 'none', label: lname(l) + (l.link ? (l.link.type === 'url' ? '  ↗ ' + short(l.link.url || 'web link', 26) : '  → ' + short(N[l.link.id] ? name(l.link.id) : 'missing slide', 22)) : ''),
-      onDown: ev => this.startDrag(ev, l.id, 'move'), onDbl: ev => { ev.stopPropagation(); this.startEdit(l.id); }, onDrop: ev => this.dropOn(ev, l.id),
+      onDown: ev => { if (!ordering) { this.startDrag(ev, l.id, 'move'); return; } ev.stopPropagation(); this.assignStep(l.id); },   // ordering: a click assigns, nothing drags
+      onDbl: ev => { ev.stopPropagation(); if (!ordering) this.startEdit(l.id); }, onDrop: ev => this.dropOn(ev, l.id),
       onNW: ev => this.startDrag(ev, l.id, 'nw'), onNE: ev => this.startDrag(ev, l.id, 'ne'), onSW: ev => this.startDrag(ev, l.id, 'sw'), onSE: ev => this.startDrag(ev, l.id, 'se'),
-      onW: ev => this.startDrag(ev, l.id, 'w'), onE: ev => this.startDrag(ev, l.id, 'e'), gen: isGen(l) })).filter(o => !o.hidden && !o.gen);   // generated layers aren't stage objects
+      onW: ev => this.startDrag(ev, l.id, 'w'), onE: ev => this.startDrag(ev, l.id, 'e'), gen: isGen(l) })).filter(o => !o.hidden && !o.gen && !(ordering && dets.some(d => d.id === o.lid) && o.lid !== peek));   // generated layers aren't stage objects
     const edL = S.editing ? curLayers.find(l => l.id === S.editing) : null;
     const edR = edL && this.resolveLayer(edL, cur);
     const ed = edR ? { text: edR.text, l: edR.x, t: edR.y, w: edR.w, h: edR.h, font: FONT_CSS[edR.font] || edR.font || FONT_CSS.grot, fs: (edR.size || 40) / 16, weight: edR.weight || 400, color: edR.color || th.palette.text, align: edR.align || 'left', lh: edR.lh || 1.2 } : {};
@@ -2542,7 +2697,7 @@ class Component extends DCLogic {
       onImgFile: e => this.onImgFile(e), overlays, guideV: !!S.guides.v, guideH: !!S.guides.h, isEditingText: !!edL && !(editable && S.editMode !== 'markup'), ed,
       onEditText: e => edL && this.updLayer(cur, edL.id, { text: e.target.value }), stopEditing: () => setTimeout(() => { if (!this.focusInBar()) this.setState({ editing: null }); }, 0),   // a click into the formatting bar keeps editing
       onEditSel: e => { this._sel = { start: e.target.selectionStart, end: e.target.selectionEnd }; }, stopProp: e => e.stopPropagation(),
-      onStageDown: ev => (tool === 'select' ? this.startMarquee(ev) : this.startDraw(ev)), showTools: editable && S.view === 'slide',
+      onStageDown: ev => (ordering ? null : tool === 'select' ? this.startMarquee(ev) : this.startDraw(ev)), showTools: editable && S.view === 'slide' && !ordering,
       tools: TOOLS.map(([id, label, , path]) => ({ id, label, path, on: id === tool, bg: id === tool ? '#3A4A70' : 'transparent', pick: () => this.setState({ tool: id }) })), toolHint: TOOLS.find(t => t[0] === tool)[2], allowDrop: e => e.preventDefault(), onStageDrop: e => this.dropOn(e, null),
       rightW: Math.max(240, Math.min(S.rightW, (typeof window !== 'undefined' ? window.innerWidth : 1400) - S.navW - 380)), onRightResize: e => this.rightResize(e),
       lyIsComponent: !!(ly && ly.type === 'component'), compName: ly && ly.name || '', onCompName: e => this.updLayer(cur, ly.id, { name: e.target.value }),
@@ -2588,6 +2743,30 @@ class Component extends DCLogic {
       stageLayers: staged(cur, atCur),
       showStepDots: isPresent && !!curN.showSteps && stepsCur.length > 0 && !active,
       stepDots: [0, ...stepsCur].map(n => ({ title: n ? 'Step ' + n : 'Start', w: n === atCur ? 18 : 7, bg: n <= atCur ? '#fbf9f4' : 'rgba(251,249,244,.4)', onClick: () => this.goStep(n) })),
+    };
+    // the Builds tab (Builds.dc.html): Elements with step badges, Step N's transition, timing, list behaviour; the frame strip under the stage
+    const bl = this.buildOf(cur), nT = curN.trans || {}, transOf = k => BUILDS.TRANSITIONS.find(t => t.id === (k ? nT[k] : 'none')) || BUILDS.TRANSITIONS[0], selStep = S.selStep || 1;
+    const bSeg = (opts, on, set) => opts.map(o => ({ label: o.label, on: o.value === on, bg: o.value === on ? '#343944' : 'transparent', pick: () => set(o.value) }));
+    const bEls = curLayers.filter(l => !isGen(l));
+    const buildVals = {
+      bOrdering: ordering, bNotOrdering: !ordering, bOrderStep: S.orderStep || 1, bNextLabel: (S.orderStep || 1) + 1,
+      bStartOrdering: () => this.startOrdering(), bNextOrderStep: () => this.nextOrderStep(), bFinishOrdering: () => this.finishOrdering(), bClearOrder: () => this.clearOrder(),
+      bElements: bEls.map(l => { const k = nS[l.id] || 0, inSel = k > 0 && k === selStep;
+        return { name: lname(l), ...badge(k), meta: k === 0 ? 'Always visible' : transOf(k).label + (l.kind === 'detail' && bl.replace ? ' · replaced by next' : ''),
+          bg: inSel ? '#262D3D' : 'transparent', border: inSel ? '#3E5A92' : 'transparent', click: () => (ordering ? this.assignStep(l.id) : k ? this.viewStep(k) : null) }; }),
+      hasPeek: ordering && dets.length > 1,
+      peekChips: dets.map((l, i) => ({ short: 'D' + (i + 1), name: lname(l), ...badge(nS[l.id] || 0), border: l.id === peek ? '#FBBF24' : 'rgba(255,255,255,0.3)', click: e => { e && e.stopPropagation && e.stopPropagation(); this.assignStep(l.id); } })),
+      bSel: selStep, bMembers: bEls.filter(l => (nS[l.id] || 0) === selStep).map(lname), bNoMembers: !bEls.some(l => (nS[l.id] || 0) === selStep),
+      bTransOpts: BUILDS.TRANSITIONS.map(t => { const on = selStep > 0 && nT[selStep] === t.id; return { label: t.label, hint: t.hint, on, bg: on ? '#2A3A5C' : '#23262E', border: on ? '#7AA2FF' : '#2C3039', pick: () => this.pickTrans(t.id) }; }),
+      bDurOpts: bSeg(BUILDS.DURATIONS, bl.dur, v => this.setBuild({ dur: v })), bEaseOpts: bSeg(BUILDS.EASINGS, bl.ease, v => this.setBuild({ ease: v })),
+      bIsList: bEls.some(l => l.kind === 'item' || l.kind === 'detail'),
+      bEarlierOpts: bSeg([{ value: 'keep', label: 'Keep' }, { value: 'dim', label: 'Dim' }], bl.earlier, v => this.setBuild({ earlier: v })),
+      bReplaceOpts: bSeg([{ value: true, label: 'Replace previous' }, { value: false, label: 'Build up' }], bl.replace, v => this.setBuild({ replace: v })),
+      bShowSteps: !!curN.showSteps, bOnShowSteps: e => { if (!this.roCur()) this.setNode(cur, { showSteps: !!e.target.checked }); },
+      showFrameStrip: !isPresent && !isWire && rtab === 'builds',
+      bFrames: this.stepsOf(cur).map(n => { const on = n === (S.at || 0) && (!!S.preview || !!S.playing); return { n, on, trans: transOf(n).label, bg: on ? '#2A3A5C' : '#23262E', border: on ? '#7AA2FF' : '#2C3039', sub: on ? '#C9D8FF' : '#9AA1AD', pick: () => this.viewStep(n) }; }),
+      bNoFrames: this.stepsOf(cur).length === 0, bPrev: () => this.stepFrame(-1), bNext: () => this.stepFrame(1), bTogglePlay: () => this.togglePlay(),
+      bPlaying: !!S.playing, bNotPlaying: !S.playing, bPlayLabel: S.playing ? 'Pause' : 'Play builds',
     };
     const linkOf = ly && ly.link ? ly.link : null;
     const pathName = id => pathOf(id).map(name).join(' › ');
@@ -2726,7 +2905,7 @@ class Component extends DCLogic {
       tvX: tvw.x, tvXLabel: Math.round(tvw.x * 100) + '%', onTvX: e => setTv({ x: +e.target.value }),
       tvY: tvw.y, tvYLabel: Math.round(tvw.y * 100) + '%', onTvY: e => setTv({ y: +e.target.value }),
       tvHint: tvFree.length ? 'The whole canvas fits this way, so ' + tvFree.join(' and ') + ' has no effect.' : '',
-      ...layerVals, ...linkVals, ...shapeVals, ...tplVals, ...stepVals,
+      ...layerVals, ...linkVals, ...shapeVals, ...tplVals, ...stepVals, ...buildVals,
       sec: Object.fromEntries(['layout', 'layers', 'insert', 'canvas'].map(k => { const open = !!((S.secOpen || {})[k] ?? k === 'canvas'); return [k, { open, caret: open ? '▾' : '▸', toggle: () => this.setState(st => ({ secOpen: { ...st.secOpen, [k]: !open } })) }]; })),
       undo: () => this.undo(), redo: () => this.redo(), undoOp: this._past && this._past.length ? 1 : 0.4, redoOp: this._future && this._future.length ? 1 : 0.4,
       deckTitle: (S.titlePage && N.ROOT.title) || (N.ROOT.children[0] ? name(N.ROOT.children[0]) : DECK || 'Untitled'), emptyMsg: !N.ROOT.children.length ? EMPTY_MSG : S.loading && S.loading === cur ? 'Loading…' : '',

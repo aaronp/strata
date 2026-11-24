@@ -2120,14 +2120,14 @@ class Component extends DCLogic {
     const sibs = N[pid].children, i = sibs.indexOf(id);
     return dir === 'left' ? sibs[i - 1] : dir === 'right' ? sibs[i + 1] : undefined;
   }
-  nav(id, dir) {
+  nav(id, dir, atEnd) {   // atEnd: open on the slide's last step (← and a linear step back)
     const S = this.state;
     if (id && !S.nodes[id]) { const p = this.unloadedAbove(id); if (p) this.loadChildren(p).then(() => this.nav(id, dir)); return; }
     if (!id || id === S.cur || !S.nodes[id] || (id === 'ROOT' && !S.titlePage)) return;
     if (S.layerSel || S.editing) this.setState({ layerSel: null, editing: null });
     const D = this.derive(); const lastChild = { ...S.lastChild }; let x = id; while (D.parent[x]) { lastChild[D.parent[x]] = x; x = D.parent[x]; }
     clearTimeout(this.t);
-    const fx = { at: dir === 'left' ? Math.max(0, ...this.stepsOf(id)) : 0, prevAt: S.at || 0 };   // ← lands on the slide's last step, anything else on its start
+    const fx = { at: dir === 'left' || atEnd ? Math.max(0, ...this.stepsOf(id)) : 0, prevAt: S.at || 0 };   // ← lands on the slide's last step, anything else on its start
     if (S.speed < 50 || (S.mode === 'build' && S.view === 'wire')) { this.setState({ cur: id, prev: null, phase: 'idle', lastChild, ...fx }); return; }
     const [dx, dy] = DIRS[dir];
     this.setState({ cur: id, prev: S.cur, dx, dy, type: id === 'ROOT' || S.cur === 'ROOT' ? 'zoom' : dir === 'jump' ? 'fade' : 'swipe', phase: 'start', lastChild, ...fx });
@@ -2142,7 +2142,7 @@ class Component extends DCLogic {
     const D = this.derive(), cur = this.curId();
     const order = this.state.titlePage ? ['ROOT', ...D.order] : D.order, dep = x => x === 'ROOT' ? -1 : D.depth[x];
     const id = order[order.indexOf(cur) + delta]; if (!id) return; const dd = dep(id) - dep(cur);
-    this.nav(id, dd > 0 ? 'down' : dd < 0 ? 'up' : (delta > 0 ? 'right' : 'left'));
+    this.nav(id, dd > 0 ? 'down' : dd < 0 ? 'up' : (delta > 0 ? 'right' : 'left'), delta < 0);
   }
   onKey(e) {
     const t = e.target; const typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || !!t.isContentEditable || !!(t.closest && t.closest('[data-role="fmtbar"]'))); const k = e.key; const S = this.state;
@@ -2190,7 +2190,7 @@ class Component extends DCLogic {
       else if (k === 't' || k === 'T') this.setState(s => ({ presentView: s.presentView === 'tree' ? 'radial' : s.presentView === 'radial' ? 'slides' : 'tree', mapZoom: null }));   // Slides → Tree → Radial
       else if (k === 'Escape' && S.viewMenu) this.setState({ viewMenu: false });
       else if (k === 'Escape' && (S.presentView === 'tree' || S.presentView === 'radial')) this.setState({ presentView: 'slides' });
-      else if (k === 'Escape' && !STATIC) this.setState({ mode: 'build' });
+      else if (k === 'Escape' && !STATIC) this.setState({ mode: 'build', at: 0 });
     }
   }
   onUpload(ev) {
@@ -2401,7 +2401,7 @@ class Component extends DCLogic {
       numField('Gap', 'gap', 0.05, 0, 'em', 0.15),
     ] : [];
     // build steps
-    const stepsCur = this.stepsOf(cur), atCur = S.at || 0, lastStep = Math.max(0, ...stepsCur);
+    const stepsCur = this.stepsOf(cur), atCur = S.at || 0, lastStep = Math.max(0, ...stepsCur), stepNav = this.stepsShown();   // the arrows walk steps only where go() does
     const stepVals = {
       stageLayers: staged(cur, atCur),
       showStepDots: isPresent && !!curN.showSteps && stepsCur.length > 0 && !active,
@@ -2541,7 +2541,7 @@ class Component extends DCLogic {
       hasDeck: !!DECK && !STATIC, draftPrompt: !!S.draftPrompt && !isPresent,
       onUseDraft: () => { const d = this._draft; this._draft = null; if (d) this.adopt(d.md, d.layout, () => this.setState({ draftPrompt: false })); },
       onDiscardDraft: () => { this._draft = null; try { localStorage.removeItem(DRAFT_KEY(SRC)); } catch (e) {} this.setState({ draftPrompt: false }); }, save: () => this.save(), saveLabel: S.saving ? 'Saving…' : S.saveMsg ? '⚠ Save' : this.isDirty() ? '● Unsaved' : '✓ Saved',
-      modeTabs: STATIC ? [] : [{ label: 'Build', ...tab(!isPresent), onClick: () => this.setState({ mode: 'build' }) }, { label: 'Present', ...tab(isPresent), onClick: () => this.setState({ mode: 'present', query: '' }) }],
+      modeTabs: STATIC ? [] : [{ label: 'Build', ...tab(!isPresent), onClick: () => this.setState({ mode: 'build', at: 0 }) }, { label: 'Present', ...tab(isPresent), onClick: () => this.setState({ mode: 'present', at: 0, query: '' }) }],
       mdRef: this.mdRef, mdText: S.md, onMdInput: e => this.setMd(e.target.value), onAddAfter: () => this.addSlide('after'), onAddBelow: () => this.addSlide('below'),
       mdIssuesText: S.mdIssues.map(i => 'line ' + i.line + ': ' + i.msg).join('\n'), hasMdIssues: S.mdIssues.length > 0,
       openInputRef: this.openInputRef, onOpenPick: () => this.openPick(),
@@ -2577,8 +2577,8 @@ class Component extends DCLogic {
       crumbRows, crumbTx, crumbTy, crumbH, hasDownHint: !!downHint, downHint: downHint || {},
       steps, stepsBg: isPresent ? 'rgba(251,249,244,.18)' : 'rgba(29,27,23,.08)', sepColor: isPresent ? '#fbf9f4' : '#6b6458', navRight: isPresent ? '270px' : '14px',
       searchRef: this.searchRef, results, hasResults: results.length > 0,
-      hasLeft: ci > 0 || atCur > 0, leftTitle: atCur > 0 ? 'Previous step' : ci > 0 ? name(sibs[ci - 1]) : '', goLeft: () => this.go('left'),
-      hasRight: ci < sibs.length - 1 || atCur < lastStep, rightTitle: atCur < lastStep ? 'Next step' : ci < sibs.length - 1 ? name(sibs[ci + 1]) : '', goRight: () => this.go('right'),
+      hasLeft: ci > 0 || (stepNav && atCur > 0), leftTitle: stepNav && atCur > 0 ? 'Previous step' : ci > 0 ? name(sibs[ci - 1]) : '', goLeft: () => this.go('left'),
+      hasRight: ci < sibs.length - 1 || (stepNav && atCur < lastStep), rightTitle: stepNav && atCur < lastStep ? 'Next step' : ci < sibs.length - 1 ? name(sibs[ci + 1]) : '', goRight: () => this.go('right'),
       hasUp: !!upT, upTitle: upT ? short(name(upT), 24) : '', goUp: () => this.go('up'),
       hasDown: !!downT, goDown: () => this.go('down'), downLabel: downT ? `${curN.children.length} below · ${short(name(downT), 22)}` : '',
 

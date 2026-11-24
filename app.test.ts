@@ -625,6 +625,16 @@ test("in build mode (no preview) → and Space move between slides and leave at 
   c.setState({ preview: true, at: 0 }); key(c, "ArrowRight"); expect([c.state.cur, c.state.at]).toEqual(["intro", 1]);
 });
 
+test("Shift+Space back into a parent opens it on its last step; leaving Present resets at, so the arrows mean slides", async () => {
+  await writeMd("talk", TALK, STEPPED);
+  const { c } = await mount("?deck=talk"); c.setState({ mode: "present", cur: "detail", at: 0 });
+  key(c, " ", { shiftKey: true }); expect([c.state.cur, c.state.at]).toEqual(["intro", 3]);   // up a level, still at the end
+  key(c, "Escape"); expect(c.state.mode).toBe("build"); expect(c.state.at).toBe(0);
+  c.setState({ at: 3 }); const v = c.renderVals();                                            // even with a stale at, build mode's arrows are slides
+  expect(v.hasLeft).toBe(false); expect(v.hasRight).toBe(true); expect(v.rightTitle).toBe("Next");
+  c.renderVals().modeTabs[1].onClick(); expect(c.state.at).toBe(0);
+});
+
 test("steps with gaps walk 1 → 3 → 7; stepBuild is false at either end", async () => {
   await writeMd("talk", "# A\nslug: a\n\n- one\n- two\n- three\n");
   const { c } = await mount("?deck=talk");

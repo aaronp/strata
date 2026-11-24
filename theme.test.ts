@@ -24,6 +24,7 @@ test("tokenColor", () => {
   expect(tokenColor("impact", PALETTES[0])).toBe("#FBBF24");
   expect(tokenColor("#123456", PALETTES[0])).toBe("#123456");
   expect(tokenColor("name", PALETTES[0])).toBe("name");
+  for (const k of ["toString", "__proto__"]) expect(tokenColor(k, PALETTES[0])).toBe(k);
   expect(tokenColor(null, PALETTES[0])).toBeNull();
 });
 test("fonts", () => {

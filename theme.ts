@@ -134,10 +134,11 @@ export function resolveTheme(t0: Partial<Theme> | null = {}) {
   return { palette, fonts, surface, tone, bg: { css: built.css as string, size: built.size as string, ...("effect" in b ? { motion: b.effect as string } : {}) } as { css: string; size: string; image?: string; motion?: string } };
 }
 
+const TOKENS = ["primary", "secondary", "tertiary", "impact", "text", "muted", "onPrimary"];
 // A palette token name gives its hex; any other CSS colour passes through.
 export function tokenColor(v: string | null | undefined, p: Palette): string | null {
   if (v == null) return null;
-  return v in p && v.length > 0 && !["id", "name", "tone"].includes(v) ? (p as any)[v] : v;
+  return TOKENS.includes(v) && Object.hasOwn(p, v) ? (p as any)[v] : v;
 }
 
 export const fontFor = (role: "head" | "body" | "mono", f: FontSet): string => f[role];

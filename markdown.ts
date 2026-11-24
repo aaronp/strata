@@ -245,3 +245,39 @@ export function writeBlock(md: string, kind: "title" | "body" | "group" | "item"
   lines.splice(line - 1, endLine - line + 1 + gap, ...put);
   return lines.join("\n");
 }
+
+// ---- Template placeholders: a whole line ##words## (no space after ##, so never a heading). A paragraph that is just that, or a bullet "- ##words##".
+const PH_LINE = /^##[^#\n]+##$/, PH_ITEM = /^\s*[-*]\s+##[^#\n]+##\s*$/;
+// The slide's own section (heading on `line`): its lines as indexes [line, end) — up to the next heading, its children's included.
+function ownSection(md: string, line: number) {
+  const flat: Section[] = [], walk = (ss: Section[]) => ss.forEach(s => { flat.push(s); walk(s.children); });
+  walk(parseMarkdown(md).sections);
+  const lines = md.split("\n"), next = flat.find(s => s.line > line);
+  return { lines, end: next ? next.line - 1 : lines.length };
+}
+const blank = (s?: string) => s !== undefined && !s.trim();
+// Removes every placeholder in the slide's own section; a run of them goes with the blank line before it when a blank (or the section's end) follows.
+export function stripPlaceholders(md: string, line: number): string {
+  const { lines, end } = ownSection(md, line), t = (i: number) => (lines[i] ?? "").replace(/\r$/, "");
+  const gone = new Set<number>();
+  for (let i = line; i < end; i++) {
+    const s = t(i).trim();
+    if (PH_ITEM.test(t(i)) || (PH_LINE.test(s) && (i === line || blank(t(i - 1))) && (i + 1 >= end || blank(t(i + 1))))) gone.add(i);
+  }
+  for (let i = line; i < end; i++) if (gone.has(i) && !gone.has(i - 1)) {
+    let j = i; while (gone.has(j + 1)) j++;
+    if (i - 1 >= line && blank(t(i - 1)) && (j + 1 >= end || blank(t(j + 1)))) gone.add(i - 1);
+  }
+  return lines.filter((_, i) => !gone.has(i)).join("\n");
+}
+// Adds placeholder blocks after the section's last non-blank line (subtitle, bodies, a three-point list, details), blank-line separated.
+export function addPlaceholders(md: string, line: number, needs: { body?: number; list?: boolean; detail?: number; subtitle?: boolean }): string {
+  const blocks = [...(needs.subtitle ? ["##Subtitle##"] : []), ...Array(needs.body || 0).fill("##Text##"),
+    ...(needs.list ? ["- ##Point##\n- ##Point##\n- ##Point##"] : []), ...Array(needs.detail || 0).fill("##Detail##")];
+  if (!blocks.length) return md;
+  const { lines, end } = ownSection(md, line), cr = md.includes("\r\n") ? "\r" : "";
+  let last = end - 1; while (last >= line && blank(lines[last])) last--;
+  const put = blocks.flatMap(b => ["", ...b.split("\n")]).map(r => r + cr);
+  lines.splice(last + 1, 0, ...put);
+  return lines.join("\n");
+}

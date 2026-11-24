@@ -1519,6 +1519,68 @@ test("Slides tab: the template's placeholders; clicking one opens Content; a mar
   expect(c.state.rtab).toBe("slides"); expect(c.state.layerSel).toBe(own);   // not a markdown layer: its properties show
 });
 
+// ---- picking a template: placeholder text for its empty regions, written into the slide's markdown ----
+const pickTpl = (c: any, id: string, cdu = true) => { const v = c.renderVals(); [...v.tplFits, ...v.tplOthers].find((t: any) => t.id === id).pick(); if (cdu) c.componentDidUpdate(); };   // batched: the flush runs componentDidUpdate, as React does
+const PICK = "# T\nslug: t\n\nOne.\n\n# U\nslug: u\n";
+test("template pick: stacked-3 adds two ##Text## to the slide's markdown, all placed; stacked-1 removes them again", async () => {
+  for (const batched of [false, true]) {
+    await writeMd("talk", PICK); const { c } = await mount("?deck=talk", { batched }); await Bun.sleep(150); c.setState({ cur: "t", rtab: "slides" }); await Bun.sleep(0); c.componentDidUpdate();
+    pickTpl(c, "stacked-3", !batched); await Bun.sleep(0);
+    expect(c.state.md).toBe("# T\nslug: t\n\nOne.\n\n##Text##\n\n##Text##\n\n# U\nslug: u\n");
+    expect(c.state.nodes.t.layout).toBe("stacked-3");
+    const bodies = c.layersOf("t").filter((l: any) => l.block === "body");
+    expect(bodies.map((l: any) => l.text)).toEqual(["One.", "##Text##", "##Text##"]); expect(c.layersOf("t").some((l: any) => l._warn)).toBe(false);
+    expect(bodies.map((l: any) => l.y)).toEqual([24, 46.67, 69.33]);
+    pickTpl(c, "stacked-1", !batched); await Bun.sleep(0);
+    expect(c.state.md).toBe(PICK); expect(c.state.nodes.t.layout).toBe("stacked-1"); expect(c.layersOf("t").some((l: any) => l._warn)).toBe(false);
+  }
+});
+
+test("template pick: one undo step restores markdown and layout; redo brings both back", async () => {
+  await writeMd("talk", PICK); const { c } = await mount("?deck=talk"); await Bun.sleep(150); c.setState({ cur: "t", rtab: "slides" });
+  pickTpl(c, "t-two"); const past = c._past.length;
+  expect(c.state.md).toContain("One.\n\n##Text##\n\n# U"); expect(c.state.nodes.t.layout).toBe("t-two");
+  pickTpl(c, "stacked-3"); expect(c._past.length).toBe(past + 1);
+  c.undo(); c.componentDidUpdate();
+  expect(c.state.md).toContain("One.\n\n##Text##\n\n# U"); expect(c.state.nodes.t.layout).toBe("t-two");
+  c.undo(); c.componentDidUpdate(); expect(c.state.md).toBe(PICK); expect(c.state.nodes.t.layout).toBe("stacked-1");
+  c.redo(); c.componentDidUpdate(); expect(c.state.md).toContain("##Text##"); expect(c.state.nodes.t.layout).toBe("t-two");
+});
+
+test("template pick: an edited placeholder is real content and survives a later switch", async () => {
+  await writeMd("talk", PICK); const { c } = await mount("?deck=talk"); await Bun.sleep(150); c.setState({ cur: "t", rtab: "slides" });
+  pickTpl(c, "stacked-3"); c.setMd(c.state.md.replace("##Text##", "Mine.")); c.reenrich(); c.componentDidUpdate();
+  pickTpl(c, "stacked-1");
+  expect(c.state.md).toBe("# T\nslug: t\n\nOne.\n\nMine.\n\n# U\nslug: u\n");
+});
+
+test("template pick: List + detail adds a ##Detail## per bullet; a title-only slide picking a list gets three ##Point##; the subtitle", async () => {
+  await writeMd("talk", "# S\nslug: s\n\n- a\n- b\n- c\n\n# T\nslug: t\n\n# U\nslug: u\n");
+  const { c } = await mount("?deck=talk"); await Bun.sleep(150); c.setState({ cur: "s", rtab: "slides" });
+  pickTpl(c, "t-split");
+  expect(c.state.md).toContain("- c\n\n##Detail##\n\n##Detail##\n\n##Detail##\n\n# T"); expect(c.layersOf("s").some((l: any) => l._warn)).toBe(false);
+  c.setState({ cur: "t" }); pickTpl(c, "list");
+  expect(c.state.md).toContain("# T\nslug: t\n\n- ##Point##\n- ##Point##\n- ##Point##\n\n# U");
+  expect(c.layersOf("t").filter((l: any) => l.block === "list").length).toBe(3); expect(c.layersOf("t").some((l: any) => l._warn)).toBe(false);
+  c.setState({ cur: "u" }); pickTpl(c, "t-title-sub"); expect(c.state.md.endsWith("# U\nslug: u\n\n##Subtitle##\n")).toBe(true);
+  pickTpl(c, "image-right"); expect(c.state.md.endsWith("# U\nslug: u\n\n##Text##\n")).toBe(true);   // no placeholder for an image
+});
+
+test("template pick: a linked slide's markdown isn't written; its layout applies as before", async () => {
+  const { c } = await linked(); await down(c, "a"); const md = c.state.md;
+  c.setState({ cur: "a.plan", rtab: "slides" }); pickTpl(c, "stacked-2");
+  expect(c.state.md).toBe(md);
+});
+
+test("placeholder text renders dimmed and italic on md layers only", async () => {
+  const html = await Bun.file(join(import.meta.dir, "design/Layers.dc.html")).text();
+  const js2 = html.split(/<script type="text\/x-dc" data-dc-script[^>]*>/)[1].split("</script>")[0];
+  const C2 = new Function("DCLogic", "window", js2 + "\nreturn Component;")(class { props: any; constructor(p: any) { this.props = p; } }, { StrataSanitize: await import("./layout-sanitize") });
+  const it = (id: string, text: string) => new C2({ layers: [{ id, type: "text", text, x: 0, y: 0, w: 9, h: 9 }] }).renderVals().items[0];
+  expect(it("md-body-2", "##Text##")).toMatchObject({ op: 0.5 }); expect(it("md-body-2", "##Text##").lines[0].runs[0].fst).toBe("italic");
+  expect(it("md-body-2", "##Text## more").op).toBe(1); expect(it("x1", "##Text##").op).toBe(1);
+});
+
 const STAGE100 = { getBoundingClientRect: () => ({ left: 0, top: 0, width: 100, height: 100 }) };
 const drag = (c: any, listeners: any, tool: string, a: number[], b: number[], shiftKey = false) => {
   c.setState({ tool }); c.renderVals().onStageDown({ button: 0, clientX: a[0], clientY: a[1], shiftKey });
@@ -2398,11 +2460,13 @@ test("Update template from a List-right slide records unmirrored boxes, so List-
 test("picking a template that doesn't fit applies it: regions take blocks by key and reading order, the rest warn; Your templates lists user templates", async () => {
   await writeMd("talk", "# T\nslug: t\n\n- a\n- b\n"); const { c } = await mount("?deck=talk"); c.setState({ cur: "t", rtab: "slides" });
   c.renderVals().tplOthers.find((t: any) => t.id === "t-two").pick(); c.componentDidUpdate();
+  expect(c.state.md).toBe("# T\nslug: t\n\n- a\n- b\n\n##Text##\n\n##Text##\n");   // its two bodies get placeholders; the list has no region
   expect(c.state.nodes.t).toMatchObject({ layout: "t-two", custom: true }); expect(c.effectiveLayout("t").id).toBe("t-two");
   expect(layerOf(c, "t", "md-title")).toMatchObject({ x: 5, y: 6, w: 90, h: 12 }); expect(layerOf(c, "t", "md-title")._warn).toBeFalsy();
   for (const id of ["md-list-1-1", "md-list-1-2"]) expect(layerOf(c, "t", id)._warn).toBe(true);
   let v = c.renderVals(); expect(v.warnBadges.length).toBe(2); expect(v.layCanUpdate).toBe(false); expect(v.hasMyTpls).toBe(false);
-  c.renderVals().tplFits.find((t: any) => t.id === "list").pick(); expect(layerOf(c, "t", "md-list-1-1")._warn).toBeFalsy();   // a fitting one places them again
+  c.renderVals().tplOthers.find((t: any) => t.id === "list").pick(); expect(layerOf(c, "t", "md-list-1-1")._warn).toBeFalsy();   // a fitting one places them again
+  expect(c.state.md).toBe("# T\nslug: t\n\n- a\n- b\n");
   const lid = c.saveAsLayout("t"); v = c.renderVals(); expect(v.hasMyTpls).toBe(true); expect(v.myTpls.map((t: any) => t.id)).toEqual([lid]);
   v.myTpls[0].onName({ target: { value: "Mine" } }); expect(c.layouts()[lid].name).toBe("Mine");
   c.renderVals().myTpls[0].onName({ target: { value: "  " } }); expect(c.layouts()[lid].name).toBe("Mine");   // an empty name is ignored

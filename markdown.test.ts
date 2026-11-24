@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { parseMarkdown, plainText, writeBlock, hasComment } from "./markdown";
+import { parseMarkdown, plainText, writeBlock, hasComment, stripPlaceholders, addPlaceholders } from "./markdown";
 import { join } from "node:path";
 
 const MD = `<!--
@@ -272,4 +272,25 @@ test("writeBlock group/body: a leading \\slug: keeps its backslash", () => {
   expect(parseMarkdown(w).sections[0].blocks[0].text).toBe("\\\\slug: x");   // the app shows \\ as \, as for \- (it was "slug: x")
   const b = writeBlock("# T\nslug: t\n\nold\n", "body", 4, 4, "\\slug: y")!;
   expect(parseMarkdown(b).sections[0].blocks[0].text).toBe("\\\\slug: y");
+});
+
+// ---- template placeholders: ##…## lines in a slide's own section ----
+const PH = "# A\nslug: a\n<!-- children:\nx.md\n-->\n\nBody.\n\n## Kid\nslug: kid\n\nK.\n\n# B\nslug: b\n";
+test("addPlaceholders: after the section's last block, before its children's heading; blank-line separated; parsed as text, not headings", () => {
+  const out = addPlaceholders(PH, 1, { body: 2 });
+  expect(out).toBe("# A\nslug: a\n<!-- children:\nx.md\n-->\n\nBody.\n\n##Text##\n\n##Text##\n\n## Kid\nslug: kid\n\nK.\n\n# B\nslug: b\n");
+  const s = parseMarkdown(out).sections[0];
+  expect(s.blocks.map(b => [b.key, b.text])).toEqual([["body", "Body."], ["body", "##Text##"], ["body", "##Text##"]]);
+  expect(s.childSrc).toEqual(["x.md"]); expect(s.children[0].slug).toBe("kid");
+  expect(addPlaceholders(PH, 1, {})).toBe(PH);
+  expect(addPlaceholders("# T\nslug: t\n", 1, { subtitle: true, list: true, detail: 1 })).toBe("# T\nslug: t\n\n##Subtitle##\n\n- ##Point##\n- ##Point##\n- ##Point##\n\n##Detail##\n");
+  expect(addPlaceholders("# T\nslug: t", 1, { body: 1 })).toBe("# T\nslug: t\n\n##Text##");
+});
+
+test("stripPlaceholders: removes exactly-##…## paragraphs and items in that section only; inverse of addPlaceholders", () => {
+  for (const needs of [{ body: 2 }, { list: true }, { subtitle: true, detail: 3 }]) expect(stripPlaceholders(addPlaceholders(PH, 1, needs), 1)).toBe(PH);
+  expect(stripPlaceholders(addPlaceholders(PH, 9, { body: 1 }), 9)).toBe(PH);
+  const md = "# A\nslug: a\n\n##Text##\n\n##My own text, edited##x\n\n- real\n- ##Point##\n- also\n\n- ##Point##\n- ##Point##\n\nEnd.\n\n# B\nslug: b\n\n##Text##\n";
+  expect(stripPlaceholders(md, 1)).toBe("# A\nslug: a\n\n##My own text, edited##x\n\n- real\n- also\n\nEnd.\n\n# B\nslug: b\n\n##Text##\n");
+  expect(stripPlaceholders("# A\nslug: a\n\nOne\n##Text##\n", 1)).toBe("# A\nslug: a\n\nOne\n##Text##\n");   // part of a paragraph: real text
 });

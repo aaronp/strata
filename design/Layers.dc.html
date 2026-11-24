@@ -104,7 +104,9 @@ class Component extends DCLogic {
         isText: l.type === 'text', isShape: l.type === 'shape', isLine: false, isIcon: l.type === 'icon', isImage: l.type === 'image', blend: l.blend === 'screen' ? 'screen' : 'normal' };
       if (l.type === 'text') {
         const b = l.bullets || 'none'; const raw = String(l.text ?? '').split('\n');
-        const run = r => ({ text: r.text, fw: r.weight || (r.b ? 'bolder' : ''), fst: r.i ? 'italic' : '', fsz: r.size ? r.size / 16 + 'cqw' : '', col: col(r.color, ''), fam: r.font ? fam(r.font, '') : '', lsp: r.ls ? r.ls + 'em' : '',
+        const ph = String(l.id).startsWith('md-') && /^##[^#\n]+##$/.test(String(l.text ?? ''));   // a template placeholder: dimmed, italic
+        if (ph) base.op *= 0.5;
+        const run = r => ({ text: r.text, fw: r.weight || (r.b ? 'bolder' : ''), fst: r.i || ph ? 'italic' : '', fsz: r.size ? r.size / 16 + 'cqw' : '', col: col(r.color, ''), fam: r.font ? fam(r.font, '') : '', lsp: r.ls ? r.ls + 'em' : '',
           lnk: r.broken ? '' : (r.link || ''), href: r.broken ? '' : (r.href || ''), deco: r.broken ? 'underline dashed' : (r.link || r.href ? 'underline' : ''),
           pe: p.links && !r.broken && (r.link || r.href) ? 'auto' : '', cur: p.links && !r.broken && (r.link || r.href) ? 'pointer' : '' });   // links click only when live (present)
         const lines = raw.map((t, i) => ({ text: t === '' ? '\u00a0' : t, runs: ((l._lines && l._lines[i]) || [{ text: t === '' ? '\u00a0' : t }]).map(run),

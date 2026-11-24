@@ -1162,6 +1162,15 @@ const BUILTIN_LAYOUTS = {
   't-shapes': { name: 'Shapes / Venn', icon: 'venn', match: { title: 1 }, slots: { title: [B(5, 7.1, 90, 7.3)] } },
 };
 const SOURCES_BOX = B(6, 89, 88, 5);
+// What a template's regions need beyond the slide's own section (md, heading on `line`): bodies, a list, one detail per bullet, a subtitle. Images and links get none.
+const placeholderNeeds = (md, line, L, lid) => {
+  const flat = [], walk = ss => ss.forEach(s => { flat.push(s); walk(s.children); }); walk(MD.parseMarkdown(md).sections);
+  const bs = ((flat.find(s => s.line === line) || {}).blocks || []), m = L.match || {}, bodies = bs.filter(b => b.key === 'body').length;
+  const list = !!m.list && !bs.some(b => b.key === 'list'), items = bs.reduce((a, b) => a + (b.key === 'list' ? b.items.length : 0), 0) + (list ? 3 : 0);
+  if (m.body === 'items') return { list, detail: Math.max(0, items - bodies) };
+  if (lid === 't-title-sub') return { list, subtitle: bodies < 1 };
+  return { list, body: Math.max(0, (m.body || 0) - bodies) };
+};
 // Markdown layers carry block: title|body|list|links|sources|image. Sources never count toward the shape; layers without a block (extras) don't either. The styles arg is vestigial.
 const counted = l => !l.hidden && !!l.block && l.block !== 'sources';
 const keyOf = l => l.block;
@@ -2141,14 +2150,24 @@ class Component extends DCLogic {
     const place = l => boxes[l.id] ? { ...unwarn(l), ...boxes[l.id] } : counted(l) ? { ...l, _warn: true } : l;
     return { ...rest, layers: [...gen, ...backFirst(ls.map(place), boxes)], layout: L.id }; }
   // Extras (layers not from the markdown) live only in a per-slide override.
-  hasExtras(id) { return this.layersOf(id).some(l => !isMd(l) && !isGen(l)); }
+  hasExtras(id, ls = this.layersOf(id)) { return ls.some(l => !isMd(l) && !isGen(l)); }
   // The layout enrich gives a shape with no override: the deck default, else the deck's first match, else the built-in.
-  shapeLayout(id) { const ls = this.layersOf(id), own = this.state.layouts || {}, L = this.layouts(), fits = x => fitsTemplate(ls, x), d = (this.state.layoutDefaults || {})[this.slideSig(id)];
+  shapeLayout(id, ls = this.layersOf(id)) { const own = this.state.layouts || {}, L = this.layouts(), fits = x => fitsTemplate(ls, x), d = (this.state.layoutDefaults || {})[sigKey(sigOf(ls))];
     return fits(L[d]) ? L[d] : L[Object.keys(own).find(k => fits(own[k]))] || Object.values(L).find(fits) || null; }
   // A slide given a layout other than its shape's (or with extras) becomes an override, else the next enrich would undo it.
   indexOf(id) { const par = Object.values(this.state.nodes).find(p => (p.children || []).includes(id)); return par ? par.children.indexOf(id) : 0; }   // among its siblings
-  applyLayout(id, lid, n = this.state.nodes[id]) { const p = this.layoutPatch(n, this.layouts()[lid]); if (!p) return;
-    const own = this.hasExtras(id) || (this.shapeLayout(id) || {}).id !== lid, nodes = { ...this.state.nodes, [id]: own ? { ...p, custom: true } : p }; this.allowLayout(nodes); this.setState({ nodes }); }
+  applyLayout(id, lid, n = this.state.nodes[id], N = this.state.nodes) { const p = this.layoutPatch(n, this.layouts()[lid]); if (!p) return; const ls = this.layersOfNode(n);
+    const own = this.hasExtras(id, ls) || (this.shapeLayout(id, ls) || {}).id !== lid, nodes = { ...N, [id]: own ? { ...p, custom: true } : p }; this.allowLayout(nodes); this.setState({ nodes }); }
+  // A template tile: the slide's old placeholders go, then ##…## placeholder blocks fill the regions its markdown leaves empty, then the layout applies. One undo step (markdown and layout).
+  pickTemplate(id, lid) {
+    const N0 = this.flushMd() || this.state.nodes, n = N0[id], L = this.layouts()[lid], md0 = this.state.md;
+    if (!n || n._from || !n._line || !L) { if (n) this.applyLayout(id, lid, n, N0); return; }
+    const stripped = MD.stripPlaceholders(md0, n._line), md = MD.addPlaceholders(stripped, n._line, placeholderNeeds(stripped, n._line, L, lid));
+    if (md === md0) { this.applyLayout(id, lid, n, N0); return; }
+    this._past.push({ nodes: N0, ...this.histDeck(), md: md0 }); if (this._past.length > 100) this._past.shift(); this._future = []; this._burst = false;
+    this.setState({ md }); this.reenrich(N0, {}, md); const N = this._lastNodes;
+    this.applyLayout(id, lid, N[id], N); this._lastNodes = this._layoutNodes;   // the layout lands in the same undo step
+  }
   ownSlideIds() { return Object.keys(this.state.nodes).filter(k => !this.state.nodes[k]._from && (k !== 'ROOT' || this.state.titlePage)); }
   // Make L the default for its type and lay out every default (non-custom) slide of that type.
   applyToAll(lid) {
@@ -2868,7 +2887,7 @@ class Component extends DCLogic {
     // ---- Slides tab: the template grid (fitting templates first), the current template's actions and options, and its placeholders.
     const LAY = this.layouts(), sigK = sigKey(sigOf(curLayers)), effL = sigK ? this.effectiveLayout(cur) : null;
     const tileOf = L => ({ id: L.id, name: L.name, rects: tplRects(L), on: !!effL && effL.id === L.id, outline: effL && effL.id === L.id ? '2px solid #7AA2FF' : '1px solid #343944',
-      pick: () => this.applyLayout(cur, L.id) });
+      pick: () => this.pickTemplate(cur, L.id) });
     const tplAll = Object.values(LAY), fitsCur = L => !!sigK && fitsTemplate(curLayers, L);
     const opts = (effL && effL.opts) || [];
     const tplVals = {

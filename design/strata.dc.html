@@ -143,7 +143,7 @@ select option{background:#23262E;color:#E8EAEE}
               <div style="position:absolute;left:{{ n.x }}px;top:{{ n.y }}px;width:76px;opacity:{{ n.opacity }};user-select:none">
                 <div onClick="{{ n.onClick }}" title="{{ n.from }}" style="position:relative;width:76px;height:43px;border-radius:5px;overflow:hidden;background:{{ base }};cursor:pointer;outline:{{ n.outline }};outline-offset:1px;box-shadow:{{ n.ring }}">
                   <div style="position:absolute;left:0;top:0;width:{{ cam.w }}%;height:{{ cam.h }}%;transform:{{ n.cam }};transform-origin:0 0">
-                    <div class="{{ canvasBg.cls }}" style="position:absolute;inset:0;background:{{ canvasBg.css }};background-size:{{ canvasBg.size }};animation-duration:{{ canvasBg.dur }}"></div>
+                    <div class="{{ canvasBg.cls }}" style="position:absolute;left:0;top:0;bottom:0;width:{{ bgFitW }}%;background:{{ canvasBg.css }};background-size:{{ canvasBg.size }};animation-duration:{{ canvasBg.dur }}"></div>
                     <sc-for list="{{ tiles }}" as="tl" hint-placeholder-count="0">
                       <div style="position:absolute;top:{{ tl.t }}%;height:{{ tl.h }}%;left:{{ tl.l }}%;width:calc({{ tl.w }}% + 2px);background:{{ bgCss }};opacity:{{ opacity }}"></div>
                     </sc-for>
@@ -193,7 +193,7 @@ select option{background:#23262E;color:#E8EAEE}
           <div style="position:absolute;inset:0;display:grid;place-items:center;padding:{{ stagePad }}">
             <div ref="{{ stageRef }}" style="position:relative;width:{{ stageW }};aspect-ratio:16/9;overflow:hidden;border-radius:{{ stageRadius }};background:{{ base }};container-type:inline-size;box-shadow:0 30px 80px -30px rgba(0,0,0,.55)">
               <div style="position:absolute;left:0;top:0;width:{{ cam.w }}%;height:{{ cam.h }}%;transform:{{ curCam }};transform-origin:0 0;transition:{{ camTransition }}">
-                <div class="{{ canvasBg.cls }}" style="position:absolute;inset:0;background:{{ canvasBg.css }};background-size:{{ canvasBg.size }};animation-duration:{{ canvasBg.dur }}"></div>
+                <div class="{{ canvasBg.cls }}" style="position:absolute;left:0;top:0;bottom:0;width:{{ bgFitW }}%;background:{{ canvasBg.css }};background-size:{{ canvasBg.size }};animation-duration:{{ canvasBg.dur }}"></div>
                 <sc-for list="{{ tiles }}" as="tl" hint-placeholder-count="0">
                   <div style="position:absolute;top:{{ tl.t }}%;height:{{ tl.h }}%;left:{{ tl.l }}%;width:calc({{ tl.w }}% + 2px);background:{{ bgCss }};opacity:{{ opacity }}"></div>
                 </sc-for>
@@ -377,7 +377,7 @@ select option{background:#23262E;color:#E8EAEE}
                   <div onClick="{{ mc.onClick }}" title="{{ mc.name }}" data-mapcur="{{ mc.cur }}" style="position:absolute;left:{{ mc.x }}px;top:{{ mc.y }}px;width:{{ mapCardW }}px;cursor:pointer">
                     <div style="position:relative;width:{{ mapCardW }}px;height:{{ mapCardH }}px;border-radius:6px;overflow:hidden;background:{{ base }};outline:{{ mc.outline }};outline-offset:2px">
                       <div style="position:absolute;left:0;top:0;width:{{ cam.w }}%;height:{{ cam.h }}%;transform:{{ mc.cam }};transform-origin:0 0">
-                        <div class="{{ canvasBg.cls }}" style="position:absolute;inset:0;background:{{ canvasBg.css }};background-size:{{ canvasBg.size }};animation-duration:{{ canvasBg.dur }}"></div>
+                        <div class="{{ canvasBg.cls }}" style="position:absolute;left:0;top:0;bottom:0;width:{{ bgFitW }}%;background:{{ canvasBg.css }};background-size:{{ canvasBg.size }};animation-duration:{{ canvasBg.dur }}"></div>
                         <sc-for list="{{ tiles }}" as="tl" hint-placeholder-count="0"><div style="position:absolute;top:{{ tl.t }}%;height:{{ tl.h }}%;left:{{ tl.l }}%;width:calc({{ tl.w }}% + 2px);background:{{ bgCss }};opacity:{{ opacity }}"></div></sc-for>
                       </div>
                       <dc-import name="Layers" surface="{{ surface }}" cards="true" layers="{{ mc.layers }}" images="{{ images }}" ink="{{ ink }}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
@@ -397,7 +397,7 @@ select option{background:#23262E;color:#E8EAEE}
         <sc-if value="{{ showWire }}">
           <div style="position:absolute;inset:0;overflow:auto;display:flex;align-items:center;padding:24px">
             <div style="position:relative;flex:none;height:min(100cqh - 48px, 100%);aspect-ratio:{{ canvasRatio }};margin:0 auto;background:{{ base }};border-radius:6px;box-shadow:0 20px 60px -24px rgba(0,0,0,.5);overflow:hidden">
-              <div class="{{ canvasBg.cls }}" style="position:absolute;inset:0;background:{{ canvasBg.css }};background-size:{{ canvasBg.size }};animation-duration:{{ canvasBg.dur }}"></div>
+              <div class="{{ canvasBg.cls }}" style="position:absolute;left:0;top:0;bottom:0;width:{{ bgFitW }}%;background:{{ canvasBg.css }};background-size:{{ canvasBg.size }};animation-duration:{{ canvasBg.dur }}"></div>
               <sc-for list="{{ tiles }}" as="tl" hint-placeholder-count="0">
                 <div style="position:absolute;top:{{ tl.t }}%;height:{{ tl.h }}%;left:{{ tl.l }}%;width:{{ tl.w }}%;background:{{ bgCss }};opacity:{{ opacity }};box-shadow:inset 1px 0 0 rgba(251,249,244,.25)"></div>
               </sc-for>
@@ -3123,7 +3123,7 @@ class Component extends DCLogic {
       viewHint: isWire ? 'Every slide on the looping canvas. Click to select, double-click to open.' : 'What viewers see. Arrow keys move around the tree.',
       stageAreaBg: isPresent ? '#05070c' : '#16181D', showStage: !isWire && !mapView, showWire: isWire, showMap: !!mapView,
       // base: behind the canvas, a plain colour (the theme's deep one), so no stage-sized gradient shows through
-      base: th.bg.image ? (th.tone === 'dark' ? '#0b1220' : '#F5F3EE') : th.bg.deep, bgCss: cssUrl(B.src) ? `url("${B.src}") center / 100% 100% no-repeat` : 'none', opacity: finite(S.opacity) ? +S.opacity : 1, tiles, cam,
+      base: th.bg.image ? (th.tone === 'dark' ? '#0b1220' : '#F5F3EE') : th.bg.deep, bgCss: cssUrl(B.src) ? `url("${B.src}") center / 100% 100% no-repeat` : 'none', opacity: finite(S.opacity) ? +S.opacity : 1, tiles, cam, bgFitW: f3(L.CW / CW * 100),   // the background spans the slides, not the canvas's extra viewport of slack, so its gradient runs across the deck
       curCam: camOf(cur), camTransition: `transform ${S.speed}ms ${ease}`,
       hasPrev: !!active, planeA, planeB, planeTr: active && S.phase === 'run' ? `transform ${S.speed}ms ${ease}, opacity ${S.speed}ms ease` : 'none',
       ink: th.palette.text,

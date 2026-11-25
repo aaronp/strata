@@ -195,8 +195,8 @@ function seededRandom(seed: number) {
   return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
 }
 // Effect sizes are drawn in cqw of the canvas-sized effects container (container-type:size), so one markup works at any scale (stage, wireframe).
-// They were designed in px on a stage FX_REF_W px wide, as Layers' cqw sizes (px / 16 = cqw of one 1600px stage). Raise it to shrink every effect.
-const FX_REF_W = 1600;
+// They were designed in px on the prototype's ~900px-wide stage, so they keep that share of the stage at any size. Raise it to shrink every effect.
+const FX_REF_W = 900;
 const cqw = (px: number, w: number) => (px / FX_REF_W * 100 / w).toFixed(3) + "cqw";   // px on one stage → cqw of a w-stage-wide canvas
 // Canvas = w × h stages. count is per stage; the rise covers the canvas height in h × the time, so it moves at the same speed.
 function makeBubbles(count: number, baseSeconds: number, factor: number, seed: number, w = 1, h = 1) {

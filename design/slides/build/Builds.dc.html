@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Builds — order elements into frames</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;background:#16181D}
+a{color:#AFC6FF}a:hover{color:#D6E2FF}
+.slide{container-type:inline-size}
+button{font:inherit}
+</style>
+</helmet>
+<div style="min-height: 900px; background: #16181D; color: #E8EAEE; font-family: Inter, system-ui, sans-serif; display: flex; flex-direction: column">
+
+  <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding: 12px 20px; border-bottom: 1px solid #2C3039; background: #1B1E24">
+    <div style="display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 15px">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7AA2FF" stroke-width="1.8" aria-hidden="true"><rect x="3" y="4" width="8" height="6" rx="1"></rect><rect x="13" y="4" width="8" height="6" rx="1"></rect><rect x="3" y="14" width="8" height="6" rx="1"></rect><rect x="13" y="14" width="8" height="6" rx="1"></rect></svg>
+      <span>Untitled deck</span>
+    </div>
+    <nav aria-label="Editor mode" style="display: flex; gap: 4px; background: #23262E; padding: 4px; border-radius: 10px; margin-left: 12px">
+      <a href="Main.dc.html" style="padding: 8px 14px; border-radius: 7px; color: #C3C8D2; text-decoration: none; font-size: 13px; font-weight: 500">Theme</a>
+      <a href="Templates.dc.html" style="padding: 8px 14px; border-radius: 7px; color: #C3C8D2; text-decoration: none; font-size: 13px; font-weight: 500">Slides</a>
+      <a href="Builds.dc.html" style="padding: 8px 14px; border-radius: 7px; background: #343944; color: #FFFFFF; text-decoration: none; font-size: 13px; font-weight: 600">Builds</a>
+    </nav>
+    <div role="group" aria-label="Example slide" style="display: flex; gap: 2px; background: #23262E; padding: 3px; border-radius: 8px">
+      <sc-for list="{{ exampleOpts }}" as="o" hint-placeholder-count="2">
+        <button onClick="{{ o.pick }}" aria-pressed="{{ o.on }}" style="padding: 7px 12px; border: 0; border-radius: 6px; font-size: 12px; cursor: pointer; background: {{ o.bg }}; color: #E8EAEE">{{ o.label }}</button>
+      </sc-for>
+    </div>
+    <div style="flex: 1"></div>
+    <button style="padding: 9px 16px; border-radius: 8px; border: 0; background: #7AA2FF; color: #0B1020; font-weight: 600; font-size: 13px; cursor: pointer">Present</button>
+  </header>
+
+  <div style="display: flex; flex-wrap: wrap; flex: 1; min-height: 0">
+
+    <aside aria-label="Elements" style="flex: 1 1 260px; max-width: 300px; min-width: 0; border-right: 1px solid #2C3039; background: #1B1E24; padding: 16px; display: flex; flex-direction: column; gap: 12px; overflow: auto">
+      <div style="display: flex; align-items: center; gap: 8px">
+        <h2 style="margin: 0; font-size: 13px; font-weight: 600">Elements</h2>
+        <span style="font-size: 12px; color: #9AA1AD">step · transition</span>
+      </div>
+
+      <sc-if value="{{ ordering }}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: 10px; background: #22304D; border: 1px solid #3E5A92">
+          <span style="font-size: 13px; font-weight: 600; color: #FFFFFF">Ordering · step {{ current }}</span>
+          <span style="font-size: 12px; line-height: 1.5; color: #D6E2FF">Click elements on the slide or here. Everything you click joins step {{ current }}. Press Next step to start the next frame.</span>
+          <div style="display: flex; gap: 6px">
+            <button onClick="{{ nextStep }}" style="flex: 1; padding: 10px; border: 0; border-radius: 8px; background: #7AA2FF; color: #0B1020; font-weight: 600; font-size: 12px; cursor: pointer">Next step → {{ nextLabel }}</button>
+            <button onClick="{{ finishOrdering }}" style="padding: 10px 12px; border: 1px solid #5B77B5; border-radius: 8px; background: transparent; color: #FFFFFF; font-size: 12px; cursor: pointer">Done</button>
+          </div>
+          <button onClick="{{ clearOrder }}" style="padding: 8px; border: 0; background: none; color: #C9D8FF; font-size: 12px; text-decoration: underline; cursor: pointer; align-self: flex-start">Clear and start from step 1</button>
+        </div>
+      </sc-if>
+      <sc-if value="{{ notOrdering }}" hint-placeholder-val="{{ true }}">
+        <button onClick="{{ startOrdering }}" style="display: flex; align-items: center; justify-content: center; gap: 8px; padding: 11px; border-radius: 10px; border: 1px dashed #5B77B5; background: #1F2533; color: #D6E2FF; font-size: 13px; font-weight: 600; cursor: pointer">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M10 8h2v8M10 16h4"></path></svg>
+          Set order by clicking
+        </button>
+      </sc-if>
+
+      <ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px">
+        <sc-for list="{{ layers }}" as="l" hint-placeholder-count="9">
+          <li>
+            <button onClick="{{ l.click }}" style="width: 100%; display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px; cursor: pointer; text-align: left; font-size: 12px; color: #E8EAEE; background: {{ l.bg }}; border: 1px solid {{ l.border }}">
+              <span style="flex: none; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 500; background: {{ l.badgeBg }}; color: {{ l.badgeFg }}">{{ l.badge }}</span>
+              <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px">
+                <span>{{ l.name }}</span>
+                <span style="font-size: 11px; color: #9AA1AD">{{ l.meta }}</span>
+              </span>
+            </button>
+          </li>
+        </sc-for>
+      </ul>
+    </aside>
+
+    <main style="flex: 999 1 520px; min-width: 0; padding: 20px; display: flex; flex-direction: column; gap: 16px; align-items: center">
+
+      <div class="slide" style="width: 100%; max-width: 1000px; aspect-ratio: 16 / 9; position: relative; border-radius: 8px; overflow: hidden; background: linear-gradient(135deg, #1E1B4B 0%, #4C1D95 55%, #831843 100%); color: #F1F5F9; font-family: Inter, sans-serif; box-shadow: 0 20px 60px rgba(0,0,0,0.45); outline: {{ stageOutline }}; outline-offset: 3px">
+
+        <div style="position: absolute; left: 0; right: 0; top: 0; padding: 3.4cqw 5cqw 2.6cqw; background: rgba(10,12,30,0.45); font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 3.6cqw">{{ ex.title }}</div>
+
+        <sc-if value="{{ isList }}" hint-placeholder-val="{{ true }}">
+          <div style="position: absolute; left: 0; top: 13cqw; bottom: 0; width: 34%; padding: 3cqw; display: flex; flex-direction: column; gap: 1cqw; background: rgba(10,12,30,0.35); box-sizing: border-box">
+            <sc-for list="{{ listItems }}" as="e" hint-placeholder-count="4">
+              <button onClick="{{ e.click }}" aria-label="{{ e.name }}" style="position: relative; text-align: left; border: 0; cursor: pointer; font-size: 2.1cqw; padding: 1.3cqw 1.6cqw; border-radius: 0.8cqw; background: {{ e.bg }}; color: {{ e.fg }}; font-weight: {{ e.weight }}; opacity: {{ e.opacity }}; transform: {{ e.transform }}; clip-path: {{ e.clip }}; transition: {{ e.transition }}">
+                {{ e.text }}
+                <sc-if value="{{ ordering }}" hint-placeholder-val="{{ false }}">
+                  <span style="position: absolute; right: -1.2cqw; top: 50%; margin-top: -1.5cqw; width: 3cqw; height: 3cqw; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 1.5cqw; background: {{ e.badgeBg }}; color: {{ e.badgeFg }}; box-shadow: 0 0 0 0.3cqw #1E1B4B">{{ e.badge }}</span>
+                </sc-if>
+              </button>
+            </sc-for>
+          </div>
+
+          <div style="position: absolute; left: 34%; right: 0; top: 13cqw; bottom: 0">
+            <sc-if value="{{ ordering }}" hint-placeholder-val="{{ false }}">
+              <div role="group" aria-label="Stacked detail panels" style="position: absolute; left: 4cqw; top: 2cqw; display: flex; gap: 0.8cqw; align-items: center; font-size: 1.5cqw; color: #D6E2FF">
+                <span>Stacked here:</span>
+                <sc-for list="{{ peekChips }}" as="c" hint-placeholder-count="4">
+                  <button onClick="{{ c.click }}" aria-label="Assign {{ c.name }}" style="display: flex; align-items: center; gap: 0.6cqw; padding: 0.6cqw 1.1cqw; border-radius: 999px; cursor: pointer; font-size: 1.5cqw; border: 0.15cqw solid {{ c.border }}; background: rgba(10,12,30,0.55); color: #F1F5F9">
+                    {{ c.short }} <span style="width: 2.3cqw; height: 2.3cqw; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 1.3cqw; background: {{ c.badgeBg }}; color: {{ c.badgeFg }}">{{ c.badge }}</span>
+                  </button>
+                </sc-for>
+              </div>
+            </sc-if>
+            <sc-for list="{{ details }}" as="e" hint-placeholder-count="4">
+              <div style="position: absolute; left: 4cqw; right: 5cqw; top: {{ detailTop }}; display: flex; flex-direction: column; gap: 1.6cqw; opacity: {{ e.opacity }}; transform: {{ e.transform }}; clip-path: {{ e.clip }}; transition: {{ e.transition }}">
+                <span style="font-family: 'JetBrains Mono', monospace; font-size: 1.6cqw; letter-spacing: 0.1em; color: #5EEAD4">{{ e.kicker }}</span>
+                <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 4cqw">{{ e.head }}</span>
+                <span style="font-size: 2.2cqw; line-height: 1.55; color: #B6C0D0; max-width: 52cqw">{{ e.body }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isVenn }}" hint-placeholder-val="{{ false }}">
+          <sc-for list="{{ circles }}" as="e" hint-placeholder-count="3">
+            <button onClick="{{ e.click }}" aria-label="{{ e.name }}" style="position: absolute; left: {{ e.left }}; top: {{ e.top }}; width: 24cqw; height: 24cqw; box-sizing: border-box; padding: 4cqw; border-radius: 50%; cursor: pointer; background: {{ e.fill }}; border: 0.25cqw solid {{ e.stroke }}; mix-blend-mode: screen; color: #F1F5F9; font-weight: 600; font-size: 2.1cqw; display: flex; align-items: {{ e.alignY }}; justify-content: {{ e.alignX }}; opacity: {{ e.opacity }}; transform: {{ e.transform }}; clip-path: {{ e.clip }}; transition: {{ e.transition }}">
+              <span>{{ e.text }}</span>
+            </button>
+          </sc-for>
+          <sc-for list="{{ vennLabels }}" as="e" hint-placeholder-count="1">
+            <button onClick="{{ e.click }}" aria-label="{{ e.name }}" style="position: absolute; left: 42cqw; top: 29cqw; width: 16cqw; padding: 0.6cqw 0; border: 0; background: none; cursor: pointer; text-align: center; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 2.2cqw; color: #FBBF24; opacity: {{ e.opacity }}; transform: {{ e.transform }}; clip-path: {{ e.clip }}; transition: {{ e.transition }}">{{ e.text }}</button>
+          </sc-for>
+          <sc-if value="{{ ordering }}" hint-placeholder-val="{{ false }}">
+            <sc-for list="{{ vennBadges }}" as="b" hint-placeholder-count="4">
+              <span aria-hidden="true" style="position: absolute; left: {{ b.left }}; top: {{ b.top }}; width: 3cqw; height: 3cqw; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 1.5cqw; pointer-events: none; background: {{ b.badgeBg }}; color: {{ b.badgeFg }}; box-shadow: 0 0 0 0.3cqw #2A1B5C">{{ b.badge }}</span>
+            </sc-for>
+          </sc-if>
+        </sc-if>
+      </div>
+
+      <div style="width: 100%; max-width: 1000px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px; border-radius: 12px; background: #1B1E24; border: 1px solid #2C3039; box-sizing: border-box">
+        <div style="display: flex; gap: 4px">
+          <button onClick="{{ prev }}" aria-label="Previous frame" style="width: 44px; height: 44px; border-radius: 8px; border: 0; background: #23262E; color: #E8EAEE; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg></button>
+          <button onClick="{{ togglePlay }}" aria-label="{{ playLabel }}" style="width: 44px; height: 44px; border-radius: 8px; border: 0; background: #7AA2FF; color: #0B1020; cursor: pointer; display: flex; align-items: center; justify-content: center">
+            <sc-if value="{{ playing }}" hint-placeholder-val="{{ false }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14"></rect><rect x="14" y="5" width="4" height="14"></rect></svg></sc-if>
+            <sc-if value="{{ notPlaying }}" hint-placeholder-val="{{ true }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4l13 8-13 8z"></path></svg></sc-if>
+          </button>
+          <button onClick="{{ next }}" aria-label="Next frame" style="width: 44px; height: 44px; border-radius: 8px; border: 0; background: #23262E; color: #E8EAEE; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 5l7 7-7 7"></path></svg></button>
+        </div>
+        <span style="font-size: 12px; color: #9AA1AD">Frames</span>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px; flex: 1">
+          <sc-for list="{{ frames }}" as="f" hint-placeholder-count="4">
+            <button onClick="{{ f.pick }}" aria-pressed="{{ f.on }}" aria-label="Frame {{ f.n }}" style="min-width: 88px; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 7px 10px; border-radius: 8px; cursor: pointer; text-align: left; background: {{ f.bg }}; border: 1px solid {{ f.border }}; color: #E8EAEE">
+              <span style="font-size: 12px; font-weight: 600">Frame {{ f.n }}</span>
+              <span style="font-size: 11px; color: {{ f.sub }}">{{ f.trans }}</span>
+            </button>
+          </sc-for>
+        </div>
+      </div>
+    </main>
+
+    <aside aria-label="Step settings" style="flex: 1 1 300px; max-width: 340px; min-width: 0; border-left: 1px solid #2C3039; background: #1B1E24; padding: 18px; display: flex; flex-direction: column; gap: 22px; overflow: auto">
+      <section style="display: flex; flex-direction: column; gap: 10px">
+        <h2 style="margin: 0; font-size: 13px; font-weight: 600">Step {{ sel }} · enters together</h2>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px">
+          <sc-for list="{{ selMembers }}" as="m" hint-placeholder-count="2">
+            <span style="padding: 5px 9px; border-radius: 999px; background: #23262E; border: 1px solid #343944; font-size: 12px">{{ m }}</span>
+          </sc-for>
+        </div>
+      </section>
+
+      <section style="display: flex; flex-direction: column; gap: 10px">
+        <h2 style="margin: 0; font-size: 13px; font-weight: 600">Transition</h2>
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px">
+          <sc-for list="{{ transOpts }}" as="o" hint-placeholder-count="8">
+            <button onClick="{{ o.pick }}" aria-pressed="{{ o.on }}" style="display: flex; flex-direction: column; gap: 2px; padding: 9px 10px; border-radius: 8px; cursor: pointer; text-align: left; background: {{ o.bg }}; border: 1px solid {{ o.border }}; color: #E8EAEE">
+              <span style="font-size: 12px; font-weight: 600">{{ o.label }}</span>
+              <span style="font-size: 11px; color: #9AA1AD">{{ o.hint }}</span>
+            </button>
+          </sc-for>
+        </div>
+        <span style="font-size: 11px; color: #9AA1AD">Click a frame below the slide to see it play.</span>
+      </section>
+
+      <section style="display: flex; flex-direction: column; gap: 10px">
+        <h2 style="margin: 0; font-size: 13px; font-weight: 600">Timing <span style="font-weight: 400; color: #9AA1AD">· whole slide</span></h2>
+        <div role="group" aria-label="Duration" style="display: flex; gap: 2px; background: #23262E; padding: 3px; border-radius: 8px">
+          <sc-for list="{{ durOpts }}" as="o" hint-placeholder-count="3">
+            <button onClick="{{ o.pick }}" aria-pressed="{{ o.on }}" style="flex: 1; padding: 7px 8px; border: 0; border-radius: 6px; font-size: 12px; cursor: pointer; background: {{ o.bg }}; color: #E8EAEE">{{ o.label }}</button>
+          </sc-for>
+        </div>
+        <div role="group" aria-label="Easing" style="display: flex; gap: 2px; background: #23262E; padding: 3px; border-radius: 8px">
+          <sc-for list="{{ easeOpts }}" as="o" hint-placeholder-count="3">
+            <button onClick="{{ o.pick }}" aria-pressed="{{ o.on }}" style="flex: 1; padding: 7px 8px; border: 0; border-radius: 6px; font-size: 12px; cursor: pointer; background: {{ o.bg }}; color: #E8EAEE">{{ o.label }}</button>
+          </sc-for>
+        </div>
+      </section>
+
+      <sc-if value="{{ isList }}" hint-placeholder-val="{{ true }}">
+        <section style="display: flex; flex-direction: column; gap: 10px">
+          <h2 style="margin: 0; font-size: 13px; font-weight: 600">List behaviour</h2>
+          <span style="font-size: 12px; color: #C3C8D2">Earlier list items</span>
+          <div role="group" aria-label="Earlier list items" style="display: flex; gap: 2px; background: #23262E; padding: 3px; border-radius: 8px">
+            <sc-for list="{{ earlierOpts }}" as="o" hint-placeholder-count="2">
+              <button onClick="{{ o.pick }}" aria-pressed="{{ o.on }}" style="flex: 1; padding: 7px 8px; border: 0; border-radius: 6px; font-size: 12px; cursor: pointer; background: {{ o.bg }}; color: #E8EAEE">{{ o.label }}</button>
+            </sc-for>
+          </div>
+          <span style="font-size: 12px; color: #C3C8D2">Detail panels</span>
+          <div role="group" aria-label="Detail panels" style="display: flex; gap: 2px; background: #23262E; padding: 3px; border-radius: 8px">
+            <sc-for list="{{ replaceOpts }}" as="o" hint-placeholder-count="2">
+              <button onClick="{{ o.pick }}" aria-pressed="{{ o.on }}" style="flex: 1; padding: 7px 8px; border: 0; border-radius: 6px; font-size: 12px; cursor: pointer; background: {{ o.bg }}; color: #E8EAEE">{{ o.label }}</button>
+            </sc-for>
+          </div>
+        </section>
+      </sc-if>
+    </aside>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+const EXAMPLES = {
+  list: {
+    label: 'List + detail', title: 'How the theme is built',
+    elements: [
+      { id: 'title', name: 'Title', kind: 'title' },
+      { id: 'l1', name: 'List item 1', kind: 'list', text: '1 · Background' },
+      { id: 'l2', name: 'List item 2', kind: 'list', text: '2 · Colour theme' },
+      { id: 'l3', name: 'List item 3', kind: 'list', text: '3 · Typography' },
+      { id: 'l4', name: 'List item 4', kind: 'list', text: '4 · Surfaces' },
+      { id: 'd1', name: 'Detail 1', short: 'D1', kind: 'detail', kicker: 'PART 1', head: 'Background', body: 'One picture behind the whole deck: solid, gradient, slowly moving gradient or pattern.' },
+      { id: 'd2', name: 'Detail 2', short: 'D2', kind: 'detail', kicker: 'PART 2', head: 'Colour theme', body: 'Primary, secondary and tertiary colours for structure, plus one impact colour for emphasis.' },
+      { id: 'd3', name: 'Detail 3', short: 'D3', kind: 'detail', kicker: 'PART 3', head: 'Typography', body: 'Heading, body and subtext fonts chosen together as a set from Google Fonts.' },
+      { id: 'd4', name: 'Detail 4', short: 'D4', kind: 'detail', kicker: 'PART 4', head: 'Surfaces', body: 'Slides sit clear on the background, frosted, or on a solid card.' },
+    ],
+    steps: { title: 0, l1: 1, d1: 1, l2: 2, d2: 2, l3: 3, d3: 3, l4: 4, d4: 4 },
+    trans: { 1: 'fade', 2: 'rise', 3: 'rise', 4: 'rise' },
+  },
+  venn: {
+    label: 'Venn reveal', title: 'Where a good slide comes from',
+    elements: [
+      { id: 'title', name: 'Title', kind: 'title' },
+      { id: 'ca', name: 'Circle · Theme', kind: 'circle', text: 'Theme', color: '#93C5FD', left: '30cqw', top: '16cqw', alignX: 'flex-start', alignY: 'flex-start' },
+      { id: 'cb', name: 'Circle · Layout', kind: 'circle', text: 'Layout', color: '#C4B5FD', left: '46cqw', top: '16cqw', alignX: 'flex-end', alignY: 'flex-start' },
+      { id: 'cc', name: 'Circle · Motion', kind: 'circle', text: 'Motion', color: '#5EEAD4', left: '38cqw', top: '30cqw', alignX: 'center', alignY: 'flex-end' },
+      { id: 'mid', name: 'Centre label', kind: 'label', text: 'Good slide' },
+    ],
+    steps: { title: 0, ca: 1, cb: 2, cc: 3, mid: 4 },
+    trans: { 1: 'scale', 2: 'scale', 3: 'scale', 4: 'fade' },
+  },
+};
+
+const VENN_BADGE_POS = {
+  ca: { left: '31cqw', top: '22cqw' }, cb: { left: '66cqw', top: '22cqw' },
+  cc: { left: '48.5cqw', top: '51cqw' }, mid: { left: '57cqw', top: '29cqw' },
+};
+
+const TRANSITIONS = [
+  { id: 'fade', label: 'Fade', hint: 'Opacity only', hidden: 'none', clip: false, stagger: false },
+  { id: 'rise', label: 'Rise', hint: 'Fade up a little', hidden: 'translateY(3cqw)', clip: false, stagger: false },
+  { id: 'slide', label: 'Slide in', hint: 'From the left', hidden: 'translateX(-5cqw)', clip: false, stagger: false },
+  { id: 'scale', label: 'Grow', hint: 'Scale up from small', hidden: 'scale(0.6)', clip: false, stagger: false },
+  { id: 'wipe', label: 'Wipe', hint: 'Reveal left to right', hidden: 'none', clip: true, stagger: false },
+  { id: 'wave', label: 'Wave', hint: 'Rise, one after another', hidden: 'translateY(3cqw)', clip: false, stagger: true },
+  { id: 'pop', label: 'Pop', hint: 'Grow with a bounce', hidden: 'scale(0.3)', clip: false, stagger: false },
+  { id: 'none', label: 'Cut', hint: 'Appear instantly', hidden: 'none', clip: false, stagger: false },
+];
+
+const DURATIONS = [{ value: 250, label: 'Quick' }, { value: 500, label: 'Normal' }, { value: 900, label: 'Slow' }];
+const EASINGS = [
+  { value: 'cubic-bezier(0.2, 0.7, 0.2, 1)', label: 'Ease out' },
+  { value: 'cubic-bezier(0.34, 1.56, 0.64, 1)', label: 'Springy' },
+  { value: 'linear', label: 'Linear' },
+];
+
+function byId(list, id, what) {
+  const hit = list.find((x) => x.id === id);
+  if (!hit) throw new Error('bug: this should never happen — unknown ' + what + ' "' + id + '"');
+  return hit;
+}
+
+function freshExampleState() {
+  return Object.keys(EXAMPLES).reduce((acc, key) => {
+    acc[key] = { steps: Object.assign({}, EXAMPLES[key].steps), trans: Object.assign({}, EXAMPLES[key].trans) };
+    return acc;
+  }, {});
+}
+
+function frameList(steps) {
+  return Object.keys(steps).map((k) => steps[k]).filter((n) => n > 0)
+    .filter((n, i, all) => all.indexOf(n) === i).sort((a, b) => a - b);
+}
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.timer = null;
+    this.state = {
+      example: 'list', data: freshExampleState(), frame: 1, sel: 1,
+      ordering: false, current: 1, peek: 'd1',
+      dur: 500, ease: EASINGS[0].value, earlier: 'dim', replace: true, playing: false,
+    };
+  }
+
+  componentWillUnmount() { this.stopTimer(); }
+
+  stopTimer() { if (this.timer) { clearInterval(this.timer); this.timer = null; } }
+
+  exData() {
+    const d = this.state.data[this.state.example];
+    if (!d) throw new Error('bug: this should never happen — no data for "' + this.state.example + '"');
+    return d;
+  }
+
+  transFor(step) {
+    if (step === 0) return byId(TRANSITIONS, 'none', 'transition');
+    const id = this.exData().trans[step];
+    if (!id) throw new Error('bug: this should never happen — step ' + step + ' has no transition');
+    return byId(TRANSITIONS, id, 'transition');
+  }
+
+  setExData(patch) {
+    const data = Object.assign({}, this.state.data);
+    data[this.state.example] = Object.assign({}, this.exData(), patch);
+    this.setState({ data });
+  }
+
+  goFrame(n) { this.setState({ frame: n, sel: n }); }
+
+  step(delta) {
+    const frames = frameList(this.exData().steps);
+    if (frames.length === 0) return;
+    const i = frames.indexOf(this.state.frame);
+    const nextI = Math.max(0, Math.min(frames.length - 1, (i === -1 ? 0 : i) + delta));
+    this.goFrame(frames[nextI]);
+  }
+
+  togglePlay() {
+    if (this.state.playing) { this.stopTimer(); this.setState({ playing: false }); return; }
+    const frames = frameList(this.exData().steps);
+    if (frames.length === 0) return;
+    this.goFrame(frames[0]);
+    this.setState({ playing: true, ordering: false });
+    this.timer = setInterval(() => {
+      const fs = frameList(this.exData().steps);
+      const i = fs.indexOf(this.state.frame);
+      if (i === -1 || i >= fs.length - 1) { this.stopTimer(); this.setState({ playing: false }); return; }
+      this.goFrame(fs[i + 1]);
+    }, this.state.dur + 1100);
+  }
+
+  assign(el) {
+    if (el.kind === 'title') return;
+    const d = this.exData();
+    const steps = Object.assign({}, d.steps, { [el.id]: this.state.current });
+    const trans = Object.assign({}, d.trans);
+    if (!trans[this.state.current]) trans[this.state.current] = 'fade';
+    this.setExData({ steps, trans });
+    if (el.kind === 'detail') this.setState({ peek: el.id });
+    this.setState({ sel: this.state.current });
+  }
+
+  clickElement(el) {
+    if (this.state.ordering) { this.assign(el); return; }
+    const step = this.exData().steps[el.id];
+    if (step > 0) this.goFrame(step);
+  }
+
+  isVisible(el, frame, steps, ex) {
+    const step = steps[el.id];
+    if (step === 0) return true;
+    if (step > frame) return false;
+    if (el.kind === 'detail' && this.state.replace) {
+      const replacedBy = ex.elements.find((o) => o.kind === 'detail' && o.id !== el.id && steps[o.id] > step && steps[o.id] <= frame);
+      return !replacedBy;
+    }
+    return true;
+  }
+
+  badge(stepN) {
+    const isCurrent = this.state.ordering && stepN === this.state.current;
+    return {
+      badge: stepN === 0 ? '–' : String(stepN),
+      badgeBg: isCurrent ? '#FBBF24' : stepN === 0 ? '#343944' : '#7AA2FF',
+      badgeFg: isCurrent ? '#1C1405' : stepN === 0 ? '#C3C8D2' : '#0B1020',
+    };
+  }
+
+  elementView(el, ex, steps) {
+    const s = this.state;
+    const step = steps[el.id];
+    const t = this.transFor(step);
+    const visible = s.ordering ? (el.kind !== 'detail' || el.id === s.peek) : this.isVisible(el, s.frame, steps, ex);
+    const sameStep = ex.elements.filter((o) => steps[o.id] === step);
+    const delay = t.stagger ? sameStep.indexOf(el) * 120 : 0;
+    const props = 'opacity, transform, clip-path';
+    const transition = t.id === 'none' ? 'none'
+      : props.split(', ').map((p) => p + ' ' + s.dur + 'ms ' + s.ease + ' ' + delay + 'ms').join(', ');
+    const earlier = !s.ordering && el.kind === 'list' && step > 0 && step < s.frame;
+    const active = !s.ordering && el.kind === 'list' && step === s.frame;
+    return Object.assign({}, el, this.badge(step), {
+      opacity: visible ? (earlier && s.earlier === 'dim' ? 0.45 : 1) : 0,
+      transform: visible ? 'none' : t.hidden,
+      clip: !visible && t.clip ? 'inset(0 100% 0 0)' : 'inset(0 0 0 0)',
+      transition,
+      bg: active ? '#93C5FD' : 'transparent',
+      fg: active ? '#0B1530' : '#E3E8F0',
+      weight: active ? 600 : 400,
+      fill: el.color ? el.color + '59' : 'transparent',
+      stroke: el.color || 'transparent',
+      click: () => this.clickElement(el),
+    });
+  }
+
+  segment(options, current, apply) {
+    return options.map((o) => ({
+      label: o.label, on: o.value === current, bg: o.value === current ? '#343944' : 'transparent',
+      pick: () => apply(o.value),
+    }));
+  }
+
+  renderVals() {
+    const s = this.state;
+    const ex = EXAMPLES[s.example];
+    if (!ex) throw new Error('bug: this should never happen — unknown example "' + s.example + '"');
+    const d = this.exData();
+    const steps = d.steps;
+    const frames = frameList(steps);
+    const views = ex.elements.map((el) => this.elementView(el, ex, steps));
+    const selTrans = s.sel > 0 && d.trans[s.sel] ? d.trans[s.sel] : null;
+
+    return {
+      ex,
+      isList: s.example === 'list', isVenn: s.example === 'venn',
+      ordering: s.ordering, notOrdering: !s.ordering, current: s.current, nextLabel: s.current + 1,
+      playing: s.playing, notPlaying: !s.playing, playLabel: s.playing ? 'Pause' : 'Play builds',
+      stageOutline: s.ordering ? '2px solid #FBBF24' : '0',
+      detailTop: s.ordering ? '7cqw' : '4cqw',
+      exampleOpts: this.segment(Object.keys(EXAMPLES).map((k) => ({ value: k, label: EXAMPLES[k].label })), s.example,
+        (v) => { this.stopTimer(); this.setState({ example: v, frame: 1, sel: 1, ordering: false, playing: false }); }),
+      startOrdering: () => { this.stopTimer(); this.setState({ ordering: true, current: 1, playing: false }); },
+      finishOrdering: () => { const fs = frameList(this.exData().steps); this.setState({ ordering: false, frame: fs.length ? fs[fs.length - 1] : 1 }); },
+      nextStep: () => this.setState({ current: s.current + 1 }),
+      clearOrder: () => {
+        const cleared = ex.elements.reduce((acc, el) => { acc[el.id] = 0; return acc; }, {});
+        this.setExData({ steps: cleared });
+        this.setState({ current: 1, sel: 1 });
+      },
+      layers: views.map((v) => {
+        const step = steps[v.id];
+        const inSel = step === s.sel && step > 0;
+        return {
+          name: v.name, badge: v.badge, badgeBg: v.badgeBg, badgeFg: v.badgeFg,
+          meta: step === 0 ? 'Always visible' : this.transFor(step).label + (v.kind === 'detail' && s.replace ? ' · replaced by next' : ''),
+          bg: inSel ? '#262D3D' : 'transparent', border: inSel ? '#3E5A92' : 'transparent',
+          click: v.click,
+        };
+      }),
+      listItems: views.filter((v) => v.kind === 'list'),
+      details: views.filter((v) => v.kind === 'detail'),
+      peekChips: views.filter((v) => v.kind === 'detail').map((v) => Object.assign({}, v, {
+        border: v.id === s.peek ? '#FBBF24' : 'rgba(255,255,255,0.3)',
+        click: () => this.assign(v),
+      })),
+      circles: views.filter((v) => v.kind === 'circle'),
+      vennLabels: views.filter((v) => v.kind === 'label'),
+      vennBadges: views.filter((v) => VENN_BADGE_POS[v.id]).map((v) => Object.assign({}, VENN_BADGE_POS[v.id], { badge: v.badge, badgeBg: v.badgeBg, badgeFg: v.badgeFg })),
+      frames: frames.map((n) => ({
+        n, on: n === s.frame, trans: this.transFor(n).label,
+        bg: n === s.frame ? '#2A3A5C' : '#23262E', border: n === s.frame ? '#7AA2FF' : '#2C3039',
+        sub: n === s.frame ? '#C9D8FF' : '#9AA1AD',
+        pick: () => this.goFrame(n),
+      })),
+      prev: () => this.step(-1), next: () => this.step(1), togglePlay: () => this.togglePlay(),
+      sel: s.sel,
+      selMembers: ex.elements.filter((el) => steps[el.id] === s.sel && s.sel > 0).map((el) => el.name),
+      transOpts: TRANSITIONS.map((t) => ({
+        label: t.label, hint: t.hint, on: t.id === selTrans,
+        bg: t.id === selTrans ? '#2A3A5C' : '#23262E', border: t.id === selTrans ? '#7AA2FF' : '#2C3039',
+        pick: () => {
+          const trans = Object.assign({}, d.trans, { [s.sel]: t.id });
+          this.setExData({ trans });
+          const before = frameList(steps).filter((n) => n < s.sel);
+          this.setState({ frame: before.length ? before[before.length - 1] : 0 });
+          setTimeout(() => this.setState({ frame: s.sel }), 60);
+        },
+      })),
+      durOpts: this.segment(DURATIONS, s.dur, (v) => this.setState({ dur: v })),
+      easeOpts: this.segment(EASINGS, s.ease, (v) => this.setState({ ease: v })),
+      earlierOpts: this.segment([{ value: 'keep', label: 'Keep' }, { value: 'dim', label: 'Dim' }], s.earlier, (v) => this.setState({ earlier: v })),
+      replaceOpts: this.segment([{ value: true, label: 'Replace previous' }, { value: false, label: 'Build up' }], s.replace, (v) => this.setState({ replace: v })),
+    };
+  }
+}
+</script>
+</body>
+</html>

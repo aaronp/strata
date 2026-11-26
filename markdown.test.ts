@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { parseMarkdown, plainText } from "./markdown";
+import { parseMarkdown, plainText, writeBlock, hasComment, stripPlaceholders, addPlaceholders, fixSlugs } from "./markdown";
 import { join } from "node:path";
 
 const MD = `<!--
@@ -68,7 +68,7 @@ test("missing slug line generates one with a warning", () => {
   const { sections, warnings, errors } = parseMarkdown("# Hello, World!\n\nText");
   expect(errors).toEqual([]);
   expect(sections[0].slug).toBe("hello-world");
-  expect(warnings).toEqual([{ line: 1, msg: 'no slug line; using "hello-world"' }]);
+  expect(warnings).toEqual([{ line: 1, msg: 'no slug line; using "hello-world"', fix: "slug" }]);
 });
 
 test("errors carry line numbers: bad slug, skipped level, no headings", () => {
@@ -129,7 +129,7 @@ test("parse: unresolved link is not an error", () => {
 test("parse: duplicate slugs", () => {
   const r = parseMarkdown("# A\nslug: a\n\n# B\nslug: a\n");
   expect(r.sections.map(s => s.slug)).toEqual(["a", "a-2"]);
-  expect(r.warnings).toContainEqual({ line: 4, msg: 'duplicate slug "a"; using "a-2"' });
+  expect(r.warnings).toContainEqual({ line: 4, msg: 'duplicate slug "a"; using "a-2"', fix: "slug" });
   expect(r.errors).toEqual([]);
 });
 
@@ -178,7 +178,7 @@ test("headings inside a multi-line comment are not slides", () => {
 test("an empty slug line falls back to the generated slug", () => {
   const { sections, warnings, errors } = parseMarkdown("# Hello World\nslug: \n\nHi.");
   expect(sections[0].slug).toBe("hello-world");
-  expect(warnings).toEqual([{ line: 1, msg: 'no slug line; using "hello-world"' }]);
+  expect(warnings).toEqual([{ line: 1, msg: 'no slug line; using "hello-world"', fix: "slug" }]);
   expect(errors).toEqual([]);
 });
 
@@ -199,4 +199,134 @@ test("insertSlide adds a sibling after the subtree, or a last child below", asyn
   const twice = insertSlide(after.md, 1, "after");
   expect(twice.slug).toBe("new-slide-2");
   expect(insertSlide("", 0, "below").md).toBe("# New slide\nslug: new-slide\n");
+});
+
+test("blocks carry endLine; lists carry each item's line", () => {
+  const md = "# T\nslug: t\n\nOne\ntwo\nthree\n\n- a\n- [link:t][T]\n  * b\n\n<!-- block -->\nx\n\ny\n<!-- /block -->\n\n![i](p.png)\n";
+  const s = parseMarkdown(md).sections[0];
+  expect(s.line).toBe(1);   // the heading is one line
+  const [body, links, list, group, img] = s.blocks;   // the links block is placed at its first chip, before the list ends
+  expect(body).toMatchObject({ key: "body", line: 4, endLine: 6 });
+  expect(list).toMatchObject({ key: "list", text: "a\nb", line: 8, endLine: 10, items: [8, 10] });
+  expect(links).toMatchObject({ key: "links", line: 9, endLine: 9 });
+  expect(group).toMatchObject({ key: "body", text: "x\n\ny", line: 13, endLine: 15 });
+  expect(img).toMatchObject({ key: "image", line: 18, endLine: 18 });
+});
+
+test("body lines: a trailing \\ is a line break; a leading \\ before - # ! is dropped; <\\!-- is text", () => {
+  const b = parseMarkdown("# T\nslug: t\n\na\\\n\\- b\n\\# c \\\\\nd <\\!-- e\n\n<!-- block -->\n\\- x\\\n<!-- /block -->\n").sections[0].blocks;
+  expect(b.map(x => [x.key, x.text])).toEqual([["body", "a\n- b # c \\\\ d <!-- e"], ["body", "- x"]]);
+});
+
+test("writeBlock: trailing and leading backslashes, a slug-like first line, an emptied last bullet; links/sources endLine", () => {
+  const md = "# T\nslug: t\n\nold\n\n- a\n\nz\n";
+  const body = writeBlock(md, "body", 4, 4, "C:\\\n\\- x\nC:\\")!;
+  expect(body).toBe("# T\nslug: t\n\nC:\\\\\\\n\\\\- x\\\nC:\\\\\n\n- a\n\nz\n");
+  expect(parseMarkdown(body).sections[0].blocks[0].text).toBe("C:\\\\\n\\\\- x\nC:\\\\");   // the app shows \\ as \
+  expect(writeBlock(md, "item", 6, 6, "")).toBe("# T\nslug: t\n\nold\n\nz\n");
+  const bare = "# T\n\nold\n", w = writeBlock(bare, "body", 3, 3, "slug: x")!;
+  expect(w).toBe("# T\n\nslug: x\n");   // a blank line between: no slug line, nothing to escape
+  expect(parseMarkdown(w).sections[0]).toMatchObject({ slug: "t", blocks: [{ text: "slug: x" }] });
+  const under = writeBlock("# T\nold\n", "body", 2, 2, "slug: x")!; expect(under).toBe("# T\n\\slug: x\n");
+  expect(parseMarkdown(under).sections[0]).toMatchObject({ slug: "t", blocks: [{ text: "slug: x" }] });
+  const ls = parseMarkdown("# T\nslug: t\n\n[link:t][A]\n\n[x](https://x.org)\n\n[link:t][B]\n\n[y](https://y.org)\n").sections[0].blocks;
+  expect(ls.map(b => [b.key, b.line, b.endLine])).toEqual([["links", 4, 8], ["sources", 6, 10]]);   // first use to last entry
+});
+
+test("writeBlock title: <!-- is escaped, and hasComment ignores headings as the parser does", () => {
+  const md = "# T\nslug: t\n\nBody.\n";
+  const w = writeBlock(md, "title", 1, 1, "a <!-- b")!;
+  expect(w.split("\n")[0]).toBe("# a <\\!-- b");
+  expect(parseMarkdown(w).sections[0]).toMatchObject({ title: "a <!-- b", blocks: [{ text: "Body." }] });
+  expect(hasComment(w, 4, 4)).toBe(false);
+  expect(hasComment("# a <!-- b\nslug: t\n\nBody.\n", 4, 4)).toBe(false);   // an old unescaped heading too
+  expect(hasComment("# T\n\n<!-- x\n# H\n-->\nBody.\n", 4, 4)).toBe(true);   // a heading inside a comment isn't one
+});
+
+test("writeBlock title: a trailing # is kept (C#)", () => {
+  const w = writeBlock("# T\nslug: t\n", "title", 1, 1, "C#")!;
+  expect(w).toBe("# C\\#\nslug: t\n");
+  expect(parseMarkdown(w).sections[0].title).toBe("C#");
+  expect(parseMarkdown("# Closed ##\nslug: t\n").sections[0].title).toBe("Closed");   // closing #s still go
+});
+
+test("writeBlock item: a bullet that is only a link stays a bullet", () => {
+  const md = "# T\nslug: t\n\n- a\n- b\n";
+  for (const t of ["[link:t][go]", "[go]{link=t}", "[q](https://x.org)"]) {
+    const w = writeBlock(md, "item", 4, 4, t)!, b = parseMarkdown(w).sections[0].blocks;
+    expect([t, b.map(x => x.key)]).toEqual([t, ["list"]]);
+    expect(b[0].text.split("\n")[0]).toMatch(/^\[\[(go|q)\]\{(link|href)=\S+\}\]\{\}$/);   // an empty span around the link
+  }
+});
+
+test("writeBlock body/group: untouched rows keep their source line exactly", () => {
+  const md = "# T\nslug: t\n\n  one  \\\ntwo\\\n   three\n\n<!-- block -->\n  x   \n\n  y\n<!-- /block -->\n";
+  expect(writeBlock(md, "body", 4, 6, "one\nTWO\nthree")).toBe("# T\nslug: t\n\n  one  \\\nTWO\\\n   three\n\n<!-- block -->\n  x   \n\n  y\n<!-- /block -->\n");
+  expect(writeBlock(md, "body", 4, 6, "one\ntwo")).toBe("# T\nslug: t\n\n  one  \\\ntwo\n\n<!-- block -->\n  x   \n\n  y\n<!-- /block -->\n");   // the new last row loses its break
+  expect(writeBlock(md, "group", 9, 11, "x\n\nY")).toBe("# T\nslug: t\n\n  one  \\\ntwo\\\n   three\n\n<!-- block -->\n  x   \n\nY\n<!-- /block -->\n");
+});
+
+test("writeBlock group/body: a leading \\slug: keeps its backslash", () => {
+  const md = "# T\nslug: t\n\n<!-- block -->\nx\n<!-- /block -->\n";
+  const w = writeBlock(md, "group", 5, 5, "\\slug: x")!;
+  expect(parseMarkdown(w).sections[0].blocks[0].text).toBe("\\\\slug: x");   // the app shows \\ as \, as for \- (it was "slug: x")
+  const b = writeBlock("# T\nslug: t\n\nold\n", "body", 4, 4, "\\slug: y")!;
+  expect(parseMarkdown(b).sections[0].blocks[0].text).toBe("\\\\slug: y");
+});
+
+// ---- template placeholders: ##…## lines in a slide's own section ----
+const PH = "# A\nslug: a\n<!-- children:\nx.md\n-->\n\nBody.\n\n## Kid\nslug: kid\n\nK.\n\n# B\nslug: b\n";
+test("addPlaceholders: after the section's last block, before its children's heading; blank-line separated; parsed as text, not headings", () => {
+  const out = addPlaceholders(PH, 1, { body: 2 });
+  expect(out).toBe("# A\nslug: a\n<!-- children:\nx.md\n-->\n\nBody.\n\n##Text##\n\n##Text##\n\n## Kid\nslug: kid\n\nK.\n\n# B\nslug: b\n");
+  const s = parseMarkdown(out).sections[0];
+  expect(s.blocks.map(b => [b.key, b.text])).toEqual([["body", "Body."], ["body", "##Text##"], ["body", "##Text##"]]);
+  expect(s.childSrc).toEqual(["x.md"]); expect(s.children[0].slug).toBe("kid");
+  expect(addPlaceholders(PH, 1, {})).toBe(PH);
+  expect(addPlaceholders("# T\nslug: t\n", 1, { subtitle: true, list: true, detail: 1 })).toBe("# T\nslug: t\n\n##Subtitle##\n\n- ##Point##\n- ##Point##\n- ##Point##\n\n##Detail##\n");
+  expect(addPlaceholders("# T\nslug: t", 1, { body: 1 })).toBe("# T\nslug: t\n\n##Text##");
+});
+
+test("stripPlaceholders: removes exactly-##…## paragraphs and items in that section only; inverse of addPlaceholders", () => {
+  for (const needs of [{ body: 2 }, { list: true }, { subtitle: true, detail: 3 }]) expect(stripPlaceholders(addPlaceholders(PH, 1, needs), 1)).toBe(PH);
+  expect(stripPlaceholders(addPlaceholders(PH, 9, { body: 1 }), 9)).toBe(PH);
+  const md = "# A\nslug: a\n\n##Text##\n\n##My own text, edited##x\n\n- real\n- ##Point##\n- also\n\n- ##Point##\n- ##Point##\n\nEnd.\n\n# B\nslug: b\n\n##Text##\n";
+  expect(stripPlaceholders(md, 1)).toBe("# A\nslug: a\n\n##My own text, edited##x\n\n- real\n- also\n\nEnd.\n\n# B\nslug: b\n\n##Text##\n");
+  expect(stripPlaceholders("# A\nslug: a\n\nOne\n##Text##\n", 1)).toBe("# A\nslug: a\n\nOne\n##Text##\n");   // part of a paragraph: real text
+});
+
+test.each([
+  ["a ##…## line in a <!-- block --> group", "<!-- block -->\nKept.\n\n##Note##\n\n<!-- /block -->"],
+  ["##…## and - ##…## inside an HTML comment (speaker notes)", "<!--\n\n##Todo##\n\n- ##Ask##\n-->"],
+  ["a - ##…## line continuing a paragraph", "Intro line\n- ##Point##"],
+  ["nested and indented list continuations", "- real\n  - ##Sub##\n- ##Point##\n  continued text"],
+  ["a - ##…## item with a nested line under it", "- ##Point##\n  - real sub"],
+  ["a ##…## line carrying a comment", "##Todo## <!-- why -->"],
+])("stripPlaceholders keeps user text byte-for-byte: %s", (_, body) => {
+  const md = "# A\nslug: a\n\n" + body + "\n\n# B\nslug: b\n";
+  expect(stripPlaceholders(md, 1)).toBe(md);
+});
+
+test("stripPlaceholders: the real placeholders next to a comment still go", () => {
+  expect(stripPlaceholders("# A\nslug: a\n\n<!--\n##Todo##\n-->\n\n##Text##\n\n- ##Point##\n- ##Point##\n\nEnd.\n", 1)).toBe("# A\nslug: a\n\n<!--\n##Todo##\n-->\n\nEnd.\n");
+});
+
+test("addPlaceholders / stripPlaceholders: a CRLF file with no trailing newline keeps CRLF throughout", () => {
+  const out = addPlaceholders("# A\r\nslug: a", 1, { body: 1 });
+  expect(out).toBe("# A\r\nslug: a\r\n\r\n##Text##");
+  expect(stripPlaceholders(out, 1)).toBe("# A\r\nslug: a");
+});
+
+test("fixSlugs writes the slug each heading is already using, so ids don't change", () => {
+  const md = "# Intro\nslug: intro\n\nHi.\n\n# Examples\n\n## Difficult\nslug:\n\n## Soft\nslug: intro\n\n### Really Soft\n<!--\nchildren:\n  ./x.md\n-->\n";
+  const before = parseMarkdown(md);
+  expect(before.warnings.filter(w => w.fix === "slug").length).toBe(4);
+  const out = fixSlugs(md);
+  expect(out).toBe("# Intro\nslug: intro\n\nHi.\n\n# Examples\nslug: examples\n\n## Difficult\nslug: difficult\n\n## Soft\nslug: intro-2\n\n### Really Soft\nslug: really-soft\n<!--\nchildren:\n  ./x.md\n-->\n");
+  const ids = (p: any) => { const o: string[] = []; const walk = (s: any[]) => s.forEach(x => { o.push(x.slug); walk(x.children); }); walk(p.sections); return o; };
+  const after = parseMarkdown(out);
+  expect(ids(after)).toEqual(ids(before));
+  expect(after.warnings.filter(w => w.fix === "slug")).toEqual([]);
+  expect(fixSlugs(out)).toBe(out);
+  expect(fixSlugs("# A\r\n\r\nx\r\n")).toBe("# A\r\nslug: a\r\n\r\nx\r\n");
 });

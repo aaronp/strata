@@ -4,29 +4,28 @@ import { join } from "node:path";
 
 const html = await Bun.file(join(import.meta.dir, "design/Layers.dc.html")).text();
 const js = html.split(/<script type="text\/x-dc" data-dc-script[^>]*>/)[1].split("</script>")[0];
-const Component = new Function("DCLogic", js + "\nreturn Component;")(class { props: any; constructor(p: any) { this.props = p; } });
+const Component = new Function("DCLogic", "window", js + "\nreturn Component;")(class { props: any; constructor(p: any) { this.props = p; } }, { StrataSanitize: await import("./layout-sanitize") });
 const render = (props: any) => new Component(props).renderVals();
 const HELPER = new Function("DCLogic", js + "\nreturn HELPER;")(class {});
 
 const txt = (extra = {}) => ({ id: "t", type: "text", text: "Hi", x: 0, y: 0, w: 10, h: 10, ...extra });
 const shape = { id: "s", type: "shape", x: 0, y: 0, w: 10, h: 10 };
-const CARD = { color: "#0b1220", opacity: 0.5, blur: 6 };
-
-test("no deck card: text is drawn as before", () => {
+test("no surface: text is drawn as before", () => {
   const v = render({ layers: [txt()], shadow: "0 1px 2px #000" });
   expect(v.items[0]).toMatchObject({ cardBg: "transparent", cardBlur: "none", shadow: "0 1px 2px #000" });
   expect(v.slideCard).toBe(false);
 });
 
-test("a layer's own card setting overrides the deck", () => {
-  expect(render({ layers: [txt({ card: "off" })], card: { mode: "slide", ...CARD } }).items[0].cardBg).toBe("transparent");
-});
-
-test("'whole slide' draws one overlay under all layers", () => {
-  const v = render({ layers: [txt()], card: { mode: "slide", ...CARD } });
-  expect(v).toMatchObject({ slideCard: true, slideBg: "rgba(11,18,32,0.5)", slideBlur: "blur(6px)" });
+test("a theme surface draws one whole-slide overlay under all layers", () => {
+  const v = render({ layers: [txt()], surface: { bg: "rgba(15,18,32,0.35)", blur: "blur(8px)" } });
+  expect(v).toMatchObject({ slideCard: true, slideBg: "rgba(15,18,32,0.35)", slideBlur: "blur(8px)" });
   expect(v.items[0].cardBg).toBe("transparent");
   expect(html).toContain('<sc-if value="{{ slideCard }}">');
+});
+
+test("theme fonts arrive as CSS families; the old font keys still map", () => {
+  expect(render({ layers: [txt({ font: "'Space Grotesk', sans-serif" })] }).items[0].font).toBe("'Space Grotesk', sans-serif");
+  expect(render({ layers: [txt({ font: "serif" })] }).items[0].font).toBe("'DM Serif Display',serif");
 });
 
 const BOX = { bg: "#ffffff", bgOpacity: 0.25, blur: 4, border: 2, borderColor: "#d9432b", radius: 16, pad: 24 };
@@ -76,7 +75,7 @@ test("a live component renders a sandboxed iframe running the helper, then the s
   expect(html).not.toContain("allow-same-origin");
 });
 
-test("the same component keeps an identical src across frames (no reload), but not across slides", () => {
+test("the same component keeps an identical src across steps (no reload), but not across slides", () => {
   const a = render({ layers: [comp({ x: 0 })], live: "s1" }).items[0].src;
   expect(render({ layers: [comp({ x: 40, w: 20, opacity: 0.5 })], live: "s1" }).items[0].src).toBe(a);
   expect(render({ layers: [comp()], live: "s2" }).items[0].src).not.toBe(a);
@@ -119,7 +118,7 @@ test("helper relays navigation keys pressed inside the component unless it handl
   expect(posted).toEqual([{ strata: 1, type: "key", key: "ArrowRight", shiftKey: false }, { strata: 1, type: "key", key: " ", shiftKey: true }]);
 });
 
-test("a component that isn't showing in this frame doesn't catch clicks", () => {
+test("a component that isn't showing in this step doesn't catch clicks", () => {
   expect(render({ layers: [comp()], live: "s1" }).items[0].pe).toBe("auto");
   expect(render({ layers: [comp({ opacity: 0 })], live: "s1" }).items[0].pe).toBe("none");
   expect(html).toContain("pointer-events:{{ e.pe }}");
@@ -142,4 +141,59 @@ test("link runs are underlined and clickable only when links are live; broken on
   const off = render({ layers: [txt({ text: "abc", _lines: L })] }).items[0].lines[0].runs;
   expect(off.map((r: any) => r.pe)).toEqual(["", "", ""]);
   expect(html).toContain('data-link="{{ r.lnk }}"');
+});
+
+test("a layer's build style (opacity, transform, clip, transition) goes on its outer div", () => {
+  const b = { opacity: 0, transform: "scale(0.6)", clip: "inset(0 0 0 0)", transition: "none" };
+  const it = render({ layers: [{ ...shape, rot: 5, build: b }] }).items[0];
+  expect(it).toMatchObject({ op: 0, transform: "scale(0.6) rotate(5deg)", bclip: "inset(0 0 0 0)", tr: "none" });
+  expect(render({ layers: [shape] }).items[0]).toMatchObject({ op: 1, transform: "rotate(0deg)", bclip: "none", tr: "none" });
+  expect(html).toMatch(/data-lid="\{\{ e\.lid \}\}" style="[^"]*transform:\{\{ e\.transform \}\};[^"]*clip-path:\{\{ e\.bclip \}\};[^"]*transition:\{\{ e\.tr \}\}/);
+  expect(html).not.toContain("e.tr2");
+});
+
+test("shapes: kind sets the corners, a border draws in the shape's stroke colour, and the blend mode goes on the layer", () => {
+  const sh = (o = {}) => render({ layers: [{ ...shape, ...o }] }).items[0];
+  expect(sh({ kind: "ellipse", fill: "#93c5fd59", stroke: "#93c5fd", border: { width: 2, style: "dashed" }, blend: "screen" }))
+    .toMatchObject({ isShape: true, isLine: false, radius: "50%", fill: "#93c5fd59", border: "0.2cqw dashed #93c5fd", blend: "screen" });
+  expect(sh({ kind: "round" }).radius).toBe("3cqw"); expect(sh({ kind: "rect" }).radius).toBe("0");
+  expect(sh({ border: { width: 0, style: "solid" } }).border).toBe("0"); expect(sh().blend).toBe("normal");
+  expect(html).toContain("mix-blend-mode:{{ e.blend }}"); expect(html).toContain("border:{{ e.border }}");
+});
+
+test("lines and arrows: an SVG line across the box in the drawn direction; arrows end in an arrowhead", () => {
+  const ln = (o = {}) => render({ layers: [{ ...shape, id: "q", kind: "line", stroke: "#fff", border: { width: 5, style: "solid" }, ...o }] }).items[0];
+  expect(ln()).toMatchObject({ isShape: false, isLine: true, x1: "0%", y1: "0%", x2: "100%", y2: "100%", sw: "0.5cqw", stroke: "#fff", mark: "none" });
+  expect(ln({ flip: true })).toMatchObject({ x1: "0%", y1: "100%", x2: "100%", y2: "0%" });                  // dragged up-right
+  expect(ln({ flip: true, back: true })).toMatchObject({ x1: "100%", y1: "0%", x2: "0%", y2: "100%" });     // dragged down-left
+  expect(ln({ kind: "arrow" })).toMatchObject({ mark: "url(#ah-q)", mid: "ah-q" });
+  expect(html).toContain('<sc-if value="{{ e.isLine }}">'); expect(html).toContain("marker-end:{{ e.mark }}");
+});
+
+test("unsafe values from a layout file never reach a style string: each falls back to the default", () => {
+  const semi = (o: any): boolean => typeof o === "string" ? o.includes(";") : o && typeof o === "object" ? Object.values(o).some(semi) : false;
+  const v = render({ ink: "#111111", layers: [
+    txt({ font: "x;background:url(http://t)", color: "red;top:0", blend: "x;y", _lines: [[{ text: "Hi", color: "red;x", font: "a;b" }]] }),
+    { ...shape, fill: "a;b", stroke: "red;x", border: { width: "3;x", style: "x;y" } },
+    { ...shape, kind: "line", stroke: "red;x", border: { width: 99, style: "x;y" } },
+    { id: "i", type: "icon", x: 0, y: 0, w: 10, h: 10, fill: "red;x" },
+    txt({ card: "custom", box: { ...BOX, borderColor: "red;x" } }),
+  ] });
+  expect(semi(v.items)).toBe(false);
+  expect(v.items[0]).toMatchObject({ font: "'Bricolage Grotesque',sans-serif", color: "#111111", blend: "normal" });
+  expect(v.items[0].lines[0].runs[0]).toMatchObject({ col: "", fam: "" });
+  expect(v.items[1]).toMatchObject({ fill: "#d9432b", border: "0" });
+  expect(v.items[2]).toMatchObject({ stroke: "#111111", sw: "1cqw", dash: "none" });   // width clamped to 10
+  expect(v.items[3].fill).toBe("#111111"); expect(v.items[4].cardBorder).toBe("0.125cqw solid #ffffff");
+  expect(render({ layers: [{ ...shape, fill: "#d9432b59", border: { width: 2, style: "dashed" }, stroke: "#123" }] }).items[0]).toMatchObject({ fill: "#d9432b59", border: "0.2cqw dashed #123" });
+});
+
+test("a bullet's marker takes the layer's markColor; without one it follows the text", () => {
+  expect(render({ layers: [txt({ bullets: "disc", markColor: "#93C5FD" })] }).items[0].markCol).toBe("#93C5FD");
+  expect(render({ layers: [txt({ bullets: "disc", markColor: "x;y" })] }).items[0].markCol).toBe("");
+  expect(html).toContain("color:{{ e.markCol }}");
+});
+
+test("a custom box's border can be translucent (borderOpacity)", () => {
+  expect(render({ layers: [txt({ card: "custom", box: { ...BOX, border: 2.4, borderColor: "#FFFFFF", borderOpacity: 0.22 } })] }).items[0].cardBorder).toBe("0.15cqw solid rgba(255,255,255,0.22)");
 });

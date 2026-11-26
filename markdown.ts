@@ -1,9 +1,9 @@
 // Parses a markdown outline into a slide tree. Pure: no I/O, no imports.
-export type Issue = { line: number; msg: string };
+export type Issue = { line: number; msg: string; fix?: "slug" };   // fix: fixSlugs() can write it
 export type Chip = { label: string; ref: string; line: number; target?: string; into?: string; path?: string[]; via?: string };
 export type Source = { text: string; url: string };
 export type BlockKey = "body" | "list" | "links" | "sources" | "image";
-export type Block = { key: BlockKey; text: string; line: number; url?: string; alt?: string };   // url/alt for image; text is inline markup
+export type Block = { key: BlockKey; text: string; line: number; endLine: number; items?: number[]; group?: boolean; url?: string; alt?: string };   // lines are 1-based, endLine inclusive; items: a list's item lines (one per text line); group: from <!-- block -->; url/alt for image; text is inline markup
 export type Section = {
   slug: string; title: string; line: number; depth: number;
   body: string;          // raw markdown body (slide notes)
@@ -14,7 +14,8 @@ export type Section = {
 };
 
 const SLUG_RE = /^[a-z0-9-]+$/;
-const HEADING = /^(#{1,6})\s+(.+?)\s*#*\s*$/;
+const HEADING = /^(#{1,6})\s+(.+?)\s*(?<!\\)#*\s*$/;   // closing #s go; an escaped one (C\#) stays in the title
+const untitle = (t: string) => t.replace(/<\\!--/g, "<!--").replace(/\\#$/, "#");   // a title's own escapes (what writeBlock adds)
 const SLUG_LINE = /^slug:\s*(\S*)\s*$/;
 const IMG = /^!\[([^\]]*)\]\(([^)\s]+)\)$/;
 const ITEM = /^\s*[-*]\s+(.*)$/;
@@ -30,6 +31,10 @@ export function plainText(t: string): string {
 const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 
 type Line = { text: string; line: number };
+// A body line's own escapes (what writeBlock adds): a leading \ before - # ! or slug: keeps it from being a list item, heading, image or slug line; <\!-- (in any text) isn't a comment.
+const unline = (t: string) => t.trim().replace(/^\\(?=[-#!]|slug:)/, "");
+// A line ending in an unescaped \ is a hard break (as in CommonMark): the paragraph keeps a line break there.
+const hardBreak = (t: string) => /(^|[^\\])(\\\\)*\\$/.test(t);
 
 function parseBody(lines: Line[]) {
   const links: Chip[] = [], inline: Chip[] = [], sources: Source[] = [], blocks: Block[] = [];
@@ -47,46 +52,46 @@ function parseBody(lines: Line[]) {
     clean.push({ text: out, line: l.line });
   }
   const rewrite = (raw: string, line: number) => {
-    const text = raw
+    const text = raw.replace(/<\\!--/g, "<!--")
       .replace(CHIP, (_, ref, label) => `[${label.trim()}]{link=${ref.trim()}}`)   // a chip mid-sentence is an inline link
       .replace(EXT, (_, txt, url) => `[${txt}]{href=${url}}`);                       // so is a web link; inline markup is kept for the app to render
     for (const m of text.matchAll(/\]\{([^}]*)\}/g)) for (const tok of m[1].split(/\s+/)) { const k = /^link=(\S+)$/.exec(tok); if (k) inline.push({ ref: k[1], label: "", line }); }
     return text;
   };
   // A chip-only or source-only entry joins the links / sources block instead of the text.
-  const special = (t: string, line: number) => {
+  const special = (t: string, line: number, end = line) => {
     const only = CHIP_ONLY.exec(t), spanOnly = /^\[((?:\\.|[^\]\\])*)\]\{link=([^}\s]+)\}$/.exec(t);   // a line that is only an inline slide link is a chip too
     const chip = only ? { ref: only[1].trim(), label: only[2].trim(), line } : spanOnly ? { ref: spanOnly[2], label: spanOnly[1].replace(/\\([*[\]{}\\])/g, "$1"), line } : null;
-    if (chip) { links.push(chip); if (!lb) blocks.push(lb = { key: "links", text: "", line }); lb.text = links.map(l => l.label).join("\n"); return true; }
+    if (chip) { links.push(chip); if (!lb) blocks.push(lb = { key: "links", text: "", line, endLine: end }); lb.endLine = end; lb.text = links.map(l => l.label).join("\n"); return true; }
     const exts = [...t.matchAll(EXT)];
     if (!exts.length || t.replace(EXT, "").replace(/[·|,;\s]/g, "")) return false;
     exts.forEach(m => sources.push({ text: m[1], url: m[2] }));
-    if (!sb) blocks.push(sb = { key: "sources", text: "", line });
+    if (!sb) blocks.push(sb = { key: "sources", text: "", line, endLine: end }); sb.endLine = end;
     sb.text = sources.map(s => `[${s.text}]{href=${s.url}}`).join("\n");
     return true;
   };
   const para = (blk: Line[]) => {
     if (blk.every(l => ITEM.test(l.text))) {
-      const items: string[] = [];
-      blk.forEach(l => { const t = ITEM.exec(l.text)![1].trim(); if (!special(t, l.line)) items.push(rewrite(t, l.line)); });
-      if (items.length) blocks.push({ key: "list", text: items.join("\n"), line: blk[0].line });
+      const items: string[] = [], at: number[] = [];
+      blk.forEach(l => { const t = ITEM.exec(l.text)![1].trim(); if (!special(t, l.line)) { items.push(rewrite(t, l.line)); at.push(l.line); } });
+      if (items.length) blocks.push({ key: "list", text: items.join("\n"), line: blk[0].line, endLine: blk[blk.length - 1].line, items: at });
       return;
     }
     let txt: Line[] = [];
     const flushText = () => {
-      const t = txt.map(l => l.text.trim()).join(" ");
-      if (txt.length && !special(t, txt[0].line)) blocks.push({ key: "body", text: rewrite(t, txt[0].line), line: txt[0].line });
+      const t = txt.map((l, k) => { const u = unline(l.text), h = hardBreak(u); return (h ? u.slice(0, -1) : u) + (k === txt.length - 1 ? "" : h ? "\n" : " "); }).join("");
+      if (txt.length && !special(t, txt[0].line, txt[txt.length - 1].line)) blocks.push({ key: "body", text: rewrite(t, txt[0].line), line: txt[0].line, endLine: txt[txt.length - 1].line });
       txt = [];
     };
     for (const l of blk) {
       const im = IMG.exec(l.text.trim());
-      if (im) { flushText(); blocks.push({ key: "image", text: im[1], line: l.line, url: im[2], alt: im[1] }); } else txt.push(l);
+      if (im) { flushText(); blocks.push({ key: "image", text: im[1], line: l.line, endLine: l.line, url: im[2], alt: im[1] }); } else txt.push(l);
     }
     flushText();
   };
   const group = (g: Line[]) => {
-    const first = g.find(l => l.text.trim());
-    if (first) blocks.push({ key: "body", text: g.map(l => rewrite(l.text.trim(), l.line)).join("\n").trim(), line: first.line });
+    const full = g.filter(l => l.text.trim());
+    if (full.length) blocks.push({ key: "body", text: g.map(l => { const u = unline(l.text); return rewrite(hardBreak(u) ? u.slice(0, -1) : u, l.line); }).join("\n").trim(), line: full[0].line, endLine: full[full.length - 1].line, group: true });
   };
   let cur: Line[] = [], grp: Line[] | null = null;
   const flush = () => { if (cur.length) para(cur); cur = []; };
@@ -114,10 +119,10 @@ export function parseMarkdown(md: string): { sections: Section[]; errors: Issue[
   for (; i < lines.length; i++) {
     const h = inC ? null : HEADING.exec(lines[i]);
     if (h) {
-      const r: Raw = { level: h[1].length, title: h[2], slug: "", line: i + 1, body: [], childSrc: [] };
+      const r: Raw = { level: h[1].length, title: untitle(h[2]), slug: "", line: i + 1, body: [], childSrc: [] };
       const s = SLUG_LINE.exec(lines[i + 1] ?? "");
       if (s?.[1]) { i++; r.slug = s[1]; if (!SLUG_RE.test(s[1])) errors.push({ line: i + 1, msg: `invalid slug "${s[1]}" (use a-z, 0-9 and -)` }); }
-      else { if (s) i++; r.slug = slugify(plainText(r.title)) || `section-${r.line}`; warnings.push({ line: r.line, msg: `no slug line; using "${r.slug}"` }); }
+      else { if (s) i++; r.slug = slugify(plainText(r.title)) || `section-${r.line}`; warnings.push({ line: r.line, msg: `no slug line; using "${r.slug}"`, fix: "slug" }); }
       if (lines[i + 1]?.trimStart().startsWith("<!--")) {   // a comment right under the heading may list the child decks
         let j = i + 1; while (j < lines.length - 1 && !lines[j].includes("-->")) j++;
         const c = /<!--\s*children:([\s\S]*?)-->/.exec(lines.slice(i + 1, j + 1).join("\n"));
@@ -137,7 +142,7 @@ export function parseMarkdown(md: string): { sections: Section[]; errors: Issue[
     if (seen.has(r.slug)) {
       let n = 2; while (seen.has(`${r.slug}-${n}`)) n++;
       const old = r.slug; r.slug = `${old}-${n}`;
-      warnings.push({ line: r.line, msg: `duplicate slug "${old}"; using "${r.slug}"` });
+      warnings.push({ line: r.line, msg: `duplicate slug "${old}"; using "${r.slug}"`, fix: "slug" });
     }
     seen.add(r.slug);
   }
@@ -189,4 +194,113 @@ export function insertSlide(md: string, line: number, where: "after" | "below"):
   if (end) { lines.splice(end.line - 1, 0, ...block); return { md: lines.join("\n"), slug }; }
   const body = md.replace(/\s*$/, "");
   return { md: (body ? body + "\n\n" : "") + block.join("\n"), slug };
+}
+
+// Whether lines line..endLine hold an HTML comment: a <!-- in them, or one still open from above (then their --> closes it). A --> with nothing open is just text.
+export function hasComment(md: string, line: number, endLine: number): boolean {
+  const lines = md.split(/\r?\n/); let open = false;
+  for (let i = 0; i < endLine; i++) {
+    if (!open && HEADING.test(lines[i])) continue;   // a heading line is never a comment (as in parseMarkdown)
+    if (i >= line - 1 && (open || lines[i].includes("<!--"))) return true;
+    for (let t = lines[i]; ;) { const k = t.indexOf(open ? "-->" : "<!--"); if (k < 0) break; t = t.slice(k + (open ? 3 : 4)); open = !open; }
+  }
+  return false;
+}
+// Writes an in-place edit back: `text` (inline markup, lines split on \n) replaces lines line..endLine of md.
+// title: the heading line, keeping its #s (one line; empty is refused: null). item: one list line per text line, keeping marker and indent; empty lines go.
+// body: one markdown line per text line, joined by hard breaks (a trailing \); a line that would parse as something else is escaped. group (<!-- block -->): its lines as they are.
+// An emptied body, group or item is removed, with one blank line if that would leave two. <!-- is always written <\!--; a title's trailing # is written \#; a bullet that
+// would parse as a chip or source is wrapped [...]{}. A body/group row the edit didn't change keeps its source line exactly. Other lines are untouched; written lines keep the file's line ending.
+export function writeBlock(md: string, kind: "title" | "body" | "group" | "item", line: number, endLine: number, text: string): string | null {
+  const lines = md.split("\n"), cr = md.includes("\r\n") ? "\r" : "", old = (lines[line - 1] ?? "").replace(/\r$/, ""), rows = text.split("\n").map(r => r.trim());
+  let put: string[];
+  if (kind === "title") {
+    const t = rows.filter(Boolean).join(" ");
+    if (!plainText(t).trim()) return null;
+    put = [(/^#{1,6}/.exec(old)?.[0] ?? "#") + " " + t.replace(/<!--/g, "<\\!--").replace(/#$/, "\\#")];   // a trailing # would read as a closing one
+  } else if (kind === "item") put = rows.filter(Boolean).map(r => { r = r.replace(/<!--/g, "<\\!--");
+    if (parseBody([{ text: "- " + r, line: 1 }]).blocks[0]?.key !== "list") r = "[" + r + "]{}";   // a lone chip or source link: an empty span keeps it a bullet
+    return (/^\s*[-*]\s+/.exec(old)?.[0] ?? "- ") + r; });
+  else {
+    while (rows.length && !rows[0]) rows.shift();
+    while (rows.length && !rows[rows.length - 1]) rows.pop();
+    const underHeading = HEADING.test(lines[line - 2] ?? "");   // no slug line: a "slug:" first line would become one
+    // The block as it is now, one row per source line? Then a row the edit didn't change keeps its line as written (indent, spacing).
+    const src = lines.slice(line - 1, endLine).map(l => l.replace(/\r$/, ""));
+    const was = parseBody((kind === "group" ? ["<!-- block -->", ...src, "<!-- /block -->"] : src).map(text => ({ text, line: 1 }))).blocks;
+    const oldRows = was.length === 1 && was[0].key === "body" && was[0].text.split("\n").length === src.length ? was[0].text.split("\n") : null;
+    put = rows.map((r, k) => {
+      if (oldRows && k < oldRows.length && r === oldRows[k].trim() && (kind === "group" || (k === rows.length - 1) === (k === oldRows.length - 1))) return src[k];   // a body row's trailing \ (a break) must still match
+      r = r.replace(/<!--/g, "<\\!--").replace(/^(?=\\([-#!]|slug:)|#{1,6}(\s|$))/, "\\");   // a \ the parser would drop, a heading: escaped (headings are found even in groups)
+      if (hardBreak(r)) r += "\\";   // a line ending in \ keeps it
+      if (kind === "group") return r;
+      if (/^([-*](\s|$)|!\[)/.test(r) || (!k && underHeading && SLUG_LINE.test(r))) r = "\\" + r;
+      return r + (k < rows.length - 1 ? "\\" : "");
+    });
+    const probe = parseBody(put.map(text => ({ text, line: 1 }))).blocks;
+    if (kind === "body" && put.length === 1 && probe[0]?.key !== "body") put[0] = "[" + put[0] + "]{}";   // a lone chip or source link: an empty span keeps it text
+  }
+  put = put.map(r => r + cr);
+  const gap = !put.length && kind !== "title" && !lines[line - 2]?.trim() && !lines[endLine]?.trim() && endLine < lines.length - 1 ? 1 : 0;   // don't leave two blank lines
+  lines.splice(line - 1, endLine - line + 1 + gap, ...put);
+  return lines.join("\n");
+}
+
+// ---- Template placeholders: a whole line ##words## (no space after ##, so never a heading). A paragraph that is just that, or an unindented bullet "- ##words##".
+const PH_LINE = /^##[^#\n]+##$/, PH_ITEM = /^[-*]\s+##[^#\n]+##\s*$/;
+// The slide's own section (heading on `line`): its lines as indexes [line, end) — up to the next heading, its children's included — and its parsed section.
+function ownSection(md: string, line: number) {
+  const flat: Section[] = [], walk = (ss: Section[]) => ss.forEach(s => { flat.push(s); walk(s.children); });
+  walk(parseMarkdown(md).sections);
+  const lines = md.split("\n"), next = flat.find(s => s.line > line);
+  return { lines, end: next ? next.line - 1 : lines.length, sec: flat.find(s => s.line === line) };
+}
+const blank = (s?: string) => s !== undefined && !s.trim();
+// The lines (1-based, ascending) stripPlaceholders removes. Candidates come from the parser, so text in comments, groups and longer paragraphs is never touched:
+// a one-line paragraph that is exactly ##…##, and a list item whose own line is exactly "- ##…##" with no indented line under it. A run of them goes with the
+// blank line before it when a blank (or the section's end) follows, so an emptied list leaves no gap.
+export function placeholderLines(md: string, line: number): number[] {
+  const { lines, end, sec } = ownSection(md, line), t = (i: number) => (lines[i] ?? "").replace(/\r$/, "");
+  const gone = new Set<number>();   // 0-based
+  for (const b of sec?.blocks ?? []) {
+    if (b.key === "body" && !b.group && b.line === b.endLine && PH_LINE.test(b.text) && PH_LINE.test(t(b.line - 1).trim())) gone.add(b.line - 1);
+    if (b.key === "list") for (const ln of b.items!) if (PH_ITEM.test(t(ln - 1)) && !(ln < b.endLine && /^\s/.test(t(ln)))) gone.add(ln - 1);
+  }
+  for (const i of [...gone].sort((x, y) => x - y)) if (!gone.has(i - 1)) {
+    let j = i; while (gone.has(j + 1)) j++;
+    if (i - 1 >= line && blank(t(i - 1)) && (j + 1 >= end || blank(t(j + 1)))) gone.add(i - 1);
+  }
+  return [...gone].sort((x, y) => x - y).map(i => i + 1);
+}
+// Removes the slide's untouched placeholders (see placeholderLines).
+export function stripPlaceholders(md: string, line: number): string {
+  const gone = new Set(placeholderLines(md, line)), lines = md.split("\n"), out = lines.filter((_, i) => !gone.has(i + 1));
+  if (gone.has(lines.length) && out.length) out[out.length - 1] = out[out.length - 1].replace(/\r$/, "");   // the file's last line went: no stray \r
+  return out.join("\n");
+}
+// Adds placeholder blocks after the section's last non-blank line (subtitle, bodies, a three-point list, details), blank-line separated.
+export function addPlaceholders(md: string, line: number, needs: { body?: number; list?: boolean; detail?: number; subtitle?: boolean }): string {
+  const blocks = [...(needs.subtitle ? ["##Subtitle##"] : []), ...Array(needs.body || 0).fill("##Text##"),
+    ...(needs.list ? ["- ##Point##\n- ##Point##\n- ##Point##"] : []), ...Array(needs.detail || 0).fill("##Detail##")];
+  if (!blocks.length) return md;
+  const { lines, end } = ownSection(md, line), cr = md.includes("\r\n") ? "\r" : "";
+  let last = end - 1; while (last >= line && blank(lines[last])) last--;
+  const put = blocks.flatMap(b => ["", ...b.split("\n")]).map(r => r + cr);
+  if (cr && last + 1 === lines.length) { lines[last] = lines[last].replace(/\r?$/, cr); put[put.length - 1] = put[put.length - 1].slice(0, -1); }   // at the end of a file with no final newline
+  lines.splice(last + 1, 0, ...put);
+  return lines.join("\n");
+}
+
+// Writes a `slug:` line under every heading that lacks one (or has an empty or duplicate one), using the id the parser already
+// picked, so slide ids and their layouts stay the same. Headings that already have their own slug line are left alone.
+export function fixSlugs(md: string): string {
+  const nl = md.includes("\r\n") ? "\r\n" : "\n", lines = md.split(/\r?\n/);
+  const fix = new Set(parseMarkdown(md).warnings.filter(w => w.fix === "slug").map(w => w.line));
+  const slugAt = new Map<number, string>(); const walk = (ss: Section[]) => ss.forEach(x => { slugAt.set(x.line, x.slug); walk(x.children); });
+  walk(parseMarkdown(md).sections);
+  for (const line of [...fix].sort((a, b) => b - a)) {   // bottom up, so earlier line numbers stay put
+    const slug = slugAt.get(line); if (!slug) continue;
+    if (SLUG_LINE.test(lines[line] ?? "")) lines[line] = "slug: " + slug; else lines.splice(line, 0, "slug: " + slug);
+  }
+  return lines.join(nl);
 }

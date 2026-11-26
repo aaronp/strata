@@ -14,6 +14,7 @@ beforeEach(async () => {
   await Bun.write(join(root, "design/strata.dc.html"), "<x-dc>app</x-dc>");
   await Bun.write(join(root, "server.ts"), "secret");
   await Bun.write(join(root, "markdown.ts"), Bun.file("markdown.ts"));
+  for (const f of ["theme.ts", "builds.ts", "layout-sanitize.ts"]) await Bun.write(join(root, f), Bun.file(f));
   await Bun.write(join(root, "decks/talk/talk.md"), "# My Talk\n");
 });
 
@@ -100,6 +101,9 @@ test("md.js is served and defines StrataMd", async () => {
   const w: any = {};
   new Function("window", await r.text())(w);
   expect(typeof w.StrataMd.parseMarkdown).toBe("function");
+  // The browser gets exactly what the tests import: every export of each module (the in-place editor needs hasComment/writeBlock).
+  const mods: [string, any][] = [["StrataMd", await import("./markdown")], ["StrataTheme", await import("./theme")], ["StrataBuilds", await import("./builds")], ["StrataSanitize", await import("./layout-sanitize")]];
+  for (const [g, m] of mods) for (const k of Object.keys(m)) expect([g, k, typeof w[g][k]]).toEqual([g, k, typeof m[k]]);
 });
 
 test("index redirects into the app, keeping the query (?src=…&slide=…)", () => {

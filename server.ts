@@ -47,12 +47,12 @@ export async function saveDeck(root: string, slug: string, { md, layout }: { md:
   return { layout: out };
 }
 
-// The parser as a classic script: window.StrataMd = { parseMarkdown, plainText, insertSlide }.
+// The parser as a classic script: window.StrataMd (all of markdown.ts), plus StrataTheme, StrataBuilds and StrataSanitize.
 export async function mdBundle(root: string): Promise<string> {
   const entry = join(root, "md-entry.ts");
   const r = await Bun.build({
     entrypoints: [entry], format: "iife", minify: false,
-    files: { [entry]: `import { parseMarkdown, plainText, insertSlide } from "./markdown"; window.StrataMd = { parseMarkdown, plainText, insertSlide };` },
+    files: { [entry]: `import * as StrataMd from "./markdown"; import * as StrataTheme from "./theme"; import * as StrataBuilds from "./builds"; import * as StrataSanitize from "./layout-sanitize"; window.StrataMd = StrataMd; window.StrataTheme = StrataTheme; window.StrataBuilds = StrataBuilds; window.StrataSanitize = StrataSanitize;` },
   });
   if (!r.success) throw new Error("md.js: " + r.logs.join("\n"));
   return await r.outputs[0].text();
@@ -84,7 +84,9 @@ export function handler(root: string) {
 }
 
 if (import.meta.main) {
-  const port = Number(process.env.PORT ?? 3067);
-  Bun.serve({ hostname: "127.0.0.1", port, fetch: handler(process.cwd()) });
-  console.log(`Strata dev server: http://127.0.0.1:${port}/`);
+  const opts = { hostname: "127.0.0.1", fetch: handler(process.cwd()) };
+  let server;
+  try { server = Bun.serve({ ...opts, port: Number(process.env.PORT ?? 3067) }); }
+  catch (e: any) { if (e?.code !== "EADDRINUSE") throw e; server = Bun.serve({ ...opts, port: 0 }); }   // taken: let the OS pick a free one
+  console.log(`Strata dev server: http://127.0.0.1:${server.port}/`);
 }
